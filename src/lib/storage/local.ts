@@ -11,7 +11,12 @@ export function getUploadRoot(): string {
 
 export function getPublicUploadUrl(relativePath: string): string {
   const clean = relativePath.replace(/^\/+/, '');
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '').replace(/\/$/, '');
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.SITE_URL ||
+    ''
+  ).replace(/\/$/, '');
   const urlPath = clean.startsWith('uploads/') ? `/${clean}` : `/uploads/${clean}`;
   return siteUrl ? `${siteUrl}${urlPath}` : urlPath;
 }

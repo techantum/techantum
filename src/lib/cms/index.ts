@@ -80,8 +80,15 @@ export const getCmsSnapshot = cache(async (): Promise<CmsSnapshot> => {
 export async function seedMissingCmsEntries() {
   const supabase = createAdminClient();
 
-  await supabase.from('site_branding').upsert({ id: 1, ...defaultBranding });
-  await supabase.from('site_seo').upsert({ id: 1, ...defaultSeo });
+  const { data: brandingRow } = await supabase.from('site_branding').select('id').eq('id', 1).maybeSingle();
+  if (!brandingRow) {
+    await supabase.from('site_branding').insert({ id: 1, ...defaultBranding });
+  }
+
+  const { data: seoRow } = await supabase.from('site_seo').select('id').eq('id', 1).maybeSingle();
+  if (!seoRow) {
+    await supabase.from('site_seo').insert({ id: 1, ...defaultSeo });
+  }
 
   const { data: existing } = await supabase.from('cms_content').select('entry_key');
   const existingKeys = new Set((existing ?? []).map((row) => row.entry_key));

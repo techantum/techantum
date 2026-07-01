@@ -34,6 +34,7 @@ export function middleware(request: NextRequest) {
     "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https: blob:",
+    "media-src 'self' https://*.supabase.co blob: data:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://www.googletagmanager.com",
     "frame-src 'self' https://www.google.com https://pagead2.googlesyndication.com",
