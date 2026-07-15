@@ -20,9 +20,10 @@ type FormData = z.infer<typeof formSchema>;
 
 interface ContactFormProps {
   page: Record<string, unknown>;
+  initialService?: string;
 }
 
-export default function ContactForm({ page }: ContactFormProps) {
+export default function ContactForm({ page, initialService }: ContactFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -36,6 +37,9 @@ export default function ContactForm({ page }: ContactFormProps) {
     reset,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      service: initialService ?? '',
+    },
   });
 
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function ContactForm({ page }: ContactFormProps) {
   };
 
   return (
-    <div className="bg-card rounded-2xl p-8 shadow-sm border border-border">
+    <div className="bg-card rounded-2xl p-5 shadow-sm border border-border">
       <h2 className="font-bricolage text-3xl font-bold text-foreground mb-2">
         {String(page.formTitle)}
       </h2>
@@ -155,7 +159,7 @@ export default function ContactForm({ page }: ContactFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="hidden" aria-hidden="true">
           <label htmlFor="website">Website</label>
           <input
@@ -206,7 +210,7 @@ export default function ContactForm({ page }: ContactFormProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="email" className="block font-inter text-sm font-medium text-foreground mb-2">
               Email Address *

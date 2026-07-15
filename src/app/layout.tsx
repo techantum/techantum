@@ -2,6 +2,8 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import WebVitalsReporter from '@/components/WebVitalsReporter';
+import CustomScripts from '@/components/CustomScripts';
 import ScrollRevealProvider from '@/components/common/ScrollRevealProvider';
 import WhatsAppWidgetLoader from '@/components/common/WhatsAppWidgetLoader';
 import { getBranding, getSeo } from '@/lib/cms';
@@ -14,7 +16,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const [seo, branding] = await Promise.all([getSeo(), getBranding()]);
@@ -35,11 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
     creator: 'TechAntum',
     publisher: 'TechAntum',
     robots: {
-      index: true,
-      follow: true,
+      index: seo.index_site !== false,
+      follow: seo.follow_site !== false,
       googleBot: {
-        index: true,
-        follow: true,
+        index: seo.index_site !== false,
+        follow: seo.follow_site !== false,
         'max-video-preview': -1,
         'max-image-preview': 'large',
         'max-snippet': -1,
@@ -79,6 +81,9 @@ export async function generateMetadata(): Promise<Metadata> {
     verification: {
       google: seo.google_verification || defaultSeo.google_verification,
     },
+    alternates: {
+      canonical: '/',
+    },
   };
 }
 
@@ -87,30 +92,32 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const seo = await getSeo();
+
   return (
     <html lang="en">
       <head>
-        {/* Preconnect to external domains for faster loading */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://assets.mixkit.co" />
         <link rel="dns-prefetch" href="https://assets.mixkit.co" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
-
         <link rel="manifest" href="/site.webmanifest" />
-        {/* Font optimization with font-display swap */}
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
         />
-</head>
+        <CustomScripts html={seo.header_scripts || ''} placement="header" />
+      </head>
       <body className="font-inter">
         <Suspense fallback={null}>
           <GoogleAnalytics />
         </Suspense>
+        <WebVitalsReporter />
         <ScrollRevealProvider />
         {children}
         <WhatsAppWidgetLoader />
+        <CustomScripts html={seo.footer_scripts || ''} placement="footer" />
       </body>
     </html>
   );

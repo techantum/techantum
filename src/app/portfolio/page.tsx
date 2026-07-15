@@ -42,7 +42,7 @@ export default async function PortfolioPage() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-screen pt-20">
+      <main className="page-main">
         <PortfolioHero
           eyebrow={String(hero.eyebrow)}
           title={String(hero.title)}

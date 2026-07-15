@@ -25,6 +25,11 @@ export interface SiteSeo {
   og_image_url: string;
   twitter_handle: string;
   google_verification: string;
+  canonical_host?: 'non-www' | 'www';
+  index_site?: boolean;
+  follow_site?: boolean;
+  header_scripts?: string;
+  footer_scripts?: string;
 }
 
 export interface CmsEntry {

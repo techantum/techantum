@@ -7,7 +7,14 @@ import type { SiteBranding } from '@/lib/cms/types';
 import ContactForm from './components/ContactForm';
 import CompanyInfo from './components/CompanyInfo';
 
-export default async function ContactPage() {
+export default async function ContactPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ service?: string; plan?: string }>;
+}) {
+  const { service, plan } = await searchParams;
+  const initialService = service ?? (plan ? `${service} — ${plan}` : undefined);
+
   const [heroContent, pageContent, branding] = await Promise.all([
     getCmsContent('contact.hero'),
     getCmsContent('contact.page'),
@@ -20,17 +27,17 @@ export default async function ContactPage() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-screen pt-20">
+      <main className="page-main">
         <PageHeroSection
           eyebrow={String(hero.eyebrow)}
           title={String(hero.title)}
           description={String(hero.description)}
         />
-        <div className="py-16 reveal">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 reveal reveal-stagger">
+        <div className="page-section reveal">
+          <div className="page-container">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 reveal reveal-stagger">
               <div className="lg:col-span-2">
-                <ContactForm page={page} />
+                <ContactForm page={page} initialService={initialService} />
               </div>
               <div className="lg:col-span-1">
                 <CompanyInfo page={page} branding={branding as SiteBranding} />

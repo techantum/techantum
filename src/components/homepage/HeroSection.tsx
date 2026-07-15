@@ -4,7 +4,7 @@ import Icon from '@/components/ui/AppIcon';
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <AppImage
@@ -23,7 +23,7 @@ export default function HeroSection() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <div className="relative z-10 page-container grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
         {/* Left: Headline */}
         <div className="lg:col-span-7">
           <div className="flex items-center gap-3 mb-6">
@@ -62,7 +62,7 @@ export default function HeroSection() {
 
         {/* Right: Info Card */}
         <div className="lg:col-span-5 lg:col-start-8">
-          <div className="glass-effect p-8 rounded-2xl shadow-xl relative overflow-hidden">
+          <div className="glass-effect p-5 rounded-2xl shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />
             
             <div className="relative z-10">

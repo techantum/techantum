@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatCard from '@/components/admin/AdminStatCard';
 
 interface Submission {
   id: string;
@@ -28,10 +30,7 @@ const STATUS_OPTIONS = [
 ];
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('en-IN', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+  return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export default function SubmissionsAdminPage() {
@@ -59,6 +58,12 @@ export default function SubmissionsAdminPage() {
     load();
   }, [load]);
 
+  const counts = {
+    pending: submissions.filter((s) => s.status === 'pending').length,
+    contacted: submissions.filter((s) => s.status === 'contacted').length,
+    closed: submissions.filter((s) => s.status === 'closed').length,
+  };
+
   const updateStatus = async (id: string, status: string) => {
     setUpdating(true);
     try {
@@ -79,12 +84,16 @@ export default function SubmissionsAdminPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-bricolage text-3xl font-bold text-foreground">Leads & Inquiries</h1>
-        <p className="text-muted-foreground mt-1">
-          All form submissions from the homepage hero and contact page.
-        </p>
+    <div className="space-y-6 max-w-5xl">
+      <AdminPageHeader
+        title="Leads"
+        description="Contact form and homepage hero submissions. Update status to track follow-ups and conversions."
+      />
+
+      <div className="grid grid-cols-3 gap-3">
+        <AdminStatCard label="Pending" value={counts.pending} accent="amber" hint="Needs follow-up" />
+        <AdminStatCard label="Contacted" value={counts.contacted} accent="blue" hint="In conversation" />
+        <AdminStatCard label="Closed" value={counts.closed} accent="green" hint="Converted / done" />
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -110,17 +119,17 @@ export default function SubmissionsAdminPage() {
         <button
           type="button"
           onClick={load}
-          className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+          className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted bg-white"
         >
           Refresh
         </button>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <p className="text-muted-foreground">Loading leads…</p>
       ) : submissions.length === 0 ? (
         <p className="text-muted-foreground bg-white rounded-xl border border-border p-8 text-center">
-          No submissions yet.
+          No leads match your filters.
         </p>
       ) : (
         <div className="bg-white rounded-xl border border-border overflow-hidden">
@@ -151,7 +160,7 @@ export default function SubmissionsAdminPage() {
                           {row.phone}
                         </a>
                       </td>
-                      <td className="px-4 py-3">{row.product_category}</td>
+                      <td className="px-4 py-3 max-w-[180px] truncate">{row.product_category}</td>
                       <td className="px-4 py-3">
                         {SOURCE_LABELS[row.source || 'contact_page'] || row.source || '—'}
                       </td>
@@ -166,9 +175,9 @@ export default function SubmissionsAdminPage() {
                         <button
                           type="button"
                           onClick={() => setSelected(row)}
-                          className="text-primary text-sm hover:underline"
+                          className="text-primary text-sm font-medium hover:underline"
                         >
-                          View
+                          Details
                         </button>
                       </td>
                     </tr>
@@ -181,11 +190,15 @@ export default function SubmissionsAdminPage() {
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-xl border border-border max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between sticky top-0 bg-white">
               <h2 className="font-semibold text-lg">Lead details</h2>
-              <button type="button" onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="h-8 w-8 rounded-lg border border-border text-muted-foreground hover:bg-muted"
+              >
                 ✕
               </button>
             </div>
@@ -198,13 +211,11 @@ export default function SubmissionsAdminPage() {
               {selected.country && selected.country !== '—' && (
                 <DetailRow label="Country" value={selected.country} />
               )}
-              <DetailRow label="Service" value={selected.product_category} />
+              <DetailRow label="Service interest" value={selected.product_category} />
               {selected.quantity && selected.quantity !== '—' && (
-                <DetailRow label="Timeline / Budget" value={selected.quantity} />
+                <DetailRow label="Timeline / budget" value={selected.quantity} />
               )}
-              {selected.message && (
-                <DetailRow label="Message" value={selected.message} />
-              )}
+              {selected.message && <DetailRow label="Message" value={selected.message} />}
               <DetailRow
                 label="Source"
                 value={SOURCE_LABELS[selected.source || 'contact_page'] || selected.source || '—'}
@@ -233,15 +244,7 @@ export default function SubmissionsAdminPage() {
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  href,
-}: {
-  label: string;
-  value: string;
-  href?: string;
-}) {
+function DetailRow({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground mb-0.5">{label}</p>

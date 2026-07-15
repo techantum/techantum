@@ -47,9 +47,9 @@ export default function ProductCategoriesSection() {
 
 
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             Our Products
           </span>
@@ -61,7 +61,7 @@ export default function ProductCategoriesSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories?.map((category) =>
           <Link
             key={category?.id}

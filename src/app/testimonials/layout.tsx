@@ -1,19 +1,13 @@
-import { Metadata } from 'next';
+import { buildPageMetadata } from '@/lib/seo/page-metadata';
 
-export const metadata: Metadata = {
-  title: 'Client Testimonials - What Our Clients Say',
-  description:
-    'Read real testimonials from TechAntum clients. Discover why businesses trust us for website, web app, and mobile application development.',
-  alternates: {
-    canonical: '/testimonials',
-  },
-  openGraph: {
-    title: 'Client Testimonials | TechAntum',
+export async function generateMetadata() {
+  return buildPageMetadata({
+    path: '/testimonials',
+    title: 'Client Testimonials - What Our Clients Say',
     description:
-      'Trusted by businesses worldwide. Read what our clients say about our development services.',
-    url: '/testimonials',
-  },
-};
+      'Read real testimonials from TechAntum clients. Discover why businesses trust us for website, web app, and mobile application development.',
+  });
+}
 
 export default function TestimonialsLayout({ children }: { children: React.ReactNode }) {
   return children;

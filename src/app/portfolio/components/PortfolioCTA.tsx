@@ -11,8 +11,8 @@ interface PortfolioCTAProps {
 
 export default function PortfolioCTA({ title, description, ctaText, ctaHref }: PortfolioCTAProps) {
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="page-section reveal">
+      <div className="page-container">
         <div className="bg-brand-gradient rounded-3xl p-10 md:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 grid-bg opacity-30" />
           <div className="relative z-10">

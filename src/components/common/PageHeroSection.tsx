@@ -20,11 +20,11 @@ export default function PageHeroSection({
 
   return (
     <section className={sectionClass}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-        <span className="font-inter text-xs sm:text-sm uppercase tracking-wider text-primary font-medium mb-3 sm:mb-4 block">
+      <div className="page-container text-center">
+        <span className="font-inter text-xs sm:text-sm uppercase tracking-wider text-primary font-medium mb-2 sm:mb-3 block">
           {eyebrow}
         </span>
-        <h1 className="font-bricolage text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6">
+        <h1 className="font-bricolage text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-3 sm:mb-4">
           {title}
         </h1>
         {description && (

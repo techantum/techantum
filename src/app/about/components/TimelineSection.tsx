@@ -8,9 +8,9 @@ interface TimelineSectionProps {
 
 export default function TimelineSection({ title, description, milestones }: TimelineSectionProps) {
   return (
-    <section className="py-16 bg-muted reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section bg-muted reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <h2 className="font-bricolage text-4xl md:text-5xl font-bold text-foreground mb-4">
             {title}
           </h2>
@@ -29,7 +29,7 @@ export default function TimelineSection({ title, description, milestones }: Time
                 }`}
               >
                 <div className={`flex-1 ${index % 2 === 0 ? 'md:text-right' : 'md:text-left'}`}>
-                  <div className="bg-card p-6 rounded-2xl shadow-sm border border-border inline-block">
+                  <div className="bg-card p-4 rounded-2xl shadow-sm border border-border inline-block">
                     <span className="font-bricolage text-2xl font-bold text-primary">{milestone.year}</span>
                     <h3 className="font-bricolage text-xl font-semibold text-foreground mt-2 mb-1">
                       {milestone.title}

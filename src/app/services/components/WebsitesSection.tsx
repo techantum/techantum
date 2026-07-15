@@ -55,9 +55,9 @@ export default function WebsitesSection() {
   ];
 
   return (
-    <section id="websites" className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-12">
+    <section id="websites" className="page-section reveal">
+      <div className="page-container">
+        <div className="mb-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
               <Icon name="ComputerDesktopIcon" size={24} className="text-primary" />
@@ -71,7 +71,7 @@ export default function WebsitesSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 reveal reveal-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal reveal-stagger">
           {offerings.map((item) => (
             <div
               key={item.id}

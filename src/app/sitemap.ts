@@ -1,24 +1,19 @@
 import { MetadataRoute } from 'next';
+import { getSeo } from '@/lib/cms';
+import { resolveSiteUrl } from '@/lib/cms/url';
+import { buildSitemapEntries, getIndexedPagePaths } from '@/lib/seo/routes';
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://techantum.com';
+export const revalidate = 300;
 
-  const routes = [
-    '',
-    '/services',
-    '/portfolio',
-    '/about',
-    '/contact',
-    '/blog',
-    '/testimonials',
-    '/privacy-policy',
-    '/terms-of-service',
-  ];
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const [seo, extraPaths] = await Promise.all([getSeo(), getIndexedPagePaths()]);
+  const baseUrl = resolveSiteUrl(seo.site_url).replace(/\/$/, '');
+  const entries = buildSitemapEntries(extraPaths);
 
-  return routes.map((route) => ({
-    url: `${baseUrl}${route}`,
+  return entries.map((entry) => ({
+    url: `${baseUrl}${entry.path === '' ? '' : entry.path}`,
     lastModified: new Date(),
-    changeFrequency: route === '' ? 'daily' : route === '/blog' ? 'weekly' : route === '/services' ? 'weekly' : 'monthly',
-    priority: route === '' ? 1.0 : route === '/services' ? 0.9 : 0.8,
+    changeFrequency: entry.changeFrequency,
+    priority: entry.priority,
   }));
 }

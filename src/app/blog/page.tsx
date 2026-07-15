@@ -19,7 +19,7 @@ export default async function BlogPage() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-screen pt-20">
+      <main className="page-main">
         <PageHeroSection
           eyebrow={String(hero.eyebrow)}
           title={String(hero.title)}

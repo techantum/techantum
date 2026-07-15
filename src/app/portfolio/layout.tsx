@@ -1,19 +1,13 @@
-import { Metadata } from 'next';
+import { buildPageMetadata } from '@/lib/seo/page-metadata';
 
-export const metadata: Metadata = {
-  title: 'Portfolio - Industries & Projects',
-  description:
-    'Explore TechAntum portfolio across B2B, Finance, Education, Healthcare, Real Estate, Pharma, Industrial, Infrastructure, Mining, and Food & Beverage.',
-  alternates: {
-    canonical: '/portfolio',
-  },
-  openGraph: {
-    title: 'Portfolio | TechAntum',
+export async function generateMetadata() {
+  return buildPageMetadata({
+    path: '/portfolio',
+    title: 'Portfolio - Industries & Projects',
     description:
-      'Featured projects and industry solutions delivered by TechAntum across multiple sectors.',
-    url: '/portfolio',
-  },
-};
+      'Explore TechAntum portfolio across B2B, Finance, Education, Healthcare, Real Estate, Pharma, Industrial, Infrastructure, Mining, and Food & Beverage.',
+  });
+}
 
 export default function PortfolioLayout({ children }: { children: React.ReactNode }) {
   return children;

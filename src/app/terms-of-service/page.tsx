@@ -1,4 +1,3 @@
-'use client';
 import SiteHeader from '@/components/common/SiteHeader';
 import SiteFooter from '@/components/common/SiteFooter';
 import Link from 'next/link';
@@ -20,7 +19,7 @@ export default function TermsOfServicePage() {
               <h1 className="font-bricolage font-bold text-4xl md:text-5xl text-foreground mb-6">
                 Terms & Conditions
               </h1>
-              <p className="font-inter text-lg text-muted-foreground mb-8">
+              <p className="font-inter text-lg text-muted-foreground mb-5">
                 Welcome to TechAntum! These terms outline our commitment to providing you with exceptional software development services. We believe in transparency, fairness, and building long-term partnerships with our clients.
               </p>
               <p className="font-inter text-sm text-muted-foreground">
@@ -31,7 +30,7 @@ export default function TermsOfServicePage() {
         </section>
 
         {/* Content Section */}
-        <section className="py-16">
+        <section className="page-section">
           <div className="max-w-4xl mx-auto px-6 space-y-12">
             {/* Introduction */}
             <div className="reveal">
@@ -53,7 +52,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 About TechAntum
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   These terms apply to all services provided by:
                 </p>
@@ -73,7 +72,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Acceptance of Terms
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   By using our website, requesting quotes, or placing orders, you acknowledge that you have read, understood, and agree to be bound by these terms and conditions. If you're acting on behalf of a company or organization, you confirm that you have the authority to bind that entity to these terms.
                 </p>
@@ -88,8 +87,8 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Our Services
               </h2>
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-xl p-6">
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-xl text-foreground mb-3">
                     What We Offer
                   </h3>
@@ -112,7 +111,7 @@ export default function TermsOfServicePage() {
                   </div>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-xl text-foreground mb-3">
                     Service Quality & Deliverables
                   </h3>
@@ -146,7 +145,7 @@ export default function TermsOfServicePage() {
                 How Projects Work
               </h2>
               <div className="space-y-4">
-                <div className="bg-card border border-border rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-3 flex items-center gap-2">
                     <span className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">1</span>
                     Quote Request
@@ -156,7 +155,7 @@ export default function TermsOfServicePage() {
                   </p>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-3 flex items-center gap-2">
                     <span className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">2</span>
                     Quote Acceptance
@@ -166,7 +165,7 @@ export default function TermsOfServicePage() {
                   </p>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-3 flex items-center gap-2">
                     <span className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">3</span>
                     Order Processing
@@ -176,7 +175,7 @@ export default function TermsOfServicePage() {
                   </p>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-3 flex items-center gap-2">
                     <span className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">4</span>
                     Delivery & Receipt
@@ -193,7 +192,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Pricing & Payment Terms
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <h3 className="font-bricolage font-semibold text-xl text-foreground mb-4">
                   Transparent Pricing
                 </h3>
@@ -273,7 +272,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Delivery & Shipping
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   We offer flexible delivery options to meet your business needs:
                 </p>
@@ -340,7 +339,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Returns, Refunds & Disputes
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <h3 className="font-bricolage font-semibold text-xl text-foreground mb-4">
                   Our Commitment to Satisfaction
                 </h3>
@@ -394,7 +393,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Limitation of Liability
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   While we take every precaution to ensure quality and reliability, our liability is limited as follows:
                 </p>
@@ -427,7 +426,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Intellectual Property Rights
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   All content on this website—including text, images, logos, graphics, and design elements—is owned by TechAntum or our licensors and protected by copyright, trademark, and other intellectual property laws.
                 </p>
@@ -442,7 +441,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Confidentiality & Non-Disclosure
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   During our business relationship, both parties may share confidential information including pricing, specifications, business strategies, and customer data. We agree to:
                 </p>
@@ -475,7 +474,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Governing Law & Dispute Resolution
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   These terms are governed by the laws of the Netherlands. Any disputes will be resolved through:
                 </p>
@@ -510,7 +509,7 @@ export default function TermsOfServicePage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Severability & Entire Agreement
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   If any provision of these terms is found to be invalid or unenforceable, the remaining provisions will continue in full force and effect. The invalid provision will be replaced with a valid one that most closely matches the original intent.
                 </p>
@@ -570,7 +569,7 @@ export default function TermsOfServicePage() {
 
             {/* CTA Section */}
             <div className="reveal">
-              <div className="bg-card border border-border rounded-2xl p-8 text-center">
+              <div className="bg-card border border-border rounded-2xl p-5 text-center">
                 <h2 className="font-bricolage font-bold text-2xl text-foreground mb-4">
                   Ready to Start Your Project?
                 </h2>

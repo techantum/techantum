@@ -1,19 +1,13 @@
-import { Metadata } from 'next';
+import { buildPageMetadata } from '@/lib/seo/page-metadata';
 
-export const metadata: Metadata = {
-  title: 'Our Services - Websites, Web Apps & Mobile Applications',
-  description:
-    'Explore TechAntum services: website development, custom web applications, and mobile app development for iOS and Android.',
-  alternates: {
-    canonical: '/services',
-  },
-  openGraph: {
-    title: 'Services | TechAntum',
+export async function generateMetadata() {
+  return buildPageMetadata({
+    path: '/services',
+    title: 'Our Services - Websites, Web Apps & Mobile Applications',
     description:
-      'Website development, web applications, and mobile app development services.',
-    url: '/services',
-  },
-};
+      'Explore TechAntum services: website development, custom web applications, and mobile app development for iOS and Android.',
+  });
+}
 
 export default function ServicesLayout({ children }: { children: React.ReactNode }) {
   return children;

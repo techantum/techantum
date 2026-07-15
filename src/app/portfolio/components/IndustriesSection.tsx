@@ -20,9 +20,9 @@ export default function IndustriesSection({
   industries,
 }: IndustriesSectionProps) {
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             {eyebrow}
           </span>

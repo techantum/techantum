@@ -25,7 +25,7 @@ export default async function TestimonialsPage() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-screen pt-20">
+      <main className="page-main">
         <PageHeroSection eyebrow={hero.eyebrow} title={hero.title} description={hero.description} />
         <TestimonialsPageClient testimonials={testimonials} />
       </main>

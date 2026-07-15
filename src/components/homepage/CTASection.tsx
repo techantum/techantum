@@ -3,9 +3,9 @@ import Icon from '@/components/ui/AppIcon';
 
 export default function CTASection() {
   return (
-    <section className="py-16 bg-primary reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+    <section className="page-section bg-primary reveal">
+      <div className="page-container">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-center">
           {/* Left: Content */}
           <div>
             <h2 className="font-bricolage text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
@@ -14,7 +14,7 @@ export default function CTASection() {
             <p className="font-inter text-lg text-primary-foreground/90 mb-6">
               Get a customized quote for your wholesale supply needs. Our team will respond within 24 hours with competitive pricing and delivery options.
             </p>
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-3 mb-5">
               <li className="flex items-center gap-3 text-primary-foreground">
                 <Icon name="CheckCircleIcon" size={24} variant="solid" />
                 <span className="font-inter text-base">Competitive wholesale pricing</span>

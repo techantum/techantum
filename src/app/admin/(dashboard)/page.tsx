@@ -2,97 +2,139 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatCard from '@/components/admin/AdminStatCard';
+
+interface RecentLead {
+  id: string;
+  name: string;
+  product_category: string;
+  source: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface DashboardStats {
+  pages: number;
+  publicRoutes: number;
+  contentSections: number;
+  totalLeads: number;
+  pendingLeads: number;
+  contactedLeads: number;
+  closedLeads: number;
+  activeRedirects: number;
+  indexedPages: number;
+  recentLeads: RecentLead[];
+  analytics: { configured: boolean; note: string };
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  homepage_hero: 'Homepage hero',
+  contact_page: 'Contact page',
+};
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState({ contentEntries: 0, formSubmissions: 0 });
-  const [seeding, setSeeding] = useState(false);
-  const [message, setMessage] = useState('');
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/admin/stats')
       .then((r) => r.json())
       .then(setStats)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    setMessage('');
-    try {
-      const res = await fetch('/api/admin/seed', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Seed failed');
-      setMessage(`Seeded ${data.entries} content entries successfully.`);
-      const statsRes = await fetch('/api/admin/stats');
-      setStats(await statsRes.json());
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Seed failed');
-    } finally {
-      setSeeding(false);
-    }
-  };
+  if (loading) return <p className="text-muted-foreground">Loading dashboard…</p>;
+  if (!stats) return <p className="text-muted-foreground">Unable to load dashboard stats.</p>;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-bricolage text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Manage your website content, branding, and SEO.</p>
+    <div className="space-y-8 max-w-6xl">
+      <AdminPageHeader
+        title="Overview"
+        description="Key metrics for your website, leads, and SEO at a glance."
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <AdminStatCard label="Website pages" value={stats.pages} hint={`${stats.publicRoutes} public URLs`} />
+        <AdminStatCard label="Content sections" value={stats.contentSections} hint="Editable in Site Content" />
+        <AdminStatCard
+          label="Total leads"
+          value={stats.totalLeads}
+          hint="All form submissions"
+        />
+        <AdminStatCard
+          label="Page views"
+          value={stats.analytics.configured ? 'GA active' : '—'}
+          hint={stats.analytics.note}
+        />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-border p-6">
-          <p className="text-sm text-muted-foreground">Content entries</p>
-          <p className="text-3xl font-bold text-foreground mt-1">{stats.contentEntries}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-border p-6">
-          <p className="text-sm text-muted-foreground">Form submissions</p>
-          <p className="text-3xl font-bold text-foreground mt-1">{stats.formSubmissions}</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <AdminStatCard label="Pending" value={stats.pendingLeads} accent="amber" hint="Needs follow-up" />
+        <AdminStatCard label="Contacted" value={stats.contactedLeads} accent="blue" hint="In progress" />
+        <AdminStatCard label="Closed" value={stats.closedLeads} accent="green" hint="Converted / resolved" />
+        <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} />
       </div>
 
-      <div className="bg-white rounded-xl border border-border p-6 space-y-4">
-        <h2 className="font-semibold text-foreground">Quick actions</h2>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/submissions"
-            className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15"
-          >
-            View leads ({stats.formSubmissions})
-          </Link>
-          <Link
-            href="/admin/branding"
-            className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15"
-          >
-            Edit branding
-          </Link>
-          <Link
-            href="/admin/seo"
-            className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15"
-          >
-            Edit SEO
-          </Link>
-          <Link
-            href="/admin/content"
-            className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15"
-          >
-            Edit content
-          </Link>
-          <button
-            type="button"
-            onClick={handleSeed}
-            disabled={seeding}
-            className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-60"
-          >
-            {seeding ? 'Seeding…' : 'Seed database from site content'}
-          </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-border overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">Recent leads</h2>
+            <Link href="/admin/submissions" className="text-sm text-primary hover:underline">
+              View all
+            </Link>
+          </div>
+          {stats.recentLeads.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-muted-foreground text-center">No leads yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {stats.recentLeads.map((lead) => (
+                <li key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm text-foreground truncate">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {lead.product_category} · {SOURCE_LABELS[lead.source || ''] || lead.source || 'Contact'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-xs capitalize text-muted-foreground">{lead.status}</span>
+                    <p className="text-xs text-muted-foreground">{formatDate(lead.created_at)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        {message && <p className="text-sm text-muted-foreground">{message}</p>}
-        {stats.contentEntries === 0 && (
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-            No CMS content in the database yet. Click &quot;Seed database from site content&quot; to import
-            the current website copy without changing it.
+
+        <div className="bg-white rounded-xl border border-border p-5 space-y-3">
+          <h2 className="font-semibold text-foreground">Quick links</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { href: '/admin/content', label: 'Edit site content' },
+              { href: '/admin/submissions', label: 'Manage leads' },
+              { href: '/admin/branding', label: 'Update branding' },
+              { href: '/admin/seo', label: 'Global SEO' },
+              { href: '/admin/page-seo', label: 'Page indexing' },
+              { href: '/admin/redirects', label: 'URL redirects' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted/50 transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground pt-2">
+            Marketing pages use static generation (SSG) with 5-minute revalidation for fast performance.
           </p>
-        )}
+        </div>
       </div>
     </div>
   );

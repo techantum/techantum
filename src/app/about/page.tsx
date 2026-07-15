@@ -24,7 +24,7 @@ export default async function AboutPage() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-screen pt-20">
+      <main className="page-main">
         <AboutHero
           eyebrow={String(hero.eyebrow)}
           title={String(hero.title)}

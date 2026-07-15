@@ -76,6 +76,11 @@ export const defaultSeo: SiteSeo = {
   og_image_url: '/assets/images/Hollandse-1771785992532.jpg',
   twitter_handle: '@techantum',
   google_verification: '84fEzKK3VJyDEiImbSG47IfCyMdkEGZlbFIo-QeHi6U',
+  canonical_host: 'non-www',
+  index_site: true,
+  follow_site: true,
+  header_scripts: '',
+  footer_scripts: '',
 };
 
 export const defaultCmsEntries: CmsEntry[] = [
@@ -98,7 +103,19 @@ export const defaultCmsEntries: CmsEntry[] = [
       secondaryCta: 'View Services',
       secondaryCtaHref: '/services',
       cardTitle: 'How can we help you?',
-      serviceOptions: ['Websites', 'Web Applications', 'Mobile Applications', 'Multiple Services', 'Other'],
+      serviceOptions: [
+        'Website Development — Launch',
+        'Website Development — Growth',
+        'Website Development — Enterprise',
+        'Web Application — Accelerate',
+        'Web Application — Scale',
+        'Web Application — Transform',
+        'Mobile App — Launch',
+        'Mobile App — Growth',
+        'Mobile App — Enterprise',
+        'Multiple Services',
+        'Other',
+      ],
     },
   },
   {
@@ -150,29 +167,29 @@ export const defaultCmsEntries: CmsEntry[] = [
       services: [
         {
           id: 'svc_websites',
-          name: 'Websites',
-          description: 'Corporate sites, landing pages, e-commerce, and CMS-powered websites',
+          name: 'Website Development',
+          description: 'Launch, Growth & Enterprise packages for businesses that need to convert visitors into customers',
           image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f',
           imageAlt: 'Modern responsive website displayed on laptop screen',
-          href: '/services#websites',
+          href: '/services/website-development',
           icon: 'ComputerDesktopIcon',
         },
         {
           id: 'svc_webapps',
-          name: 'Web Applications',
-          description: 'Custom web apps, SaaS platforms, dashboards, and API development',
+          name: 'Web Application Development',
+          description: 'Accelerate, Scale & Transform packages to automate operations and scale your business',
           image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c',
           imageAlt: 'Developer building a custom web application',
-          href: '/services#web-applications',
+          href: '/services/web-application-development',
           icon: 'CodeBracketIcon',
         },
         {
           id: 'svc_mobile',
-          name: 'Mobile Applications',
-          description: 'Native and cross-platform iOS & Android apps with full lifecycle support',
+          name: 'Mobile Application Development',
+          description: 'Launch, Growth & Enterprise mobile packages to put your business in customers\' pockets',
           image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c',
           imageAlt: 'Mobile applications running on smartphone devices',
-          href: '/services#mobile-applications',
+          href: '/services/mobile-application-development',
           icon: 'DevicePhoneMobileIcon',
         },
       ],
@@ -331,9 +348,9 @@ export const defaultCmsEntries: CmsEntry[] = [
     label: 'Services Hero',
     content: {
       eyebrow: 'Our Services',
-      title: 'Digital Solutions That Scale',
+      title: 'Digital Solutions That Drive Business Growth',
       description:
-        'From stunning websites to powerful web and mobile applications — TechAntum delivers end-to-end software development for businesses ready to grow.',
+        'Three divisions. Nine packages. From Launch to Enterprise — Techantum delivers websites, web applications, and mobile apps that convert visitors, automate operations, and engage customers.',
     },
   },
   {
@@ -451,6 +468,20 @@ export const defaultCmsEntries: CmsEntry[] = [
       title: 'Trusted by Businesses Worldwide',
       description:
         'Read what our clients say about working with TechAntum on websites, web apps, and mobile applications.',
+    },
+  },
+  {
+    entry_key: 'site.not_found',
+    entry_group: 'site',
+    label: '404 Page',
+    content: {
+      code: '404',
+      title: 'Page Not Found',
+      description: "The page you're looking for doesn't exist or has been moved. Let's get you back on track.",
+      primaryCta: 'Back to Home',
+      primaryCtaHref: '/',
+      secondaryCta: 'Go Back',
+      showContactLink: true,
     },
   },
 ];

@@ -4,9 +4,9 @@ import type { BlogArticle } from '@/lib/blog-data';
 
 export default function BlogGrid({ articles }: { articles: BlogArticle[] }) {
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 reveal reveal-stagger">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 reveal reveal-stagger">
           {articles.map((article) => (
             <article
               key={article.id}

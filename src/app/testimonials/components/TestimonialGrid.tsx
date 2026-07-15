@@ -19,21 +19,21 @@ export default function TestimonialGrid({
   });
 
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="page-section reveal">
+      <div className="page-container">
         {filteredTestimonials.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8">
             <p className="font-inter text-lg text-muted-foreground">
               No testimonials found for the selected filters.
             </p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 reveal reveal-stagger">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal reveal-stagger">
               {filteredTestimonials.map((testimonial) => (
                 <div
                   key={testimonial.id}
-                  className="bg-card p-6 rounded-2xl shadow-sm border border-border hover-lift"
+                  className="bg-card p-4 rounded-2xl shadow-sm border border-border hover-lift"
                 >
                   <div className="flex items-center gap-1 mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (

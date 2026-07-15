@@ -17,8 +17,8 @@ export default function TestimonialFilters({
 
   return (
     <section className="py-8 bg-muted reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex flex-col md:flex-row gap-6">
+      <div className="page-container">
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <label className="font-inter text-sm font-medium text-foreground mb-2 block">
               Filter by Service

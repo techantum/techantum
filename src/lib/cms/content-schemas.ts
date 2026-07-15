@@ -1,5 +1,13 @@
 export type FieldType = 'text' | 'textarea' | 'richtext' | 'number' | 'url' | 'image' | 'video' | 'lines';
 
+/** CMS field labels with semantic heading levels for SEO */
+export const headingLabel = {
+  h1: (text: string) => `${text} (H1)`,
+  h2: (text: string) => `${text} (H2)`,
+  h3: (text: string) => `${text} (H3)`,
+  h4: (text: string) => `${text} (H4)`,
+};
+
 export interface FieldSchema {
   key: string;
   label: string;
@@ -37,8 +45,8 @@ export const contentSchemas: Record<string, ContentSchema> = {
       { key: 'heroVideoFallbackUrl', label: 'Hero video fallback URL', type: 'url', placeholder: 'Optional backup video URL' },
       { key: 'badge', label: 'Badge', type: 'text' },
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'titleLine1', label: 'Title line 1', type: 'text' },
-      { key: 'titleLine2', label: 'Title line 2', type: 'text' },
+      { key: 'titleLine1', label: headingLabel.h1('Title line 1'), type: 'text' },
+      { key: 'titleLine2', label: headingLabel.h1('Title line 2'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
       { key: 'primaryCta', label: 'Primary button text', type: 'text' },
       { key: 'primaryCtaHref', label: 'Primary button link', type: 'text' },
@@ -67,7 +75,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   'homepage.services': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
     arrays: [
@@ -90,7 +98,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   'homepage.tech_stack': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
     arrays: [
@@ -109,7 +117,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   'homepage.testimonials': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
     arrays: [
@@ -131,7 +139,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   },
   'homepage.faq': {
     fields: [
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
     arrays: [
@@ -148,7 +156,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   },
   'homepage.cta': {
     fields: [
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
       { key: 'primaryCta', label: 'Button text', type: 'text' },
       { key: 'primaryCtaHref', label: 'Button link', type: 'text' },
@@ -173,48 +181,29 @@ export const contentSchemas: Record<string, ContentSchema> = {
           { key: 'bgClass', label: 'Background CSS class', type: 'text' },
         ],
       },
-      {
-        key: 'sections',
-        label: 'Service sections',
-        itemLabel: 'Section',
-        fields: [
-          { key: 'id', label: 'ID', type: 'text' },
-          { key: 'anchor', label: 'Anchor (URL hash)', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
-          { key: 'description', label: 'Description', type: 'textarea' },
-          { key: 'icon', label: 'Icon name', type: 'text' },
-          { key: 'iconClass', label: 'Icon CSS class', type: 'text' },
-          { key: 'bgClass', label: 'Background CSS class', type: 'text' },
-        ],
-        subArrays: [
-          {
-            key: 'offerings',
-            label: 'Offerings',
-            itemLabel: 'Offering',
-            fields: [
-              { key: 'id', label: 'ID', type: 'text' },
-              { key: 'name', label: 'Name', type: 'text' },
-              { key: 'description', label: 'Description', type: 'textarea' },
-              { key: 'image', label: 'Image', type: 'image' },
-              { key: 'imageAlt', label: 'Image alt text', type: 'text' },
-              { key: 'features', label: 'Features (one per line)', type: 'lines' },
-            ],
-          },
-        ],
-      },
     ],
   },
   'services.hero': {
     fields: [
-      { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'eyebrow', label: 'Eyebrow (caption)', type: 'text' },
+      { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
+    ],
+  },
+  'site.not_found': {
+    fields: [
+      { key: 'code', label: 'Error code', type: 'text' },
+      { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
+      { key: 'description', label: 'Description', type: 'textarea' },
+      { key: 'primaryCta', label: 'Primary button text', type: 'text' },
+      { key: 'primaryCtaHref', label: 'Primary button link', type: 'text' },
+      { key: 'secondaryCta', label: 'Secondary button text', type: 'text' },
     ],
   },
   'about.hero': {
     fields: [
-      { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'eyebrow', label: 'Eyebrow (caption)', type: 'text' },
+      { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
       { key: 'description2', label: 'Description paragraph 2', type: 'richtext' },
       { key: 'image', label: 'Hero image', type: 'image' },
@@ -245,7 +234,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
           { key: 'icon', label: 'Icon name', type: 'text' },
           { key: 'iconClass', label: 'Icon CSS class', type: 'text' },
           { key: 'bgClass', label: 'Background CSS class', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
           { key: 'description', label: 'Description', type: 'textarea' },
         ],
       },
@@ -256,7 +245,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
           { key: 'year', label: 'Year', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
           { key: 'description', label: 'Description', type: 'textarea' },
         ],
       },
@@ -267,7 +256,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
           { key: 'icon', label: 'Icon name', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
           { key: 'description', label: 'Description', type: 'textarea' },
         ],
       },
@@ -288,7 +277,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
         itemLabel: 'Certification',
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
           { key: 'description', label: 'Description', type: 'text' },
           { key: 'icon', label: 'Icon name', type: 'text' },
         ],
@@ -308,7 +297,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   'portfolio.hero': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
   },
@@ -352,7 +341,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
         itemLabel: 'Group',
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
           { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
         ],
         subArrays: [
@@ -374,7 +363,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   },
   'portfolio.cta': {
     fields: [
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
       { key: 'ctaText', label: 'Button text', type: 'text' },
       { key: 'ctaHref', label: 'Button link', type: 'text' },
@@ -415,14 +404,14 @@ export const contentSchemas: Record<string, ContentSchema> = {
   'contact.hero': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
   },
   'blog.hero': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
   },
@@ -434,7 +423,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
         itemLabel: 'Article',
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
-          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
           { key: 'excerpt', label: 'Excerpt', type: 'textarea' },
           { key: 'image', label: 'Image', type: 'image' },
           { key: 'imageAlt', label: 'Image alt text', type: 'text' },
@@ -467,7 +456,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
   'testimonials.hero': {
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
-      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
     ],
   },

@@ -11,9 +11,15 @@ export const defaultContactPageContent = {
   privacyNote:
     "By submitting this form, you agree to our Privacy Policy. We'll only use your information to respond to your inquiry.",
   serviceOptions: [
-    'Websites',
-    'Web Applications',
-    'Mobile Applications',
+    'Website Development — Launch',
+    'Website Development — Growth',
+    'Website Development — Enterprise',
+    'Web Application — Accelerate',
+    'Web Application — Scale',
+    'Web Application — Transform',
+    'Mobile App — Launch',
+    'Mobile App — Growth',
+    'Mobile App — Enterprise',
     'Multiple Services',
     'Other',
   ],

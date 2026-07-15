@@ -115,7 +115,8 @@ function AppImage({
         );
     }
 
-    // For local images and data URLs, use Next.js Image component
+    // For local images, use Next.js Image optimization (skip SVG)
+    const isSvg = imageSrc.endsWith('.svg') || imageSrc.includes('.svg?');
     const imageProps = {
         src: imageSrc,
         alt,
@@ -124,7 +125,7 @@ function AppImage({
         quality,
         placeholder,
         blurDataURL,
-        unoptimized: true,
+        unoptimized: isSvg,
         onError: handleError,
         onLoad: handleLoad,
         onClick,

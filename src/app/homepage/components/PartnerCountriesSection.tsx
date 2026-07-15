@@ -1,5 +1,3 @@
-'use client';
-
 import { getDefaultContent } from '@/lib/cms/default-content';
 
 export default function PartnerCountriesSection({ content }: { content?: Record<string, unknown> }) {
@@ -8,8 +6,8 @@ export default function PartnerCountriesSection({ content }: { content?: Record<
   const duplicatedTechnologies = [...technologies, ...technologies];
 
   return (
-    <section className="py-16 bg-muted/50 overflow-hidden reveal grid-bg">
-      <div className="max-w-7xl mx-auto px-6 mb-8">
+    <section className="page-section bg-muted/50 overflow-hidden reveal grid-bg">
+      <div className="page-container mb-5">
         <div className="text-center">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             {String(data.eyebrow)}
@@ -19,7 +17,7 @@ export default function PartnerCountriesSection({ content }: { content?: Record<
         </div>
       </div>
       <div className="relative">
-        <div className="flex gap-8 animate-marquee">
+        <div className="flex gap-5 animate-marquee">
           {duplicatedTechnologies.map((tech, index) => (
             <div
               key={`${tech.id}_${index}`}

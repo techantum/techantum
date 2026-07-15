@@ -96,7 +96,7 @@ export default async function ServiceCategoryPage({
     <>
       <SiteHeader />
       <ServicePageClient>
-        <main className="min-h-screen pt-20">
+        <main className="page-main">
           <SectionComponent />
         </main>
       </ServicePageClient>

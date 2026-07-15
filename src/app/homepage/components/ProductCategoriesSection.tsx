@@ -16,9 +16,9 @@ export default function ProductCategoriesSection({ content }: { content?: Record
   }>) || [];
 
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             {String(data.eyebrow)}
           </span>
@@ -26,7 +26,7 @@ export default function ProductCategoriesSection({ content }: { content?: Record
           <CmsRichText html={String(data.description ?? '')} className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal reveal-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal reveal-stagger">
           {services.map((service) => (
             <Link
               key={service.id}

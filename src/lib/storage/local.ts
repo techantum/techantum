@@ -24,7 +24,7 @@ export function getPublicUploadUrl(relativePath: string): string {
 export async function saveUploadedFile(
   subdir: string,
   fileName: string,
-  file: File
+  file: File | Blob
 ): Promise<{ relativePath: string; url: string }> {
   const root = getUploadRoot();
   const dir = path.join(root, subdir);

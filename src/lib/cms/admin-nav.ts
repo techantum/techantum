@@ -1,4 +1,16 @@
-/** Ordered page groups for admin sidebar dropdowns. */
+/** Primary admin sidebar navigation */
+export const ADMIN_MAIN_NAV = [
+  { href: '/admin', label: 'Overview', exact: true },
+  { href: '/admin/content', label: 'Site Content' },
+  { href: '/admin/submissions', label: 'Leads' },
+  { href: '/admin/marketing', label: 'Marketing' },
+  { href: '/admin/seo', label: 'SEO' },
+  { href: '/admin/page-seo', label: 'Page Indexing' },
+  { href: '/admin/redirects', label: 'Redirects' },
+  { href: '/admin/branding', label: 'Branding' },
+] as const;
+
+/** Ordered page groups for legacy content index grouping. */
 export const CMS_PAGE_GROUPS: { id: string; label: string }[] = [
   { id: 'homepage', label: 'Homepage' },
   { id: 'services', label: 'Services' },
@@ -7,6 +19,7 @@ export const CMS_PAGE_GROUPS: { id: string; label: string }[] = [
   { id: 'about', label: 'About' },
   { id: 'contact', label: 'Contact' },
   { id: 'blog', label: 'Blog' },
+  { id: 'site', label: 'Site Settings' },
 ];
 
 export function getPageGroupLabel(groupId: string): string {

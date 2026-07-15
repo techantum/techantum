@@ -16,8 +16,8 @@ export default function CompanyInfo({ page, branding }: CompanyInfoProps) {
   const businessHours = (page.businessHours as BusinessHour[]) ?? [];
 
   return (
-    <div className="space-y-6">
-      <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
+    <div className="space-y-4">
+      <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
         <h3 className="font-bricolage text-xl font-semibold text-foreground mb-4">
           {String(page.sidebarContactTitle)}
         </h3>
@@ -75,7 +75,7 @@ export default function CompanyInfo({ page, branding }: CompanyInfoProps) {
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
+      <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
         <h3 className="font-bricolage text-xl font-semibold text-foreground mb-4">
           {String(page.sidebarAboutTitle)}
         </h3>
@@ -101,7 +101,7 @@ export default function CompanyInfo({ page, branding }: CompanyInfoProps) {
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
+      <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
         <h3 className="font-bricolage text-xl font-semibold text-foreground mb-4">
           {String(page.sidebarHoursTitle)}
         </h3>

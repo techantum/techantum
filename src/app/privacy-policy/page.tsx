@@ -1,4 +1,3 @@
-'use client';
 import SiteHeader from '@/components/common/SiteHeader';
 import SiteFooter from '@/components/common/SiteFooter';
 import Link from 'next/link';
@@ -20,7 +19,7 @@ export default function PrivacyPolicyPage() {
               <h1 className="font-bricolage font-bold text-4xl md:text-5xl text-foreground mb-6">
                 Privacy Policy
               </h1>
-              <p className="font-inter text-lg text-muted-foreground mb-8">
+              <p className="font-inter text-lg text-muted-foreground mb-5">
                 At TechAntum, we're committed to protecting your personal information while delivering exceptional digital services. This policy explains how we handle your data with care and transparency.
               </p>
               <p className="font-inter text-sm text-muted-foreground">
@@ -31,7 +30,7 @@ export default function PrivacyPolicyPage() {
         </section>
 
         {/* Content Section */}
-        <section className="py-16">
+        <section className="page-section">
           <div className="max-w-4xl mx-auto px-6 space-y-12">
             {/* Introduction */}
             <div className="reveal">
@@ -53,8 +52,8 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 What Information Do We Collect?
               </h2>
-              <div className="space-y-6">
-                <div className="bg-card border border-border rounded-xl p-6">
+              <div className="space-y-4">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-xl text-foreground mb-3 flex items-center gap-2">
                     <Icon name="UserIcon" size={20} className="text-primary" />
                     Personal Information You Share With Us
@@ -82,7 +81,7 @@ export default function PrivacyPolicyPage() {
                   </ul>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-bricolage font-semibold text-xl text-foreground mb-3 flex items-center gap-2">
                     <Icon name="ComputerDesktopIcon" size={20} className="text-primary" />
                     Information We Collect Automatically
@@ -117,7 +116,7 @@ export default function PrivacyPolicyPage() {
                 Every piece of information you share helps us deliver better service and products tailored to your business needs:
               </p>
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-xl p-6">
+                <div className="bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-xl p-4">
                   <Icon name="ClipboardDocumentCheckIcon" size={24} className="text-primary mb-3" />
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-2">
                     Processing Your Orders
@@ -127,7 +126,7 @@ export default function PrivacyPolicyPage() {
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-secondary/5 to-transparent border border-border rounded-xl p-6">
+                <div className="bg-gradient-to-br from-secondary/5 to-transparent border border-border rounded-xl p-4">
                   <Icon name="ChatBubbleLeftRightIcon" size={24} className="text-primary mb-3" />
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-2">
                     Customer Communication
@@ -137,7 +136,7 @@ export default function PrivacyPolicyPage() {
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-xl p-6">
+                <div className="bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-xl p-4">
                   <Icon name="ChartBarIcon" size={24} className="text-primary mb-3" />
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-2">
                     Service Improvement
@@ -147,7 +146,7 @@ export default function PrivacyPolicyPage() {
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-secondary/5 to-transparent border border-border rounded-xl p-6">
+                <div className="bg-gradient-to-br from-secondary/5 to-transparent border border-border rounded-xl p-4">
                   <Icon name="ShieldCheckIcon" size={24} className="text-primary mb-3" />
                   <h3 className="font-bricolage font-semibold text-lg text-foreground mb-2">
                     Legal Compliance
@@ -164,7 +163,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Who We Share Your Information With
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   We respect your privacy and only share your information when absolutely necessary:
                 </p>
@@ -240,7 +239,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Your Privacy Rights
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   Under GDPR and Dutch privacy law, you have complete control over your personal information:
                 </p>
@@ -302,7 +301,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Our Use of Cookies
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   Cookies are small text files that help us provide you with a better browsing experience. We use:
                 </p>
@@ -331,7 +330,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 How Long We Keep Your Data
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   We only retain your information for as long as necessary:
                 </p>
@@ -357,7 +356,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 International Data Transfers
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground">
                   While we primarily operate within the European Union, some of our service providers may be located outside the EU. When we transfer data internationally, we ensure appropriate safeguards are in place, including standard contractual clauses approved by the European Commission and adequacy decisions recognizing equivalent data protection standards.
                 </p>
@@ -369,7 +368,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-bricolage font-bold text-2xl text-foreground mb-6">
                 Changes to This Privacy Policy
               </h2>
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4">
                 <p className="font-inter text-muted-foreground mb-4">
                   As our business grows and regulations evolve, we may update this privacy policy from time to time. When we make significant changes, we'll notify you by:
                 </p>
@@ -443,7 +442,7 @@ export default function PrivacyPolicyPage() {
 
             {/* CTA Section */}
             <div className="reveal">
-              <div className="bg-card border border-border rounded-2xl p-8 text-center">
+              <div className="bg-card border border-border rounded-2xl p-5 text-center">
                 <h2 className="font-bricolage font-bold text-2xl text-foreground mb-4">
                   Ready to Build Something Great?
                 </h2>

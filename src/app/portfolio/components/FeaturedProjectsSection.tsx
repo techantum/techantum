@@ -15,9 +15,9 @@ export default function FeaturedProjectsSection({
   projects,
 }: FeaturedProjectsSectionProps) {
   return (
-    <section id="featured" className="py-16 bg-muted/50 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section id="featured" className="page-section bg-muted/50 reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             {eyebrow}
           </span>
@@ -27,13 +27,13 @@ export default function FeaturedProjectsSection({
           <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">{description}</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 reveal reveal-stagger">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 reveal reveal-stagger">
           {projects.map((project) => (
             <article
               key={project.id}
               className="bg-card rounded-2xl border border-border overflow-hidden hover-lift glow-card flex flex-col"
             >
-              <div className="bg-brand-gradient p-6">
+              <div className="bg-brand-gradient p-4">
                 <span className="font-inter text-xs font-medium text-primary-foreground/80 uppercase tracking-wider">
                   {project.category}
                 </span>

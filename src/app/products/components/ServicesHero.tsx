@@ -1,7 +1,7 @@
 export default function ServicesHero() {
   return (
-    <section className="py-16 bg-gradient-to-b from-muted to-background">
-      <div className="max-w-7xl mx-auto px-6 text-center">
+    <section className="page-section bg-gradient-to-b from-muted to-background">
+      <div className="page-container text-center">
         <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-4 block">
           Product Catalog
         </span>

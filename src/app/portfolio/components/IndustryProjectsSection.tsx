@@ -21,9 +21,9 @@ export default function IndustryProjectsSection({
   groups: IndustryProjectGroup[];
 }) {
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             Industry Solutions
           </span>
@@ -43,11 +43,11 @@ export default function IndustryProjectsSection({
                 <p className="font-inter text-base text-muted-foreground max-w-3xl">{group.subtitle}</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 reveal reveal-stagger">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal reveal-stagger">
                 {group.projects.map((project) => (
                   <article
                     key={project.id}
-                    className="bg-card rounded-2xl border border-border p-6 hover-lift glow-card"
+                    className="bg-card rounded-2xl border border-border p-4 hover-lift glow-card"
                   >
                     <h4 className="font-bricolage text-xl font-semibold text-foreground mb-2">
                       {project.name}

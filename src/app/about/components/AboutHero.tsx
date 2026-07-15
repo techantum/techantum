@@ -20,8 +20,8 @@ export default function AboutHero({
 }: AboutHeroProps) {
   return (
     <section className="bg-gradient-to-b from-muted to-background page-hero reveal">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <div className="page-container">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-12 items-center">
           <div className="reveal-left">
             <span className="font-inter text-xs sm:text-sm uppercase tracking-wider text-primary font-medium mb-3 sm:mb-4 block">
               {eyebrow}

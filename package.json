@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p ${PORT:-3005}",
-    "dev:clean": "rm -rf .next && next dev -p ${PORT:-3005}",
+    "dev": "next dev -p 3005",
+    "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3005",
     "build": "next build",
     "start": "next start -p 4028",
     "lint": "next lint",
@@ -31,6 +31,8 @@
     "react-hook-form": "^7.71.1",
     "recharts": "^2.15.2",
     "resend": "^6.16.0",
+    "sharp": "^0.35.3",
+    "web-vitals": "^5.3.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

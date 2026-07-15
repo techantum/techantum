@@ -33,13 +33,13 @@ export default function StatsSection() {
   ]
 
   return (
-    <section className="py-16 bg-muted reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <section className="page-section bg-muted reveal">
+      <div className="page-container">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat) => (
             <div
               key={stat.id}
-              className="bg-card p-6 rounded-2xl shadow-sm hover-lift border border-border"
+              className="bg-card p-4 rounded-2xl shadow-sm hover-lift border border-border"
             >
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Icon name={stat.icon as any} size={24} className="text-primary" />

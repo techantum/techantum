@@ -15,7 +15,7 @@ export default function HeroSection({ content }: { content?: Record<string, unkn
   ]);
 
   return (
-    <section className="relative min-h-[85vh] md:min-h-screen flex items-center overflow-hidden pt-20 sm:pt-24 pb-28 md:pb-20">
+    <section className="relative min-h-[85vh] md:min-h-screen flex items-center overflow-hidden pt-16 sm:pt-20 pb-20 md:pb-14">
       <HeroVideoBackground
         videoUrl={String(data.heroVideoUrl || '')}
         posterUrl={String(data.heroPosterUrl || '')}
@@ -23,13 +23,13 @@ export default function HeroSection({ content }: { content?: Record<string, unkn
       />
       <div className="absolute inset-0 bg-black/55 z-[1]" aria-hidden />
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+      <div className="relative z-10 w-full page-container py-8 md:py-8">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full mb-6 border border-white/25 bg-black/30">
           <span className="w-2 h-2 rounded-full bg-secondary shrink-0" />
           <span className="font-inter text-xs font-medium text-white">{String(data.badge)}</span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start lg:items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start lg:items-center">
           <div className="lg:col-span-7">
             <div className="flex items-center gap-3 mb-4 sm:mb-6">
               <span className="h-px w-8 sm:w-12 bg-secondary shrink-0" />

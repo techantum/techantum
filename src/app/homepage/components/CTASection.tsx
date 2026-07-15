@@ -15,16 +15,16 @@ export default function CTASection({
   const bullets = (data.bullets as string[]) || [];
 
   return (
-    <section className="py-16 bg-brand-gradient reveal relative overflow-hidden">
+    <section className="page-section bg-brand-gradient reveal relative overflow-hidden">
       <div className="absolute inset-0 bg-black/20" aria-hidden />
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+      <div className="page-container relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-center">
           <div>
             <h2 className="font-bricolage text-4xl md:text-5xl font-bold text-white mb-4">
               {String(data.title)}
             </h2>
             <CmsRichText html={String(data.description ?? '')} className="font-inter text-lg text-white mb-6" />
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-3 mb-5">
               {bullets.map((bullet) => (
                 <li key={bullet} className="flex items-center gap-3 text-white">
                   <Icon name="CheckCircleIcon" size={24} variant="solid" className="text-white shrink-0" />

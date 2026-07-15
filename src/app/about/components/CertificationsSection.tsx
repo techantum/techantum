@@ -23,20 +23,20 @@ export default function CertificationsSection({
   glanceStats,
 }: CertificationsSectionProps) {
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <h2 className="font-bricolage text-4xl md:text-5xl font-bold text-foreground mb-4">
             {title}
           </h2>
           <p className="font-inter text-lg text-muted-foreground max-w-3xl mx-auto">{description}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 reveal reveal-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 reveal reveal-stagger">
           {certifications.map((cert) => (
             <div
               key={cert.id}
-              className="bg-card p-6 rounded-2xl shadow-sm border border-border hover-lift text-center"
+              className="bg-card p-4 rounded-2xl shadow-sm border border-border hover-lift text-center"
             >
               <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Icon name={cert.icon as any} size={32} className="text-primary" />
@@ -49,9 +49,9 @@ export default function CertificationsSection({
           ))}
         </div>
 
-        <div className="mt-12 bg-card p-8 rounded-2xl shadow-sm border border-border text-center">
+        <div className="mt-12 bg-card p-5 rounded-2xl shadow-sm border border-border text-center">
           <h3 className="font-bricolage text-2xl font-semibold text-foreground mb-4">{glanceTitle}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {glanceStats.map((stat) => (
               <div key={stat.id}>
                 <p className="font-inter text-sm text-muted-foreground mb-1">{stat.label}</p>

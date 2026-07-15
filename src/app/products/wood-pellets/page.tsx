@@ -65,7 +65,7 @@ export default function WoodPelletsPage() {
       <SiteHeader />
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 pt-28 pb-12 md:pt-32 md:pb-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="page-container">
           <div className="flex items-center gap-3 mb-6">
             <Link href="/products" className="text-muted-foreground hover:text-foreground transition-colors">
               <Icon name="ArrowLeftIcon" size={20} />
@@ -92,9 +92,9 @@ export default function WoodPelletsPage() {
         </div>
       </section>
       {/* Products Grid */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <section className="page-section">
+        <div className="page-container">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {products?.map((product) =>
             <div
               key={product?.id}

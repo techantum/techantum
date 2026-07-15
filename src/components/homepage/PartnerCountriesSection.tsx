@@ -1,4 +1,3 @@
-'use client';
 export default function PartnerCountriesSection() {
   const countries = [
     { id: 'country_belgium', name: 'Belgium', flag: '🇧🇪' },
@@ -15,8 +14,8 @@ export default function PartnerCountriesSection() {
   const duplicatedCountries = [...countries, ...countries]
 
   return (
-    <section className="py-16 bg-muted overflow-hidden reveal">
-      <div className="max-w-7xl mx-auto px-6 mb-8">
+    <section className="page-section bg-muted overflow-hidden reveal">
+      <div className="page-container mb-5">
         <div className="text-center">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             Global Reach
@@ -31,7 +30,7 @@ export default function PartnerCountriesSection() {
       </div>
       {/* Marquee */}
       <div className="relative">
-        <div className="flex gap-8 animate-marquee">
+        <div className="flex gap-5 animate-marquee">
           {duplicatedCountries?.map((country, index) => (
             <div
               key={`${country?.id}_${index}`}

@@ -41,9 +41,9 @@ export default function TestimonialsSection() {
   ]
 
   return (
-    <section className="py-16 reveal">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+    <section className="page-section reveal">
+      <div className="page-container">
+        <div className="text-center mb-5">
           <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
             Customer Reviews
           </span>
@@ -55,11 +55,11 @@ export default function TestimonialsSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           {testimonials?.map((testimonial) => (
             <div
               key={testimonial?.id}
-              className="bg-card p-6 rounded-2xl shadow-sm border border-border hover-lift"
+              className="bg-card p-4 rounded-2xl shadow-sm border border-border hover-lift"
             >
               {/* Rating */}
               <div className="flex items-center gap-1 mb-4">

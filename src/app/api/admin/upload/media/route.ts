@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { saveUploadedFile } from '@/lib/storage/local';
+import { optimizeUploadedImage } from '@/lib/image/optimize';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
@@ -61,8 +62,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Image must be under 10 MB' }, { status: 400 });
     }
 
-    const fileName = `${isVideo ? 'video' : 'image'}-${Date.now()}.${ext}`;
-    const { url } = await saveUploadedFile('cms', fileName, file);
+    const fileName = `${isVideo ? 'video' : 'image'}-${Date.now()}`;
+    let saveName = `${fileName}.${ext}`;
+    let fileToSave: File | Blob = file;
+
+    if (isImage && contentType !== 'image/svg+xml' && contentType !== 'image/gif') {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const optimized = await optimizeUploadedImage(buffer, contentType);
+      saveName = `${fileName}.${optimized.ext}`;
+      fileToSave = new Blob([optimized.buffer], { type: optimized.contentType });
+    }
+
+    const { url } = await saveUploadedFile('cms', saveName, fileToSave as File);
 
     return NextResponse.json({
       url,

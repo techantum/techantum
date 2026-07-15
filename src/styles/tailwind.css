@@ -104,10 +104,27 @@
     }
   }
 
-  /* Page heroes — always visible, offset for fixed header */
-  .page-hero {
-    @apply pt-24 pb-12 md:pt-28 md:pb-16;
-  }
+    /* Page heroes — always visible, offset for fixed header */
+    .page-hero {
+      @apply pt-20 pb-8 md:pt-24 md:pb-10;
+    }
+
+    /* Shared section rhythm — tighter vertical spacing site-wide */
+    .page-section {
+      @apply py-8 md:py-10;
+    }
+
+    .page-section-muted {
+      @apply py-8 md:py-10 bg-muted/50;
+    }
+
+    .page-main {
+      @apply min-h-screen pt-16;
+    }
+
+    .page-container {
+      @apply max-w-7xl mx-auto px-4 sm:px-5;
+    }
 
   .page-hero.reveal {
     opacity: 1;
