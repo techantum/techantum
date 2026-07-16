@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { defaultSeo, normalizeSiteSeo } from '@/lib/cms/default-content';
+import { revalidateAllMarketingPages } from '@/lib/seo/revalidation';
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -56,5 +57,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  revalidateAllMarketingPages();
   return NextResponse.json(normalizeSiteSeo(data || defaultSeo));
 }

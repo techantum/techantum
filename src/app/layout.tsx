@@ -20,6 +20,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/** Shared marketing layout — static shell with ISR (admin routes opt out via force-dynamic). */
 export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {

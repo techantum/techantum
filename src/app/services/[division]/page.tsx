@@ -10,6 +10,8 @@ import {
   type DivisionSlug,
 } from '@/lib/service-packages-data';
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
 export const revalidate = 300;
 
 export function generateStaticParams() {

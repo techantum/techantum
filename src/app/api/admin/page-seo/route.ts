@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { revalidatePublicPaths } from '@/lib/seo/revalidation';
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -35,5 +36,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (data?.path) revalidatePublicPaths([data.path]);
   return NextResponse.json(data);
 }

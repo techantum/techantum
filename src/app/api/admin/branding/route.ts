@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { defaultBranding, normalizeSiteBranding } from '@/lib/cms/default-content';
 import type { SiteBranding } from '@/lib/cms/types';
+import { revalidateAllMarketingPages } from '@/lib/seo/revalidation';
 
 const BRANDING_KEYS: (keyof SiteBranding)[] = [
   'company_name',
@@ -73,5 +74,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  revalidateAllMarketingPages();
   return NextResponse.json(normalizeSiteBranding(data ?? undefined));
 }

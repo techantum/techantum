@@ -7,14 +7,11 @@ import type { SiteBranding } from '@/lib/cms/types';
 import ContactForm from './components/ContactForm';
 import CompanyInfo from './components/CompanyInfo';
 
-export default async function ContactPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ service?: string; plan?: string }>;
-}) {
-  const { service, plan } = await searchParams;
-  const initialService = service ?? (plan ? `${service} — ${plan}` : undefined);
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
 
+export default async function ContactPage() {
   const [heroContent, pageContent, branding] = await Promise.all([
     getCmsContent('contact.hero'),
     getCmsContent('contact.page'),
@@ -37,7 +34,7 @@ export default async function ContactPage({
           <div className="page-container">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 reveal reveal-stagger">
               <div className="lg:col-span-2">
-                <ContactForm page={page} initialService={initialService} />
+                <ContactForm page={page} />
               </div>
               <div className="lg:col-span-1">
                 <CompanyInfo page={page} branding={branding as SiteBranding} />

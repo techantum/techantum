@@ -10,6 +10,10 @@ import ValuesSection from './components/ValuesSection';
 import PartnerCountriesGrid from './components/PartnerCountriesGrid';
 import CertificationsSection from './components/CertificationsSection';
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 type AboutPageContent = typeof defaultAboutPageContent;
 
 export default async function AboutPage() {

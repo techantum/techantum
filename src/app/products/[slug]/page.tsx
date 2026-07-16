@@ -48,6 +48,10 @@ const serviceCategories: Record<string, {
 
 const validSlugs = Object.keys(serviceCategories);
 
+/** Legacy product paths — SSG at build time. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 export function generateStaticParams() {
   return validSlugs.map((slug) => ({ slug }));
 }

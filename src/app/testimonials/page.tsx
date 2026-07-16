@@ -6,6 +6,10 @@ import { mergeCmsContent } from '@/lib/cms/default-content';
 import type { TestimonialItem } from '@/lib/testimonials-data';
 import TestimonialsPageClient from './TestimonialsPageClient';
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 export default async function TestimonialsPage() {
   const [heroContent, pageContent] = await Promise.all([
     getCmsContent('testimonials.hero'),

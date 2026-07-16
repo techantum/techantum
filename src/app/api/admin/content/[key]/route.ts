@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getDefaultContent } from '@/lib/cms/default-content';
+import { revalidateAfterCmsUpdate } from '@/lib/seo/revalidation';
 
 export async function GET(
   _request: Request,
@@ -49,5 +50,6 @@ export async function PUT(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  revalidateAfterCmsUpdate(decodedKey);
   return NextResponse.json(data);
 }
