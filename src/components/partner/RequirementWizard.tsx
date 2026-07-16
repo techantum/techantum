@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
-import WizardFieldGrid from '@/components/partner/WizardFieldGrid';
+import EngagementTypeSelector from '@/components/partner/EngagementTypeSelector';
 import type { PartnerQuestion } from '@/lib/partner/catalog';
 import { WIZARD_STEPS } from '@/lib/partner/catalog';
 import {
@@ -28,6 +28,7 @@ interface RequirementWizardProps {
   initialCategoryId?: string;
   initialPackageId?: string;
   initialRequirementId?: string;
+  initialEngagement?: string;
 }
 
 export default function RequirementWizard({
@@ -36,6 +37,7 @@ export default function RequirementWizard({
   initialCategoryId,
   initialPackageId,
   initialRequirementId,
+  initialEngagement,
 }: RequirementWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -45,7 +47,7 @@ export default function RequirementWizard({
   const [requirementId, setRequirementId] = useState(initialRequirementId ?? '');
   const [divisionSlug, setDivisionSlug] = useState(initialDivision ?? '');
   const [planSlug, setPlanSlug] = useState(initialPlan ?? '');
-  const [engagementType, setEngagementType] = useState<string>('');
+  const [engagementType, setEngagementType] = useState<string>(initialEngagement ?? '');
   const [answers, setAnswers] = useState<Record<string, unknown>>({ modules: [] });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -79,9 +81,10 @@ export default function RequirementWizard({
   }, [divisionSlug, initialDivision, initialPlan, planSlug]);
 
   useEffect(() => {
-    if (!divisionSlug) return;
+    if (!divisionSlug && !engagementType) return;
     setQuestionsLoading(true);
-    const params = new URLSearchParams({ division: divisionSlug });
+    const params = new URLSearchParams();
+    if (divisionSlug) params.set('division', divisionSlug);
     if (engagementType) params.set('engagement', engagementType);
     fetch(`/api/partner/questions?${params}`)
       .then((r) => r.json())
@@ -89,6 +92,15 @@ export default function RequirementWizard({
       .catch(() => setQuestions([]))
       .finally(() => setQuestionsLoading(false));
   }, [divisionSlug, engagementType]);
+
+  const handleEngagementChange = (slug: string) => {
+    setEngagementType(slug);
+    const groups =
+      FUNCTIONAL_GROUPS[slug ? normalizeServiceType(slug) : normalizeServiceType(divisionSlug)] ??
+      FUNCTIONAL_GROUPS.website ??
+      ['General'];
+    setFunctionalGroup(groups[0] ?? 'General');
+  };
 
   useEffect(() => {
     if (!initialRequirementId) return;
@@ -213,10 +225,24 @@ export default function RequirementWizard({
       if (!confirmed) return { confirmed: 'Please confirm the information is accurate' };
       return {};
     }
+    if (step === 3 && engagementType) return {};
     const stepErrors = validateStepAnswers(questions, answers, step);
     if (!planSlug || !divisionSlug) stepErrors.package = 'Select a service package before continuing';
     return stepErrors;
   };
+
+  const goBack = () => {
+    setStep((s) => {
+      if (s === 4 && engagementType) return 2;
+      return Math.max(1, s - 1);
+    });
+  };
+
+  useEffect(() => {
+    if (engagementType && step === 3) setStep(4);
+  }, [engagementType, step]);
+
+  const isStepSkipped = (wizardStep: number) => wizardStep === 3 && !!engagementType;
 
   const goNext = async () => {
     const stepErrors = validateCurrentStep();
@@ -231,7 +257,9 @@ export default function RequirementWizard({
     }
     setErrors({});
     if (step < 5) await saveDraft();
-    setStep((s) => Math.min(5, s + 1));
+    let next = step + 1;
+    if (engagementType && next === 3) next = 4;
+    setStep(Math.min(5, next));
   };
 
   const handleSubmit = async () => {
@@ -296,34 +324,40 @@ export default function RequirementWizard({
     {
       title: 'Project Details',
       step: 2,
-      items: getVisibleQuestions(questions, answers, 2).map((q) => ({
-        label: q.label,
-        value: formatAnswer(q),
-      })),
-    },
-    {
-      title: 'Modules & Features',
-      step: 3,
       items: [
-        { label: 'Service', value: serviceInfo?.name ?? selectedCategory?.name ?? '—' },
-        { label: 'Package', value: selectedPackage?.name ?? '—' },
-        ...(selectedPackage?.includes && selectedPackage.includes.length > 0
-          ? [{ label: 'Plan Includes', value: selectedPackage.includes.slice(0, 8).join(', ') + (selectedPackage.includes.length > 8 ? '…' : '') }]
-          : []),
-        { label: 'Selected Modules', value: selectedModules.join(', ') || '—' },
         ...(engagementType
           ? [{
               label: 'Requirement Type',
               value: ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name ?? engagementType,
             }]
           : []),
-        ...(customRequirements
-          ? [{ label: 'Additional Notes', value: customRequirements }]
-          : []),
+        ...getVisibleQuestions(questions, answers, 2).map((q) => ({
+          label: q.label,
+          value: formatAnswer(q),
+        })),
       ],
     },
+    ...(!engagementType
+      ? [{
+          title: 'Modules & Features',
+          step: 3,
+          items: [
+            { label: 'Service', value: serviceInfo?.name ?? selectedCategory?.name ?? '—' },
+            { label: 'Package', value: selectedPackage?.name ?? '—' },
+            ...(selectedPackage?.includes && selectedPackage.includes.length > 0
+              ? [{ label: 'Plan Includes', value: selectedPackage.includes.slice(0, 8).join(', ') + (selectedPackage.includes.length > 8 ? '…' : '') }]
+              : []),
+            { label: 'Selected Modules', value: selectedModules.join(', ') || '—' },
+            ...(customRequirements
+              ? [{ label: 'Additional Notes', value: customRequirements }]
+              : []),
+          ],
+        }]
+      : []),
     {
-      title: 'Functional Requirements',
+      title: engagementType
+        ? `${ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name ?? 'Focused'} Requirements`
+        : 'Functional Requirements',
       step: 4,
       items: getVisibleQuestions(questions, answers, 4).map((q) => ({
         label: q.label,
@@ -359,32 +393,46 @@ export default function RequirementWizard({
           </div>
         </div>
 
+        <EngagementTypeSelector
+          value={engagementType}
+          onChange={handleEngagementChange}
+          loading={questionsLoading}
+        />
+
         {/* Stepper */}
         <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-2">
-          {WIZARD_STEPS.map((s, i) => (
+          {WIZARD_STEPS.map((s, i) => {
+            const skipped = isStepSkipped(s.step);
+            return (
             <div key={s.step} className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
-                onClick={() => s.step < step && setStep(s.step)}
-                disabled={s.step > step}
+                onClick={() => {
+                  if (skipped || s.step > step) return;
+                  if (s.step === 3 && engagementType) return;
+                  setStep(s.step);
+                }}
+                disabled={skipped || s.step > step}
                 className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${
                   step === s.step ? 'bg-indigo-50' : ''
-                } ${s.step <= step ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
+                } ${skipped ? 'opacity-40 cursor-not-allowed' : s.step <= step ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
               >
                 <span
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                    step === s.step
+                    skipped
+                      ? 'bg-slate-100 text-slate-300 line-through'
+                      : step === s.step
                       ? 'bg-indigo-600 text-white'
                       : step > s.step
                         ? 'bg-indigo-100 text-indigo-700'
                         : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  {step > s.step ? '✓' : s.step}
+                  {skipped ? '—' : step > s.step ? '✓' : s.step}
                 </span>
                 <span
                   className={`text-xs sm:text-sm whitespace-nowrap ${
-                    step === s.step ? 'font-medium text-slate-900' : 'text-slate-400'
+                    skipped ? 'text-slate-300 line-through' : step === s.step ? 'font-medium text-slate-900' : 'text-slate-400'
                   }`}
                 >
                   {s.label}
@@ -394,7 +442,8 @@ export default function RequirementWizard({
                 <span className="text-slate-300 mx-0.5 hidden sm:inline">→</span>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {!planSlug && (
@@ -448,54 +497,17 @@ export default function RequirementWizard({
               ) : stepQuestions.length === 0 ? (
                 <p className="text-sm text-slate-500 py-8 text-center">No project fields configured.</p>
               ) : (
-                <>
-                  <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                    <p className="text-sm font-medium text-slate-900 mb-1">
-                      Client Requirement Type <span className="text-slate-400 font-normal">(optional)</span>
-                    </p>
-                    <p className="text-xs text-slate-500 mb-3">
-                      Select if this is a focused engagement beyond the standard package — e.g. landing page campaign, website revamp, or app changes.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEngagementType('')}
-                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                          !engagementType
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-                        }`}
-                      >
-                        Standard Package
-                      </button>
-                      {ENGAGEMENT_TYPES.map((eng) => (
-                        <button
-                          key={eng.slug}
-                          type="button"
-                          onClick={() => setEngagementType(eng.slug)}
-                          className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                            engagementType === eng.slug
-                              ? 'bg-indigo-600 text-white border-indigo-600'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-                          }`}
-                        >
-                          {eng.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <WizardFieldGrid
-                    questions={stepQuestions}
-                    answers={answers}
-                    errors={errors}
-                    onChange={setAnswer}
-                  />
-                </>
+                <WizardFieldGrid
+                  questions={stepQuestions}
+                  answers={answers}
+                  errors={errors}
+                  onChange={setAnswer}
+                />
               )}
             </>
           )}
 
-          {step === 3 && (
+          {step === 3 && !engagementType && (
             <>
               <h2 className="font-semibold text-slate-900 mb-1">Modules & Features</h2>
               <p className="text-sm text-slate-500 mb-4">
@@ -618,9 +630,16 @@ export default function RequirementWizard({
                 ))}
               </nav>
               <div className="flex-1 min-w-0">
+                {engagementType && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-1">
+                    {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name}
+                  </p>
+                )}
                 <h2 className="font-semibold text-slate-900 mb-1">{functionalGroup}</h2>
                 <p className="text-sm text-slate-500 mb-4">
-                  Answer the questions below to help us scope the project accurately.
+                  {engagementType
+                    ? 'Answer the questions below specific to this client requirement type.'
+                    : 'Answer the questions below to help us scope the project accurately.'}
                 </p>
                 <WizardFieldGrid
                   questions={stepQuestions}
@@ -698,7 +717,7 @@ export default function RequirementWizard({
             {step > 1 && (
               <button
                 type="button"
-                onClick={() => setStep((s) => s - 1)}
+                onClick={goBack}
                 className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50"
               >
                 Back
@@ -762,6 +781,20 @@ export default function RequirementWizard({
           {errors.package && <p className="text-xs text-red-600 mt-2">{errors.package}</p>}
         </div>
 
+        {engagementType && (
+          <div className="bg-white rounded-xl border border-indigo-200 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-2">
+              Requirement Type
+            </p>
+            <p className="font-semibold text-slate-900">
+              {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name ?? engagementType}
+            </p>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.description}
+            </p>
+          </div>
+        )}
+
         <div className="bg-indigo-50 rounded-xl border border-indigo-100 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-2">
             Why we need this
@@ -776,24 +809,38 @@ export default function RequirementWizard({
             Progress
           </p>
           <ul className="space-y-2">
-            {WIZARD_STEPS.map((s) => (
+            {WIZARD_STEPS.map((s) => {
+              const skipped = isStepSkipped(s.step);
+              return (
               <li key={s.step} className="flex items-center gap-2 text-sm">
                 <span
                   className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step > s.step
+                    skipped
+                      ? 'bg-slate-100 text-slate-300'
+                      : step > s.step
                       ? 'bg-green-100 text-green-700'
                       : step === s.step
                         ? 'bg-indigo-600 text-white'
                         : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  {step > s.step ? '✓' : s.step}
+                  {skipped ? '—' : step > s.step ? '✓' : s.step}
                 </span>
-                <span className={step === s.step ? 'font-medium text-slate-900' : 'text-slate-500'}>
+                <span
+                  className={
+                    skipped
+                      ? 'text-slate-300 line-through'
+                      : step === s.step
+                        ? 'font-medium text-slate-900'
+                        : 'text-slate-500'
+                  }
+                >
                   {s.label}
+                  {skipped ? ' (skipped)' : ''}
                 </span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       </aside>

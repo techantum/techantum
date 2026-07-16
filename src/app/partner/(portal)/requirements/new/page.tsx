@@ -13,6 +13,7 @@ function NewRequirementContent() {
       initialCategoryId={searchParams?.get('category') ?? undefined}
       initialPackageId={searchParams?.get('package') ?? undefined}
       initialRequirementId={searchParams?.get('draft') ?? undefined}
+      initialEngagement={searchParams?.get('engagement') ?? undefined}
     />
   );
 }
