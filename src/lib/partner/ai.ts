@@ -25,6 +25,7 @@ Include these sections:
 18. Future Enhancements
 19. Questions to Clarify
 
+Use clean markdown formatting with tables where appropriate (timeline, deliverables, tech stack, approval sign-off).
 Write in professional business language. Be specific to the client's industry and requirements.`;
 
 export function buildRequirementSummary(
@@ -146,96 +147,118 @@ function buildTemplateSow(
   summary: ReturnType<typeof buildRequirementSummary>
 ): string {
   const modules = summary.selectedModules.length
-    ? summary.selectedModules.map((m) => `- ${m}`).join('\n')
-    : '- To be defined';
+    ? summary.selectedModules
+    : ['To be defined'];
 
-  const features = summary.selectedFeatures
-    .slice(0, 15)
-    .map((f) => `- **${f.key}**: ${JSON.stringify(f.value)}`)
-    .join('\n');
+  const functionalRows = summary.selectedFeatures
+    .slice(0, 20)
+    .map((f) => `| ${f.key.replace(/_/g, ' ')} | ${String(f.value).replace(/\|/g, '/')} |`);
+
+  const functionalTable =
+    functionalRows.length > 0
+      ? `| Requirement | Response |\n|-------------|----------|\n${functionalRows.join('\n')}`
+      : '| Requirement | Response |\n|-------------|----------|\n| Detailed in questionnaire | See partner submission |';
+
+  const moduleTable = `| Module | Included |\n|--------|----------|\n${modules.map((m) => `| ${m} | Yes |`).join('\n')}`;
 
   return `# Scope of Work
 
 **Reference:** ${requirement.reference_id}  
 **Project:** ${requirement.project_name ?? 'Untitled Project'}  
 **Prepared by:** TechAntum Solutions (via Partner Portal)  
-**Date:** ${new Date().toLocaleDateString('en-IN')}
+**Date:** ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
 
 ---
 
 ## 1. Executive Summary
 
-TechAntum Solutions proposes to deliver a ${summary.recommendedService ?? 'digital solution'} for **${summary.businessOverview.company ?? 'the client'}** in the **${summary.businessOverview.industry ?? 'specified'}** industry. This document outlines the scope, deliverables, and approach based on requirements captured through our Partner Discovery Platform.
+TechAntum Solutions proposes to deliver a **${summary.recommendedService ?? 'digital solution'}** for **${summary.businessOverview.company ?? 'the client'}** operating in the **${summary.businessOverview.industry ?? 'specified'}** sector.
 
-**Recommended Package:** ${summary.recommendedPackage ?? 'Custom'}  
-**Estimated Complexity:** ${summary.estimatedComplexity}
+This Scope of Work defines project objectives, deliverables, timeline, and acceptance criteria based on requirements captured through the Partner Discovery Platform.
+
+| Item | Detail |
+|------|--------|
+| Recommended Package | ${summary.recommendedPackage ?? 'Custom'} |
+| Estimated Complexity | ${summary.estimatedComplexity} |
+| Budget | ${summary.projectOverview.budget ?? 'To be confirmed'} |
+| Priority | ${summary.projectOverview.priority ?? 'Medium'} |
+| Target Launch | ${summary.projectOverview.timeline ?? 'To be agreed'} |
 
 ---
 
 ## 2. Business Background
 
-**Client:** ${summary.businessOverview.company ?? '—'}  
-**Industry:** ${summary.businessOverview.industry ?? '—'}  
-**Country:** ${summary.businessOverview.country ?? '—'}
+| Field | Information |
+|-------|-------------|
+| Client Company | ${summary.businessOverview.company ?? '—'} |
+| Industry | ${summary.businessOverview.industry ?? '—'} |
+| Country | ${summary.businessOverview.country ?? '—'} |
+| Business Size | ${String(answers.business_size ?? '—')} |
 
 ### Pain Points
-${summary.businessOverview.painPoints ?? 'As discussed with the partner.'}
+${summary.businessOverview.painPoints ?? 'As discussed with the partner during discovery.'}
 
-### Objectives
-${summary.businessOverview.goals ?? 'As discussed with the partner.'}
+### Business Goals & Expected Outcomes
+${summary.businessOverview.goals ?? 'As discussed with the partner during discovery.'}
 
 ---
 
 ## 3. Project Scope
 
-### Modules Included
-${modules}
+### 3.1 Selected Modules
 
-### Functional Requirements
-${features || 'Detailed in questionnaire responses.'}
+${moduleTable}
+
+### 3.2 Functional Requirements
+
+${functionalTable}
+
+### 3.3 Target Audience
+${String(answers.target_audience ?? 'As specified in discovery questionnaire')}
 
 ---
 
 ## 4. Technology Stack (Recommended)
 
-- **Frontend:** Next.js / React (responsive, SEO-ready)
-- **Backend:** Node.js / Supabase or custom API
-- **Database:** PostgreSQL
-- **Hosting:** Cloud (Vercel / AWS)
-- **Integrations:** As specified in requirements
+| Layer | Recommendation |
+|-------|----------------|
+| Frontend | Next.js / React — responsive, SEO-ready |
+| Backend | Node.js / Supabase or custom REST API |
+| Database | PostgreSQL |
+| Hosting | Cloud (Vercel / AWS / Azure) |
+| Integrations | As specified in requirements |
 
 ---
 
 ## 5. Timeline & Milestones
 
-| Phase | Duration | Deliverable |
-|-------|----------|-------------|
-| Discovery & Design | 2-3 weeks | Wireframes, UI/UX approval |
-| Development | 4-8 weeks | Working application |
-| Testing & QA | 1-2 weeks | Test reports |
-| Deployment | 1 week | Live launch |
-| Training & Handover | 1 week | Documentation & training |
-
-**Budget Range:** ${summary.projectOverview.budget ?? 'To be confirmed'}  
-**Priority:** ${summary.projectOverview.priority ?? 'Medium'}
+| Phase | Duration | Key Deliverable |
+|-------|----------|-----------------|
+| Discovery & Design | 2–3 weeks | Wireframes, UI/UX approval |
+| Development | 4–8 weeks | Working application / website |
+| Testing & QA | 1–2 weeks | Test reports, bug fixes |
+| Deployment | 1 week | Production launch |
+| Training & Handover | 1 week | Documentation & admin training |
 
 ---
 
 ## 6. Deliverables
 
-- Fully functional ${summary.recommendedService ?? 'solution'} per agreed scope
-- Source code and deployment documentation
-- Admin training session
-- Post-launch support per package terms
+| # | Deliverable | Description |
+|---|-------------|-------------|
+| 1 | Solution Build | Fully functional ${summary.recommendedService ?? 'solution'} per agreed scope |
+| 2 | Source Code | Complete codebase with deployment documentation |
+| 3 | Training | Admin / user training session |
+| 4 | Support | Post-launch support per selected package terms |
 
 ---
 
 ## 7. Acceptance Criteria
 
-- All in-scope features functional as per this document
+- All in-scope features functional as documented in Section 3
 - Cross-browser and mobile responsive (where applicable)
 - Performance benchmarks met (Core Web Vitals for web projects)
-- Client sign-off on UAT
+- Successful User Acceptance Testing (UAT) and client sign-off
 
 ---
 
@@ -247,16 +270,18 @@ ${summary.assumptions.map((a) => `- ${a}`).join('\n')}
 
 ## 9. Out of Scope
 
-- Features not listed in this document
-- Third-party subscription/licensing costs
-- Content creation (copy, images) unless specified
-- Ongoing maintenance beyond package support period
+- Features not explicitly listed in this document
+- Third-party subscription and licensing costs
+- Content creation (copy, images, video) unless specified
+- Ongoing maintenance beyond the package support period
 
 ---
 
 ## 10. Risk Analysis
 
-${summary.risks.map((r) => `- ${r}`).join('\n')}
+| Risk | Mitigation |
+|------|------------|
+${summary.risks.map((r) => `| ${r.split(':')[0] || 'General'} | ${r.includes(':') ? r.split(':').slice(1).join(':').trim() : 'Monitor and address during project'} |`).join('\n')}
 
 ---
 
@@ -264,12 +289,12 @@ ${summary.risks.map((r) => `- ${r}`).join('\n')}
 
 | Role | Name | Signature | Date |
 |------|------|-----------|------|
-| Client | | | |
-| TechAntum | | | |
+| Client Representative | | | |
+| TechAntum Solutions | | | |
 | Partner | ${requirement.partners?.contact_name ?? ''} | | |
 
 ---
 
-*Generated by TechAntum Partner Portal — ${requirement.reference_id}*
+*This document was generated by the TechAntum Partner Portal — ${requirement.reference_id}*
 `;
 }

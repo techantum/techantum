@@ -516,6 +516,70 @@ export async function getRequirementDocuments(requirementId: string) {
   return data ?? [];
 }
 
+export interface PartnerDocumentListing {
+  requirementId: string;
+  referenceId: string;
+  projectName: string | null;
+  status: string;
+  version: number;
+  updatedAt: string;
+  pdfUrl: string | null;
+  docxUrl: string | null;
+  proposalSentAt: string | null;
+  proposalAmount: string | null;
+}
+
+export async function listPartnerProposalDocuments(partnerId: string): Promise<PartnerDocumentListing[]> {
+  const supabase = createAdminClient();
+  const { data: requirements } = await supabase
+    .from('partner_requirements')
+    .select(`
+      id, reference_id, project_name, status, updated_at,
+      proposal_sent_at, proposal_amount,
+      partner_generated_documents (doc_type, format, file_url, version, created_at)
+    `)
+    .eq('partner_id', partnerId)
+    .neq('status', 'draft')
+    .order('updated_at', { ascending: false });
+
+  const listings: PartnerDocumentListing[] = [];
+
+  for (const req of requirements ?? []) {
+    const docs = (req.partner_generated_documents ?? []) as {
+      doc_type: string;
+      format: string;
+      file_url: string | null;
+      version: number;
+    }[];
+
+    const sowDocs = docs.filter((d) => d.doc_type === 'sow');
+    if (sowDocs.length === 0 && !req.proposal_sent_at) continue;
+
+    const latestVersion = Math.max(...sowDocs.map((d) => d.version), 0);
+    const pdfUrl =
+      sowDocs.find((d) => d.format === 'pdf' && d.version === latestVersion)?.file_url ?? null;
+    const docxUrl =
+      sowDocs.find((d) => d.format === 'docx' && d.version === latestVersion)?.file_url ?? null;
+
+    if (!pdfUrl && !docxUrl && !req.proposal_sent_at) continue;
+
+    listings.push({
+      requirementId: req.id,
+      referenceId: req.reference_id,
+      projectName: req.project_name,
+      status: req.status,
+      version: latestVersion || 1,
+      updatedAt: req.updated_at,
+      pdfUrl,
+      docxUrl,
+      proposalSentAt: req.proposal_sent_at,
+      proposalAmount: req.proposal_amount,
+    });
+  }
+
+  return listings;
+}
+
 export async function getRequirementAnalytics() {
   const supabase = createAdminClient();
   const { data: requirements } = await supabase

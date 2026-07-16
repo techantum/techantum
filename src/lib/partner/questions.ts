@@ -49,6 +49,15 @@ export function getVisibleQuestions(
     .sort((a, b) => a.display_order - b.display_order);
 }
 
+function isEmpty(val: unknown): boolean {
+  return (
+    val === undefined ||
+    val === null ||
+    val === '' ||
+    (Array.isArray(val) && val.length === 0)
+  );
+}
+
 export function validateStepAnswers(
   questions: PartnerQuestion[],
   answers: Answers,
@@ -58,16 +67,36 @@ export function validateStepAnswers(
   const visible = getVisibleQuestions(questions, answers, wizardStep);
 
   for (const q of visible) {
-    if (!q.is_required) continue;
     const val = answers[q.question_key];
-    const empty =
-      val === undefined ||
-      val === null ||
-      val === '' ||
-      (Array.isArray(val) && val.length === 0);
 
-    if (empty) {
+    if (q.is_required && isEmpty(val)) {
       errors[q.question_key] = `${q.label} is required`;
+      continue;
+    }
+
+    if (isEmpty(val)) continue;
+
+    if (q.question_key === 'client_website' && typeof val === 'string' && val.trim()) {
+      try {
+        const url = val.startsWith('http') ? val : `https://${val}`;
+        new URL(url);
+      } catch {
+        errors[q.question_key] = 'Enter a valid website URL (e.g. https://example.com)';
+      }
+    }
+
+    if (q.question_type === 'number' && val !== undefined && val !== '') {
+      const num = Number(val);
+      if (Number.isNaN(num) || num < 0) {
+        errors[q.question_key] = 'Enter a valid number';
+      }
+    }
+  }
+
+  if (wizardStep === 3) {
+    const modules = answers.modules;
+    if (!Array.isArray(modules) || modules.length === 0) {
+      errors.modules = 'Select at least one module';
     }
   }
 

@@ -70,6 +70,7 @@ export interface PartnerQuestion {
   is_required: boolean;
   display_order: number;
   wizard_step: number;
+  validation_rules?: { group?: string; colSpan?: number; pattern?: string };
   partner_question_conditions?: QuestionCondition[];
 }
 
@@ -88,17 +89,8 @@ export interface GeneratedDocument {
   created_at: string;
 }
 
-export const WIZARD_STEPS = [
-  { step: 1, label: 'Business Details', key: 'business' },
-  { step: 2, label: 'Project Details', key: 'project' },
-  { step: 3, label: 'Modules', key: 'modules' },
-  { step: 4, label: 'Functional Questions', key: 'functional' },
-] as const;
-
-export const MODULE_OPTIONS = [
-  'CMS', 'Blog', 'Career', 'Forms', 'CRM', 'Chat', 'Payments', 'Booking',
-  'Marketplace', 'Vendor Portal', 'Inventory', 'Analytics', 'Admin Panel', 'API Integration',
-];
+export { WIZARD_STEPS, MODULE_OPTIONS } from './wizard-config';
+export type { ModuleOption } from './wizard-config';
 
 export const INDUSTRIES = [
   'Technology', 'Healthcare', 'Education', 'Real Estate', 'Manufacturing',
