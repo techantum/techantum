@@ -21,10 +21,18 @@ type FormData = z.infer<typeof formSchema>;
 
 interface ContactFormProps {
   page: Record<string, unknown>;
-  initialService?: string;
 }
 
-export default function ContactForm({ page, initialService }: ContactFormProps) {
+function serviceFromQuery(): string {
+  if (typeof window === 'undefined') return '';
+  const params = new URLSearchParams(window.location.search);
+  const service = params.get('service');
+  const plan = params.get('plan');
+  if (service && plan) return `${service} — ${plan}`;
+  return service ?? '';
+}
+
+export default function ContactForm({ page }: ContactFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'error'>('idle');
@@ -37,14 +45,18 @@ export default function ContactForm({ page, initialService }: ContactFormProps) 
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      service: initialService ?? '',
+      service: '',
     },
   });
 
   useEffect(() => {
+    const fromQuery = serviceFromQuery();
+    if (fromQuery) setValue('service', fromQuery);
+
     async function fetchCSRFToken() {
       try {
         const response = await fetch('/api/csrf');
@@ -55,7 +67,7 @@ export default function ContactForm({ page, initialService }: ContactFormProps) 
       }
     }
     fetchCSRFToken();
-  }, []);
+  }, [setValue]);
 
   const countries = [
     'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Australia', 'Austria', 'Bangladesh', 'Belgium',

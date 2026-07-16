@@ -13,6 +13,10 @@ import { getBranding, getCmsContent, getSeo } from '@/lib/cms';
 import { getDefaultContent } from '@/lib/cms/default-content';
 import { getSocialSameAsUrls } from '@/lib/seo/marketing-tags';
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 export default async function Homepage() {
   const [branding, seo] = await Promise.all([getBranding(), getSeo()]);
   const [hero, stats, services, techStack, testimonials, faq, cta] = await Promise.all([

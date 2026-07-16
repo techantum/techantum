@@ -6,6 +6,10 @@ import { mergeCmsContent } from '@/lib/cms/default-content';
 import type { BlogArticle } from '@/lib/blog-data';
 import BlogGrid from './components/BlogGrid';
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 export default async function BlogPage() {
   const [heroContent, postsContent] = await Promise.all([
     getCmsContent('blog.hero'),

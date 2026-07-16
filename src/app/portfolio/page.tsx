@@ -28,6 +28,10 @@ interface IndustryProjectGroup {
   }>;
 }
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 export default async function PortfolioPage() {
   const [heroContent, dataContent, ctaContent] = await Promise.all([
     getCmsContent('portfolio.hero'),

@@ -3,6 +3,10 @@ import SiteFooter from '@/components/common/SiteFooter';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 
+/** Public marketing page — SSG at build time, ISR every 5 minutes. */
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 export default function TermsOfServicePage() {
   return (
     <>
