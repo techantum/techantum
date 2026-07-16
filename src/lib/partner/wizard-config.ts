@@ -325,3 +325,173 @@ export function getSupplementaryQuestions(serviceType: string, templateId: strin
     partner_question_conditions: [],
   })) as PartnerQuestion[];
 }
+
+const INDUSTRY_OPTIONS = [
+  'Technology', 'Healthcare', 'Education', 'Real Estate', 'Manufacturing',
+  'Retail', 'Finance', 'Logistics', 'Hospitality', 'Other',
+];
+
+/** Core step 1 & 2 questions — used when DB templates are not seeded */
+const CORE_QUESTION_DEFS: Record<string, Omit<PartnerQuestion, 'id' | 'template_id' | 'wizard_step' | 'display_order'>> = {
+  company_name: {
+    question_key: 'company_name',
+    label: 'Client Company Name',
+    question_type: 'text',
+    options: [],
+    placeholder: 'e.g. ABC Corporation Pvt Ltd',
+    help_text: 'Legal or trading name of your client\'s company',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
+  client_website: {
+    question_key: 'client_website',
+    label: 'Current Website URL',
+    question_type: 'text',
+    options: [],
+    placeholder: 'https://www.client-website.com',
+    help_text: 'Existing website — required for revamp projects',
+    default_value: null,
+    is_required: false,
+    partner_question_conditions: [],
+  },
+  industry: {
+    question_key: 'industry',
+    label: 'Industry',
+    question_type: 'dropdown',
+    options: INDUSTRY_OPTIONS,
+    placeholder: 'Select industry',
+    help_text: 'Primary industry sector of the client business',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
+  pain_points: {
+    question_key: 'pain_points',
+    label: 'Client Pain Points',
+    question_type: 'textarea',
+    options: [],
+    placeholder: 'What problems is the client facing today?',
+    help_text: 'Current challenges, inefficiencies, or gaps driving this project',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
+  goals: {
+    question_key: 'goals',
+    label: 'Business Goals & Expected Outcomes',
+    question_type: 'textarea',
+    options: [],
+    placeholder: 'What does success look like in 3–6 months?',
+    help_text: 'Business outcomes and measurable goals',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
+  project_name: {
+    question_key: 'project_name',
+    label: 'Project Name',
+    question_type: 'text',
+    options: [],
+    placeholder: 'e.g. Q3 Campaign Landing Page',
+    help_text: 'Short name for tracking this requirement',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
+  budget_range: {
+    question_key: 'budget_range',
+    label: 'Estimated Budget',
+    question_type: 'text',
+    options: [],
+    placeholder: 'e.g. ₹3,00,000 or $8,000 USD',
+    help_text: 'Client budget — amount or range in any currency',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
+  expected_launch: {
+    question_key: 'expected_launch',
+    label: 'Expected Launch Date',
+    question_type: 'date',
+    options: [],
+    placeholder: null,
+    help_text: 'Target go-live date',
+    default_value: null,
+    is_required: false,
+    partner_question_conditions: [],
+  },
+  target_audience: {
+    question_key: 'target_audience',
+    label: 'Target Audience',
+    question_type: 'textarea',
+    options: [],
+    placeholder: 'e.g. B2B decision makers, local consumers',
+    help_text: 'Who should this solution speak to?',
+    default_value: null,
+    is_required: false,
+    partner_question_conditions: [],
+  },
+};
+
+/**
+ * Built-in wizard questions when DB templates are missing (e.g. production not yet seeded).
+ * Ensures the requirement form always renders fields.
+ */
+export function getBuiltInWizardQuestions(serviceType: string): PartnerQuestion[] {
+  const slug = normalizeServiceType(serviceType);
+  const keysByStep = FOCUSED_QUESTION_KEYS[slug];
+  if (!keysByStep) return [];
+
+  const templateId = `builtin-${slug}`;
+  const suppMap = new Map(
+    getSupplementaryQuestions(serviceType, templateId).map((q) => [q.question_key, q])
+  );
+
+  const questions: PartnerQuestion[] = [];
+
+  for (const [stepStr, keys] of Object.entries(keysByStep)) {
+    const wizardStep = Number(stepStr);
+    keys.forEach((key, index) => {
+      const fromSupp = suppMap.get(key);
+      const fromCore = CORE_QUESTION_DEFS[key];
+      const base = fromSupp ?? fromCore;
+      if (!base) return;
+
+      questions.push({
+        ...base,
+        id: `builtin-${slug}-${key}`,
+        template_id: templateId,
+        wizard_step: wizardStep,
+        display_order: index + 1,
+      } as PartnerQuestion);
+    });
+  }
+
+  return enhanceQuestions(questions, serviceType);
+}
+
+/** Resolve questions from DB with built-in fallback */
+export function resolveWizardQuestions(
+  dbQuestions: PartnerQuestion[],
+  serviceType: string
+): PartnerQuestion[] {
+  let merged = dbQuestions;
+
+  if (merged.length === 0) {
+    merged = getBuiltInWizardQuestions(serviceType);
+  } else {
+    const existingKeys = new Set(merged.map((q) => q.question_key));
+    const supplementary = getSupplementaryQuestions(serviceType, merged[0]?.template_id ?? 'builtin').filter(
+      (q) => !existingKeys.has(q.question_key)
+    );
+    merged = enhanceQuestions([...merged, ...supplementary], serviceType);
+  }
+
+  const focused = filterFocusedQuestions(merged, serviceType);
+  if (focused.length === 0) {
+    return getBuiltInWizardQuestions(serviceType);
+  }
+
+  return focused;
+}
