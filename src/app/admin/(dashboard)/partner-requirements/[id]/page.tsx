@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
-import ClarificationThread from '@/components/partner/ClarificationThread';
+import RequirementQuickChat from '@/components/partner/RequirementQuickChat';
 import { REQUIREMENT_STATUS_LABELS, type RequirementStatus } from '@/lib/partner/types';
 
 interface DetailData {
@@ -29,6 +29,7 @@ export default function AdminPartnerRequirementDetailPage() {
   const [sendingProposal, setSendingProposal] = useState(false);
   const [clarificationMessage, setClarificationMessage] = useState('');
   const [requestingClarification, setRequestingClarification] = useState(false);
+  const [showClarificationForm, setShowClarificationForm] = useState(false);
   const [message, setMessage] = useState('');
 
   const load = useCallback(() => {
@@ -103,7 +104,7 @@ export default function AdminPartnerRequirementDetailPage() {
     const res = await fetch(`/api/admin/partner-requirements/${id}/clarifications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: clarificationMessage.trim() }),
+      body: JSON.stringify({ message: clarificationMessage.trim(), mode: 'clarification' }),
     });
     const body = await res.json();
     setRequestingClarification(false);
@@ -112,6 +113,7 @@ export default function AdminPartnerRequirementDetailPage() {
       return;
     }
     setClarificationMessage('');
+    setShowClarificationForm(false);
     setMessage('Clarification request sent to partner.');
     load();
   };
@@ -199,26 +201,47 @@ export default function AdminPartnerRequirementDetailPage() {
       </AdminSection>
 
       {status !== 'draft' && (
-        <AdminSection title="Clarifications" description="Request additional information from the partner">
-          <textarea
-            value={clarificationMessage}
-            onChange={(e) => setClarificationMessage(e.target.value)}
-            rows={3}
-            placeholder="What information do you need from the partner?"
-            className="w-full px-3 py-2 rounded-lg border border-border text-sm mb-3"
-          />
-          <button
-            type="button"
-            onClick={requestClarification}
-            disabled={requestingClarification || !clarificationMessage.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium border border-border hover:bg-muted disabled:opacity-50 mb-4"
-          >
-            {requestingClarification ? 'Sending…' : 'Request Clarification'}
-          </button>
-          <ClarificationThread
+        <AdminSection
+          title="Quick Chat & Clarifications"
+          description="Threaded conversation to understand requirements and continue the discussion with the partner"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <p className="text-xs text-muted-foreground">
+              Use chat for quick back-and-forth. Flag formally when the partner must respond before proceeding.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowClarificationForm((v) => !v)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+            >
+              {showClarificationForm ? 'Cancel' : 'Flag Clarification Needed'}
+            </button>
+          </div>
+          {showClarificationForm && (
+            <div className="mb-4 p-3 rounded-lg border border-amber-200 bg-amber-50/50 space-y-2">
+              <textarea
+                value={clarificationMessage}
+                onChange={(e) => setClarificationMessage(e.target.value)}
+                rows={2}
+                placeholder="Describe what information is needed from the partner…"
+                className="w-full px-3 py-2 rounded-lg border border-border text-sm"
+              />
+              <button
+                type="button"
+                onClick={requestClarification}
+                disabled={requestingClarification || !clarificationMessage.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {requestingClarification ? 'Sending…' : 'Send Clarification Request'}
+              </button>
+            </div>
+          )}
+          <RequirementQuickChat
             requirementId={id}
             apiBase="/api/admin/partner-requirements"
-            canReply={false}
+            canReply
+            referenceId={String(req.reference_id)}
+            defaultOpen
           />
         </AdminSection>
       )}

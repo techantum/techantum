@@ -6,9 +6,12 @@ import Icon from '@/components/ui/AppIcon';
 import type { CategoryWithPackages, PartnerPackage } from '@/lib/partner/catalog';
 
 const CATEGORY_ICONS: Record<string, string> = {
-  website: 'GlobeAltIcon',
-  'web-application': 'ComputerDesktopIcon',
-  'mobile-application': 'DevicePhoneMobileIcon',
+  'landing-page': 'RocketLaunchIcon',
+  website: 'RocketLaunchIcon',
+  'website-revamp': 'GlobeAltIcon',
+  'web-application': 'GlobeAltIcon',
+  'app-changes': 'WrenchScrewdriverIcon',
+  'mobile-application': 'WrenchScrewdriverIcon',
 };
 
 function CellValue({ value }: { value: string }) {
@@ -75,7 +78,7 @@ export default function PackageComparison() {
           Select the Right Plan for Your Client
         </h1>
         <p className="text-sm text-slate-500">
-          Compare packages side-by-side and start gathering requirements.
+          Choose the engagement type, compare packages, and start gathering client requirements.
         </p>
       </div>
 

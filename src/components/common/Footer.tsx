@@ -135,6 +135,13 @@ export default function Footer({ branding = defaultBranding }: { branding?: Site
           </p>
           <div className="flex items-center gap-4">
             <Link
+              href="/partner/login"
+              className="font-inter text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              Partner Login
+            </Link>
+            <span className="text-muted-foreground">·</span>
+            <Link
               href="/privacy-policy"
               className="font-inter text-sm text-muted-foreground hover:text-primary transition-colors"
             >

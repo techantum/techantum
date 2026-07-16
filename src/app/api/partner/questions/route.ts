@@ -3,7 +3,7 @@ import {
   getQuestionTemplateByServiceType,
   getQuestionsForTemplate,
 } from '@/lib/partner/catalog-service';
-import { enhanceQuestions, getSupplementaryQuestions } from '@/lib/partner/wizard-config';
+import { enhanceQuestions, getSupplementaryQuestions, filterFocusedQuestions } from '@/lib/partner/wizard-config';
 
 export async function GET(request: Request) {
   const serviceType = new URL(request.url).searchParams.get('serviceType');
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   const supplementary = getSupplementaryQuestions(serviceType, template.id).filter(
     (q) => !existingKeys.has(q.question_key)
   );
-  const questions = enhanceQuestions([...baseQuestions, ...supplementary], serviceType);
+  const merged = enhanceQuestions([...baseQuestions, ...supplementary], serviceType);
+  const questions = filterFocusedQuestions(merged, serviceType);
   return NextResponse.json({ template, questions });
 }

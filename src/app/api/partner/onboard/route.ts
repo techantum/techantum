@@ -17,19 +17,21 @@ export async function GET(request: Request) {
     });
   }
 
+  const partnerUser = invite.partner_users as {
+    email: string;
+    full_name: string;
+  };
   const partner = invite.partners as {
-    contact_name: string;
     company_name: string;
     partner_code: string;
-    email: string;
   };
 
   return NextResponse.json({
     valid: true,
-    contactName: partner.contact_name,
+    contactName: partnerUser.full_name,
     companyName: partner.company_name,
     partnerCode: partner.partner_code,
-    email: partner.email,
+    email: partnerUser.email,
   });
 }
 

@@ -60,32 +60,30 @@ export default function AdminDashboardPage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <AdminStatCard label="Website pages" value={stats.pages} hint={`${stats.publicRoutes} public URLs`} />
-        <AdminStatCard label="Content sections" value={stats.contentSections} hint="Editable in Site Content" />
-        <AdminStatCard
-          label="Total leads"
-          value={stats.totalLeads}
-          hint="All form submissions"
-        />
+        <AdminStatCard label="Website pages" value={stats.pages} hint={`${stats.publicRoutes} public URLs`} icon="DocumentTextIcon" accent="violet" />
+        <AdminStatCard label="Content sections" value={stats.contentSections} hint="Editable in Site Content" icon="PencilSquareIcon" accent="blue" />
+        <AdminStatCard label="Total leads" value={stats.totalLeads} hint="All form submissions" icon="InboxIcon" accent="default" />
         <AdminStatCard
           label="Page views"
           value={stats.analytics.configured ? 'GA active' : '—'}
           hint={stats.analytics.note}
+          icon="ChartBarIcon"
+          accent="green"
         />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <AdminStatCard label="Pending" value={stats.pendingLeads} accent="amber" hint="Needs follow-up" />
-        <AdminStatCard label="Contacted" value={stats.contactedLeads} accent="blue" hint="In progress" />
-        <AdminStatCard label="Closed" value={stats.closedLeads} accent="green" hint="Converted / resolved" />
-        <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} />
+        <AdminStatCard label="Pending" value={stats.pendingLeads} accent="amber" hint="Needs follow-up" icon="ClockIcon" />
+        <AdminStatCard label="Contacted" value={stats.contactedLeads} accent="blue" hint="In progress" icon="ChatBubbleLeftRightIcon" />
+        <AdminStatCard label="Closed" value={stats.closedLeads} accent="green" hint="Converted / resolved" icon="CheckCircleIcon" />
+        <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} icon="GlobeAltIcon" accent="violet" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <h2 className="font-semibold text-foreground">Recent leads</h2>
-            <Link href="/admin/submissions" className="text-sm text-primary hover:underline">
+        <div className="bg-white/90 backdrop-blur rounded-2xl border border-border shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-border bg-gradient-to-r from-indigo-500/10 to-violet-500/5 flex items-center justify-between">
+            <h2 className="font-bricolage font-semibold text-foreground">Recent leads</h2>
+            <Link href="/admin/submissions" className="text-sm text-indigo-600 hover:underline font-medium">
               View all
             </Link>
           </div>
@@ -111,22 +109,23 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-border p-5 space-y-3">
-          <h2 className="font-semibold text-foreground">Quick links</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="bg-white/90 backdrop-blur rounded-2xl border border-border shadow-sm p-5 space-y-4">
+          <h2 className="font-bricolage font-semibold text-foreground">Quick links</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {[
-              { href: '/admin/content', label: 'Edit site content' },
-              { href: '/admin/submissions', label: 'Manage leads' },
-              { href: '/admin/branding', label: 'Update branding' },
-              { href: '/admin/seo', label: 'Global SEO' },
-              { href: '/admin/page-seo', label: 'Page indexing' },
-              { href: '/admin/redirects', label: 'URL redirects' },
+              { href: '/admin/content', label: 'Edit site content', icon: 'PencilSquareIcon' },
+              { href: '/admin/submissions', label: 'Manage leads', icon: 'InboxIcon' },
+              { href: '/admin/branding', label: 'Update branding', icon: 'PaintBrushIcon' },
+              { href: '/admin/seo', label: 'Global SEO', icon: 'MagnifyingGlassIcon' },
+              { href: '/admin/page-seo', label: 'Page indexing', icon: 'DocumentCheckIcon' },
+              { href: '/admin/partner-catalog', label: 'Wizard questions', icon: 'ClipboardDocumentListIcon' },
             ].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-all"
               >
+                <span className="text-indigo-500">→</span>
                 {link.label}
               </Link>
             ))}

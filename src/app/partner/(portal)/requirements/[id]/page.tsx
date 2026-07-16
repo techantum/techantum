@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
-import ClarificationThread from '@/components/partner/ClarificationThread';
+import RequirementQuickChat from '@/components/partner/RequirementQuickChat';
 import { REQUIREMENT_STATUS_LABELS, type RequirementStatus } from '@/lib/partner/types';
 
 interface RequirementDetail {
@@ -99,15 +99,13 @@ function RequirementDetailContent() {
       )}
 
       {status !== 'draft' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-4">Clarifications</h2>
-          <ClarificationThread
-            requirementId={id}
-            apiBase="/api/partner/requirements"
-            canReply
-            replyLabel="Send Reply"
-          />
-        </div>
+        <RequirementQuickChat
+          requirementId={id}
+          apiBase="/api/partner/requirements"
+          canReply
+          referenceId={String(req.reference_id)}
+          defaultOpen={status === 'need_clarification'}
+        />
       )}
 
       {Boolean(req.proposal_sent_at) && (

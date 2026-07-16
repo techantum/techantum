@@ -9,8 +9,11 @@ import type { CategoryWithPackages, PartnerQuestion } from '@/lib/partner/catalo
 import { WIZARD_STEPS } from '@/lib/partner/catalog';
 import {
   FUNCTIONAL_GROUPS,
-  MODULE_OPTIONS,
+  getModulesForService,
+  getSuggestedModulesFromPackage,
   getQuestionGroup,
+  normalizeServiceType,
+  SERVICE_LABELS,
 } from '@/lib/partner/wizard-config';
 import { getVisibleQuestions, validateStepAnswers } from '@/lib/partner/questions';
 
@@ -42,9 +45,15 @@ export default function RequirementWizard({
   const [functionalGroup, setFunctionalGroup] = useState('General');
   const [customRequirements, setCustomRequirements] = useState('');
 
+  const [modulesInitialized, setModulesInitialized] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(!initialRequirementId);
+
   const selectedCategory = catalog.find((c) => c.id === categoryId);
   const selectedPackage = selectedCategory?.partner_packages.find((p) => p.id === packageId);
-  const serviceType = selectedCategory?.slug ?? 'website';
+  const serviceType = normalizeServiceType(selectedCategory?.slug ?? 'landing-page');
+  const serviceInfo = SERVICE_LABELS[serviceType];
+  const moduleOptions = getModulesForService(serviceType);
+  const packageFeatures = selectedPackage?.partner_package_features ?? [];
 
   useEffect(() => {
     fetch('/api/partner/packages')
@@ -81,9 +90,24 @@ export default function RequirementWizard({
             ...(data.answers ?? {}),
           });
           setCustomRequirements(String(data.requirement.project_data?.custom_requirements ?? ''));
+          setDraftLoaded(true);
         }
       });
   }, [initialRequirementId]);
+
+  useEffect(() => {
+    if (!selectedPackage || modulesInitialized || !draftLoaded) return;
+    const current = Array.isArray(answers.modules) ? (answers.modules as string[]) : [];
+    if (current.length > 0) {
+      setModulesInitialized(true);
+      return;
+    }
+    const suggested = getSuggestedModulesFromPackage(serviceType, packageFeatures);
+    if (suggested.length > 0) {
+      setAnswers((prev) => ({ ...prev, modules: suggested }));
+    }
+    setModulesInitialized(true);
+  }, [selectedPackage, packageFeatures, serviceType, modulesInitialized, draftLoaded]);
 
   const setAnswer = (key: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
@@ -229,7 +253,7 @@ export default function RequirementWizard({
     return visible.filter((q) => getQuestionGroup(q) === functionalGroup);
   }, [answers, functionalGroup, questions, step]);
 
-  const functionalGroups = FUNCTIONAL_GROUPS[serviceType] ?? FUNCTIONAL_GROUPS.website;
+  const functionalGroups = FUNCTIONAL_GROUPS[serviceType] ?? FUNCTIONAL_GROUPS['landing-page'];
   const selectedModules = Array.isArray(answers.modules) ? (answers.modules as string[]) : [];
 
   const formatAnswer = (q: PartnerQuestion): string => {
@@ -260,9 +284,14 @@ export default function RequirementWizard({
       title: 'Modules & Features',
       step: 3,
       items: [
+        { label: 'Service', value: serviceInfo?.name ?? selectedCategory?.name ?? '—' },
+        { label: 'Package', value: selectedPackage?.name ?? '—' },
+        ...(packageFeatures.length > 0
+          ? [{ label: 'Plan Features', value: packageFeatures.map((f) => `${f.feature_label}: ${f.value}`).join(', ') }]
+          : []),
         { label: 'Selected Modules', value: selectedModules.join(', ') || '—' },
         ...(customRequirements
-          ? [{ label: 'Custom Requirements', value: customRequirements }]
+          ? [{ label: 'Additional Notes', value: customRequirements }]
           : []),
       ],
     },
@@ -387,16 +416,58 @@ export default function RequirementWizard({
 
           {step === 3 && (
             <>
-              <h2 className="font-semibold text-slate-900 mb-1">Select Required Modules</h2>
+              <h2 className="font-semibold text-slate-900 mb-1">Modules & Features</h2>
               <p className="text-sm text-slate-500 mb-4">
-                Choose the modules your client needs. You can add custom requirements below.
+                Review what&apos;s included in your selected plan, then confirm or adjust modules for your client.
+              </p>
+
+              {selectedPackage && selectedCategory && (
+                <div className="mb-6 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">
+                        Selected Plan
+                      </p>
+                      <p className="font-semibold text-slate-900 mt-0.5">
+                        {serviceInfo?.name ?? selectedCategory.name} — {selectedPackage.name}
+                      </p>
+                      {selectedPackage.description && (
+                        <p className="text-xs text-slate-600 mt-1">{selectedPackage.description}</p>
+                      )}
+                    </div>
+                    {serviceInfo && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-white border border-indigo-200 text-indigo-700">
+                        {serviceInfo.description.slice(0, 60)}…
+                      </span>
+                    )}
+                  </div>
+                  {packageFeatures.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {packageFeatures.map((feat) => (
+                        <div
+                          key={feat.feature_key}
+                          className="flex items-center justify-between gap-2 bg-white rounded-lg px-3 py-2 border border-indigo-100 text-sm"
+                        >
+                          <span className="text-slate-600 text-xs">{feat.feature_label}</span>
+                          <span className="font-medium text-indigo-700 text-xs">{feat.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <h3 className="text-sm font-medium text-slate-800 mb-2">Confirm Required Modules</h3>
+              <p className="text-xs text-slate-500 mb-3">
+                Modules relevant to {serviceInfo?.name ?? 'this service'} are shown below. Select what your client needs beyond the plan.
               </p>
               {errors.modules && (
                 <p className="text-xs text-red-600 mb-3">{errors.modules}</p>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                {MODULE_OPTIONS.map((mod) => {
+                {moduleOptions.map((mod) => {
                   const selected = selectedModules.includes(mod.key);
+                  const inPlan = getSuggestedModulesFromPackage(serviceType, packageFeatures).includes(mod.key);
                   return (
                     <button
                       key={mod.key}
@@ -413,6 +484,11 @@ export default function RequirementWizard({
                           <Icon name="CheckIcon" size={12} />
                         </span>
                       )}
+                      {inPlan && !selected && (
+                        <span className="absolute top-3 right-3 text-[10px] font-medium text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">
+                          In plan
+                        </span>
+                      )}
                       <Icon
                         name={mod.icon as 'DocumentTextIcon'}
                         size={22}
@@ -426,15 +502,15 @@ export default function RequirementWizard({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Other Custom Requirements
+                  Additional Requirements or Questions for Client
                 </label>
                 <p className="text-xs text-slate-500 mb-1.5">
-                  Describe any additional features not covered by the modules above.
+                  Note anything not covered above — pain points, integrations, or open questions to clarify with the client.
                 </p>
                 <textarea
                   value={customRequirements}
                   onChange={(e) => setCustomRequirements(e.target.value)}
-                  placeholder="e.g. Custom reporting dashboard, WhatsApp integration, multi-vendor marketplace…"
+                  placeholder="e.g. Client needs WhatsApp lead routing, multilingual support, or has concerns about migration downtime…"
                   rows={3}
                   className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500"
                 />
@@ -610,7 +686,7 @@ export default function RequirementWizard({
             Why we need this
           </p>
           <p className="text-sm text-indigo-900 leading-relaxed">
-            Accurate client details help us generate a professional Scope of Work and proposal tailored to your client&apos;s needs.
+            Our goal is to understand your client&apos;s pain points clearly so we can propose the right solution — answer only what you know; you can clarify details later via Quick Chat.
           </p>
         </div>
 

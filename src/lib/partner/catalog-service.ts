@@ -46,14 +46,17 @@ export async function getCatalogWithPackages(): Promise<CategoryWithPackages[]> 
   })) as CategoryWithPackages[];
 }
 
+import { normalizeServiceType } from './wizard-config';
+
 export async function getQuestionTemplateByServiceType(
   serviceType: string
 ): Promise<QuestionTemplate | null> {
   const supabase = createAdminClient();
+  const normalized = normalizeServiceType(serviceType);
   const { data } = await supabase
     .from('partner_question_templates')
     .select('*')
-    .eq('service_type', serviceType)
+    .eq('service_type', normalized)
     .eq('is_active', true)
     .maybeSingle();
   return data as QuestionTemplate | null;

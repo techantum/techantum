@@ -222,8 +222,8 @@ export async function completePartnerOnboarding(
     return { ok: false, error: 'Invalid or expired invite link. Please contact TechAntum for a new invite.' };
   }
 
-  const partnerUser = invite.partner_users as { user_id: string; id: string };
-  const partner = invite.partners as { id: string; email: string };
+  const partnerUser = invite.partner_users as { user_id: string; id: string; email: string };
+  const partner = invite.partners as { id: string };
 
   const { error: updateError } = await supabase.auth.admin.updateUserById(partnerUser.user_id, {
     password,
@@ -254,5 +254,5 @@ export async function completePartnerOnboarding(
     }),
   ]);
 
-  return { ok: true, email: partner.email };
+  return { ok: true, email: partnerUser.email };
 }

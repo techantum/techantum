@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
-import { listClarifications, requestClarification } from '@/lib/partner/clarifications';
+import { listClarifications, requestClarification, sendAdminChatMessage } from '@/lib/partner/clarifications';
 
 export async function GET(
   _request: Request,
@@ -30,7 +30,12 @@ export async function POST(
   }
 
   try {
-    await requestClarification(id, message, auth.user.id);
+    const mode = body.mode === 'clarification' ? 'clarification' : 'chat';
+    if (mode === 'clarification') {
+      await requestClarification(id, message, auth.user.id);
+    } else {
+      await sendAdminChatMessage(id, message, auth.user.id);
+    }
     const clarifications = await listClarifications(id);
     return NextResponse.json(clarifications);
   } catch (err) {

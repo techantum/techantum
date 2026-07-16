@@ -8,6 +8,7 @@ import {
   updateQuestion,
   createQuestion,
   deleteQuestion,
+  syncWizardQuestions,
 } from '@/lib/partner/catalog-admin';
 
 export async function GET() {
@@ -72,6 +73,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    if (body.action === 'sync-wizard-questions') {
+      const result = await syncWizardQuestions();
+      const catalog = await getAdminCatalog();
+      return NextResponse.json({ ...catalog, sync: result });
+    }
+
     if (body.entity !== 'question') throw new Error('Only question creation supported');
 
     await createQuestion({
@@ -85,6 +92,7 @@ export async function POST(request: Request) {
       isRequired: Boolean(body.data.isRequired),
       wizardStep: body.data.wizardStep ? Number(body.data.wizardStep) : 4,
       displayOrder: body.data.displayOrder ? Number(body.data.displayOrder) : 99,
+      validationRules: body.data.validationRules as { group?: string; colSpan?: number } | undefined,
     });
 
     const catalog = await getAdminCatalog();

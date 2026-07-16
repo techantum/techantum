@@ -116,6 +116,44 @@ export async function replyToClarification(
   }
 }
 
+export async function sendAdminChatMessage(
+  requirementId: string,
+  message: string,
+  adminUserId: string,
+  adminName = 'TechAntum Team'
+) {
+  const requirement = await getRequirement(requirementId);
+  if (!requirement) throw new Error('Requirement not found');
+
+  const supabase = createAdminClient();
+  await supabase.from('partner_requirement_clarifications').insert({
+    requirement_id: requirementId,
+    author_type: 'admin',
+    author_id: adminUserId,
+    author_name: adminName,
+    message,
+  });
+
+  if (['submitted', 'proposal_sent'].includes(requirement.status)) {
+    await updateRequirementStatus(requirementId, 'under_review', 'Admin sent a message', adminUserId);
+  }
+
+  await createPartnerNotification({
+    partnerId: requirement.partner_id,
+    requirementId,
+    type: 'clarification',
+    title: 'New message on your requirement',
+    message: `${requirement.reference_id}: ${message.slice(0, 120)}${message.length > 120 ? '…' : ''}`,
+    link: `/partner/requirements/${requirementId}`,
+  });
+
+  await logPartnerActivity(requirement.partner_id, 'clarification_message', {
+    entityType: 'requirement',
+    entityId: requirementId,
+    metadata: { reference_id: requirement.reference_id },
+  });
+}
+
 export async function notifyStatusChange(
   requirementId: string,
   fromStatus: string | null,

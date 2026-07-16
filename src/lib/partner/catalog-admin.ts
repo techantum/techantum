@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getQuestionsForTemplate } from './catalog-service';
+import { getEnhancement, getSupplementaryQuestions } from './wizard-config';
 import type { PartnerPackage, ServiceCategory } from './catalog';
 
 export async function getAdminCatalog() {
@@ -106,6 +107,7 @@ export async function updateQuestion(id: string, data: {
   is_required?: boolean;
   wizard_step?: number;
   display_order?: number;
+  validation_rules?: { group?: string; colSpan?: number; pattern?: string };
 }) {
   const supabase = createAdminClient();
   const payload: Record<string, unknown> = {};
@@ -118,6 +120,7 @@ export async function updateQuestion(id: string, data: {
   if (data.is_required !== undefined) payload.is_required = data.is_required;
   if (data.wizard_step !== undefined) payload.wizard_step = data.wizard_step;
   if (data.display_order !== undefined) payload.display_order = data.display_order;
+  if (data.validation_rules !== undefined) payload.validation_rules = data.validation_rules;
 
   const { error } = await supabase.from('partner_questions').update(payload).eq('id', id);
   if (error) throw new Error(error.message);
@@ -134,6 +137,7 @@ export async function createQuestion(input: {
   isRequired?: boolean;
   wizardStep?: number;
   displayOrder?: number;
+  validationRules?: { group?: string; colSpan?: number };
 }) {
   const supabase = createAdminClient();
   const { error } = await supabase.from('partner_questions').insert({
@@ -147,8 +151,68 @@ export async function createQuestion(input: {
     is_required: input.isRequired ?? false,
     wizard_step: input.wizardStep ?? 4,
     display_order: input.displayOrder ?? 99,
+    validation_rules: input.validationRules ?? {},
   });
   if (error) throw new Error(error.message);
+}
+
+/** Apply wizard-config defaults to all DB questions and insert missing supplementary ones. */
+export async function syncWizardQuestions() {
+  const supabase = createAdminClient();
+  const { data: templates } = await supabase.from('partner_question_templates').select('*').order('slug');
+
+  let updated = 0;
+  let created = 0;
+
+  for (const template of templates ?? []) {
+    const serviceType = template.service_type;
+    const questions = await getQuestionsForTemplate(template.id);
+    const existingKeys = new Set(questions.map((q) => q.question_key));
+
+    for (const q of questions) {
+      const enh = getEnhancement(serviceType, q.question_key);
+      const validation_rules = {
+        ...(q.validation_rules ?? {}),
+        ...(enh.group ? { group: enh.group } : {}),
+        ...(enh.colSpan ? { colSpan: enh.colSpan } : {}),
+      };
+
+      await updateQuestion(q.id, {
+        placeholder: enh.placeholder ?? q.placeholder,
+        help_text: enh.help_text ?? q.help_text,
+        question_type: enh.question_type ?? q.question_type,
+        options: enh.options?.length ? enh.options : q.options,
+        validation_rules,
+      });
+      updated += 1;
+    }
+
+    const supplementary = getSupplementaryQuestions(serviceType, template.id);
+    for (const sq of supplementary) {
+      if (existingKeys.has(sq.question_key)) continue;
+
+      const enh = getEnhancement(serviceType, sq.question_key);
+      await createQuestion({
+        templateId: template.id,
+        questionKey: sq.question_key,
+        label: sq.label,
+        questionType: sq.question_type,
+        options: sq.options ?? [],
+        placeholder: enh.placeholder ?? sq.placeholder ?? undefined,
+        helpText: enh.help_text ?? sq.help_text ?? undefined,
+        isRequired: sq.is_required,
+        wizardStep: sq.wizard_step,
+        displayOrder: sq.display_order,
+        validationRules: {
+          ...(enh.group ? { group: enh.group } : {}),
+          ...(enh.colSpan ? { colSpan: enh.colSpan } : {}),
+        },
+      });
+      created += 1;
+    }
+  }
+
+  return { updated, created };
 }
 
 export async function deleteQuestion(id: string) {
