@@ -26,6 +26,16 @@ export function normalizeServiceType(slug: string): string {
   return LEGACY_SERVICE_SLUG_MAP[slug] ?? slug;
 }
 
+/** All service_type values to try when resolving a question template (handles pre/post migration DB) */
+export function getServiceTypeLookupCandidates(slug: string): string[] {
+  const normalized = normalizeServiceType(slug);
+  const legacySlugs = Object.entries(LEGACY_SERVICE_SLUG_MAP)
+    .filter(([, value]) => value === normalized)
+    .map(([key]) => key);
+
+  return [...new Set([slug, normalized, ...legacySlugs])];
+}
+
 export const SERVICE_LABELS: Record<string, { name: string; description: string; icon: string }> = {
   [SERVICE_SLUGS.LANDING_PAGE]: {
     name: 'Marketing Landing Pages',

@@ -32,6 +32,7 @@ export default function RequirementWizard({
   const [step, setStep] = useState(1);
   const [catalog, setCatalog] = useState<CategoryWithPackages[]>([]);
   const [questions, setQuestions] = useState<PartnerQuestion[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
   const [requirementId, setRequirementId] = useState(initialRequirementId ?? '');
   const [categoryId, setCategoryId] = useState(initialCategoryId ?? '');
   const [packageId, setPackageId] = useState(initialPackageId ?? '');
@@ -69,9 +70,12 @@ export default function RequirementWizard({
 
   useEffect(() => {
     if (!selectedCategory) return;
-    fetch(`/api/partner/questions?serviceType=${selectedCategory.slug}`)
+    setQuestionsLoading(true);
+    fetch(`/api/partner/questions?serviceType=${encodeURIComponent(selectedCategory.slug)}`)
       .then((r) => r.json())
-      .then((data) => setQuestions(data.questions ?? []));
+      .then((data) => setQuestions(data.questions ?? []))
+      .catch(() => setQuestions([]))
+      .finally(() => setQuestionsLoading(false));
   }, [selectedCategory?.slug]);
 
   useEffect(() => {
@@ -393,24 +397,41 @@ export default function RequirementWizard({
           {step === 1 && (
             <>
               <h2 className="font-semibold text-slate-900 mb-4">Business Details</h2>
-              <WizardFieldGrid
-                questions={stepQuestions}
-                answers={answers}
-                errors={errors}
-                onChange={setAnswer}
-              />
+              {questionsLoading ? (
+                <p className="text-sm text-slate-500 py-8 text-center">Loading form fields…</p>
+              ) : stepQuestions.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-slate-600">No form fields available for this service.</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Ensure question templates are seeded in the database, or try selecting a different plan.
+                  </p>
+                </div>
+              ) : (
+                <WizardFieldGrid
+                  questions={stepQuestions}
+                  answers={answers}
+                  errors={errors}
+                  onChange={setAnswer}
+                />
+              )}
             </>
           )}
 
           {step === 2 && (
             <>
               <h2 className="font-semibold text-slate-900 mb-4">Project Details</h2>
-              <WizardFieldGrid
-                questions={stepQuestions}
-                answers={answers}
-                errors={errors}
-                onChange={setAnswer}
-              />
+              {questionsLoading ? (
+                <p className="text-sm text-slate-500 py-8 text-center">Loading form fields…</p>
+              ) : stepQuestions.length === 0 ? (
+                <p className="text-sm text-slate-500 py-8 text-center">No project fields configured.</p>
+              ) : (
+                <WizardFieldGrid
+                  questions={stepQuestions}
+                  answers={answers}
+                  errors={errors}
+                  onChange={setAnswer}
+                />
+              )}
             </>
           )}
 
