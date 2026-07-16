@@ -3,6 +3,7 @@ import PageHeroSection from '@/components/common/PageHeroSection';
 import Icon from '@/components/ui/AppIcon';
 import AppImage from '@/components/ui/AppImage';
 import PlanCard from './PlanCard';
+import PackageComparisonTable from './PackageComparisonTable';
 import type { ServiceDivision } from '@/lib/service-packages-data';
 import { getContactHref } from '@/lib/service-packages-data';
 
@@ -89,7 +90,7 @@ export default function DivisionPageContent({ division }: { division: ServiceDiv
               Service Packages
             </span>
             <h2 className="font-bricolage text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Launch → Growth → Enterprise
+              {division.packagesHeadline}
             </h2>
             <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">
               Choose the package that matches your business maturity. Each plan includes a clear
@@ -104,6 +105,8 @@ export default function DivisionPageContent({ division }: { division: ServiceDiv
           </div>
         </div>
       </section>
+
+      <PackageComparisonTable division={division} />
 
       <section className="py-8 reveal">
         <div className="page-container text-center">

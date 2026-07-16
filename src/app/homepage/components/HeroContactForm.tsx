@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 
 interface HeroContactFormProps {
@@ -12,10 +13,11 @@ export default function HeroContactForm({
   title = 'How can we help you?',
   serviceOptions = ['Websites', 'Web Applications', 'Mobile Applications', 'Other'],
 }: HeroContactFormProps) {
+  const router = useRouter();
   const [csrfToken, setCsrfToken] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
@@ -49,9 +51,8 @@ export default function HeroContactForm({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Submission failed');
-      setStatus('success');
       form.reset();
-      setTimeout(() => setStatus('idle'), 5000);
+      router.push('/thank-you');
     } catch (err) {
       setStatus('error');
       setErrorMessage(err instanceof Error ? err.message : 'Submission failed');
@@ -64,11 +65,6 @@ export default function HeroContactForm({
     <div className="rounded-2xl border border-white/20 bg-black/40 backdrop-blur-md p-5 sm:p-6 shadow-xl">
       <h3 className="font-bricolage font-semibold text-lg sm:text-xl text-white mb-4">{title}</h3>
 
-      {status === 'success' && (
-        <p className="mb-4 text-sm text-white bg-secondary/90 rounded-lg px-3 py-2">
-          Thank you! We&apos;ll get back to you within 24 hours.
-        </p>
-      )}
       {status === 'error' && (
         <p className="mb-4 text-sm text-white bg-red-600/90 rounded-lg px-3 py-2">{errorMessage}</p>
       )}

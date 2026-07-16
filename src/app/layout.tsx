@@ -9,6 +9,10 @@ import WhatsAppWidgetLoader from '@/components/common/WhatsAppWidgetLoader';
 import { getBranding, getSeo } from '@/lib/cms';
 import { defaultSeo } from '@/lib/cms/default-content';
 import { getMetadataBase } from '@/lib/cms/url';
+import {
+  buildMarketingBodyScripts,
+  buildMarketingHeaderScripts,
+} from '@/lib/seo/marketing-tags';
 import '../styles/index.css';
 
 export const viewport: Viewport = {
@@ -24,6 +28,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const cacheKey = branding.favicon_url
     ? encodeURIComponent(branding.favicon_url.split('/').pop() || '1')
     : 'default';
+
+  const otherVerification: Record<string, string> = {};
+  if (seo.bing_verification) {
+    otherVerification['msvalidate.01'] = seo.bing_verification;
+  }
 
   return {
     metadataBase: getMetadataBase(seo.site_url),
@@ -80,7 +89,13 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     verification: {
       google: seo.google_verification || defaultSeo.google_verification,
+      other: Object.keys(otherVerification).length ? otherVerification : undefined,
     },
+    other: seo.facebook_app_id
+      ? {
+          'fb:app_id': seo.facebook_app_id,
+        }
+      : undefined,
     alternates: {
       canonical: '/',
     },
@@ -93,6 +108,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const seo = await getSeo();
+  const marketingHeader = buildMarketingHeaderScripts(seo);
+  const marketingBody = buildMarketingBodyScripts(seo);
+  const cmsTracksAnalytics = Boolean(seo.gtm_id?.trim() || seo.ga4_id?.trim());
 
   return (
     <html lang="en">
@@ -107,12 +125,16 @@ export default async function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
         />
+        <CustomScripts html={marketingHeader} placement="header" />
         <CustomScripts html={seo.header_scripts || ''} placement="header" />
       </head>
       <body className="font-inter">
-        <Suspense fallback={null}>
-          <GoogleAnalytics />
-        </Suspense>
+        <CustomScripts html={marketingBody} placement="footer" />
+        {!cmsTracksAnalytics && (
+          <Suspense fallback={null}>
+            <GoogleAnalytics />
+          </Suspense>
+        )}
         <WebVitalsReporter />
         <ScrollRevealProvider />
         {children}

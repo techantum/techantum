@@ -1,10 +1,13 @@
 /** Primary admin sidebar navigation */
 export const ADMIN_MAIN_NAV = [
   { href: '/admin', label: 'Overview', exact: true },
+  { href: '/admin/partners', label: 'Partners' },
+  { href: '/admin/partner-catalog', label: 'Partner Catalog' },
+  { href: '/admin/partner-requirements', label: 'Partner Requirements' },
   { href: '/admin/content', label: 'Site Content' },
   { href: '/admin/submissions', label: 'Leads' },
   { href: '/admin/marketing', label: 'Marketing' },
-  { href: '/admin/seo', label: 'SEO' },
+  { href: '/admin/seo', label: 'SEO & Marketing' },
   { href: '/admin/page-seo', label: 'Page Indexing' },
   { href: '/admin/redirects', label: 'Redirects' },
   { href: '/admin/branding', label: 'Branding' },

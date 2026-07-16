@@ -8,6 +8,7 @@ import {
   getDefaultContentMap,
   mergeCmsContent,
   normalizeSiteBranding,
+  normalizeSiteSeo,
 } from './default-content';
 import type { CmsSnapshot, SiteBranding, SiteSeo } from './types';
 
@@ -26,7 +27,7 @@ export const getSeo = cache(async (): Promise<SiteSeo> => {
   try {
     const supabase = createAdminClient();
     const { data } = await supabase.from('site_seo').select('*').eq('id', 1).maybeSingle();
-    if (data) return data as SiteSeo;
+    if (data) return normalizeSiteSeo(data as Partial<SiteSeo>);
   } catch {
     /* fall through to defaults */
   }
@@ -66,7 +67,7 @@ export const getCmsSnapshot = cache(async (): Promise<CmsSnapshot> => {
 
     return {
       branding: (brandingRes.data as SiteBranding) || defaultBranding,
-      seo: (seoRes.data as SiteSeo) || defaultSeo,
+      seo: normalizeSiteSeo(seoRes.data as Partial<SiteSeo> | null),
       content,
     };
   } catch {

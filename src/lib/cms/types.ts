@@ -30,6 +30,24 @@ export interface SiteSeo {
   follow_site?: boolean;
   header_scripts?: string;
   footer_scripts?: string;
+  /** Google Tag Manager container ID (GTM-XXXX) */
+  gtm_id?: string;
+  /** Google Analytics 4 measurement ID (G-XXXX) */
+  ga4_id?: string;
+  /** Bing Webmaster Tools verification meta content */
+  bing_verification?: string;
+  /** Meta (Facebook) Pixel ID */
+  facebook_pixel_id?: string;
+  /** LinkedIn Insight Tag partner ID */
+  linkedin_partner_id?: string;
+  /** Facebook Open Graph app ID */
+  facebook_app_id?: string;
+  /** Social profile URLs for marketing / sameAs structured data */
+  facebook_url?: string;
+  instagram_url?: string;
+  linkedin_url?: string;
+  youtube_url?: string;
+  twitter_url?: string;
 }
 
 export interface CmsEntry {

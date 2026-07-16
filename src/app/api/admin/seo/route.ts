@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { defaultSeo } from '@/lib/cms/default-content';
+import { defaultSeo, normalizeSiteSeo } from '@/lib/cms/default-content';
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -9,7 +9,7 @@ export async function GET() {
 
   const supabase = createAdminClient();
   const { data } = await supabase.from('site_seo').select('*').eq('id', 1).maybeSingle();
-  return NextResponse.json(data || defaultSeo);
+  return NextResponse.json(normalizeSiteSeo(data));
 }
 
 export async function PUT(request: Request) {
@@ -18,9 +18,37 @@ export async function PUT(request: Request) {
 
   const body = await request.json();
   const supabase = createAdminClient();
+
+  const allowed = {
+    site_title: body.site_title,
+    title_template: body.title_template,
+    description: body.description,
+    keywords: body.keywords,
+    site_url: body.site_url,
+    og_image_url: body.og_image_url,
+    twitter_handle: body.twitter_handle,
+    google_verification: body.google_verification,
+    canonical_host: body.canonical_host,
+    index_site: body.index_site,
+    follow_site: body.follow_site,
+    header_scripts: body.header_scripts ?? '',
+    footer_scripts: body.footer_scripts ?? '',
+    gtm_id: body.gtm_id ?? '',
+    ga4_id: body.ga4_id ?? '',
+    bing_verification: body.bing_verification ?? '',
+    facebook_pixel_id: body.facebook_pixel_id ?? '',
+    linkedin_partner_id: body.linkedin_partner_id ?? '',
+    facebook_app_id: body.facebook_app_id ?? '',
+    facebook_url: body.facebook_url ?? '',
+    instagram_url: body.instagram_url ?? '',
+    linkedin_url: body.linkedin_url ?? '',
+    youtube_url: body.youtube_url ?? '',
+    twitter_url: body.twitter_url ?? '',
+  };
+
   const { data, error } = await supabase
     .from('site_seo')
-    .upsert({ id: 1, ...body })
+    .upsert({ id: 1, ...allowed })
     .select('*')
     .single();
 
@@ -28,5 +56,5 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(normalizeSiteSeo(data || defaultSeo));
 }

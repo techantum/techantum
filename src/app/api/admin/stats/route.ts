@@ -31,13 +31,20 @@ export async function GET() {
       .select('id, name, email, phone, product_category, source, status, created_at')
       .order('created_at', { ascending: false })
       .limit(5),
-    supabase.from('site_seo').select('google_verification, header_scripts').eq('id', 1).maybeSingle(),
+    supabase
+      .from('site_seo')
+      .select('google_verification, header_scripts, gtm_id, ga4_id, facebook_pixel_id')
+      .eq('id', 1)
+      .maybeSingle(),
   ]);
 
   const publicRoutes = getAllStaticPublicRoutes();
   const indexedOverrides = (pageSeoRows ?? []).filter((r) => r.index_enabled !== false).length;
   const gaConfigured =
     Boolean(seoRow?.google_verification) ||
+    Boolean(seoRow?.gtm_id) ||
+    Boolean(seoRow?.ga4_id) ||
+    Boolean(seoRow?.facebook_pixel_id) ||
     (seoRow?.header_scripts ?? '').includes('googletagmanager') ||
     (seoRow?.header_scripts ?? '').includes('google-analytics');
 
@@ -55,8 +62,8 @@ export async function GET() {
     analytics: {
       configured: gaConfigured,
       note: gaConfigured
-        ? 'Page views tracked in Google Analytics'
-        : 'Add GA or GTM in SEO → Global Scripts to track page views',
+        ? 'Tracking configured in SEO & Marketing'
+        : 'Add GTM, GA4, or pixels in Admin → SEO & Marketing',
     },
   });
 }

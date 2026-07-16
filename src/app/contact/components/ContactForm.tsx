@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,8 +25,9 @@ interface ContactFormProps {
 }
 
 export default function ContactForm({ page, initialService }: ContactFormProps) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [csrfToken, setCSRFToken] = useState('');
   const [honeypot, setHoneypot] = useState('');
@@ -107,15 +109,13 @@ export default function ContactForm({ page, initialService }: ContactFormProps) 
         value: 100,
       });
 
-      setSubmitStatus('success');
       reset();
       setHoneypot('');
-
-      setTimeout(() => setSubmitStatus('idle'), 5000);
-    } catch (error: any) {
+      router.push('/thank-you');
+    } catch (error: unknown) {
       console.error('Form submission error:', error);
       setSubmitStatus('error');
-      setErrorMessage(error?.message || 'Failed to submit form. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to submit form. Please try again.');
       trackFormInteraction('error', 'form_submission');
     } finally {
       setIsSubmitting(false);
@@ -130,20 +130,6 @@ export default function ContactForm({ page, initialService }: ContactFormProps) 
       <p className="font-inter text-base text-muted-foreground mb-6">
         {String(page.formDescription)}
       </p>
-
-      {submitStatus === 'success' && (
-        <div className="mb-6 p-4 bg-success/10 border border-success rounded-lg flex items-start gap-3">
-          <Icon name="CheckCircleIcon" size={24} className="text-success shrink-0" variant="solid" />
-          <div>
-            <p className="font-inter font-semibold text-sm text-success mb-1">
-              {String(page.successTitle)}
-            </p>
-            <p className="font-inter text-sm text-success/80">
-              {String(page.successMessage)}
-            </p>
-          </div>
-        </div>
-      )}
 
       {submitStatus === 'error' && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">

@@ -43,7 +43,7 @@ export default function SeoAdminPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      setForm(data);
+      setForm({ ...defaultSeo, ...data });
       setMessage('SEO settings saved.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Save failed');
@@ -52,13 +52,17 @@ export default function SeoAdminPage() {
     }
   };
 
+  const setField = (key: keyof SiteSeo, value: string | boolean) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
   if (loading) return <p className="text-muted-foreground">Loading SEO settings…</p>;
 
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
       <AdminPageHeader
-        title="SEO"
-        description="Global search settings, social sharing defaults, and site-wide tracking scripts."
+        title="SEO & Marketing"
+        description="Google SEO tags, Search Console, tracking pixels, and social media marketing profiles."
       />
 
       <AdminSection title="Search visibility" description="Site-wide indexing defaults. Override per page in Page Indexing.">
@@ -67,7 +71,7 @@ export default function SeoAdminPage() {
             <input
               type="checkbox"
               checked={form.index_site !== false}
-              onChange={(e) => setForm({ ...form, index_site: e.target.checked })}
+              onChange={(e) => setField('index_site', e.target.checked)}
             />
             Allow search engine indexing
           </label>
@@ -75,7 +79,7 @@ export default function SeoAdminPage() {
             <input
               type="checkbox"
               checked={form.follow_site !== false}
-              onChange={(e) => setForm({ ...form, follow_site: e.target.checked })}
+              onChange={(e) => setField('follow_site', e.target.checked)}
             />
             Allow link following
           </label>
@@ -88,7 +92,7 @@ export default function SeoAdminPage() {
             <label className="block text-sm font-medium mb-1">Site title</label>
             <input
               value={form.site_title}
-              onChange={(e) => setForm({ ...form, site_title: e.target.value })}
+              onChange={(e) => setField('site_title', e.target.value)}
               className="w-full rounded-lg border border-border px-3 py-2 text-sm"
             />
           </div>
@@ -96,7 +100,7 @@ export default function SeoAdminPage() {
             <label className="block text-sm font-medium mb-1">Title template</label>
             <input
               value={form.title_template}
-              onChange={(e) => setForm({ ...form, title_template: e.target.value })}
+              onChange={(e) => setField('title_template', e.target.value)}
               placeholder="%s | TechAntum"
               className="w-full rounded-lg border border-border px-3 py-2 text-sm"
             />
@@ -105,7 +109,7 @@ export default function SeoAdminPage() {
             <label className="block text-sm font-medium mb-1">Meta description</label>
             <textarea
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => setField('description', e.target.value)}
               rows={3}
               className="w-full rounded-lg border border-border px-3 py-2 text-sm"
             />
@@ -122,32 +126,166 @@ export default function SeoAdminPage() {
         </div>
       </AdminSection>
 
-      <AdminSection title="Social sharing" description="Open Graph and Twitter card defaults.">
-        <MediaUploadField
-          label="Default OG image"
-          value={form.og_image_url}
-          onChange={(url) => setForm({ ...form, og_image_url: url })}
-          mediaType="image"
-          hint="1200×630 recommended. Used when a page has no custom OG image."
-        />
-        <div>
-          <label className="block text-sm font-medium mb-1">Twitter handle</label>
-          <input
-            value={form.twitter_handle}
-            onChange={(e) => setForm({ ...form, twitter_handle: e.target.value })}
-            placeholder="@techantum"
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-          />
+      <AdminSection
+        title="Google SEO & Search Console"
+        description="Verification tags and Google tracking IDs used site-wide for search and analytics."
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Google Search Console verification</label>
+            <input
+              value={form.google_verification || ''}
+              onChange={(e) => setField('google_verification', e.target.value)}
+              placeholder="Meta content value from Search Console"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Paste the content value from Google Search Console → HTML tag verification.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Google Tag Manager ID</label>
+              <input
+                value={form.gtm_id || ''}
+                onChange={(e) => setField('gtm_id', e.target.value)}
+                placeholder="GTM-XXXXXXX"
+                className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Google Analytics 4 ID</label>
+              <input
+                value={form.ga4_id || ''}
+                onChange={(e) => setField('ga4_id', e.target.value)}
+                placeholder="G-XXXXXXXXXX"
+                className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Used when GTM is empty. Prefer GTM if you manage tags there.
+              </p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Bing Webmaster verification</label>
+            <input
+              value={form.bing_verification || ''}
+              onChange={(e) => setField('bing_verification', e.target.value)}
+              placeholder="Bing msvalidate.01 content value"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+            />
+          </div>
         </div>
       </AdminSection>
 
-      <AdminSection title="Technical" description="Canonical URL, hostname preference, and Google Search Console.">
+      <AdminSection
+        title="Social media marketing"
+        description="Ad pixels and public profile URLs for tracking and Organization schema (sameAs)."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta (Facebook) Pixel ID</label>
+            <input
+              value={form.facebook_pixel_id || ''}
+              onChange={(e) => setField('facebook_pixel_id', e.target.value)}
+              placeholder="1234567890"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">LinkedIn Insight Partner ID</label>
+            <input
+              value={form.linkedin_partner_id || ''}
+              onChange={(e) => setField('linkedin_partner_id', e.target.value)}
+              placeholder="123456"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Facebook App ID (Open Graph)</label>
+            <input
+              value={form.facebook_app_id || ''}
+              onChange={(e) => setField('facebook_app_id', e.target.value)}
+              placeholder="Optional"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Twitter / X handle</label>
+            <input
+              value={form.twitter_handle}
+              onChange={(e) => setField('twitter_handle', e.target.value)}
+              placeholder="@techantum"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Facebook page URL</label>
+            <input
+              value={form.facebook_url || ''}
+              onChange={(e) => setField('facebook_url', e.target.value)}
+              placeholder="https://facebook.com/…"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Instagram URL</label>
+            <input
+              value={form.instagram_url || ''}
+              onChange={(e) => setField('instagram_url', e.target.value)}
+              placeholder="https://instagram.com/…"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">LinkedIn company URL</label>
+            <input
+              value={form.linkedin_url || ''}
+              onChange={(e) => setField('linkedin_url', e.target.value)}
+              placeholder="https://linkedin.com/company/…"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">YouTube channel URL</label>
+            <input
+              value={form.youtube_url || ''}
+              onChange={(e) => setField('youtube_url', e.target.value)}
+              placeholder="https://youtube.com/…"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1">Twitter / X profile URL</label>
+            <input
+              value={form.twitter_url || ''}
+              onChange={(e) => setField('twitter_url', e.target.value)}
+              placeholder="https://x.com/…"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+      </AdminSection>
+
+      <AdminSection title="Social sharing defaults" description="Open Graph image used when a page has no custom OG image.">
+        <MediaUploadField
+          label="Default OG image"
+          value={form.og_image_url}
+          onChange={(url) => setField('og_image_url', url)}
+          mediaType="image"
+          hint="1200×630 recommended."
+        />
+      </AdminSection>
+
+      <AdminSection title="Technical" description="Canonical URL and hostname preference.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Site URL</label>
             <input
               value={form.site_url}
-              onChange={(e) => setForm({ ...form, site_url: e.target.value })}
+              onChange={(e) => setField('site_url', e.target.value)}
               placeholder="https://techantum.com"
               className="w-full rounded-lg border border-border px-3 py-2 text-sm"
             />
@@ -156,32 +294,24 @@ export default function SeoAdminPage() {
             <label className="block text-sm font-medium mb-1">Preferred hostname</label>
             <select
               value={form.canonical_host || 'non-www'}
-              onChange={(e) => setForm({ ...form, canonical_host: e.target.value as 'www' | 'non-www' })}
+              onChange={(e) => setField('canonical_host', e.target.value)}
               className="w-full rounded-lg border border-border px-3 py-2 text-sm"
             >
               <option value="non-www">techantum.com (non-www)</option>
               <option value="www">www.techantum.com</option>
             </select>
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium mb-1">Google Search Console verification</label>
-            <input
-              value={form.google_verification}
-              onChange={(e) => setForm({ ...form, google_verification: e.target.value })}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-            />
-          </div>
         </div>
       </AdminSection>
 
-      <AdminSection title="Global scripts" description="GTM, Google Analytics, or other tags injected on every page.">
+      <AdminSection title="Custom scripts" description="Extra snippets (chat widgets, etc.) beyond the structured tags above.">
         <div>
           <label className="block text-sm font-medium mb-1">Header scripts</label>
           <textarea
             value={form.header_scripts || ''}
-            onChange={(e) => setForm({ ...form, header_scripts: e.target.value })}
+            onChange={(e) => setField('header_scripts', e.target.value)}
             rows={4}
-            placeholder="<script>...</script> or GTM snippet"
+            placeholder="<script>...</script>"
             className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
           />
         </div>
@@ -189,7 +319,7 @@ export default function SeoAdminPage() {
           <label className="block text-sm font-medium mb-1">Footer scripts</label>
           <textarea
             value={form.footer_scripts || ''}
-            onChange={(e) => setForm({ ...form, footer_scripts: e.target.value })}
+            onChange={(e) => setField('footer_scripts', e.target.value)}
             rows={4}
             placeholder="Analytics, chat widgets, etc."
             className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
@@ -198,7 +328,9 @@ export default function SeoAdminPage() {
       </AdminSection>
 
       {message && (
-        <p className={`text-sm ${message.includes('failed') ? 'text-red-600' : 'text-green-700'}`}>{message}</p>
+        <p className={`text-sm ${message.toLowerCase().includes('fail') ? 'text-red-600' : 'text-green-700'}`}>
+          {message}
+        </p>
       )}
 
       <button
@@ -206,7 +338,7 @@ export default function SeoAdminPage() {
         disabled={saving}
         className="bg-primary text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60"
       >
-        {saving ? 'Saving…' : 'Save SEO'}
+        {saving ? 'Saving…' : 'Save SEO & Marketing'}
       </button>
     </form>
   );

@@ -105,8 +105,16 @@ export function generateProductSchema(product: {
   };
 }
 
-export function generateOrganizationSchema(branding: SiteBranding = defaultBranding) {
+export function generateOrganizationSchema(
+  branding: SiteBranding = defaultBranding,
+  sameAsUrls?: string[]
+) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://techantum.com';
+  const sameAs =
+    sameAsUrls && sameAsUrls.length > 0
+      ? sameAsUrls
+      : ['https://www.linkedin.com/company/techantum', 'https://twitter.com/techantum'];
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -128,10 +136,7 @@ export function generateOrganizationSchema(branding: SiteBranding = defaultBrand
       email: branding.email,
       availableLanguage: ['English', 'Dutch'],
     },
-    sameAs: [
-      'https://www.linkedin.com/company/techantum',
-      'https://twitter.com/techantum',
-    ],
+    sameAs,
   };
 }
 

@@ -9,11 +9,12 @@ import FAQSection from './homepage/components/FAQSection';
 import CTASection from './homepage/components/CTASection';
 import StructuredData from '@/components/StructuredData';
 import { generateOrganizationSchema, generateFAQSchema } from '@/lib/seo';
-import { getBranding, getCmsContent } from '@/lib/cms';
+import { getBranding, getCmsContent, getSeo } from '@/lib/cms';
 import { getDefaultContent } from '@/lib/cms/default-content';
+import { getSocialSameAsUrls } from '@/lib/seo/marketing-tags';
 
 export default async function Homepage() {
-  const branding = await getBranding();
+  const [branding, seo] = await Promise.all([getBranding(), getSeo()]);
   const [hero, stats, services, techStack, testimonials, faq, cta] = await Promise.all([
     getCmsContent('homepage.hero'),
     getCmsContent('homepage.stats'),
@@ -29,7 +30,12 @@ export default async function Homepage() {
 
   return (
     <>
-      <StructuredData data={[generateOrganizationSchema(branding), generateFAQSchema(faqItems)]} />
+      <StructuredData
+        data={[
+          generateOrganizationSchema(branding, getSocialSameAsUrls(seo)),
+          generateFAQSchema(faqItems),
+        ]}
+      />
       <Header branding={branding} />
       <main className="min-h-screen">
         <HeroSection content={hero} />

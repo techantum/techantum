@@ -81,7 +81,59 @@ export const defaultSeo: SiteSeo = {
   follow_site: true,
   header_scripts: '',
   footer_scripts: '',
+  gtm_id: '',
+  ga4_id: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '',
+  bing_verification: '',
+  facebook_pixel_id: '',
+  linkedin_partner_id: '',
+  facebook_app_id: '',
+  facebook_url: '',
+  instagram_url: '',
+  linkedin_url: 'https://www.linkedin.com/company/techantum',
+  youtube_url: '',
+  twitter_url: '',
 };
+
+const SEO_TEXT_KEYS: (keyof SiteSeo)[] = [
+  'site_title',
+  'title_template',
+  'description',
+  'site_url',
+  'og_image_url',
+  'twitter_handle',
+  'google_verification',
+  'header_scripts',
+  'footer_scripts',
+  'gtm_id',
+  'ga4_id',
+  'bing_verification',
+  'facebook_pixel_id',
+  'linkedin_partner_id',
+  'facebook_app_id',
+  'facebook_url',
+  'instagram_url',
+  'linkedin_url',
+  'youtube_url',
+  'twitter_url',
+];
+
+/** DB nulls must not override defaults — keeps form inputs controlled with strings. */
+export function normalizeSiteSeo(data?: Partial<SiteSeo> | null): SiteSeo {
+  const merged: SiteSeo = {
+    ...defaultSeo,
+    ...data,
+    keywords: data?.keywords?.length ? data.keywords : defaultSeo.keywords,
+  };
+  for (const key of SEO_TEXT_KEYS) {
+    if (merged[key] == null) {
+      (merged as unknown as Record<string, unknown>)[key] = defaultSeo[key];
+    }
+  }
+  if (merged.canonical_host == null) merged.canonical_host = defaultSeo.canonical_host;
+  if (merged.index_site == null) merged.index_site = defaultSeo.index_site;
+  if (merged.follow_site == null) merged.follow_site = defaultSeo.follow_site;
+  return merged;
+}
 
 export const defaultCmsEntries: CmsEntry[] = [
   {
