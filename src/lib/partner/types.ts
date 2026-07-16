@@ -110,6 +110,9 @@ export interface RequirementRecord {
   partner_user_id: string;
   status: RequirementStatus;
   project_name: string | null;
+  division_slug: string | null;
+  plan_slug: string | null;
+  engagement_type: string | null;
   service_category_id: string | null;
   package_id: string | null;
   industry: string | null;

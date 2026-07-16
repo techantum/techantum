@@ -3,16 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
-import type { CategoryWithPackages, PartnerPackage } from '@/lib/partner/catalog';
-
-const CATEGORY_ICONS: Record<string, string> = {
-  'landing-page': 'RocketLaunchIcon',
-  website: 'RocketLaunchIcon',
-  'website-revamp': 'GlobeAltIcon',
-  'web-application': 'GlobeAltIcon',
-  'app-changes': 'WrenchScrewdriverIcon',
-  'mobile-application': 'WrenchScrewdriverIcon',
-};
+import type { PartnerCatalogCategory, PartnerCatalogPackage } from '@/lib/partner/service-catalog';
 
 function CellValue({ value }: { value: string }) {
   if (value === '✓') {
@@ -26,12 +17,18 @@ function CellValue({ value }: { value: string }) {
   return <span className="text-slate-700">{value}</span>;
 }
 
+const DIVISION_ICONS: Record<string, string> = {
+  'website-development': 'GlobeAltIcon',
+  'web-application-development': 'ComputerDesktopIcon',
+  'mobile-application-development': 'DevicePhoneMobileIcon',
+};
+
 export default function PackageComparison() {
-  const [catalog, setCatalog] = useState<CategoryWithPackages[]>([]);
-  const [activeCategoryId, setActiveCategoryId] = useState('');
+  const [catalog, setCatalog] = useState<PartnerCatalogCategory[]>([]);
+  const [activeDivision, setActiveDivision] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [matrix, setMatrix] = useState<{
-    packages: PartnerPackage[];
+    packages: PartnerCatalogPackage[];
     rows: { feature_key: string; feature_label: string; values: Record<string, string> }[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,21 +40,26 @@ export default function PackageComparison() {
         if (Array.isArray(data) && data.length) {
           setCatalog(data);
           const params = new URLSearchParams(window.location.search);
-          const catParam = params.get('category');
-          setActiveCategoryId(catParam && data.find((c: CategoryWithPackages) => c.id === catParam) ? catParam : data[0].id);
+          const divParam = params.get('division');
+          setActiveDivision(
+            divParam && data.find((c: PartnerCatalogCategory) => c.slug === divParam)
+              ? divParam
+              : data[0].slug
+          );
         }
       })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    if (!activeCategoryId) return;
-    fetch(`/api/partner/packages?categoryId=${activeCategoryId}`)
+    if (!activeDivision) return;
+    fetch(`/api/partner/packages?division=${encodeURIComponent(activeDivision)}`)
       .then((r) => r.json())
       .then(setMatrix);
-  }, [activeCategoryId]);
+  }, [activeDivision]);
 
-  const activeCategory = catalog.find((c) => c.id === activeCategoryId);
+  const activeCategory = catalog.find((c) => c.slug === activeDivision);
+  const selectedPackage = matrix?.packages.find((p) => p.id === selectedPackageId);
 
   if (loading) {
     return <p className="text-slate-500 text-sm">Loading packages…</p>;
@@ -66,7 +68,7 @@ export default function PackageComparison() {
   if (!catalog.length) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-        <p className="text-slate-600">No packages configured yet. Admin can seed packages in CMS.</p>
+        <p className="text-slate-600">No packages available.</p>
       </div>
     );
   }
@@ -78,30 +80,29 @@ export default function PackageComparison() {
           Select the Right Plan for Your Client
         </h1>
         <p className="text-sm text-slate-500">
-          Choose the engagement type, compare packages, and start gathering client requirements.
+          Compare Website, Web App, and Mobile packages — same plans as on techantum.com/services.
         </p>
       </div>
 
-      {/* Category tabs */}
       <div className="flex flex-wrap gap-2">
         {catalog.map((cat) => (
           <button
-            key={cat.id}
+            key={cat.slug}
             type="button"
             onClick={() => {
-              setActiveCategoryId(cat.id);
+              setActiveDivision(cat.slug);
               setSelectedPackageId('');
             }}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border-2 ${
-              activeCategoryId === cat.id
+              activeDivision === cat.slug
                 ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
             }`}
           >
             <Icon
-              name={(CATEGORY_ICONS[cat.slug] ?? 'CubeIcon') as 'CubeIcon'}
+              name={(DIVISION_ICONS[cat.slug] ?? 'CubeIcon') as 'CubeIcon'}
               size={18}
-              className={activeCategoryId === cat.id ? 'text-indigo-600' : 'text-slate-400'}
+              className={activeDivision === cat.slug ? 'text-indigo-600' : 'text-slate-400'}
             />
             {cat.name}
           </button>
@@ -109,10 +110,16 @@ export default function PackageComparison() {
       </div>
 
       {activeCategory && (
-        <p className="text-sm text-slate-500">{activeCategory.description}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-sm text-slate-500">{activeCategory.description}</p>
+          {activeCategory.packagesHeadline && (
+            <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full shrink-0">
+              {activeCategory.packagesHeadline}
+            </span>
+          )}
+        </div>
       )}
 
-      {/* Comparison table */}
       {matrix?.packages && matrix.packages.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
           <table className="w-full min-w-[720px] text-sm">
@@ -138,6 +145,11 @@ export default function PackageComparison() {
                       <p className={`text-xs font-normal ${pkg.is_highlighted ? 'text-indigo-100' : 'text-slate-500'}`}>
                         {pkg.best_for}
                       </p>
+                      {pkg.scope && (
+                        <p className={`text-[10px] ${pkg.is_highlighted ? 'text-indigo-100' : 'text-slate-400'}`}>
+                          {pkg.scope}
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => setSelectedPackageId(pkg.id)}
@@ -160,10 +172,7 @@ export default function PackageComparison() {
             </thead>
             <tbody>
               {matrix.rows.map((row, idx) => (
-                <tr
-                  key={row.feature_key}
-                  className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
-                >
+                <tr key={row.feature_key} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
                   <td className="px-5 py-3 font-medium text-slate-700 sticky left-0 bg-inherit border-b border-slate-100">
                     {row.feature_label}
                   </td>
@@ -184,7 +193,22 @@ export default function PackageComparison() {
         </div>
       )}
 
-      {/* Bottom actions */}
+      {selectedPackage && selectedPackage.includes.length > 0 && (
+        <div className="bg-slate-50 rounded-xl border border-slate-200 p-5">
+          <p className="text-sm font-semibold text-slate-900 mb-2">
+            {selectedPackage.name} — What&apos;s Included
+          </p>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {selectedPackage.includes.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-sm text-slate-700">
+                <Icon name="CheckCircleIcon" size={16} className="text-green-600 shrink-0 mt-0.5" variant="solid" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 rounded-xl border border-slate-200 p-5">
         <div>
           <p className="font-medium text-slate-900">Need something custom?</p>
@@ -199,9 +223,9 @@ export default function PackageComparison() {
           >
             Request Custom Solution
           </Link>
-          {selectedPackageId ? (
+          {selectedPackageId && activeDivision ? (
             <Link
-              href={`/partner/requirements/new?category=${activeCategoryId}&package=${selectedPackageId}`}
+              href={`/partner/requirements/new?division=${activeDivision}&plan=${selectedPackage?.slug ?? ''}`}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
             >
               Continue to Requirements

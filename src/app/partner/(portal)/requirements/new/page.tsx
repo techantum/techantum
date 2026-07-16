@@ -8,6 +8,8 @@ function NewRequirementContent() {
   const searchParams = useSearchParams();
   return (
     <RequirementWizard
+      initialDivision={searchParams?.get('division') ?? undefined}
+      initialPlan={searchParams?.get('plan') ?? undefined}
       initialCategoryId={searchParams?.get('category') ?? undefined}
       initialPackageId={searchParams?.get('package') ?? undefined}
       initialRequirementId={searchParams?.get('draft') ?? undefined}

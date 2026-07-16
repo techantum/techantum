@@ -5,12 +5,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import WizardFieldGrid from '@/components/partner/WizardFieldGrid';
-import type { CategoryWithPackages, PartnerQuestion } from '@/lib/partner/catalog';
+import type { PartnerQuestion } from '@/lib/partner/catalog';
 import { WIZARD_STEPS } from '@/lib/partner/catalog';
+import {
+  ENGAGEMENT_TYPES,
+  getQuestionServiceType,
+  getSuggestedModulesFromPlan,
+  type PartnerCatalogCategory,
+} from '@/lib/partner/service-catalog';
 import {
   FUNCTIONAL_GROUPS,
   getModulesForService,
-  getSuggestedModulesFromPackage,
   getQuestionGroup,
   normalizeServiceType,
   SERVICE_LABELS,
@@ -18,24 +23,29 @@ import {
 import { getVisibleQuestions, validateStepAnswers } from '@/lib/partner/questions';
 
 interface RequirementWizardProps {
+  initialDivision?: string;
+  initialPlan?: string;
   initialCategoryId?: string;
   initialPackageId?: string;
   initialRequirementId?: string;
 }
 
 export default function RequirementWizard({
+  initialDivision,
+  initialPlan,
   initialCategoryId,
   initialPackageId,
   initialRequirementId,
 }: RequirementWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [catalog, setCatalog] = useState<CategoryWithPackages[]>([]);
+  const [catalog, setCatalog] = useState<PartnerCatalogCategory[]>([]);
   const [questions, setQuestions] = useState<PartnerQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [requirementId, setRequirementId] = useState(initialRequirementId ?? '');
-  const [categoryId, setCategoryId] = useState(initialCategoryId ?? '');
-  const [packageId, setPackageId] = useState(initialPackageId ?? '');
+  const [divisionSlug, setDivisionSlug] = useState(initialDivision ?? '');
+  const [planSlug, setPlanSlug] = useState(initialPlan ?? '');
+  const [engagementType, setEngagementType] = useState<string>('');
   const [answers, setAnswers] = useState<Record<string, unknown>>({ modules: [] });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -49,12 +59,11 @@ export default function RequirementWizard({
   const [modulesInitialized, setModulesInitialized] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(!initialRequirementId);
 
-  const selectedCategory = catalog.find((c) => c.id === categoryId);
-  const selectedPackage = selectedCategory?.partner_packages.find((p) => p.id === packageId);
-  const serviceType = normalizeServiceType(selectedCategory?.slug ?? 'landing-page');
-  const serviceInfo = SERVICE_LABELS[serviceType];
-  const moduleOptions = getModulesForService(serviceType);
-  const packageFeatures = selectedPackage?.partner_package_features ?? [];
+  const selectedCategory = catalog.find((c) => c.slug === divisionSlug);
+  const selectedPackage = selectedCategory?.partner_packages.find((p) => p.slug === planSlug);
+  const questionServiceType = engagementType || getQuestionServiceType(divisionSlug);
+  const serviceInfo = SERVICE_LABELS[divisionSlug] ?? SERVICE_LABELS[normalizeServiceType(questionServiceType)];
+  const moduleOptions = getModulesForService(divisionSlug || questionServiceType);
 
   useEffect(() => {
     fetch('/api/partner/packages')
@@ -62,21 +71,24 @@ export default function RequirementWizard({
       .then((data) => {
         if (Array.isArray(data)) {
           setCatalog(data);
-          if (!categoryId && initialCategoryId) setCategoryId(initialCategoryId);
-          else if (!categoryId && data[0]) setCategoryId(data[0].id);
+          if (!divisionSlug && initialDivision) setDivisionSlug(initialDivision);
+          else if (!divisionSlug && data[0]) setDivisionSlug(data[0].slug);
+          if (!planSlug && initialPlan) setPlanSlug(initialPlan);
         }
       });
-  }, [categoryId, initialCategoryId]);
+  }, [divisionSlug, initialDivision, initialPlan, planSlug]);
 
   useEffect(() => {
-    if (!selectedCategory) return;
+    if (!divisionSlug) return;
     setQuestionsLoading(true);
-    fetch(`/api/partner/questions?serviceType=${encodeURIComponent(selectedCategory.slug)}`)
+    const params = new URLSearchParams({ division: divisionSlug });
+    if (engagementType) params.set('engagement', engagementType);
+    fetch(`/api/partner/questions?${params}`)
       .then((r) => r.json())
       .then((data) => setQuestions(data.questions ?? []))
       .catch(() => setQuestions([]))
       .finally(() => setQuestionsLoading(false));
-  }, [selectedCategory?.slug]);
+  }, [divisionSlug, engagementType]);
 
   useEffect(() => {
     if (!initialRequirementId) return;
@@ -85,8 +97,9 @@ export default function RequirementWizard({
       .then((data) => {
         if (data.requirement) {
           setRequirementId(data.requirement.id);
-          setCategoryId(data.requirement.service_category_id ?? '');
-          setPackageId(data.requirement.package_id ?? '');
+          setDivisionSlug(data.requirement.division_slug ?? data.requirement.partner_service_categories?.slug ?? '');
+          setPlanSlug(data.requirement.plan_slug ?? data.requirement.partner_packages?.slug ?? '');
+          setEngagementType(data.requirement.engagement_type ?? '');
           setAnswers({
             ...(data.requirement.business_data ?? {}),
             ...(data.requirement.project_data ?? {}),
@@ -100,18 +113,18 @@ export default function RequirementWizard({
   }, [initialRequirementId]);
 
   useEffect(() => {
-    if (!selectedPackage || modulesInitialized || !draftLoaded) return;
+    if (!planSlug || !divisionSlug || modulesInitialized || !draftLoaded) return;
     const current = Array.isArray(answers.modules) ? (answers.modules as string[]) : [];
     if (current.length > 0) {
       setModulesInitialized(true);
       return;
     }
-    const suggested = getSuggestedModulesFromPackage(serviceType, packageFeatures);
+    const suggested = getSuggestedModulesFromPlan(divisionSlug, planSlug);
     if (suggested.length > 0) {
       setAnswers((prev) => ({ ...prev, modules: suggested }));
     }
     setModulesInitialized(true);
-  }, [selectedPackage, packageFeatures, serviceType, modulesInitialized, draftLoaded]);
+  }, [planSlug, divisionSlug, modulesInitialized, draftLoaded, answers.modules]);
 
   const setAnswer = (key: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
@@ -151,8 +164,9 @@ export default function RequirementWizard({
 
     return {
       id: requirementId || undefined,
-      serviceCategoryId: categoryId,
-      packageId: packageId,
+      divisionSlug,
+      planSlug,
+      engagementType: engagementType || null,
       projectName: (answers.project_name as string) ?? null,
       industry: (answers.industry as string) ?? null,
       country: (answers.country as string) ?? null,
@@ -164,7 +178,7 @@ export default function RequirementWizard({
       modulesData: (answers.modules as string[]) ?? [],
       answers: functionalAnswers,
     };
-  }, [answers, categoryId, customRequirements, packageId, questions, requirementId]);
+  }, [answers, customRequirements, divisionSlug, engagementType, planSlug, questions, requirementId]);
 
   const saveDraft = useCallback(async () => {
     setSaving(true);
@@ -200,7 +214,7 @@ export default function RequirementWizard({
       return {};
     }
     const stepErrors = validateStepAnswers(questions, answers, step);
-    if (!packageId) stepErrors.package = 'Select a service package before continuing';
+    if (!planSlug || !divisionSlug) stepErrors.package = 'Select a service package before continuing';
     return stepErrors;
   };
 
@@ -257,7 +271,10 @@ export default function RequirementWizard({
     return visible.filter((q) => getQuestionGroup(q) === functionalGroup);
   }, [answers, functionalGroup, questions, step]);
 
-  const functionalGroups = FUNCTIONAL_GROUPS[serviceType] ?? FUNCTIONAL_GROUPS['landing-page'];
+  const functionalGroups =
+    FUNCTIONAL_GROUPS[engagementType ? normalizeServiceType(engagementType) : normalizeServiceType(divisionSlug)] ??
+    FUNCTIONAL_GROUPS.website ??
+    ['General'];
   const selectedModules = Array.isArray(answers.modules) ? (answers.modules as string[]) : [];
 
   const formatAnswer = (q: PartnerQuestion): string => {
@@ -290,10 +307,16 @@ export default function RequirementWizard({
       items: [
         { label: 'Service', value: serviceInfo?.name ?? selectedCategory?.name ?? '—' },
         { label: 'Package', value: selectedPackage?.name ?? '—' },
-        ...(packageFeatures.length > 0
-          ? [{ label: 'Plan Features', value: packageFeatures.map((f) => `${f.feature_label}: ${f.value}`).join(', ') }]
+        ...(selectedPackage?.includes && selectedPackage.includes.length > 0
+          ? [{ label: 'Plan Includes', value: selectedPackage.includes.slice(0, 8).join(', ') + (selectedPackage.includes.length > 8 ? '…' : '') }]
           : []),
         { label: 'Selected Modules', value: selectedModules.join(', ') || '—' },
+        ...(engagementType
+          ? [{
+              label: 'Requirement Type',
+              value: ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name ?? engagementType,
+            }]
+          : []),
         ...(customRequirements
           ? [{ label: 'Additional Notes', value: customRequirements }]
           : []),
@@ -374,7 +397,7 @@ export default function RequirementWizard({
           ))}
         </div>
 
-        {!packageId && (
+        {!planSlug && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
             Select a service package first.{' '}
             <Link href="/partner/packages" className="font-medium underline">
@@ -425,12 +448,49 @@ export default function RequirementWizard({
               ) : stepQuestions.length === 0 ? (
                 <p className="text-sm text-slate-500 py-8 text-center">No project fields configured.</p>
               ) : (
-                <WizardFieldGrid
-                  questions={stepQuestions}
-                  answers={answers}
-                  errors={errors}
-                  onChange={setAnswer}
-                />
+                <>
+                  <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <p className="text-sm font-medium text-slate-900 mb-1">
+                      Client Requirement Type <span className="text-slate-400 font-normal">(optional)</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mb-3">
+                      Select if this is a focused engagement beyond the standard package — e.g. landing page campaign, website revamp, or app changes.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEngagementType('')}
+                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                          !engagementType
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        Standard Package
+                      </button>
+                      {ENGAGEMENT_TYPES.map((eng) => (
+                        <button
+                          key={eng.slug}
+                          type="button"
+                          onClick={() => setEngagementType(eng.slug)}
+                          className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                            engagementType === eng.slug
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          {eng.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <WizardFieldGrid
+                    questions={stepQuestions}
+                    answers={answers}
+                    errors={errors}
+                    onChange={setAnswer}
+                  />
+                </>
               )}
             </>
           )}
@@ -462,18 +522,18 @@ export default function RequirementWizard({
                       </span>
                     )}
                   </div>
-                  {packageFeatures.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {packageFeatures.map((feat) => (
-                        <div
-                          key={feat.feature_key}
-                          className="flex items-center justify-between gap-2 bg-white rounded-lg px-3 py-2 border border-indigo-100 text-sm"
-                        >
-                          <span className="text-slate-600 text-xs">{feat.feature_label}</span>
-                          <span className="font-medium text-indigo-700 text-xs">{feat.value}</span>
-                        </div>
+                  {selectedPackage.includes.length > 0 && (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto">
+                      {selectedPackage.includes.slice(0, 12).map((item) => (
+                        <li key={item} className="flex items-start gap-1.5 text-xs text-slate-700">
+                          <Icon name="CheckIcon" size={12} className="text-green-600 shrink-0 mt-0.5" />
+                          {item}
+                        </li>
                       ))}
-                    </div>
+                      {selectedPackage.includes.length > 12 && (
+                        <li className="text-xs text-slate-400">+{selectedPackage.includes.length - 12} more…</li>
+                      )}
+                    </ul>
                   )}
                 </div>
               )}
@@ -488,7 +548,7 @@ export default function RequirementWizard({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                 {moduleOptions.map((mod) => {
                   const selected = selectedModules.includes(mod.key);
-                  const inPlan = getSuggestedModulesFromPackage(serviceType, packageFeatures).includes(mod.key);
+                  const inPlan = getSuggestedModulesFromPlan(divisionSlug, planSlug).includes(mod.key);
                   return (
                     <button
                       key={mod.key}
@@ -690,7 +750,7 @@ export default function RequirementWizard({
               <p className="text-sm text-indigo-600 font-medium mt-0.5">{selectedPackage.name}</p>
               <p className="text-xs text-slate-500 mt-2 leading-relaxed">{selectedPackage.tagline}</p>
               <Link
-                href={`/partner/packages?category=${categoryId}`}
+                href={`/partner/packages?division=${divisionSlug}`}
                 className="inline-block mt-3 text-xs font-medium text-indigo-600 hover:text-indigo-800"
               >
                 Change Plan

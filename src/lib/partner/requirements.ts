@@ -59,6 +59,9 @@ export async function saveRequirementDraft(input: {
   partnerUserId: string;
   serviceCategoryId?: string;
   packageId?: string;
+  divisionSlug?: string;
+  planSlug?: string;
+  engagementType?: string | null;
   projectName?: string;
   industry?: string;
   country?: string;
@@ -78,6 +81,9 @@ export async function saveRequirementDraft(input: {
     status: 'draft' as const,
     service_category_id: input.serviceCategoryId ?? null,
     package_id: input.packageId ?? null,
+    division_slug: input.divisionSlug ?? null,
+    plan_slug: input.planSlug ?? null,
+    engagement_type: input.engagementType ?? null,
     project_name: input.projectName ?? null,
     industry: input.industry ?? (input.businessData?.industry as string) ?? null,
     country: input.country ?? (input.businessData?.country as string) ?? null,

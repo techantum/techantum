@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
-import { getCatalogWithPackages, getComparisonMatrix } from '@/lib/partner/catalog-service';
+import {
+  getPartnerComparisonMatrix,
+  getPartnerServiceCatalog,
+} from '@/lib/partner/service-catalog';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const categoryId = url.searchParams.get('categoryId');
+  const division = url.searchParams.get('division') ?? url.searchParams.get('categoryId');
 
-  if (categoryId) {
-    const matrix = await getComparisonMatrix(categoryId);
-    return NextResponse.json(matrix);
+  if (division) {
+    const matrix = getPartnerComparisonMatrix(division);
+    return NextResponse.json({
+      packages: matrix.packages,
+      rows: matrix.rows,
+      divisionSlug: matrix.divisionSlug,
+    });
   }
 
-  const catalog = await getCatalogWithPackages();
+  const catalog = getPartnerServiceCatalog();
   return NextResponse.json(catalog);
 }

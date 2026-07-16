@@ -8,48 +8,62 @@ export const WIZARD_STEPS = [
   { step: 5, label: 'Review & Summary', key: 'review' },
 ] as const;
 
-/** Service slugs — focused on requirement-gathering engagement types */
-export const SERVICE_SLUGS = {
-  LANDING_PAGE: 'landing-page',
-  WEBSITE_REVAMP: 'website-revamp',
-  APP_CHANGES: 'app-changes',
-} as const;
-
-/** Legacy slug aliases for backward compatibility */
-export const LEGACY_SERVICE_SLUG_MAP: Record<string, string> = {
-  website: SERVICE_SLUGS.LANDING_PAGE,
-  'web-application': SERVICE_SLUGS.WEBSITE_REVAMP,
-  'mobile-application': SERVICE_SLUGS.APP_CHANGES,
+/** Map slugs → questionnaire service_type (DB templates + built-in fallback) */
+export const QUESTION_SERVICE_TYPE_MAP: Record<string, string> = {
+  'website-development': 'website',
+  'web-application-development': 'web-application',
+  'mobile-application-development': 'mobile-application',
+  website: 'website',
+  'web-application': 'web-application',
+  'mobile-application': 'mobile-application',
+  'landing-page': 'landing-page',
+  'website-revamp': 'website-revamp',
+  'app-changes': 'app-changes',
 };
 
 export function normalizeServiceType(slug: string): string {
-  return LEGACY_SERVICE_SLUG_MAP[slug] ?? slug;
+  return QUESTION_SERVICE_TYPE_MAP[slug] ?? slug;
 }
 
 /** All service_type values to try when resolving a question template (handles pre/post migration DB) */
 export function getServiceTypeLookupCandidates(slug: string): string[] {
   const normalized = normalizeServiceType(slug);
-  const legacySlugs = Object.entries(LEGACY_SERVICE_SLUG_MAP)
+  const aliases = Object.entries(QUESTION_SERVICE_TYPE_MAP)
     .filter(([, value]) => value === normalized)
     .map(([key]) => key);
 
-  return [...new Set([slug, normalized, ...legacySlugs])];
+  return [...new Set([slug, normalized, ...aliases])];
 }
 
 export const SERVICE_LABELS: Record<string, { name: string; description: string; icon: string }> = {
-  [SERVICE_SLUGS.LANDING_PAGE]: {
+  'website-development': {
+    name: 'Website Development',
+    description: 'Launch → Growth → Enterprise packages for professional websites.',
+    icon: 'GlobeAltIcon',
+  },
+  'web-application-development': {
+    name: 'Web Application Development',
+    description: 'Accelerate → Scale → Transform for custom web applications.',
+    icon: 'ComputerDesktopIcon',
+  },
+  'mobile-application-development': {
+    name: 'Mobile Application Development',
+    description: 'Launch Mobile → Growth Mobile → Enterprise Mobile apps.',
+    icon: 'DevicePhoneMobileIcon',
+  },
+  'landing-page': {
     name: 'Marketing Landing Pages',
     description: 'Campaign-focused landing pages to capture leads and drive conversions.',
     icon: 'RocketLaunchIcon',
   },
-  [SERVICE_SLUGS.WEBSITE_REVAMP]: {
+  'website-revamp': {
     name: 'Website Revamp',
     description: 'Redesign and modernize an existing website while improving UX and performance.',
     icon: 'GlobeAltIcon',
   },
-  [SERVICE_SLUGS.APP_CHANGES]: {
+  'app-changes': {
     name: 'Existing Application Changes',
-    description: 'Enhancements, fixes, and new features for an existing web or mobile application.',
+    description: 'Enhancements, fixes, and new features for an existing application.',
     icon: 'WrenchScrewdriverIcon',
   },
 };
@@ -63,16 +77,16 @@ export interface ModuleOption {
 }
 
 export const MODULE_OPTIONS: ModuleOption[] = [
-  { key: 'Forms', label: 'Lead Forms', description: 'Contact, enquiry, and lead capture forms', icon: 'ClipboardDocumentListIcon', services: ['landing-page', 'website-revamp'] },
-  { key: 'CMS', label: 'CMS', description: 'Client-editable pages and content', icon: 'DocumentTextIcon', services: ['landing-page', 'website-revamp'] },
-  { key: 'Blog', label: 'Blog', description: 'Articles and content marketing', icon: 'NewspaperIcon', services: ['website-revamp'] },
-  { key: 'Analytics', label: 'Analytics', description: 'Conversion tracking and dashboards', icon: 'ChartBarIcon', services: ['landing-page', 'website-revamp', 'app-changes'] },
-  { key: 'CRM', label: 'CRM Integration', description: 'Sync leads and contacts to CRM', icon: 'UserGroupIcon', services: ['landing-page', 'website-revamp'] },
-  { key: 'Chat', label: 'Live Chat', description: 'WhatsApp, chat widget, or messaging', icon: 'ChatBubbleLeftRightIcon', services: ['landing-page', 'website-revamp'] },
-  { key: 'Payments', label: 'Payments', description: 'Payment gateway for bookings or sales', icon: 'CreditCardIcon', services: ['landing-page', 'website-revamp', 'app-changes'] },
-  { key: 'Booking', label: 'Booking', description: 'Appointments and scheduling', icon: 'CalendarDaysIcon', services: ['landing-page', 'website-revamp'] },
-  { key: 'API Integration', label: 'API Integration', description: 'Connect to third-party systems', icon: 'LinkIcon', services: ['website-revamp', 'app-changes'] },
-  { key: 'Admin Panel', label: 'Admin Panel', description: 'Backend administration and controls', icon: 'Cog6ToothIcon', services: ['website-revamp', 'app-changes'] },
+  { key: 'Forms', label: 'Lead Forms', description: 'Contact, enquiry, and lead capture forms', icon: 'ClipboardDocumentListIcon', services: ['website-development'] },
+  { key: 'CMS', label: 'CMS', description: 'Client-editable pages and content', icon: 'DocumentTextIcon', services: ['website-development', 'web-application-development'] },
+  { key: 'Blog', label: 'Blog', description: 'Articles and content marketing', icon: 'NewspaperIcon', services: ['website-development'] },
+  { key: 'Analytics', label: 'Analytics', description: 'Conversion tracking and dashboards', icon: 'ChartBarIcon', services: ['website-development', 'web-application-development', 'mobile-application-development'] },
+  { key: 'CRM', label: 'CRM Integration', description: 'Sync leads and contacts to CRM', icon: 'UserGroupIcon', services: ['website-development', 'web-application-development'] },
+  { key: 'Chat', label: 'Live Chat', description: 'WhatsApp, chat widget, or messaging', icon: 'ChatBubbleLeftRightIcon', services: ['website-development'] },
+  { key: 'Payments', label: 'Payments', description: 'Payment gateway for bookings or sales', icon: 'CreditCardIcon', services: ['website-development', 'web-application-development', 'mobile-application-development'] },
+  { key: 'Booking', label: 'Booking', description: 'Appointments and scheduling', icon: 'CalendarDaysIcon', services: ['website-development'] },
+  { key: 'API Integration', label: 'API Integration', description: 'Connect to third-party systems', icon: 'LinkIcon', services: ['web-application-development', 'mobile-application-development'] },
+  { key: 'Admin Panel', label: 'Admin Panel', description: 'Backend administration and controls', icon: 'Cog6ToothIcon', services: ['web-application-development', 'mobile-application-development'] },
 ];
 
 /** Map package comparison feature keys to wizard module keys */
@@ -90,8 +104,16 @@ export const FEATURE_KEY_TO_MODULE: Record<string, string> = {
 };
 
 export function getModulesForService(serviceType: string): ModuleOption[] {
-  const slug = normalizeServiceType(serviceType);
-  return MODULE_OPTIONS.filter((m) => m.services.includes(slug));
+  const slug = serviceType.includes('-development') ? serviceType : normalizeServiceType(serviceType);
+  const divisionSlug =
+    slug === 'website'
+      ? 'website-development'
+      : slug === 'web-application'
+        ? 'web-application-development'
+        : slug === 'mobile-application'
+          ? 'mobile-application-development'
+          : serviceType;
+  return MODULE_OPTIONS.filter((m) => m.services.includes(divisionSlug));
 }
 
 export function getSuggestedModulesFromPackage(
@@ -108,16 +130,15 @@ export function getSuggestedModulesFromPackage(
     }
   }
 
-  if (normalizeServiceType(serviceType) === SERVICE_SLUGS.LANDING_PAGE) {
-    if (!suggested.includes('Forms')) suggested.push('Forms');
-    if (!suggested.includes('Analytics')) suggested.push('Analytics');
+  if (normalizeServiceType(serviceType) === 'website' || serviceType === 'website-development') {
+    if (!suggested.includes('CMS')) suggested.push('CMS');
   }
 
   return [...new Set(suggested)];
 }
 
-/** Minimal question keys per step — only what's needed to understand pain points and scope */
-export const FOCUSED_QUESTION_KEYS: Record<string, Record<number, string[]>> = {
+/** Engagement-only focused keys; division packages use full DB / built-in question sets */
+export const ENGAGEMENT_QUESTION_KEYS: Record<string, Record<number, string[]>> = {
   'landing-page': {
     1: ['company_name', 'industry', 'pain_points', 'goals'],
     2: ['project_name', 'budget_range', 'expected_launch', 'target_audience'],
@@ -149,8 +170,12 @@ export function filterFocusedQuestions(
   serviceType: string
 ): PartnerQuestion[] {
   const slug = normalizeServiceType(serviceType);
-  const keysByStep = FOCUSED_QUESTION_KEYS[slug];
-  if (!keysByStep) return questions;
+  const keysByStep = ENGAGEMENT_QUESTION_KEYS[slug];
+
+  // Division packages (website / web-app / mobile): show all questions except modules step
+  if (!keysByStep) {
+    return questions.filter((q) => q.wizard_step !== 3 && q.question_key !== 'modules');
+  }
 
   const allowed = new Set<number>();
   const keySet = new Set<string>();
@@ -227,21 +252,56 @@ const APP_CHANGES_FUNCTIONAL: Record<string, QuestionEnhancement> = {
 };
 
 export const FUNCTIONAL_GROUPS: Record<string, string[]> = {
+  website: ['General', 'CMS', 'Features', 'SEO', 'Integrations', 'Security'],
+  'web-application': ['General', 'Features', 'Integrations', 'Security', 'Reporting'],
+  'mobile-application': ['General', 'Features', 'Integrations', 'Security', 'Platform'],
   'landing-page': ['Campaign', 'Scope', 'Design', 'Content', 'Features', 'Integrations'],
   'website-revamp': ['Current State', 'Content', 'Design', 'SEO', 'CMS', 'Hosting'],
   'app-changes': ['Current Application', 'Documentation', 'Scope', 'Usage', 'Access', 'Infrastructure', 'Integrations'],
 };
 
+const WEBSITE_FUNCTIONAL: Record<string, QuestionEnhancement> = {
+  num_pages: { group: 'General', placeholder: 'e.g. 10', help_text: 'Approximate number of website pages', colSpan: 1 },
+  need_cms: { group: 'CMS', help_text: 'Does the client need to edit content themselves?' },
+  need_blog: { group: 'Features', help_text: 'Blog or news section for content marketing' },
+  need_seo: { group: 'SEO', help_text: 'Level of SEO setup required at launch' },
+  need_analytics: { group: 'Features', help_text: 'Google Analytics or similar tracking' },
+  need_payment: { group: 'Integrations', help_text: 'Online payment collection on the website' },
+  need_login: { group: 'Security', help_text: 'User accounts and authenticated areas' },
+};
+
+const WEBAPP_FUNCTIONAL: Record<string, QuestionEnhancement> = {
+  user_roles: { group: 'General', placeholder: 'e.g. 5', help_text: 'Expected distinct user roles', colSpan: 1 },
+  need_admin: { group: 'General', help_text: 'Administrative dashboard required?' },
+  workflow_automation: { group: 'Features', help_text: 'Automated workflows and processes' },
+  api_integrations: { group: 'Integrations', placeholder: 'e.g. 3', help_text: 'Third-party APIs to integrate', colSpan: 1 },
+  erp_crm: { group: 'Integrations', help_text: 'ERP or CRM integration needed?' },
+};
+
+const MOBILE_FUNCTIONAL: Record<string, QuestionEnhancement> = {
+  platforms: { group: 'Platform', help_text: 'Target mobile platforms' },
+  offline_mode: { group: 'Features', help_text: 'App should work without internet?' },
+  push_notifications: { group: 'Features', help_text: 'Push alerts for users' },
+  maps_gps: { group: 'Integrations', help_text: 'Location, maps, or GPS tracking' },
+  biometric: { group: 'Security', help_text: 'Fingerprint or face login' },
+};
+
 export function getEnhancement(serviceType: string, key: string): QuestionEnhancement {
   const slug = normalizeServiceType(serviceType);
   const serviceMap =
-    slug === SERVICE_SLUGS.LANDING_PAGE
+    slug === 'landing-page'
       ? LANDING_FUNCTIONAL
-      : slug === SERVICE_SLUGS.WEBSITE_REVAMP
+      : slug === 'website-revamp'
         ? REVAMP_FUNCTIONAL
-        : slug === SERVICE_SLUGS.APP_CHANGES
+        : slug === 'app-changes'
           ? APP_CHANGES_FUNCTIONAL
-          : {};
+          : slug === 'website'
+            ? WEBSITE_FUNCTIONAL
+            : slug === 'web-application'
+              ? WEBAPP_FUNCTIONAL
+              : slug === 'mobile-application'
+                ? MOBILE_FUNCTIONAL
+                : {};
   return { ...BASE_ENHANCEMENTS[key], ...serviceMap[key] };
 }
 
@@ -306,6 +366,29 @@ export function getSupplementaryQuestions(serviceType: string, templateId: strin
       { question_key: 'deployment_env', label: 'Deployment Environment', question_type: 'text', wizard_step: 4, is_required: false, display_order: 7 },
       { question_key: 'api_integrations', label: 'Third-party Integrations', question_type: 'number', wizard_step: 4, is_required: false, display_order: 8 },
     ],
+    website: [
+      { question_key: 'num_pages', label: 'Number of Pages', question_type: 'number', wizard_step: 4, is_required: true, display_order: 1 },
+      { question_key: 'need_cms', label: 'Need CMS?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: true, display_order: 2 },
+      { question_key: 'need_blog', label: 'Need Blog?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 3 },
+      { question_key: 'need_seo', label: 'Need SEO Setup?', question_type: 'radio', options: ['Basic', 'Advanced', 'Enterprise', 'No'], wizard_step: 4, is_required: true, display_order: 4 },
+      { question_key: 'need_analytics', label: 'Need Analytics?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 5 },
+      { question_key: 'need_payment', label: 'Need Payment Gateway?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 6 },
+      { question_key: 'need_login', label: 'Need User Login?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 7 },
+    ],
+    'web-application': [
+      { question_key: 'user_roles', label: 'Expected User Roles', question_type: 'number', wizard_step: 4, is_required: true, display_order: 1 },
+      { question_key: 'need_admin', label: 'Admin Panel?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: true, display_order: 2 },
+      { question_key: 'workflow_automation', label: 'Workflow Automation', question_type: 'dropdown', options: ['Basic', 'Advanced', 'Enterprise'], wizard_step: 4, is_required: false, display_order: 3 },
+      { question_key: 'api_integrations', label: 'API Integrations Needed', question_type: 'number', wizard_step: 4, is_required: false, display_order: 4 },
+      { question_key: 'erp_crm', label: 'ERP/CRM Integration?', question_type: 'radio', options: ['Yes', 'No', 'Optional'], wizard_step: 4, is_required: false, display_order: 5 },
+    ],
+    'mobile-application': [
+      { question_key: 'platforms', label: 'Platforms', question_type: 'multi_select', options: ['Android', 'iOS', 'Both'], wizard_step: 4, is_required: true, display_order: 1 },
+      { question_key: 'offline_mode', label: 'Offline Mode?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 2 },
+      { question_key: 'push_notifications', label: 'Push Notifications?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: true, display_order: 3 },
+      { question_key: 'maps_gps', label: 'Maps & GPS?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 4 },
+      { question_key: 'biometric', label: 'Biometric Login?', question_type: 'radio', options: ['Yes', 'No'], wizard_step: 4, is_required: false, display_order: 5 },
+    ],
   };
 
   const list = extras[slug] ?? [];
@@ -366,6 +449,17 @@ const CORE_QUESTION_DEFS: Record<string, Omit<PartnerQuestion, 'id' | 'template_
     is_required: true,
     partner_question_conditions: [],
   },
+  country: {
+    question_key: 'country',
+    label: 'Country',
+    question_type: 'text',
+    options: [],
+    placeholder: 'e.g. India, USA, UAE',
+    help_text: 'Primary country of operation',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
   pain_points: {
     question_key: 'pain_points',
     label: 'Client Pain Points',
@@ -421,6 +515,17 @@ const CORE_QUESTION_DEFS: Record<string, Omit<PartnerQuestion, 'id' | 'template_
     is_required: false,
     partner_question_conditions: [],
   },
+  priority: {
+    question_key: 'priority',
+    label: 'Priority',
+    question_type: 'dropdown',
+    options: ['Low', 'Medium', 'High', 'Critical'],
+    placeholder: null,
+    help_text: 'How urgent is this project?',
+    default_value: null,
+    is_required: true,
+    partner_question_conditions: [],
+  },
   target_audience: {
     question_key: 'target_audience',
     label: 'Target Audience',
@@ -434,13 +539,31 @@ const CORE_QUESTION_DEFS: Record<string, Omit<PartnerQuestion, 'id' | 'template_
   },
 };
 
+/** Built-in question keys for division packages when DB is not seeded */
+const DIVISION_BUILTIN_KEYS: Record<string, Record<number, string[]>> = {
+  website: {
+    1: ['company_name', 'client_website', 'industry', 'country', 'pain_points', 'goals'],
+    2: ['project_name', 'budget_range', 'expected_launch', 'priority', 'target_audience'],
+    4: ['num_pages', 'need_cms', 'need_blog', 'need_seo', 'need_analytics', 'need_payment', 'need_login'],
+  },
+  'web-application': {
+    1: ['company_name', 'industry', 'pain_points', 'goals'],
+    2: ['project_name', 'budget_range', 'expected_launch', 'priority'],
+    4: ['user_roles', 'need_admin', 'workflow_automation', 'api_integrations', 'erp_crm'],
+  },
+  'mobile-application': {
+    1: ['company_name', 'industry', 'pain_points', 'goals'],
+    2: ['project_name', 'budget_range', 'expected_launch', 'priority'],
+    4: ['platforms', 'offline_mode', 'push_notifications', 'maps_gps', 'biometric'],
+  },
+};
+
 /**
  * Built-in wizard questions when DB templates are missing (e.g. production not yet seeded).
- * Ensures the requirement form always renders fields.
  */
 export function getBuiltInWizardQuestions(serviceType: string): PartnerQuestion[] {
   const slug = normalizeServiceType(serviceType);
-  const keysByStep = FOCUSED_QUESTION_KEYS[slug];
+  const keysByStep = ENGAGEMENT_QUESTION_KEYS[slug] ?? DIVISION_BUILTIN_KEYS[slug];
   if (!keysByStep) return [];
 
   const templateId = `builtin-${slug}`;
