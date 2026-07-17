@@ -3,16 +3,17 @@ import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import WebVitalsReporter from '@/components/WebVitalsReporter';
-import CustomScripts from '@/components/CustomScripts';
+import BodySnippets from '@/components/BodySnippets';
+import HeadSnippets from '@/components/HeadSnippets';
+import PageBodySnippets from '@/components/PageBodySnippets';
+import PageHeadSnippets from '@/components/PageHeadSnippets';
+import { MarketingBodyTags, MarketingHeadTags } from '@/components/MarketingTags';
 import ScrollRevealProvider from '@/components/common/ScrollRevealProvider';
 import WhatsAppWidgetLoader from '@/components/common/WhatsAppWidgetLoader';
 import { getBranding, getSeo } from '@/lib/cms';
 import { defaultSeo } from '@/lib/cms/default-content';
 import { getMetadataBase } from '@/lib/cms/url';
-import {
-  buildMarketingBodyScripts,
-  buildMarketingHeaderScripts,
-} from '@/lib/seo/marketing-tags';
+import { hasActiveMarketingTracking } from '@/lib/seo/marketing-tags';
 import '../styles/index.css';
 
 export const viewport: Viewport = {
@@ -109,9 +110,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const seo = await getSeo();
-  const marketingHeader = buildMarketingHeaderScripts(seo);
-  const marketingBody = buildMarketingBodyScripts(seo);
-  const cmsTracksAnalytics = Boolean(seo.gtm_id?.trim() || seo.ga4_id?.trim());
+  const cmsTracksAnalytics = hasActiveMarketingTracking(seo);
 
   return (
     <html lang="en">
@@ -126,11 +125,12 @@ export default async function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
         />
-        <CustomScripts html={marketingHeader} placement="header" />
-        <CustomScripts html={seo.header_scripts || ''} placement="header" />
+        <MarketingHeadTags seo={seo} />
+        <HeadSnippets html={seo.header_scripts || ''} />
+        <PageHeadSnippets />
       </head>
       <body className="font-inter">
-        <CustomScripts html={marketingBody} placement="footer" />
+        <MarketingBodyTags seo={seo} />
         {!cmsTracksAnalytics && (
           <Suspense fallback={null}>
             <GoogleAnalytics />
@@ -140,7 +140,8 @@ export default async function RootLayout({
         <ScrollRevealProvider />
         {children}
         <WhatsAppWidgetLoader />
-        <CustomScripts html={seo.footer_scripts || ''} placement="footer" />
+        <PageBodySnippets />
+        <BodySnippets html={seo.footer_scripts || ''} />
       </body>
     </html>
   );

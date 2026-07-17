@@ -12,10 +12,20 @@ import { generateOrganizationSchema, generateFAQSchema } from '@/lib/seo';
 import { getBranding, getCmsContent, getSeo } from '@/lib/cms';
 import { getDefaultContent } from '@/lib/cms/default-content';
 import { getSocialSameAsUrls } from '@/lib/seo/marketing-tags';
+import { buildPageMetadata } from '@/lib/seo/page-metadata';
 
 /** Public marketing page — SSG at build time, ISR every 5 minutes. */
 export const dynamic = 'force-static';
 export const revalidate = 300;
+
+export async function generateMetadata() {
+  const seo = await getSeo();
+  return buildPageMetadata({
+    path: '/',
+    title: seo.site_title,
+    description: seo.description,
+  });
+}
 
 export default async function Homepage() {
   const [branding, seo] = await Promise.all([getBranding(), getSeo()]);

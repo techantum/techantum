@@ -1,5 +1,4 @@
 import { buildPageMetadata } from '@/lib/seo/page-metadata';
-import PageScripts from '@/components/PageScripts';
 
 export async function generateMetadata() {
   return buildPageMetadata({
@@ -11,10 +10,5 @@ export async function generateMetadata() {
 }
 
 export default function AboutLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <PageScripts path="/about" />
-      {children}
-    </>
-  );
+  return children;
 }

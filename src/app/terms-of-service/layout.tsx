@@ -1,18 +1,13 @@
-import { Metadata } from 'next';
+import { buildPageMetadata } from '@/lib/seo/page-metadata';
 
-export const metadata: Metadata = {
-  title: 'Terms of Service',
-  description:
-    'Review TechAntum terms of service for software development projects. Clear terms covering scope, payment, delivery, and support.',
-  alternates: {
-    canonical: '/terms-of-service',
-  },
-  openGraph: {
-    title: 'Terms of Service | TechAntum',
-    description: 'Terms and conditions for TechAntum development services.',
-    url: '/terms-of-service',
-  },
-};
+export async function generateMetadata() {
+  return buildPageMetadata({
+    path: '/terms-of-service',
+    title: 'Terms of Service',
+    description:
+      'Review TechAntum terms of service for software development projects. Clear terms covering scope, payment, delivery, and support.',
+  });
+}
 
 export default function TermsLayout({ children }: { children: React.ReactNode }) {
   return children;

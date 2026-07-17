@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { defaultSeo, normalizeSiteSeo } from '@/lib/cms/default-content';
 import { revalidateAllMarketingPages } from '@/lib/seo/revalidation';
+import { normalizeMarketingTagId } from '@/lib/seo/marketing-tags';
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -34,11 +35,11 @@ export async function PUT(request: Request) {
     follow_site: body.follow_site,
     header_scripts: body.header_scripts ?? '',
     footer_scripts: body.footer_scripts ?? '',
-    gtm_id: body.gtm_id ?? '',
-    ga4_id: body.ga4_id ?? '',
+    gtm_id: normalizeMarketingTagId(body.gtm_id, 'gtm'),
+    ga4_id: normalizeMarketingTagId(body.ga4_id, 'ga4'),
     bing_verification: body.bing_verification ?? '',
-    facebook_pixel_id: body.facebook_pixel_id ?? '',
-    linkedin_partner_id: body.linkedin_partner_id ?? '',
+    facebook_pixel_id: normalizeMarketingTagId(body.facebook_pixel_id, 'numeric'),
+    linkedin_partner_id: normalizeMarketingTagId(body.linkedin_partner_id, 'numeric'),
     facebook_app_id: body.facebook_app_id ?? '',
     facebook_url: body.facebook_url ?? '',
     instagram_url: body.instagram_url ?? '',

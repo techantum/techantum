@@ -21,6 +21,13 @@ yarn-error.log*
 .env
 .env*.local
 
+# local npm cache
+.npm-cache/
+
+# temporary diagnostic scripts
+scripts/_*
+scripts/*.out
+
 # typescript
 next-env.d.ts
 

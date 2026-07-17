@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { SiteSeo } from '@/lib/cms/types';
 import { defaultSeo } from '@/lib/cms/default-content';
+import { sanitizeTagId } from '@/lib/seo/marketing-tags';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import MediaUploadField from '@/components/admin/MediaUploadField';
@@ -57,6 +58,11 @@ export default function SeoAdminPage() {
   };
 
   if (loading) return <p className="text-muted-foreground">Loading SEO settings…</p>;
+
+  const gtmActive = Boolean(sanitizeTagId(form.gtm_id));
+  const ga4Active = Boolean(sanitizeTagId(form.ga4_id));
+  const gtmLooksInvalid = Boolean(form.gtm_id?.trim()) && !gtmActive;
+  const ga4LooksInvalid = Boolean(form.ga4_id?.trim()) && !ga4Active;
 
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
@@ -152,6 +158,13 @@ export default function SeoAdminPage() {
                 placeholder="GTM-XXXXXXX"
                 className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
               />
+              {gtmLooksInvalid ? (
+                <p className="text-xs text-red-600 mt-1">
+                  Enter only the container ID (e.g. GTM-ABC123), not the full embed code.
+                </p>
+              ) : gtmActive ? (
+                <p className="text-xs text-green-700 mt-1">GTM will load on all pages.</p>
+              ) : null}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Google Analytics 4 ID</label>
@@ -164,6 +177,17 @@ export default function SeoAdminPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Used when GTM is empty. Prefer GTM if you manage tags there.
               </p>
+              {ga4LooksInvalid ? (
+                <p className="text-xs text-red-600 mt-1">
+                  Enter only the measurement ID (e.g. G-XXXXXXXXXX), not the full embed code.
+                </p>
+              ) : ga4Active && !gtmActive ? (
+                <p className="text-xs text-green-700 mt-1">GA4 will load on all pages.</p>
+              ) : ga4Active && gtmActive ? (
+                <p className="text-xs text-amber-700 mt-1">
+                  GA4 ID is saved but GTM takes priority — configure GA4 inside your GTM container.
+                </p>
+              ) : null}
             </div>
           </div>
           <div>

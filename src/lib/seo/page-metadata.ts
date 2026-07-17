@@ -97,11 +97,3 @@ export async function buildPageMetadata(input: PageMetadataInput): Promise<Metad
     },
   };
 }
-
-export async function getPageScripts(path: string): Promise<{ header: string; footer: string }> {
-  const [globalSeo, pageSeo] = await Promise.all([getSeo(), getPageSeo(path)]);
-  return {
-    header: [globalSeo.header_scripts, pageSeo?.header_scripts].filter(Boolean).join('\n'),
-    footer: [globalSeo.footer_scripts, pageSeo?.footer_scripts].filter(Boolean).join('\n'),
-  };
-}

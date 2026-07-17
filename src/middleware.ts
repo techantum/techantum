@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { normalizeRedirectPath } from '@/lib/seo/redirects';
+import { fetchCanonicalHostPreference } from '@/lib/seo/site-settings-cache';
 
 type RedirectRow = {
   source_path: string;
@@ -47,7 +48,8 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const hostname = request.headers.get('host') || '';
   const isProduction = process.env.NODE_ENV === 'production';
-  const canonicalHost = getCanonicalHost();
+  const canonicalHost = await fetchCanonicalHostPreference().catch(() => getCanonicalHost());
+  const pathname = normalizeRedirectPath(url.pathname);
 
   // Force HTTPS in production
   if (isProduction) {
@@ -73,7 +75,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // CMS redirect manager
-  const pathname = normalizeRedirectPath(url.pathname);
   const redirects = await fetchRedirects();
   const match = redirects.find((r) => normalizeRedirectPath(r.source_path) === pathname);
   if (match) {
@@ -84,6 +85,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next();
+  response.headers.set('x-pathname', pathname);
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-XSS-Protection', '1; mode=block');

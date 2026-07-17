@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import EngagementTypeSelector from '@/components/partner/EngagementTypeSelector';
+import WizardFieldGrid from '@/components/partner/WizardFieldGrid';
 import type { PartnerQuestion } from '@/lib/partner/catalog';
 import { WIZARD_STEPS } from '@/lib/partner/catalog';
 import {

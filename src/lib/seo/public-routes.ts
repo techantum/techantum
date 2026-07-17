@@ -29,9 +29,9 @@ export interface SitemapEntry {
   priority: number;
 }
 
-export function buildSitemapEntries(extraPaths: string[] = []): SitemapEntry[] {
+export function buildSitemapEntries(paths: string[] = getAllStaticPublicRoutes()): SitemapEntry[] {
   const serviceRoutes = new Set(getServiceRoutes());
-  const allPaths = new Set([...getAllStaticPublicRoutes(), ...extraPaths]);
+  const allPaths = new Set(paths);
 
   return [...allPaths].map((path) => {
     const route = path === '/' ? '' : path;

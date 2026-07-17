@@ -33,7 +33,7 @@ export async function GET() {
       .limit(5),
     supabase
       .from('site_seo')
-      .select('google_verification, header_scripts, gtm_id, ga4_id, facebook_pixel_id')
+      .select('header_scripts, footer_scripts, gtm_id, ga4_id, facebook_pixel_id')
       .eq('id', 1)
       .maybeSingle(),
   ]);
@@ -41,12 +41,13 @@ export async function GET() {
   const publicRoutes = getAllStaticPublicRoutes();
   const indexedOverrides = (pageSeoRows ?? []).filter((r) => r.index_enabled !== false).length;
   const gaConfigured =
-    Boolean(seoRow?.google_verification) ||
-    Boolean(seoRow?.gtm_id) ||
-    Boolean(seoRow?.ga4_id) ||
-    Boolean(seoRow?.facebook_pixel_id) ||
+    Boolean(seoRow?.gtm_id?.trim()) ||
+    Boolean(seoRow?.ga4_id?.trim()) ||
+    Boolean(seoRow?.facebook_pixel_id?.trim()) ||
     (seoRow?.header_scripts ?? '').includes('googletagmanager') ||
-    (seoRow?.header_scripts ?? '').includes('google-analytics');
+    (seoRow?.header_scripts ?? '').includes('google-analytics') ||
+    (seoRow?.footer_scripts ?? '').includes('googletagmanager') ||
+    (seoRow?.footer_scripts ?? '').includes('google-analytics');
 
   return NextResponse.json({
     pages: countEditablePages(),
