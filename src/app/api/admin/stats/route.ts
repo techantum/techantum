@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { countEditablePages, countEditableSections } from '@/lib/cms/site-pages';
 import { getAllStaticPublicRoutes } from '@/lib/seo/public-routes';
+import { isGa4Configured } from '@/lib/analytics/ga4-config';
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -62,8 +63,11 @@ export async function GET() {
     recentLeads: recentLeads ?? [],
     analytics: {
       configured: gaConfigured,
+      apiConfigured: isGa4Configured(),
       note: gaConfigured
-        ? 'Tracking configured in SEO & Marketing'
+        ? isGa4Configured()
+          ? 'GA4 tracking + dashboard API connected'
+          : 'Tracking active — add GA4 API credentials for dashboard stats'
         : 'Add GTM, GA4, or pixels in Admin → SEO & Marketing',
     },
   });

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.14",
+    "@google-analytics/data": "^6.1.0",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.8.0",

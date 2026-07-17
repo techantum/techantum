@@ -28,6 +28,12 @@ interface DashboardStats {
   analytics: { configured: boolean; note: string };
 }
 
+interface AnalyticsSummaryResponse {
+  configured: boolean;
+  error?: string;
+  summary: { activeUsers: number; pageViews: number } | null;
+}
+
 const SOURCE_LABELS: Record<string, string> = {
   homepage_hero: 'Homepage hero',
   contact_page: 'Contact page',
@@ -39,12 +45,18 @@ function formatDate(iso: string) {
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/stats')
-      .then((r) => r.json())
-      .then(setStats)
+    Promise.all([
+      fetch('/api/admin/stats').then((r) => r.json()),
+      fetch('/api/admin/analytics?range=7d').then((r) => r.json()),
+    ])
+      .then(([statsData, analyticsData]) => {
+        setStats(statsData);
+        setAnalytics(analyticsData);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -64,9 +76,21 @@ export default function AdminDashboardPage() {
         <AdminStatCard label="Content sections" value={stats.contentSections} hint="Editable in Site Content" icon="PencilSquareIcon" accent="blue" />
         <AdminStatCard label="Total leads" value={stats.totalLeads} hint="All form submissions" icon="InboxIcon" accent="default" />
         <AdminStatCard
-          label="Page views"
-          value={stats.analytics.configured ? 'GA active' : '—'}
-          hint={stats.analytics.note}
+          label="Visitors (7d)"
+          value={
+            analytics?.summary
+              ? analytics.summary.activeUsers.toLocaleString('en-IN')
+              : stats.analytics.configured
+                ? '—'
+                : '—'
+          }
+          hint={
+            analytics?.summary
+              ? `${analytics.summary.pageViews.toLocaleString('en-IN')} page views`
+              : analytics?.error
+                ? 'Set up GA4 API credentials'
+                : stats.analytics.note
+          }
           icon="ChartBarIcon"
           accent="green"
         />
@@ -113,6 +137,7 @@ export default function AdminDashboardPage() {
           <h2 className="font-bricolage font-semibold text-foreground">Quick links</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {[
+              { href: '/admin/analytics', label: 'Website analytics', icon: 'ChartBarIcon' },
               { href: '/admin/content', label: 'Edit site content', icon: 'PencilSquareIcon' },
               { href: '/admin/submissions', label: 'Manage leads', icon: 'InboxIcon' },
               { href: '/admin/branding', label: 'Update branding', icon: 'PaintBrushIcon' },

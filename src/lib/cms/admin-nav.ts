@@ -19,7 +19,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Dashboard',
     icon: 'HomeIcon',
     defaultOpen: true,
-    items: [{ href: '/admin', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true }],
+    items: [
+      { href: '/admin', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
+      { href: '/admin/analytics', label: 'Website Analytics', icon: 'ChartBarIcon' },
+    ],
   },
   {
     id: 'partners',
