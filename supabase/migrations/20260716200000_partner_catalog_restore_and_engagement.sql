@@ -73,20 +73,12 @@ FROM public.partner_service_categories c
 WHERE p.category_id = c.id AND c.slug = 'mobile-application-development'
   AND p.slug IN ('launch', 'growth', 'enterprise');
 
-UPDATE public.partner_question_templates
-SET slug = 'website-discovery', name = 'Website Requirement Discovery', service_type = 'website'
-WHERE slug IN ('website-discovery', 'landing-page-discovery') OR service_type IN ('website', 'landing-page');
-
-UPDATE public.partner_question_templates
-SET slug = 'web-app-discovery', name = 'Web Application Discovery', service_type = 'web-application'
-WHERE slug IN ('web-app-discovery', 'website-revamp-discovery') OR service_type IN ('web-application', 'website-revamp');
-
-UPDATE public.partner_question_templates
-SET slug = 'mobile-discovery', name = 'Mobile Application Discovery', service_type = 'mobile-application'
-WHERE slug IN ('mobile-discovery', 'app-changes-discovery') OR service_type IN ('mobile-application', 'app-changes');
-
+-- Division + engagement question templates (idempotent — never rename slugs in bulk)
 INSERT INTO public.partner_question_templates (slug, name, service_type, description)
 VALUES
+  ('website-discovery', 'Website Requirement Discovery', 'website', 'Questionnaire for website package projects'),
+  ('web-app-discovery', 'Web Application Discovery', 'web-application', 'Questionnaire for web application package projects'),
+  ('mobile-discovery', 'Mobile Application Discovery', 'mobile-application', 'Questionnaire for mobile application package projects'),
   ('landing-page-discovery', 'Marketing Landing Pages', 'landing-page', 'Questionnaire for marketing landing page requirements'),
   ('website-revamp-discovery', 'Website Revamp', 'website-revamp', 'Questionnaire for website revamp requirements'),
   ('app-changes-discovery', 'Application Changes', 'app-changes', 'Questionnaire for existing application change requirements')
