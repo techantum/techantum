@@ -1,6 +1,5 @@
-import type { protos } from '@google-analytics/data';
-import { getAnalyticsDateRange, type AnalyticsRange } from './ga4-config';
-import { getGa4Client } from './ga4-client';
+import { getAnalyticsDateRange, getGa4Config, type AnalyticsRange } from './ga4-config';
+import { runGa4Report } from './ga4-client';
 
 export interface AnalyticsSummary {
   activeUsers: number;
@@ -33,6 +32,8 @@ export interface AnalyticsLocationRow {
 
 export interface WebsiteAnalyticsReport {
   configured: boolean;
+  propertyId: string;
+  fetchedAt: string;
   range: ReturnType<typeof getAnalyticsDateRange>;
   summary: AnalyticsSummary;
   daily: AnalyticsDailyPoint[];
@@ -45,29 +46,18 @@ function num(value?: string | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function runReport(
-  request: protos.google.analytics.data.v1beta.IRunReportRequest
-): Promise<protos.google.analytics.data.v1beta.IRunReportResponse> {
-  const ga4 = getGa4Client();
-  if (!ga4) {
-    throw new Error('GA4 is not configured. Set GA4_PROPERTY_ID and GA4_SERVICE_ACCOUNT_JSON.');
+export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<WebsiteAnalyticsReport> {
+  const config = getGa4Config();
+  if (!config) {
+    throw new Error('GA4 is not configured.');
   }
 
-  const [response] = await ga4.client.runReport({
-    ...request,
-    property: ga4.config.property,
-  });
-
-  return response;
-}
-
-export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<WebsiteAnalyticsReport> {
   const rangeMeta = getAnalyticsDateRange(range);
-  const dateRange = [{ startDate: rangeMeta.startDate, endDate: rangeMeta.endDate }];
+  const dateRanges = [{ startDate: rangeMeta.apiStartDate, endDate: rangeMeta.apiEndDate }];
 
   const [summaryRes, dailyRes, pagesRes, locationsRes] = await Promise.all([
-    runReport({
-      dateRanges: dateRange,
+    runGa4Report({
+      dateRanges,
       metrics: [
         { name: 'activeUsers' },
         { name: 'newUsers' },
@@ -76,8 +66,8 @@ export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<Webs
         { name: 'userEngagementDuration' },
       ],
     }),
-    runReport({
-      dateRanges: dateRange,
+    runGa4Report({
+      dateRanges,
       dimensions: [{ name: 'date' }],
       metrics: [
         { name: 'activeUsers' },
@@ -85,9 +75,10 @@ export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<Webs
         { name: 'screenPageViews' },
       ],
       orderBys: [{ dimension: { dimensionName: 'date' } }],
+      keepEmptyRows: true,
     }),
-    runReport({
-      dateRanges: dateRange,
+    runGa4Report({
+      dateRanges,
       dimensions: [{ name: 'pagePath' }],
       metrics: [
         { name: 'screenPageViews' },
@@ -97,8 +88,8 @@ export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<Webs
       orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
       limit: 25,
     }),
-    runReport({
-      dateRanges: dateRange,
+    runGa4Report({
+      dateRanges,
       dimensions: [{ name: 'country' }, { name: 'city' }],
       metrics: [{ name: 'activeUsers' }, { name: 'sessions' }],
       orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
@@ -107,15 +98,17 @@ export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<Webs
   ]);
 
   const summaryRow = summaryRes.rows?.[0]?.metricValues ?? [];
+  const activeUsers = num(summaryRow[0]?.value);
   const pageViews = num(summaryRow[3]?.value);
   const engagementSeconds = num(summaryRow[4]?.value);
 
+  // Matches GA4 "Average engagement time" (engagement duration / active users).
   const summary: AnalyticsSummary = {
-    activeUsers: num(summaryRow[0]?.value),
+    activeUsers,
     newUsers: num(summaryRow[1]?.value),
     sessions: num(summaryRow[2]?.value),
     pageViews,
-    avgEngagementTimeSeconds: pageViews > 0 ? engagementSeconds / pageViews : 0,
+    avgEngagementTimeSeconds: activeUsers > 0 ? engagementSeconds / activeUsers : 0,
   };
 
   const daily: AnalyticsDailyPoint[] =
@@ -129,12 +122,13 @@ export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<Webs
   const pages: AnalyticsPageRow[] =
     pagesRes.rows?.map((row) => {
       const views = num(row.metricValues?.[0]?.value);
+      const users = num(row.metricValues?.[1]?.value);
       const engagement = num(row.metricValues?.[2]?.value);
       return {
         path: row.dimensionValues?.[0]?.value ?? '/',
         views,
-        users: num(row.metricValues?.[1]?.value),
-        avgTimeSeconds: views > 0 ? engagement / views : 0,
+        users,
+        avgTimeSeconds: users > 0 ? engagement / users : 0,
       };
     }) ?? [];
 
@@ -148,6 +142,8 @@ export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<Webs
 
   return {
     configured: true,
+    propertyId: config.propertyId,
+    fetchedAt: new Date().toISOString(),
     range: rangeMeta,
     summary,
     daily,

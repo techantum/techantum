@@ -25,7 +25,9 @@ import type {
 interface AnalyticsResponse {
   configured: boolean;
   error?: string;
-  range: { label: string; startDate: string; endDate: string };
+  propertyId?: string;
+  fetchedAt?: string;
+  range: { label: string; startDate: string; endDate: string; apiStartDate?: string; apiEndDate?: string };
   summary: AnalyticsSummary | null;
   daily: AnalyticsDailyPoint[];
   pages: AnalyticsPageRow[];
@@ -50,7 +52,9 @@ export default function WebsiteAnalyticsPage() {
   const load = useCallback(async (selectedRange: AnalyticsRange) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/analytics?range=${selectedRange}`);
+      const res = await fetch(`/api/admin/analytics?range=${selectedRange}&_=${Date.now()}`, {
+        cache: 'no-store',
+      });
       const json = (await res.json()) as AnalyticsResponse;
       setData(json);
     } catch {
@@ -74,9 +78,9 @@ export default function WebsiteAnalyticsPage() {
     <div className="space-y-6 max-w-6xl">
       <AdminPageHeader
         title="Website Analytics"
-        description="Visitor traffic, locations, and page engagement from Google Analytics 4."
+        description="Live pull from Google Analytics 4 — same “Last N days” window as the GA date picker (property timezone)."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {RANGE_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -91,6 +95,14 @@ export default function WebsiteAnalyticsPage() {
                 {option.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => load(range)}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 disabled:opacity-60"
+            >
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
         }
       />
@@ -103,12 +115,62 @@ export default function WebsiteAnalyticsPage() {
           <p className="text-sm mt-1">{data.error}</p>
           {!data.configured && (
             <ol className="mt-3 text-sm list-decimal list-inside space-y-1 text-amber-800/90">
-              <li>Add your GA4 Property ID to <code className="text-xs">GA4_PROPERTY_ID</code></li>
-              <li>Add service account JSON to <code className="text-xs">GA4_SERVICE_ACCOUNT_JSON</code></li>
-              <li>Grant the service account <strong>Viewer</strong> access in GA4 Admin</li>
-              <li>Redeploy after updating Netlify environment variables</li>
+              <li>
+                In Google Analytics → Admin → Property settings, copy the <strong>Property ID</strong>{' '}
+                (numeric, not G-…) into <code className="text-xs">GA4_PROPERTY_ID</code>
+              </li>
+              <li>
+                Create a free service account in{' '}
+                <a
+                  href="https://console.cloud.google.com/iam-admin/serviceaccounts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Google Cloud Console
+                </a>{' '}
+                → Keys → Add key → JSON (download once)
+              </li>
+              <li>
+                <strong>No JSON file?</strong> Paste two env vars instead:
+                <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5">
+                  <li>
+                    <code className="text-xs">GA4_CLIENT_EMAIL</code> — the{' '}
+                    <code className="text-xs">client_email</code> from the key
+                  </li>
+                  <li>
+                    <code className="text-xs">GA4_PRIVATE_KEY</code> — the{' '}
+                    <code className="text-xs">private_key</code> value (keep{' '}
+                    <code className="text-xs">\n</code> line breaks)
+                  </li>
+                </ul>
+                Or paste the whole downloaded file contents into{' '}
+                <code className="text-xs">GA4_SERVICE_ACCOUNT_JSON</code>
+              </li>
+              <li>
+                In GA4 Admin → Property access management, add the service account email as{' '}
+                <strong>Viewer</strong>
+              </li>
+              <li>Restart the app after updating environment variables</li>
             </ol>
           )}
+          <p className="text-sm mt-3 text-amber-800/90">
+            Note: this is only for the admin analytics dashboard. Website tracking uses your G- or GTM ID
+            in{' '}
+            <Link href="/admin/seo" className="underline font-medium">
+              SEO &amp; Marketing
+            </Link>
+            . You can also view stats directly in{' '}
+            <a
+              href="https://analytics.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              Google Analytics
+            </a>{' '}
+            without any API setup.
+          </p>
         </div>
       )}
 
@@ -144,13 +206,25 @@ export default function WebsiteAnalyticsPage() {
               accent="amber"
             />
             <AdminStatCard
-              label="Avg. time / page"
+              label="Avg. engagement"
               value={formatDuration(data.summary.avgEngagementTimeSeconds)}
-              hint="Engagement per view"
+              hint="Per active user (GA4)"
               icon="ClockIcon"
               accent="rose"
             />
           </div>
+
+          <p className="text-xs text-muted-foreground -mt-2">
+            Range: <strong>{data.range.label}</strong>
+            {data.range.apiStartDate && data.range.apiEndDate
+              ? ` (${data.range.apiStartDate} → ${data.range.apiEndDate})`
+              : ` (${data.range.startDate} → ${data.range.endDate})`}
+            {data.propertyId ? ` · Property ${data.propertyId}` : ''}
+            {data.fetchedAt
+              ? ` · Updated ${new Date(data.fetchedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+              : ''}
+            . Compare in GA using the same date preset — not Realtime.
+          </p>
 
           <AdminSection
             title="Visitors over time"
@@ -193,7 +267,7 @@ export default function WebsiteAnalyticsPage() {
           </AdminSection>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <AdminSection title="Top pages" description="Views and average time spent per page" accent="sky">
+            <AdminSection title="Top pages" description="Views and average engagement time per user" accent="sky">
               {data.pages.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No page data yet.</p>
               ) : (
