@@ -75,10 +75,12 @@ export default function HeroContactForm({
       <h3 className="font-bricolage font-semibold text-lg sm:text-xl text-white mb-4">{title}</h3>
 
       {status === 'error' && (
-        <p className="mb-4 text-sm text-white bg-red-600/90 rounded-lg px-3 py-2">{errorMessage}</p>
+        <p className="mb-4 text-sm text-white bg-red-600/90 rounded-lg px-3 py-2" role="alert">
+          {errorMessage}
+        </p>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3" aria-label="Contact inquiry">
         <input
           type="text"
           name="website"
@@ -90,34 +92,58 @@ export default function HeroContactForm({
           aria-hidden
         />
 
-        <input
-          name="name"
-          required
-          placeholder="Enter your full name"
-          className="w-full px-3 py-2.5 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
-        />
-        <input
-          name="phone"
-          type="tel"
-          required
-          placeholder="Enter your phone number"
-          className="w-full px-3 py-2.5 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
-        />
-        <select
-          name="service"
-          required
-          defaultValue=""
-          className="w-full px-3 py-2.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-secondary [&>option]:text-foreground"
-        >
-          <option value="" disabled>
-            Select a service
-          </option>
-          {serviceOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+        <div>
+          <label htmlFor="hero-contact-name" className="sr-only">
+            Full name
+          </label>
+          <input
+            id="hero-contact-name"
+            name="name"
+            type="text"
+            required
+            autoComplete="name"
+            placeholder="Please enter your full name"
+            className="w-full px-3 py-2.5 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="hero-contact-phone" className="sr-only">
+            Phone number
+          </label>
+          <input
+            id="hero-contact-phone"
+            name="phone"
+            type="tel"
+            required
+            autoComplete="tel"
+            placeholder="Please enter your phone number"
+            className="w-full px-3 py-2.5 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="hero-contact-service" className="sr-only">
+            Service needed
+          </label>
+          <select
+            id="hero-contact-service"
+            name="service"
+            required
+            defaultValue=""
+            aria-required="true"
+            className="w-full px-3 py-2.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-secondary [&>option]:text-foreground"
+          >
+            <option value="" disabled>
+              Please select a service
             </option>
-          ))}
-        </select>
+            {serviceOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="submit"
           disabled={submitting || !csrfToken || (captchaConfigured && !captchaReady)}

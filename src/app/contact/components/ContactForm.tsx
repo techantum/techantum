@@ -189,7 +189,7 @@ export default function ContactForm({ page }: ContactFormProps) {
             id="name"
             {...register('name')}
             className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-            placeholder="Enter your full name"
+            placeholder="Please enter your full name"
           />
           {errors.name && (
             <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -205,7 +205,9 @@ export default function ContactForm({ page }: ContactFormProps) {
             {...register('country')}
             className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           >
-            <option value="">Select your country</option>
+            <option value="" disabled>
+              Please select your country
+            </option>
             {countries.map((country) => (
               <option key={country} value={country}>
                 {country}
@@ -227,7 +229,7 @@ export default function ContactForm({ page }: ContactFormProps) {
               id="email"
               {...register('email')}
               className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-              placeholder="Enter your email address"
+              placeholder="Please enter your email address"
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -242,7 +244,7 @@ export default function ContactForm({ page }: ContactFormProps) {
               id="tel"
               {...register('tel')}
               className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-              placeholder="Enter your phone number"
+              placeholder="Please enter your phone number"
             />
             {errors.tel && (
               <p className="mt-1 text-sm text-red-600">{errors.tel.message}</p>
@@ -259,7 +261,9 @@ export default function ContactForm({ page }: ContactFormProps) {
             {...register('service')}
             className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           >
-            <option value="">Select a service</option>
+            <option value="" disabled>
+              Please select a service
+            </option>
             {services.map((service) => (
               <option key={service} value={service}>
                 {service}
@@ -280,7 +284,7 @@ export default function ContactForm({ page }: ContactFormProps) {
             id="timeline"
             {...register('timeline')}
             className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-            placeholder="Enter your timeline or budget"
+            placeholder="Please enter your timeline or budget (e.g. 3 months / ₹5L)"
           />
           {errors.timeline && (
             <p className="mt-1 text-sm text-red-600">{errors.timeline.message}</p>
@@ -296,7 +300,7 @@ export default function ContactForm({ page }: ContactFormProps) {
             {...register('message')}
             rows={5}
             className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-base focus:ring-2 focus:ring-ring focus:border-transparent transition-all resize-none"
-            placeholder="Enter your project details"
+            placeholder="Please enter your project details or requirements"
           />
           {errors.message && (
             <p className="mt-1 text-sm text-red-600">{errors.message.message}</p>

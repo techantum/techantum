@@ -16,6 +16,17 @@ const colSpanClass: Record<number, string> = {
   3: 'col-span-1 md:col-span-2 lg:col-span-3',
 };
 
+function resolvePlaceholder(
+  q: PartnerQuestion,
+  kind: 'text' | 'select' | 'date' = 'text'
+): string {
+  if (q.placeholder?.trim()) return q.placeholder;
+  const subject = q.label.replace(/\*/g, '').replace(/\?$/, '').trim().toLowerCase();
+  if (kind === 'select') return `Please select ${subject}`;
+  if (kind === 'date') return 'Please select a date';
+  return `Please enter ${subject}`;
+}
+
 export default function WizardFieldGrid({
   questions,
   answers,
@@ -114,7 +125,7 @@ function WizardField({
           <textarea
             value={(value as string) ?? ''}
             onChange={(e) => onChange(q.question_key, e.target.value)}
-            placeholder={q.placeholder ?? ''}
+            placeholder={resolvePlaceholder(q, 'text')}
             rows={3}
             className={inputClass}
           />
@@ -126,7 +137,9 @@ function WizardField({
             onChange={(e) => onChange(q.question_key, e.target.value)}
             className={inputClass}
           >
-            <option value="">{q.placeholder || 'Select…'}</option>
+            <option value="" disabled>
+              {resolvePlaceholder(q, 'select')}
+            </option>
             {q.options.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -169,7 +182,7 @@ function WizardField({
             min={0}
             value={value === undefined || value === null ? '' : String(value)}
             onChange={(e) => onChange(q.question_key, e.target.value)}
-            placeholder={q.placeholder ?? ''}
+            placeholder={resolvePlaceholder(q, 'text')}
             className={inputClass}
           />
         );
@@ -188,7 +201,7 @@ function WizardField({
             type="text"
             value={(value as string) ?? ''}
             onChange={(e) => onChange(q.question_key, e.target.value)}
-            placeholder={q.placeholder ?? ''}
+            placeholder={resolvePlaceholder(q, 'text')}
             className={inputClass}
           />
         );
