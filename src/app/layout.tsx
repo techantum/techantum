@@ -14,6 +14,7 @@ import { getBranding, getSeo } from '@/lib/cms';
 import { defaultSeo } from '@/lib/cms/default-content';
 import { getMetadataBase } from '@/lib/cms/url';
 import { hasActiveMarketingTracking } from '@/lib/seo/marketing-tags';
+import { fontVariables, inter } from '@/lib/fonts';
 import '../styles/index.css';
 
 export const viewport: Viewport = {
@@ -113,23 +114,15 @@ export default async function RootLayout({
   const cmsTracksAnalytics = hasActiveMarketingTracking(seo);
 
   return (
-    <html lang="en">
+    <html lang="en" className={fontVariables}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://assets.mixkit.co" />
-        <link rel="dns-prefetch" href="https://assets.mixkit.co" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="manifest" href="/site.webmanifest" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
-        />
         <MarketingHeadTags seo={seo} />
         <HeadSnippets html={seo.header_scripts || ''} />
         <PageHeadSnippets />
       </head>
-      <body className="font-inter">
+      <body className={`${inter.className} antialiased`}>
         <MarketingBodyTags seo={seo} />
         {!cmsTracksAnalytics && (
           <Suspense fallback={null}>

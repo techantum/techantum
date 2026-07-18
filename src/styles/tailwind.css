@@ -4,8 +4,9 @@
 
 @layer base {
   :root {
-    --font-bricolage: 'Bricolage Grotesque', sans-serif;
-    --font-inter: 'Inter', sans-serif;
+    /* Overridden at runtime by next/font on <html> */
+    --font-bricolage: ui-sans-serif, system-ui, sans-serif;
+    --font-inter: ui-sans-serif, system-ui, sans-serif;
 
     /* Brand — black & orange */
     --color-primary: #000000;

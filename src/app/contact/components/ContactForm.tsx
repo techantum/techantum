@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Icon from '@/components/ui/AppIcon';
+import RecaptchaNotice from '@/components/RecaptchaNotice';
+import { useRecaptchaV3 } from '@/hooks/useRecaptchaV3';
 import { trackFormConversion, trackFormInteraction } from '@/lib/analytics';
 
 const formSchema = z.object({
@@ -39,6 +41,7 @@ export default function ContactForm({ page }: ContactFormProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [csrfToken, setCSRFToken] = useState('');
   const [honeypot, setHoneypot] = useState('');
+  const { configured: captchaConfigured, ready: captchaReady, getToken: getCaptchaToken } = useRecaptchaV3();
 
   const {
     register,
@@ -86,6 +89,11 @@ export default function ContactForm({ page }: ContactFormProps) {
     setErrorMessage('');
 
     try {
+      const captchaToken = captchaConfigured ? await getCaptchaToken('contact') : null;
+      if (captchaConfigured && !captchaToken) {
+        throw new Error('Spam protection check failed. Please refresh the page and try again.');
+      }
+
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
@@ -102,6 +110,7 @@ export default function ContactForm({ page }: ContactFormProps) {
           source: 'contact_page',
           csrfToken,
           honeypot,
+          captchaToken,
         }),
       });
 
@@ -296,7 +305,7 @@ export default function ContactForm({ page }: ContactFormProps) {
 
         <button
           type="submit"
-          disabled={isSubmitting || !csrfToken}
+          disabled={isSubmitting || !csrfToken || (captchaConfigured && !captchaReady)}
           className="w-full bg-primary text-primary-foreground px-8 py-4 rounded-lg font-inter font-semibold text-base hover:bg-primary/90 transition-all hover-lift disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isSubmitting ? (
@@ -315,6 +324,7 @@ export default function ContactForm({ page }: ContactFormProps) {
         <p className="font-inter text-xs text-muted-foreground text-center">
           {String(page.privacyNote)}
         </p>
+        <RecaptchaNotice className="text-center" />
       </form>
     </div>
   );

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
+import RecaptchaNotice from '@/components/RecaptchaNotice';
+import { useRecaptchaV3 } from '@/hooks/useRecaptchaV3';
 
 interface HeroContactFormProps {
   title?: string;
@@ -19,6 +21,7 @@ export default function HeroContactForm({
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const { configured: captchaConfigured, ready: captchaReady, getToken: getCaptchaToken } = useRecaptchaV3();
 
   useEffect(() => {
     fetch('/api/csrf')
@@ -37,6 +40,11 @@ export default function HeroContactForm({
     const fd = new FormData(form);
 
     try {
+      const captchaToken = captchaConfigured ? await getCaptchaToken('contact') : null;
+      if (captchaConfigured && !captchaToken) {
+        throw new Error('Spam protection check failed. Please refresh and try again.');
+      }
+
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,6 +55,7 @@ export default function HeroContactForm({
           source: 'homepage_hero',
           csrfToken,
           honeypot,
+          captchaToken,
         }),
       });
       const result = await res.json();
@@ -111,7 +120,7 @@ export default function HeroContactForm({
         </select>
         <button
           type="submit"
-          disabled={submitting || !csrfToken}
+          disabled={submitting || !csrfToken || (captchaConfigured && !captchaReady)}
           className="w-full bg-secondary text-white px-4 py-3 rounded-lg font-inter font-semibold text-sm hover:bg-secondary/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {submitting ? (
@@ -126,6 +135,7 @@ export default function HeroContactForm({
             </>
           )}
         </button>
+        <RecaptchaNotice className="text-center text-white/50 [&_a]:text-white/70" />
       </form>
     </div>
   );

@@ -33,19 +33,21 @@ export default function ScrollRevealProvider() {
     );
 
     const observeAll = () => {
-      document.querySelectorAll(REVEAL_SELECTORS).forEach((el) => {
-        if (el.classList.contains('active')) return;
-        if (el.classList.contains('page-hero')) {
-          el.classList.add('active');
-          return;
-        }
-        const rect = el.getBoundingClientRect();
-        const inView = rect.top < window.innerHeight * 0.95 && rect.bottom > 0;
-        if (inView) {
-          el.classList.add('active');
-        } else {
-          observer.observe(el);
-        }
+      requestAnimationFrame(() => {
+        document.querySelectorAll(REVEAL_SELECTORS).forEach((el) => {
+          if (el.classList.contains('active')) return;
+          if (el.classList.contains('page-hero')) {
+            el.classList.add('active');
+            return;
+          }
+          const rect = el.getBoundingClientRect();
+          const inView = rect.top < window.innerHeight * 0.95 && rect.bottom > 0;
+          if (inView) {
+            el.classList.add('active');
+          } else {
+            observer.observe(el);
+          }
+        });
       });
     };
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/security/rateLimiter';
 import { validateCSRFToken } from '@/lib/security/csrf';
+import { verifyRecaptchaToken } from '@/lib/security/captcha';
 import { sanitizeString, sanitizeEmail, sanitizePhone } from '@/lib/security/sanitize';
 import { createClient } from '@/lib/supabase/server';
 import { sendContactConfirmation, sendContactNotification } from '@/lib/email/resend';
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
       source,
       csrfToken,
       honeypot,
+      captchaToken,
     } = body;
 
     if (honeypot) {
@@ -47,6 +49,11 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Invalid security token. Please refresh the page.' },
         { status: 403 }
       );
+    }
+
+    const captcha = await verifyRecaptchaToken(captchaToken, 'contact', identifier);
+    if (!captcha.ok) {
+      return NextResponse.json({ success: false, error: captcha.error }, { status: 403 });
     }
 
     const formSource = source === 'homepage_hero' ? 'homepage_hero' : 'contact_page';
