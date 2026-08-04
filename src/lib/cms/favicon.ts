@@ -71,7 +71,7 @@ export async function fetchFaviconResponse(): Promise<Response> {
       if (local) return local;
     }
 
-    if (faviconUrl) {
+    if (faviconUrl?.startsWith('http://') || faviconUrl?.startsWith('https://')) {
       const res = await fetch(faviconUrl, { cache: 'no-store' });
       if (res.ok) {
         const buffer = await res.arrayBuffer();

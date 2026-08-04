@@ -8,26 +8,35 @@ import { testimonialsList } from '@/lib/testimonials-data';
 import { defaultContactPageContent } from '@/lib/contact-data';
 import { defaultAboutPageContent } from '@/lib/about-data';
 import { blogArticles } from '@/lib/blog-data';
+import {
+  defaultAboutOverview,
+  defaultAboutUsp,
+  defaultCredentialsContent,
+  defaultIndustriesServed,
+  defaultLeadPreferences,
+  defaultMarketingAssets,
+  defaultSeoMarketingInputs,
+  defaultWebsiteGoals,
+} from '@/lib/keil-defaults';
 import type { CmsEntry, SiteBranding, SiteSeo } from './types';
 
 export const defaultBranding: SiteBranding = {
-  company_name: 'TechAntum',
-  tagline: 'Digital Solutions',
+  company_name: 'KEIL',
+  tagline: 'Pre-Engineered Building Solutions',
   logo_url: null,
   footer_logo_url: null,
   favicon_url: null,
-  logo_letter: 'T',
-  phone: '+91 40 40268570',
-  phone_href: '+914040268570',
-  whatsapp: '+91 70329 23474',
-  whatsapp_href: '917032923474',
-  whatsapp_widget_message: 'Hello! I would like to inquire about your services.',
-  email: 'info@techantum.com',
-  address:
-    'Plot no 118, 3rd Floor, Brundavanam, Road no 3 Kakatiya Hills, Guttala_Begumpet Madhapur, Jubilee Hills, Hyderabad, Telangana - 500033',
+  logo_letter: 'K',
+  phone: '+91 40 0000 0000',
+  phone_href: '+914000000000',
+  whatsapp: '+91 90000 00000',
+  whatsapp_href: '919000000000',
+  whatsapp_widget_message: 'Hello! I would like to inquire about KEIL construction services.',
+  email: 'enquiries@keil.in',
+  address: 'Corporate Office Address — To be updated',
   footer_description:
-    'We build websites, web applications, and mobile apps that help businesses grow in the digital world.',
-  copyright_text: '© 2026 TechAntum. All rights reserved.',
+    'KEIL delivers pre-engineered warehouses, industrial sheds, EC poultry sheds, and convention centers built with quality and speed.',
+  copyright_text: '© 2026 KEIL. All rights reserved.',
 };
 
 const BRANDING_TEXT_KEYS: (keyof SiteBranding)[] = [
@@ -57,25 +66,24 @@ export function normalizeSiteBranding(data?: Partial<SiteBranding> | null): Site
 }
 
 export const defaultSeo: SiteSeo = {
-  site_title: 'TechAntum | Websites, Web Apps & Mobile App Development',
-  title_template: '%s | TechAntum',
+  site_title: 'KEIL | Pre-Engineered Buildings — Warehouses, Industrial & Poultry Sheds',
+  title_template: '%s | KEIL',
   description:
-    'TechAntum is an IT company specializing in website development, custom web applications, and mobile app development. We build digital products that help businesses grow.',
+    'KEIL specializes in pre-engineered building construction — warehouses, godowns, industrial sheds, EC poultry sheds, and convention centers across India.',
   keywords: [
-    'web development',
-    'website development',
-    'web application development',
-    'mobile app development',
-    'React development',
-    'Next.js development',
-    'TechAntum',
-    'software development company',
-    'custom software',
+    'pre-engineered buildings',
+    'warehouse construction',
+    'industrial shed manufacturer',
+    'poultry shed construction',
+    'convention center construction',
+    'PEB structures',
+    'godown construction',
+    'KEIL',
   ],
-  site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://techantum.com',
+  site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://keil.in',
   og_image_url: '/assets/images/Hollandse-1771785992532.jpg',
-  twitter_handle: '@techantum',
-  google_verification: '84fEzKK3VJyDEiImbSG47IfCyMdkEGZlbFIo-QeHi6U',
+  twitter_handle: '@keil',
+  google_verification: '',
   canonical_host: 'non-www',
   index_site: true,
   follow_site: true,
@@ -144,27 +152,22 @@ export const defaultCmsEntries: CmsEntry[] = [
       heroVideoUrl: '/videos/hero-bg.mp4',
       heroPosterUrl: '/videos/hero-bg-poster.jpg',
       heroVideoFallbackUrl: 'https://assets.mixkit.co/videos/19639/19639-720.mp4',
-      badge: 'Available for new projects',
-      eyebrow: 'IT Services Company',
-      titleLine1: 'Build Your Digital',
-      titleLine2: 'Future With Us',
+      badge: 'Pre-Engineered Building Experts',
+      eyebrow: 'Construction & Infrastructure',
+      titleLine1: 'Building Your',
+      titleLine2: 'Infrastructure Future',
       description:
-        'TechAntum delivers custom websites, web applications, and mobile apps for businesses ready to grow online. From idea to launch — we handle it all.',
-      primaryCta: 'Start Your Project',
+        'KEIL delivers pre-engineered warehouses, industrial sheds, EC poultry sheds, and convention centers — designed, fabricated, and erected across India.',
+      primaryCta: 'Request a Quote',
       primaryCtaHref: '/contact',
       secondaryCta: 'View Services',
       secondaryCtaHref: '/services',
       cardTitle: 'How can we help you?',
       serviceOptions: [
-        'Website Development — Launch',
-        'Website Development — Growth',
-        'Website Development — Enterprise',
-        'Web Application — Accelerate',
-        'Web Application — Scale',
-        'Web Application — Transform',
-        'Mobile App — Launch',
-        'Mobile App — Growth',
-        'Mobile App — Enterprise',
+        'Warehouse / Godowns',
+        'Industrial Sheds',
+        'EC Poultry Sheds',
+        'Convention Centers',
         'Multiple Services',
         'Other',
       ],
@@ -400,9 +403,9 @@ export const defaultCmsEntries: CmsEntry[] = [
     label: 'Services Hero',
     content: {
       eyebrow: 'Our Services',
-      title: 'Digital Solutions That Drive Business Growth',
+      title: 'Pre-Engineered Building Solutions',
       description:
-        'Three divisions. Nine packages. From Launch to Enterprise — Techantum delivers websites, web applications, and mobile apps that convert visitors, automate operations, and engage customers.',
+        'Warehouse & godowns, industrial sheds, EC poultry sheds, and convention centers — designed, fabricated, and erected by KEIL across India.',
     },
   },
   {
@@ -410,14 +413,14 @@ export const defaultCmsEntries: CmsEntry[] = [
     entry_group: 'about',
     label: 'About Hero',
     content: {
-      eyebrow: 'About TechAntum',
-      title: 'Building Digital Products Since 2018',
+      eyebrow: 'About KEIL',
+      title: 'Building Infrastructure That Lasts',
       description:
-        'TechAntum is an IT company specializing in website development, custom web applications, and mobile app development. We partner with businesses worldwide to turn ideas into scalable digital products.',
+        'KEIL is a leading pre-engineered building (PEB) contractor specializing in warehouses, industrial sheds, poultry structures, and convention centers.',
       description2:
-        'From startups launching their first product to enterprises modernizing legacy systems, we deliver scalable, user-focused digital solutions with transparent communication and agile delivery.',
-      image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c',
-      imageAlt: 'TechAntum team collaborating on software development project',
+        'With decades of engineering expertise, we deliver cost-effective, durable structures from design through handover — on time and to specification.',
+      image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd',
+      imageAlt: 'KEIL pre-engineered building construction site',
     },
   },
   {
@@ -535,6 +538,54 @@ export const defaultCmsEntries: CmsEntry[] = [
       secondaryCta: 'Go Back',
       showContactLink: true,
     },
+  },
+  {
+    entry_key: 'about.overview',
+    entry_group: 'about',
+    label: 'Company Overview',
+    content: defaultAboutOverview as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'about.usp',
+    entry_group: 'about',
+    label: 'Unique Selling Proposition',
+    content: defaultAboutUsp as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'industries.served',
+    entry_group: 'industries',
+    label: 'Industries Served',
+    content: defaultIndustriesServed as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'credentials.page',
+    entry_group: 'credentials',
+    label: 'Credentials & Awards',
+    content: defaultCredentialsContent as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'company.website_goals',
+    entry_group: 'company',
+    label: 'Website Goals',
+    content: defaultWebsiteGoals as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'company.seo_marketing',
+    entry_group: 'company',
+    label: 'SEO & Marketing Inputs',
+    content: defaultSeoMarketingInputs as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'company.lead_preferences',
+    entry_group: 'company',
+    label: 'Lead Management Preferences',
+    content: defaultLeadPreferences as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'company.marketing_assets',
+    entry_group: 'company',
+    label: 'Marketing Collateral Checklist',
+    content: defaultMarketingAssets as unknown as Record<string, unknown>,
   },
 ];
 

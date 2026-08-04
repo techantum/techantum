@@ -329,9 +329,16 @@ export const contentSchemas: Record<string, ContentSchema> = {
           { key: 'id', label: 'ID', type: 'text' },
           { key: 'name', label: 'Name', type: 'text' },
           { key: 'url', label: 'Project URL', type: 'url' },
+          { key: 'location', label: 'Location', type: 'text' },
+          { key: 'status', label: 'Status (completed/ongoing)', type: 'text' },
           { key: 'industry', label: 'Industry', type: 'text' },
           { key: 'category', label: 'Category', type: 'text' },
           { key: 'description', label: 'Description', type: 'textarea' },
+          { key: 'highlights', label: 'Key highlights', type: 'textarea' },
+          { key: 'completionYear', label: 'Completion year', type: 'text' },
+          { key: 'clientName', label: 'Client name', type: 'text' },
+          { key: 'image', label: 'Project image', type: 'image' },
+          { key: 'imageAlt', label: 'Image alt text', type: 'text' },
           { key: 'tags', label: 'Tags (one per line)', type: 'lines' },
         ],
       },
@@ -386,6 +393,8 @@ export const contentSchemas: Record<string, ContentSchema> = {
       { key: 'sidebarAboutEstablished', label: 'Sidebar established year', type: 'text' },
       { key: 'sidebarHoursTitle', label: 'Sidebar hours title', type: 'text' },
       { key: 'hoursFootnote', label: 'Hours footnote', type: 'textarea' },
+      { key: 'googleMapsEmbed', label: 'Google Maps embed URL', type: 'url' },
+      { key: 'googleMapsUrl', label: 'Google Maps link', type: 'url' },
     ],
     stringLists: [{ key: 'serviceOptions', label: 'Service dropdown options', itemLabel: 'Service' }],
     arrays: [
@@ -397,6 +406,17 @@ export const contentSchemas: Record<string, ContentSchema> = {
           { key: 'id', label: 'ID', type: 'text' },
           { key: 'label', label: 'Day(s)', type: 'text' },
           { key: 'value', label: 'Hours', type: 'text' },
+        ],
+      },
+      {
+        key: 'branchLocations',
+        label: 'Branch locations',
+        itemLabel: 'Branch',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'name', label: 'Branch name', type: 'text' },
+          { key: 'address', label: 'Address', type: 'textarea' },
+          { key: 'phone', label: 'Phone', type: 'text' },
         ],
       },
     ],
@@ -458,6 +478,154 @@ export const contentSchemas: Record<string, ContentSchema> = {
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
       { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
+    ],
+  },
+  'about.overview': {
+    fields: [
+      { key: 'introTitle', label: 'Introduction title', type: 'text' },
+      { key: 'introDescription', label: 'Company introduction', type: 'richtext' },
+      { key: 'visionTitle', label: 'Vision title', type: 'text' },
+      { key: 'visionDescription', label: 'Company vision', type: 'richtext' },
+      { key: 'historyTitle', label: 'History title', type: 'text' },
+      { key: 'historyDescription', label: 'Company history', type: 'richtext' },
+    ],
+  },
+  'about.usp': {
+    fields: [
+      { key: 'title', label: headingLabel.h2('USP section title'), type: 'text' },
+      { key: 'description', label: 'USP description', type: 'textarea' },
+      { key: 'experienceYears', label: 'Years of experience', type: 'text' },
+    ],
+    arrays: [
+      {
+        key: 'differentiators',
+        label: 'Differentiators',
+        itemLabel: 'Point',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+        ],
+      },
+    ],
+    stringLists: [{ key: 'achievements', label: 'Achievements & milestones', itemLabel: 'Achievement' }],
+  },
+  'industries.served': {
+    fields: [
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
+      { key: 'description', label: 'Description', type: 'richtext' },
+    ],
+    arrays: [
+      {
+        key: 'industries',
+        label: 'Industries',
+        itemLabel: 'Industry',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'name', label: 'Name', type: 'text' },
+          { key: 'icon', label: 'Icon name', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+        ],
+      },
+    ],
+  },
+  'credentials.page': {
+    fields: [
+      { key: 'title', label: headingLabel.h2('Section title'), type: 'text' },
+      { key: 'description', label: 'Description', type: 'richtext' },
+    ],
+    arrays: [
+      {
+        key: 'clientLogos',
+        label: 'Client logos',
+        itemLabel: 'Logo',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'name', label: 'Client name', type: 'text' },
+          { key: 'logo', label: 'Logo image', type: 'image' },
+        ],
+      },
+      {
+        key: 'majorClients',
+        label: 'Major clients',
+        itemLabel: 'Client',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'name', label: 'Name', type: 'text' },
+          { key: 'industry', label: 'Industry', type: 'text' },
+        ],
+      },
+      {
+        key: 'awards',
+        label: 'Awards & recognitions',
+        itemLabel: 'Award',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'year', label: 'Year', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+        ],
+      },
+      {
+        key: 'caseStudies',
+        label: 'Case studies',
+        itemLabel: 'Case study',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'summary', label: 'Summary', type: 'textarea' },
+          { key: 'href', label: 'Link', type: 'url' },
+        ],
+      },
+    ],
+  },
+  'company.website_goals': {
+    fields: [
+      { key: 'primaryObjective', label: 'Primary objective', type: 'textarea' },
+      { key: 'targetAudience', label: 'Target audience', type: 'textarea' },
+      { key: 'geographicRegions', label: 'Geographic regions served', type: 'textarea' },
+      { key: 'primaryBusinessGoals', label: 'Primary business goals', type: 'textarea' },
+      { key: 'specialFeatures', label: 'Special features / functionality', type: 'textarea' },
+    ],
+    stringLists: [{ key: 'expectedActions', label: 'Expected customer actions', itemLabel: 'Action' }],
+  },
+  'company.seo_marketing': {
+    fields: [
+      { key: 'targetRegions', label: 'Target cities / states / regions', type: 'textarea' },
+      { key: 'competitorWebsites', label: 'Competitor websites', type: 'textarea' },
+      { key: 'existingWebsiteUrl', label: 'Existing website URL', type: 'url' },
+      { key: 'googleBusinessProfile', label: 'Google Business Profile URL', type: 'url' },
+      { key: 'analyticsNotes', label: 'Analytics notes', type: 'textarea' },
+    ],
+    stringLists: [{ key: 'targetKeywords', label: 'Target keywords', itemLabel: 'Keyword' }],
+  },
+  'company.lead_preferences': {
+    fields: [
+      { key: 'notificationEmails', label: 'Notification email(s)', type: 'text' },
+      { key: 'departmentRouting', label: 'Team / department routing', type: 'text' },
+      { key: 'workflowNotes', label: 'Lead handling workflow', type: 'textarea' },
+    ],
+    stringLists: [
+      { key: 'mandatoryFields', label: 'Mandatory form fields', itemLabel: 'Field' },
+      { key: 'optionalFields', label: 'Optional form fields', itemLabel: 'Field' },
+    ],
+  },
+  'company.marketing_assets': {
+    fields: [
+      { key: 'checklistNotes', label: 'Notes', type: 'textarea' },
+      { key: 'referenceWebsites', label: 'Reference websites (design inspiration)', type: 'textarea' },
+    ],
+    arrays: [
+      {
+        key: 'materials',
+        label: 'Collateral checklist',
+        itemLabel: 'Material',
+        fields: [
+          { key: 'id', label: 'ID', type: 'text' },
+          { key: 'label', label: 'Material name', type: 'text' },
+          { key: 'status', label: 'Status (pending/received)', type: 'text' },
+        ],
+      },
     ],
   },
 };

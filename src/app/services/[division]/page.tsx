@@ -29,7 +29,7 @@ export async function generateMetadata({
 
   return buildPageMetadata({
     path: `/services/${division.slug}`,
-    title: `${division.name} — Launch, Growth & Enterprise Packages`,
+    title: `${division.name} — Pre-Engineered Building Solutions`,
     description: division.description,
     keywords: seoKeywordsByDivision[division.slug as DivisionSlug],
   });

@@ -4,6 +4,7 @@ import HeroSection from './homepage/components/HeroSection';
 import StatsSection from './homepage/components/StatsSection';
 import ProductCategoriesSection from './homepage/components/ProductCategoriesSection';
 import PartnerCountriesSection from './homepage/components/PartnerCountriesSection';
+import IndustriesServedSection from '@/components/homepage/IndustriesServedSection';
 import TestimonialsSection from './homepage/components/TestimonialsSection';
 import FAQSection from './homepage/components/FAQSection';
 import CTASection from './homepage/components/CTASection';
@@ -11,6 +12,7 @@ import StructuredData from '@/components/StructuredData';
 import { generateOrganizationSchema, generateFAQSchema } from '@/lib/seo';
 import { getBranding, getCmsContent, getSeo } from '@/lib/cms';
 import { getDefaultContent } from '@/lib/cms/default-content';
+import { defaultIndustriesServed } from '@/lib/keil-defaults';
 import { getSocialSameAsUrls } from '@/lib/seo/marketing-tags';
 import { buildPageMetadata } from '@/lib/seo/page-metadata';
 
@@ -29,7 +31,7 @@ export async function generateMetadata() {
 
 export default async function Homepage() {
   const [branding, seo] = await Promise.all([getBranding(), getSeo()]);
-  const [hero, stats, services, techStack, testimonials, faq, cta] = await Promise.all([
+  const [hero, stats, services, techStack, testimonials, faq, cta, industriesContent] = await Promise.all([
     getCmsContent('homepage.hero'),
     getCmsContent('homepage.stats'),
     getCmsContent('homepage.services'),
@@ -37,7 +39,14 @@ export default async function Homepage() {
     getCmsContent('homepage.testimonials'),
     getCmsContent('homepage.faq'),
     getCmsContent('homepage.cta'),
+    getCmsContent('industries.served'),
   ]);
+
+  const industries = {
+    ...defaultIndustriesServed,
+    ...industriesContent,
+  };
+  const industryItems = (industries.industries as typeof defaultIndustriesServed.industries) ?? [];
 
   const faqItems = ((faq.faqs as { question: string; answer: string }[]) ||
     (getDefaultContent('homepage.faq').faqs as { question: string; answer: string }[]));
@@ -55,6 +64,11 @@ export default async function Homepage() {
         <HeroSection content={hero} />
         <StatsSection content={stats} />
         <ProductCategoriesSection content={services} />
+        <IndustriesServedSection
+          title={String(industries.title)}
+          description={String(industries.description)}
+          industries={industryItems}
+        />
         <PartnerCountriesSection content={techStack} />
         <TestimonialsSection content={testimonials} />
         <FAQSection content={faq} />

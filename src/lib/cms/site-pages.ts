@@ -1,11 +1,6 @@
 import { defaultCmsEntries } from './default-content';
 import { contentSchemas } from './content-schemas';
-import {
-  allDivisionSlugs,
-  allPlanPaths,
-  getDivision,
-  getPlan,
-} from '@/lib/service-packages-data';
+import { serviceDivisions, getDivisionPath } from '@/lib/service-packages-data';
 
 export interface AdminSiteSection {
   entryKey: string;
@@ -20,7 +15,6 @@ export interface AdminSitePage {
   description: string;
   sections: AdminSiteSection[];
   editable: boolean;
-  /** Shown when content is managed outside CMS */
   managedIn?: 'code';
 }
 
@@ -43,13 +37,13 @@ function sectionsFromKeys(keys: string[]): AdminSiteSection[] {
   });
 }
 
-/** CMS-editable pages aligned with the public site structure. */
+/** CMS-editable pages aligned with the UI/UX design questionnaire. */
 export const CMS_SITE_PAGES: AdminSitePage[] = [
   {
     id: 'homepage',
     label: 'Homepage',
     route: '/',
-    description: 'Hero, stats, services, tech stack, testimonials, FAQ, and CTA.',
+    description: 'Hero, stats, services, industries, testimonials, FAQ, and CTA.',
     sections: sectionsFromKeys([
       'homepage.hero',
       'homepage.stats',
@@ -62,50 +56,71 @@ export const CMS_SITE_PAGES: AdminSitePage[] = [
     editable: true,
   },
   {
+    id: 'about',
+    label: 'About (Company Overview & USP)',
+    route: '/about',
+    description: 'Introduction, vision, mission, values, history, USP, and certifications.',
+    sections: sectionsFromKeys(['about.hero', 'about.overview', 'about.page', 'about.usp']),
+    editable: true,
+  },
+  {
     id: 'services',
     label: 'Services',
     route: '/services',
-    description: 'Main services landing page hero and overview.',
+    description: 'Services landing page and four core construction offerings.',
     sections: sectionsFromKeys(['services.hero', 'services.page']),
     editable: true,
   },
   {
     id: 'portfolio',
-    label: 'Portfolio',
+    label: 'Projects & Portfolio',
     route: '/portfolio',
-    description: 'Industries, featured projects, and portfolio CTA.',
+    description: 'Completed and ongoing projects with photos and highlights.',
     sections: sectionsFromKeys(['portfolio.hero', 'portfolio.data', 'portfolio.cta']),
     editable: true,
   },
   {
-    id: 'testimonials',
-    label: 'Testimonials',
-    route: '/testimonials',
-    description: 'Full testimonials page content and hero.',
-    sections: sectionsFromKeys(['testimonials.hero', 'testimonials.page']),
+    id: 'industries',
+    label: 'Industries Served',
+    route: '/#industries',
+    description: 'Industries KEIL primarily serves.',
+    sections: sectionsFromKeys(['industries.served']),
     editable: true,
   },
   {
-    id: 'about',
-    label: 'About',
-    route: '/about',
-    description: 'Mission, timeline, values, regions, and certifications.',
-    sections: sectionsFromKeys(['about.hero', 'about.page']),
+    id: 'testimonials',
+    label: 'Testimonials & Credentials',
+    route: '/testimonials',
+    description: 'Client testimonials, logos, awards, and case studies.',
+    sections: sectionsFromKeys(['testimonials.hero', 'testimonials.page', 'credentials.page']),
     editable: true,
   },
   {
     id: 'contact',
-    label: 'Contact',
+    label: 'Contact Information',
     route: '/contact',
-    description: 'Contact hero, form labels, sidebar info, and business hours.',
+    description: 'Contact details, branches, maps, hours, and form settings.',
     sections: sectionsFromKeys(['contact.hero', 'contact.page']),
+    editable: true,
+  },
+  {
+    id: 'company',
+    label: 'Website Goals & Marketing',
+    route: '/admin/content-brief',
+    description: 'Goals, SEO inputs, lead preferences, and collateral checklist.',
+    sections: sectionsFromKeys([
+      'company.website_goals',
+      'company.seo_marketing',
+      'company.lead_preferences',
+      'company.marketing_assets',
+    ]),
     editable: true,
   },
   {
     id: 'blog',
     label: 'Blog',
     route: '/blog',
-    description: 'Blog hero and article listings.',
+    description: 'Blog hero and articles.',
     sections: sectionsFromKeys(['blog.hero', 'blog.posts']),
     editable: true,
   },
@@ -113,42 +128,22 @@ export const CMS_SITE_PAGES: AdminSitePage[] = [
     id: 'site',
     label: '404 Page',
     route: '/404-preview',
-    description: 'Not-found page copy and actions.',
+    description: 'Not-found page copy.',
     sections: sectionsFromKeys(['site.not_found']),
     editable: true,
   },
 ];
 
-/** Service division and plan pages — content lives in code for now. */
 export function getStaticServicePages(): AdminSitePage[] {
-  const divisions: AdminSitePage[] = allDivisionSlugs.map((slug) => {
-    const division = getDivision(slug)!;
-    return {
-      id: `division-${slug}`,
-      label: division.name,
-      route: `/services/${slug}`,
-      description: division.description,
-      sections: [],
-      editable: false,
-      managedIn: 'code',
-    };
-  });
-
-  const plans: AdminSitePage[] = allPlanPaths.map(({ division, plan }) => {
-    const div = getDivision(division)!;
-    const p = getPlan(division, plan)!;
-    return {
-      id: `plan-${division}-${plan}`,
-      label: `${p.name} — ${div.shortName}`,
-      route: `/services/${division}/${plan}`,
-      description: p.description,
-      sections: [],
-      editable: false,
-      managedIn: 'code',
-    };
-  });
-
-  return [...divisions, ...plans];
+  return serviceDivisions.map((service) => ({
+    id: `service-${service.slug}`,
+    label: service.name,
+    route: getDivisionPath(service.slug),
+    description: service.overview,
+    sections: [],
+    editable: false,
+    managedIn: 'code' as const,
+  }));
 }
 
 export const STATIC_LEGAL_PAGES: AdminSitePage[] = [
@@ -156,7 +151,7 @@ export const STATIC_LEGAL_PAGES: AdminSitePage[] = [
     id: 'privacy',
     label: 'Privacy Policy',
     route: '/privacy-policy',
-    description: 'Legal page — edit in code or add CMS keys later.',
+    description: 'Legal page content.',
     sections: [],
     editable: false,
     managedIn: 'code',
@@ -165,7 +160,7 @@ export const STATIC_LEGAL_PAGES: AdminSitePage[] = [
     id: 'terms',
     label: 'Terms of Service',
     route: '/terms-of-service',
-    description: 'Legal page — edit in code or add CMS keys later.',
+    description: 'Legal page content.',
     sections: [],
     editable: false,
     managedIn: 'code',

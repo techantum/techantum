@@ -25,6 +25,18 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
+    id: 'projects',
+    label: 'Projects',
+    icon: 'FolderIcon',
+    defaultOpen: true,
+    items: [
+      { href: '/admin/projects', label: 'All Projects', icon: 'FolderOpenIcon' },
+      { href: '/admin/projects/create', label: 'Create Project', icon: 'PlusCircleIcon' },
+      { href: '/admin/requirement-forms', label: 'Requirement Forms', icon: 'DocumentDuplicateIcon' },
+      { href: '/admin/submitted-requirements', label: 'Submitted Requirements', icon: 'ClipboardDocumentCheckIcon' },
+    ],
+  },
+  {
     id: 'partners',
     label: 'Partner Portal',
     icon: 'UserGroupIcon',
@@ -41,6 +53,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: 'DocumentTextIcon',
     defaultOpen: true,
     items: [
+      { href: '/admin/content-brief', label: 'Content Brief', icon: 'ClipboardDocumentListIcon' },
       { href: '/admin/content', label: 'Pages & Sections', icon: 'PencilSquareIcon' },
       { href: '/admin/branding', label: 'Branding', icon: 'PaintBrushIcon' },
       { href: '/admin/submissions', label: 'Leads', icon: 'InboxIcon' },
@@ -65,11 +78,14 @@ export const ADMIN_MAIN_NAV = ADMIN_NAV_GROUPS.flatMap((g) => g.items);
 /** Ordered page groups for legacy content index grouping. */
 export const CMS_PAGE_GROUPS: { id: string; label: string }[] = [
   { id: 'homepage', label: 'Homepage' },
+  { id: 'about', label: 'About' },
   { id: 'services', label: 'Services' },
   { id: 'portfolio', label: 'Portfolio' },
+  { id: 'industries', label: 'Industries' },
   { id: 'testimonials', label: 'Testimonials' },
-  { id: 'about', label: 'About' },
+  { id: 'credentials', label: 'Credentials' },
   { id: 'contact', label: 'Contact' },
+  { id: 'company', label: 'Company Settings' },
   { id: 'blog', label: 'Blog' },
   { id: 'site', label: 'Site Settings' },
 ];

@@ -12,8 +12,8 @@ export interface ServiceCategory {
 
 export const serviceCategories: ServiceCategory[] = serviceDivisions.map((division) => ({
   id: division.slug,
-  name: division.shortName,
-  description: `${division.plans.length} packages — ${division.plans.map((p) => p.name).join(', ')}`,
+  name: division.name,
+  description: division.marketingMessage,
   href: getDivisionPath(division.slug),
   icon: division.icon,
   iconClass: division.iconClass,
@@ -21,6 +21,6 @@ export const serviceCategories: ServiceCategory[] = serviceDivisions.map((divisi
 }));
 
 export const defaultServicesPageContent = {
-  exploreTitle: 'Explore Our Service Divisions',
+  exploreTitle: 'Our Construction Services',
   categories: serviceCategories,
 };
