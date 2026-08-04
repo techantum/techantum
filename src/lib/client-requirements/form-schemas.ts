@@ -44,14 +44,14 @@ export const REPEATABLE_BLOCKS: Record<'services' | 'projects' | 'testimonials',
 };
 
 export const INPUT_CLASS =
-  'w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground font-inter text-sm focus:ring-2 focus:ring-ring focus:border-transparent transition-all';
+  'w-full px-3 py-1.5 rounded-md border border-border bg-input text-foreground font-inter text-sm focus:ring-2 focus:ring-ring focus:border-transparent transition-all';
 
-export const LABEL_CLASS = 'block font-inter text-sm font-medium text-foreground mb-2';
+export const LABEL_CLASS = 'block font-inter text-xs font-medium text-foreground mb-1';
 
-export const HELP_CLASS = 'mt-1.5 font-inter text-xs text-muted-foreground';
+export const HELP_CLASS = 'mt-0.5 font-inter text-xs text-muted-foreground';
 
 export const BTN_PRIMARY =
-  'inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-inter text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-md font-inter text-xs font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed';
 
 export const BTN_SECONDARY =
-  'inline-flex items-center justify-center gap-2 border border-border bg-card text-foreground px-5 py-2.5 rounded-lg font-inter text-sm font-medium hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center justify-center gap-1.5 border border-border bg-card text-foreground px-3.5 py-1.5 rounded-md font-inter text-xs font-medium hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed';

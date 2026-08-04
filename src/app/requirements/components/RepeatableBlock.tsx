@@ -38,6 +38,7 @@ function SubField({
         value={value}
         onChange={onChange}
         placeholder={field.placeholder || field.label}
+        compact
       />
     );
   }
@@ -46,7 +47,7 @@ function SubField({
       <textarea
         value={value}
         disabled={disabled}
-        rows={field.rows ?? 3}
+        rows={field.rows ?? 2}
         placeholder={field.placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={INPUT_CLASS}
@@ -69,11 +70,11 @@ export default function RepeatableBlock({ blockType, label, rows, disabled, onCh
   const schema = REPEATABLE_BLOCKS[blockType];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {rows.map((row, rowIndex) => (
-        <div key={rowIndex} className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-inter text-sm font-semibold text-foreground">
+        <div key={rowIndex} className="rounded-lg border border-border bg-card p-3 shadow-sm space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-inter text-xs font-semibold text-foreground">
               {label} {rowIndex + 1}
             </p>
             {!disabled && (
@@ -87,7 +88,7 @@ export default function RepeatableBlock({ blockType, label, rows, disabled, onCh
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {schema.fields.map((field) => (
               <label
                 key={field.key}

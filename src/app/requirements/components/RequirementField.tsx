@@ -76,7 +76,7 @@ export default function RequirementField({
                 onClick={() =>
                   onChange(active ? selected.filter((item) => item !== option) : [...selected, option])
                 }
-                className={`rounded-full border px-3 py-1.5 font-inter text-sm transition-all ${
+                className={`rounded-full border px-2.5 py-1 font-inter text-xs transition-all ${
                   active
                     ? 'border-primary bg-primary/10 text-primary font-medium'
                     : 'border-border bg-card text-foreground hover:border-primary/30'
@@ -122,6 +122,7 @@ export default function RequirementField({
           value={valueToString(value)}
           onChange={onChange}
           placeholder={question.help_text || question.label}
+          compact
         />
       </div>
     );
@@ -135,7 +136,7 @@ export default function RequirementField({
         <textarea
           value={valueToString(value)}
           disabled={disabled}
-          rows={4}
+          rows={3}
           onChange={(e) => onChange(e.target.value)}
           className={INPUT_CLASS}
           placeholder={question.help_text || undefined}

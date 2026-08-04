@@ -232,35 +232,27 @@ export default function RequirementPortal() {
   return (
     <>
       <section className="page-hero border-b border-border bg-card/50">
-        <div className="page-container py-8 sm:py-10">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="font-inter text-xs uppercase tracking-wider text-primary font-semibold mb-2">Client onboarding</p>
-              <h1 className="font-bricolage text-3xl sm:text-4xl font-bold text-foreground">{payload.project.project_name}</h1>
-              <p className="font-inter text-muted-foreground mt-2">{payload.project.company_name}</p>
-              <p className="font-inter text-sm text-muted-foreground mt-4 leading-relaxed">{payload.template.welcome_message}</p>
-            </div>
-            <div className="w-full lg:w-72 shrink-0 rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between font-inter text-xs text-muted-foreground mb-2">
-                <span>Overall progress</span>
+        <div className="page-container py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h1 className="font-bricolage text-xl sm:text-2xl font-bold text-foreground">{payload.project.project_name}</h1>
+            <div className="w-full sm:w-56 shrink-0">
+              <div className="flex items-center justify-between font-inter text-xs text-muted-foreground mb-1">
+                <span>Progress</span>
                 <span className="font-semibold text-foreground">{progress}%</span>
               </div>
-              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
               </div>
-              <p className="font-inter text-xs text-muted-foreground mt-2">
-                {completeCount} of {sections.length} sections started
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="page-container py-8 sm:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-8">
+      <div className="page-container py-4 sm:py-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 lg:gap-5">
           <aside className="lg:sticky lg:top-20 self-start">
-            <nav className="rounded-2xl border border-border bg-card p-3 shadow-sm space-y-1">
-              <p className="font-inter text-xs font-semibold uppercase tracking-wider text-muted-foreground px-3 py-2">Sections</p>
+            <nav className="rounded-xl border border-border bg-card p-2 shadow-sm space-y-0.5">
+              <p className="font-inter text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">Sections</p>
               {visibleSections.map((section) => {
                 const realIndex = sections.findIndex((item) => item.slug === section.slug);
                 const done = completionForSection(section, answers);
@@ -270,12 +262,12 @@ export default function RequirementPortal() {
                     key={section.slug}
                     type="button"
                     onClick={() => setActiveIndex(realIndex)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg font-inter text-sm flex items-center gap-2.5 transition-colors ${
+                    className={`w-full text-left px-2 py-1.5 rounded-md font-inter text-xs flex items-center gap-2 transition-colors ${
                       active ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-muted'
                     }`}
                   >
                     <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${
                         done ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground'
                       }`}
                     >
@@ -288,19 +280,16 @@ export default function RequirementPortal() {
             </nav>
           </aside>
 
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-border pb-5">
+          <section className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
               <div>
-                <p className="font-inter text-xs text-muted-foreground">
+                <p className="font-inter text-[10px] text-muted-foreground">
                   Step {activeIndex + 1} of {sections.length}
                 </p>
-                <h2 className="font-bricolage text-2xl font-bold text-foreground mt-1">{activeSection.title}</h2>
-                {activeSection.description && (
-                  <p className="font-inter text-sm text-muted-foreground mt-2">{activeSection.description}</p>
-                )}
+                <h2 className="font-bricolage text-lg font-bold text-foreground">{activeSection.title}</h2>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 font-inter text-xs text-muted-foreground shrink-0">
-                <Icon name={saving ? 'ArrowPathIcon' : lastSaved ? 'CheckIcon' : 'ClockIcon'} size={14} />
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 font-inter text-[10px] text-muted-foreground shrink-0">
+                <Icon name={saving ? 'ArrowPathIcon' : lastSaved ? 'CheckIcon' : 'ClockIcon'} size={12} />
                 {saving ? 'Saving…' : lastSaved ? `Saved ${lastSaved}` : 'Auto-saves every 30s'}
               </div>
             </div>
@@ -314,7 +303,7 @@ export default function RequirementPortal() {
               </p>
             )}
 
-            <fieldset disabled={!canEdit} className="space-y-6 disabled:opacity-75">
+            <fieldset disabled={!canEdit} className="space-y-3.5 disabled:opacity-75">
               {activeSection.requirement_questions?.map((question) => (
                 <RequirementField
                   key={question.id}
@@ -342,14 +331,14 @@ export default function RequirementPortal() {
               )}
             </fieldset>
 
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 pt-2 border-t border-border">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1 border-t border-border">
               <button
                 type="button"
                 onClick={() => setActiveIndex(Math.max(activeIndex - 1, 0))}
                 disabled={activeIndex === 0}
                 className={BTN_SECONDARY}
               >
-                <Icon name="ArrowLeftIcon" size={16} />
+                <Icon name="ArrowLeftIcon" size={14} />
                 Previous
               </button>
               <button type="button" onClick={save} disabled={!canEdit || saving} className={BTN_SECONDARY}>
@@ -362,24 +351,24 @@ export default function RequirementPortal() {
                   className={BTN_PRIMARY}
                 >
                   Next section
-                  <Icon name="ArrowRightIcon" size={16} />
+                  <Icon name="ArrowRightIcon" size={14} />
                 </button>
               ) : null}
             </div>
 
             {activeIndex === sections.length - 1 && canEdit && (
-              <div className="rounded-xl border border-border bg-muted/30 p-5 space-y-4">
-                <label className="flex items-start gap-3 font-inter text-sm text-foreground cursor-pointer">
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                <label className="flex items-start gap-2 font-inter text-xs text-foreground cursor-pointer">
                   <input
                     type="checkbox"
                     checked={confirmed}
                     onChange={(e) => setConfirmed(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring"
                   />
                   <span>I confirm the information provided is accurate and ready for review.</span>
                 </label>
                 <button type="button" onClick={submit} disabled={!confirmed} className={BTN_PRIMARY}>
-                  <Icon name="PaperAirplaneIcon" size={16} />
+                  <Icon name="PaperAirplaneIcon" size={14} />
                   Submit requirements
                 </button>
               </div>
