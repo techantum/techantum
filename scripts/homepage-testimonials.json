@@ -1,0 +1,35 @@
+{
+  "eyebrow": "Client Reviews",
+  "title": "Trusted by Our Clients",
+  "description": "See what businesses say about working with Techantum Solutions on their digital projects.",
+  "testimonials": [
+    {
+      "id": "test_agency_scouting",
+      "company": "Agency Scouting",
+      "rating": 5,
+      "service": "Web Applications",
+      "text": "Techantum Solutions built our B2B marketplace with agency onboarding, proposal workflows, and admin dashboards. The platform handles our growth reliably and the team stayed responsive throughout."
+    },
+    {
+      "id": "test_mycashledger",
+      "company": "MyCashLedger",
+      "rating": 5,
+      "service": "Web Applications",
+      "text": "Our financial SaaS platform was delivered with clean architecture, role-based access, and reporting dashboards. Solid engineering and clear communication from discovery through launch."
+    },
+    {
+      "id": "test_ziply5",
+      "company": "Ziply5",
+      "rating": 4,
+      "service": "Websites",
+      "text": "The new e-commerce site looks premium, loads fast on mobile, and our product storytelling is much stronger. SEO and CMS integration were handled end to end."
+    },
+    {
+      "id": "test_happy_homes",
+      "company": "Happy Homes Germany",
+      "rating": 5,
+      "service": "Websites",
+      "text": "Our real estate platform was rebuilt for lead generation with a modern design and conversion-focused structure. Inquiries improved noticeably after launch."
+    }
+  ]
+}

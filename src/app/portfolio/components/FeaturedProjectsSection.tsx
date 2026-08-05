@@ -33,14 +33,14 @@ export default function FeaturedProjectsSection({
               key={project.id}
               className="bg-card rounded-2xl border border-border overflow-hidden hover-lift glow-card flex flex-col"
             >
-              <div className="bg-brand-gradient p-4">
-                <span className="font-inter text-xs font-medium text-primary-foreground/80 uppercase tracking-wider">
+              <div className="bg-brand-gradient p-4 text-white">
+                <span className="font-inter text-xs font-medium text-white/80 uppercase tracking-wider">
                   {project.category}
                 </span>
-                <h3 className="font-bricolage text-2xl font-bold text-primary-foreground mt-2">
+                <h3 className="font-bricolage text-2xl font-bold text-white mt-2">
                   {project.name}
                 </h3>
-                <p className="font-inter text-sm text-primary-foreground/80 mt-1">{project.industry}</p>
+                <p className="font-inter text-sm text-white/80 mt-1">{project.industry}</p>
               </div>
 
               <div className="p-6 flex flex-col flex-1">

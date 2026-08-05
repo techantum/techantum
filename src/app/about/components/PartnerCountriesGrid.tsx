@@ -14,24 +14,25 @@ export default function PartnerCountriesGrid({
   return (
     <section className="page-section bg-muted reveal">
       <div className="page-container">
-        <div className="text-center mb-5">
-          <h2 className="font-bricolage text-4xl md:text-5xl font-bold text-foreground mb-4">
+        <div className="text-center mb-8 max-w-2xl mx-auto">
+          <h2 className="font-bricolage text-3xl md:text-4xl font-bold text-foreground mb-3">
             {title}
           </h2>
-          <p className="font-inter text-lg text-muted-foreground max-w-3xl mx-auto">{description}</p>
+          <p className="font-inter text-base text-muted-foreground">{description}</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 reveal reveal-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-4xl mx-auto reveal reveal-stagger">
           {regions.map((region) => (
             <div
               key={region.id}
-              className="bg-card p-4 rounded-2xl shadow-sm border border-border hover-lift text-center"
+              className="bg-card p-6 rounded-lg border border-border text-center"
             >
-              <div className="text-5xl mb-3">{region.flag}</div>
-              <h3 className="font-bricolage text-lg font-semibold text-foreground mb-1">
+              <h3 className="font-bricolage text-xl font-semibold text-foreground mb-2">
                 {region.name}
               </h3>
-              <p className="font-inter text-sm text-primary font-medium">{region.projects} Projects</p>
+              <p className="font-inter text-sm text-muted-foreground mb-3">Primary market</p>
+              <p className="font-inter text-2xl font-semibold text-primary">{region.projects}</p>
+              <p className="font-inter text-xs text-muted-foreground mt-1">Projects delivered</p>
             </div>
           ))}
         </div>

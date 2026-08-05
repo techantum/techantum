@@ -46,7 +46,7 @@ export default function ContentBriefPage() {
     <div className="space-y-8 max-w-4xl">
       <AdminPageHeader
         title="Content Brief"
-        description="UI/UX design questionnaire — track what information has been provided for the KEIL website."
+        description="UI/UX design questionnaire — track what information has been provided for the Techantum Solutions website."
         action={
           <div className="text-right">
             <p className="text-2xl font-bold text-primary">{completion.percent}%</p>

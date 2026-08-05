@@ -12,7 +12,7 @@ import StructuredData from '@/components/StructuredData';
 import { generateOrganizationSchema, generateFAQSchema } from '@/lib/seo';
 import { getBranding, getCmsContent, getSeo } from '@/lib/cms';
 import { getDefaultContent } from '@/lib/cms/default-content';
-import { defaultIndustriesServed } from '@/lib/keil-defaults';
+import { defaultIndustriesServed } from '@/lib/techantum-defaults';
 import { getSocialSameAsUrls } from '@/lib/seo/marketing-tags';
 import { buildPageMetadata } from '@/lib/seo/page-metadata';
 

@@ -26,7 +26,7 @@ export const CONTENT_BRIEF_SECTIONS: ContentBriefSection[] = [
   {
     id: 2,
     title: 'Services Offered',
-    description: 'Warehouse/Godowns, Industrial Sheds, EC Poultry Sheds, Convention Centers.',
+    description: 'Website Development, Web Applications, and Mobile Applications.',
     checklist: [
       'Confirm service list',
       'Service overview per offering',
@@ -43,11 +43,11 @@ export const CONTENT_BRIEF_SECTIONS: ContentBriefSection[] = [
     title: 'Unique Selling Proposition (USP)',
     description: 'Differentiators, strengths, experience, certifications, and achievements.',
     checklist: [
-      'What makes KEIL different',
-      'Why customers should choose KEIL',
+      'What makes Techantum Solutions different',
+      'Why customers should choose Techantum Solutions',
       'Years of experience',
       'Quality standards & certifications',
-      'Construction methodologies',
+      'Development methodologies',
       'Major achievements & landmark projects',
     ],
     cmsKeys: ['about.usp', 'about.page'],

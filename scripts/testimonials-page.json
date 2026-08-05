@@ -1,0 +1,88 @@
+{
+  "testimonials": [
+    {
+      "id": "test_agency_scouting",
+      "company": "Agency Scouting",
+      "rating": 5,
+      "service": "Web Applications",
+      "text": "Techantum Solutions built our B2B marketplace with agency onboarding, proposal workflows, and admin dashboards. The platform handles our growth reliably and the team stayed responsive throughout."
+    },
+    {
+      "id": "test_mycashledger",
+      "company": "MyCashLedger",
+      "rating": 5,
+      "service": "Web Applications",
+      "text": "Our financial SaaS platform was delivered with clean architecture, role-based access, and reporting dashboards. Solid engineering and clear communication from discovery through launch."
+    },
+    {
+      "id": "test_ziply5",
+      "company": "Ziply5",
+      "rating": 4,
+      "service": "Websites",
+      "text": "The new e-commerce site looks premium, loads fast on mobile, and our product storytelling is much stronger. SEO and CMS integration were handled end to end."
+    },
+    {
+      "id": "test_happy_homes",
+      "company": "Happy Homes Germany",
+      "rating": 5,
+      "service": "Websites",
+      "text": "Our real estate platform was rebuilt for lead generation with a modern design and conversion-focused structure. Inquiries improved noticeably after launch."
+    },
+    {
+      "id": "test_laparoscopy",
+      "company": "Laparoscopy & Laser Clinics",
+      "rating": 4,
+      "service": "Websites",
+      "text": "Professional healthcare website with appointment inquiry flows and a strong SEO foundation. The team understood our compliance-sensitive industry requirements."
+    },
+    {
+      "id": "test_prantek",
+      "company": "Prantek",
+      "rating": 5,
+      "service": "Web Applications",
+      "text": "Prantek's education platform was developed with a student-centric experience and scalable architecture. Delivery was on schedule with regular progress updates."
+    },
+    {
+      "id": "test_aurevion",
+      "company": "Aurevion Pharma",
+      "rating": 4,
+      "service": "Websites",
+      "text": "Corporate pharmaceutical website with professional branding and structured product information. Exactly the polished presence our industry demands."
+    },
+    {
+      "id": "test_kk_engineering",
+      "company": "KK Engineering",
+      "rating": 5,
+      "service": "Websites",
+      "text": "Industrial engineering platform with clear product showcase and inquiry workflows. Techantum Solutions translated our technical offering into an effective digital presence."
+    },
+    {
+      "id": "test_edu_global",
+      "company": "Edu Global Careers",
+      "rating": 4,
+      "service": "Websites",
+      "text": "International education and career guidance platform built with intuitive navigation and lead capture. The site represents our brand well across markets."
+    },
+    {
+      "id": "test_rock_martial",
+      "company": "Rock Martial Arts Academy",
+      "rating": 5,
+      "service": "Websites",
+      "text": "Fitness academy website to promote programs, memberships, and events. Clean design, easy updates, and great results for member sign-ups."
+    },
+    {
+      "id": "test_ahladahomes",
+      "company": "Ahlada Homes",
+      "rating": 4,
+      "service": "Websites",
+      "text": "Real estate platform with high-conversion landing structures and property showcase. The team delivered a site that matches our brand standards."
+    },
+    {
+      "id": "test_kisan_plant",
+      "company": "Kisan Plant Technology",
+      "rating": 5,
+      "service": "Websites",
+      "text": "Infrastructure and technology platform with modern architecture and effective lead generation. Professional execution from design through deployment."
+    }
+  ]
+}

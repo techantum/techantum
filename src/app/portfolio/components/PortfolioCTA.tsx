@@ -16,12 +16,13 @@ export default function PortfolioCTA({ title, description, ctaText, ctaHref }: P
         <div className="bg-brand-gradient rounded-3xl p-10 md:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 grid-bg opacity-30" />
           <div className="relative z-10">
-            <h2 className="font-bricolage text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            <h2 className="font-bricolage text-3xl md:text-4xl font-bold text-white mb-4">
               {title}
             </h2>
             <CmsRichText
               html={description}
-              className="font-inter text-lg text-primary-foreground/90 max-w-2xl mx-auto mb-8"
+              invert
+              className="font-inter text-lg text-white max-w-2xl mx-auto mb-8"
             />
             <Link
               href={ctaHref}

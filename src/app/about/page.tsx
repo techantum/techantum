@@ -3,7 +3,7 @@ import SiteFooter from '@/components/common/SiteFooter';
 import { getCmsContent } from '@/lib/cms';
 import { mergeCmsContent } from '@/lib/cms/default-content';
 import { defaultAboutPageContent } from '@/lib/about-data';
-import { defaultAboutOverview, defaultAboutUsp } from '@/lib/keil-defaults';
+import { defaultAboutOverview, defaultAboutUsp } from '@/lib/techantum-defaults';
 import AboutHero from './components/AboutHero';
 import AboutOverviewSection from './components/AboutOverviewSection';
 import AboutUSPSection from './components/AboutUSPSection';
@@ -11,7 +11,6 @@ import MissionSection from './components/MissionSection';
 import TimelineSection from './components/TimelineSection';
 import ValuesSection from './components/ValuesSection';
 import PartnerCountriesGrid from './components/PartnerCountriesGrid';
-import CertificationsSection from './components/CertificationsSection';
 
 /** Public marketing page — SSG at build time, ISR every 5 minutes. */
 export const dynamic = 'force-static';
@@ -65,13 +64,6 @@ export default async function AboutPage() {
           title={page.regionsTitle}
           description={page.regionsDescription}
           regions={page.regions}
-        />
-        <CertificationsSection
-          title={page.certificationsTitle}
-          description={page.certificationsDescription}
-          certifications={page.certifications}
-          glanceTitle={page.glanceTitle}
-          glanceStats={page.glanceStats}
         />
       </main>
       <SiteFooter />

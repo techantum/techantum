@@ -435,6 +435,18 @@
     @apply mt-3;
   }
 
+  .cms-rich-text-invert,
+  .cms-rich-text-invert p,
+  .cms-rich-text-invert li,
+  .cms-rich-text-invert strong,
+  .cms-rich-text-invert span {
+    @apply text-white;
+  }
+
+  .cms-rich-text-invert a {
+    @apply text-white underline;
+  }
+
   /* CMS media — always fit container, never overflow */
   .media-fit-cover {
     @apply block w-full h-full max-w-full max-h-full object-cover object-center;

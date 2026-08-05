@@ -127,8 +127,6 @@ export const contentSchemas: Record<string, ContentSchema> = {
         itemLabel: 'Testimonial',
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
-          { key: 'name', label: 'Name', type: 'text' },
-          { key: 'country', label: 'Country', type: 'text' },
           { key: 'company', label: 'Company', type: 'text' },
           { key: 'rating', label: 'Rating (1–5)', type: 'number' },
           { key: 'text', label: 'Quote', type: 'textarea' },
@@ -267,8 +265,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
           { key: 'name', label: 'Name', type: 'text' },
-          { key: 'flag', label: 'Flag emoji', type: 'text' },
-          { key: 'projects', label: 'Projects count', type: 'text' },
+          { key: 'countryCode', label: 'Country code (e.g. in, de, us)', type: 'text' },
         ],
       },
       {
@@ -462,11 +459,8 @@ export const contentSchemas: Record<string, ContentSchema> = {
         itemLabel: 'Testimonial',
         fields: [
           { key: 'id', label: 'ID', type: 'text' },
-          { key: 'name', label: 'Name', type: 'text' },
-          { key: 'country', label: 'Country', type: 'text' },
           { key: 'company', label: 'Company', type: 'text' },
           { key: 'rating', label: 'Rating (1–5)', type: 'number' },
-          { key: 'date', label: 'Date (YYYY-MM-DD)', type: 'text' },
           { key: 'service', label: 'Service category', type: 'text' },
           { key: 'text', label: 'Quote', type: 'textarea' },
         ],
