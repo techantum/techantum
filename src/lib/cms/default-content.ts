@@ -4,7 +4,7 @@ import {
   industryProjectGroups,
 } from '@/lib/portfolio-data';
 import { defaultServicesPageContent } from '@/lib/services-data';
-import { testimonialsList } from '@/lib/testimonials-data';
+import { testimonialsList, homepageTestimonials } from '@/lib/testimonials-data';
 import { defaultContactPageContent } from '@/lib/contact-data';
 import { defaultAboutPageContent } from '@/lib/about-data';
 import { blogArticles } from '@/lib/blog-data';
@@ -17,26 +17,26 @@ import {
   defaultMarketingAssets,
   defaultSeoMarketingInputs,
   defaultWebsiteGoals,
-} from '@/lib/keil-defaults';
+} from '@/lib/techantum-defaults';
 import type { CmsEntry, SiteBranding, SiteSeo } from './types';
 
 export const defaultBranding: SiteBranding = {
-  company_name: 'KEIL',
-  tagline: 'Pre-Engineered Building Solutions',
+  company_name: 'Techantum Solutions',
+  tagline: 'Website, Web App & Mobile Development',
   logo_url: null,
   footer_logo_url: null,
   favicon_url: null,
-  logo_letter: 'K',
+  logo_letter: 'T',
   phone: '+91 40 0000 0000',
   phone_href: '+914000000000',
   whatsapp: '+91 90000 00000',
   whatsapp_href: '919000000000',
-  whatsapp_widget_message: 'Hello! I would like to inquire about KEIL construction services.',
-  email: 'enquiries@keil.in',
-  address: 'Corporate Office Address — To be updated',
+  whatsapp_widget_message: 'Hello! I would like to inquire about Techantum Solutions IT services.',
+  email: 'info@techantum.com',
+  address: 'Hyderabad, India',
   footer_description:
-    'KEIL delivers pre-engineered warehouses, industrial sheds, EC poultry sheds, and convention centers built with quality and speed.',
-  copyright_text: '© 2026 KEIL. All rights reserved.',
+    'Techantum Solutions delivers websites, web applications, and mobile apps — designed, built, and launched for businesses ready to grow.',
+  copyright_text: '© 2026 Techantum Solutions. All rights reserved.',
 };
 
 const BRANDING_TEXT_KEYS: (keyof SiteBranding)[] = [
@@ -66,23 +66,22 @@ export function normalizeSiteBranding(data?: Partial<SiteBranding> | null): Site
 }
 
 export const defaultSeo: SiteSeo = {
-  site_title: 'KEIL | Pre-Engineered Buildings — Warehouses, Industrial & Poultry Sheds',
-  title_template: '%s | KEIL',
+  site_title: 'Techantum Solutions | Website, Web App & Mobile Development',
+  title_template: '%s | Techantum Solutions',
   description:
-    'KEIL specializes in pre-engineered building construction — warehouses, godowns, industrial sheds, EC poultry sheds, and convention centers across India.',
+    'Techantum Solutions specializes in website development, custom web applications, and mobile apps for businesses in India, Germany, and the United States.',
   keywords: [
-    'pre-engineered buildings',
-    'warehouse construction',
-    'industrial shed manufacturer',
-    'poultry shed construction',
-    'convention center construction',
-    'PEB structures',
-    'godown construction',
-    'KEIL',
+    'website development',
+    'web application development',
+    'mobile app development',
+    'custom software development',
+    'SaaS development',
+    'IT services',
+    'Techantum Solutions',
   ],
-  site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://keil.in',
-  og_image_url: '/assets/images/Hollandse-1771785992532.jpg',
-  twitter_handle: '@keil',
+  site_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://techantum.com',
+  og_image_url: '/videos/hero-bg-poster.jpg',
+  twitter_handle: '@techantum',
   google_verification: '',
   canonical_host: 'non-www',
   index_site: true,
@@ -152,22 +151,21 @@ export const defaultCmsEntries: CmsEntry[] = [
       heroVideoUrl: '/videos/hero-bg.mp4',
       heroPosterUrl: '/videos/hero-bg-poster.jpg',
       heroVideoFallbackUrl: 'https://assets.mixkit.co/videos/19639/19639-720.mp4',
-      badge: 'Pre-Engineered Building Experts',
-      eyebrow: 'Construction & Infrastructure',
+      badge: 'Digital Solutions Partner',
+      eyebrow: 'Software Development',
       titleLine1: 'Building Your',
-      titleLine2: 'Infrastructure Future',
+      titleLine2: 'Digital Future',
       description:
-        'KEIL delivers pre-engineered warehouses, industrial sheds, EC poultry sheds, and convention centers — designed, fabricated, and erected across India.',
-      primaryCta: 'Request a Quote',
+        'Techantum Solutions delivers websites, web applications, and mobile apps — designed, built, and launched for businesses ready to grow.',
+      primaryCta: 'Start Your Project',
       primaryCtaHref: '/contact',
       secondaryCta: 'View Services',
       secondaryCtaHref: '/services',
       cardTitle: 'How can we help you?',
       serviceOptions: [
-        'Warehouse / Godowns',
-        'Industrial Sheds',
-        'EC Poultry Sheds',
-        'Convention Centers',
+        'Website Development',
+        'Web Applications',
+        'Mobile Applications',
         'Multiple Services',
         'Other',
       ],
@@ -191,7 +189,7 @@ export const defaultCmsEntries: CmsEntry[] = [
           icon: 'UsersIcon',
           value: '80+',
           label: 'Happy Clients',
-          description: 'Businesses across industries worldwide',
+          description: 'Clients in India, Germany, and the United States',
         },
         {
           id: 'stat_services',
@@ -260,14 +258,14 @@ export const defaultCmsEntries: CmsEntry[] = [
       description:
         'We build with modern, battle-tested technologies to deliver fast, secure, and scalable solutions.',
       technologies: [
-        { id: 'tech_react', name: 'React', icon: '⚛️' },
-        { id: 'tech_nextjs', name: 'Next.js', icon: '▲' },
-        { id: 'tech_typescript', name: 'TypeScript', icon: 'TS' },
-        { id: 'tech_node', name: 'Node.js', icon: '🟢' },
-        { id: 'tech_reactnative', name: 'React Native', icon: '📱' },
-        { id: 'tech_flutter', name: 'Flutter', icon: '🦋' },
-        { id: 'tech_aws', name: 'AWS', icon: '☁️' },
-        { id: 'tech_supabase', name: 'Supabase', icon: '⚡' },
+        { id: 'tech_react', name: 'React', icon: 'React' },
+        { id: 'tech_nextjs', name: 'Next.js', icon: 'Next.js' },
+        { id: 'tech_typescript', name: 'TypeScript', icon: 'TypeScript' },
+        { id: 'tech_node', name: 'Node.js', icon: 'Node.js' },
+        { id: 'tech_reactnative', name: 'React Native', icon: 'React Native' },
+        { id: 'tech_flutter', name: 'Flutter', icon: 'Flutter' },
+        { id: 'tech_aws', name: 'AWS', icon: 'AWS' },
+        { id: 'tech_supabase', name: 'Supabase', icon: 'Supabase' },
       ],
     },
   },
@@ -277,47 +275,10 @@ export const defaultCmsEntries: CmsEntry[] = [
     label: 'Homepage Testimonials',
     content: {
       eyebrow: 'Client Reviews',
-      title: 'Trusted by Businesses Worldwide',
+      title: 'Trusted by Our Clients',
       description:
-        'See what our clients say about working with TechAntum on their digital projects.',
-      testimonials: [
-        {
-          id: 'test_1',
-          name: 'Marcus Schmidt',
-          country: 'Germany',
-          company: 'Schmidt Digital GmbH',
-          rating: 5,
-          text: 'TechAntum rebuilt our corporate website from scratch. The new site loads fast, looks professional, and our lead inquiries increased by 40% within the first month.',
-          service: 'Websites',
-        },
-        {
-          id: 'test_2',
-          name: 'Isabella Rodrigues',
-          country: 'Brazil',
-          company: 'AgroTech Solutions',
-          rating: 5,
-          text: 'They developed a custom web application for our inventory management. The team was responsive, delivered on time, and the app has streamlined our entire operation.',
-          service: 'Web Applications',
-        },
-        {
-          id: 'test_3',
-          name: 'Ahmed El-Mansouri',
-          country: 'Morocco',
-          company: 'Atlas Logistics',
-          rating: 5,
-          text: 'Our mobile app for delivery tracking was built flawlessly. TechAntum handled everything from UI design to App Store deployment. Highly recommended.',
-          service: 'Mobile Applications',
-        },
-        {
-          id: 'test_4',
-          name: 'Sophie Dubois',
-          country: 'Belgium',
-          company: 'EcoHeat Solutions',
-          rating: 5,
-          text: 'We needed a SaaS dashboard for our clients and TechAntum delivered beyond expectations. Clean code, great UX, and excellent post-launch support.',
-          service: 'Web Applications',
-        },
-      ],
+        'See what businesses say about working with Techantum Solutions on their digital projects.',
+      testimonials: homepageTestimonials,
     },
   },
   {
@@ -330,12 +291,12 @@ export const defaultCmsEntries: CmsEntry[] = [
         'Got questions? We have answers. Learn more about our services, process, and how we work.',
       faqs: [
         {
-          question: 'What services does TechAntum offer?',
+          question: 'What services does Techantum Solutions offer?',
           answer:
             'We specialize in three core areas: Websites (corporate sites, landing pages, e-commerce, CMS-powered sites), Web Applications (custom apps, SaaS platforms, admin dashboards, API development), and Mobile Applications (native iOS/Android and cross-platform apps with React Native and Flutter).',
         },
         {
-          question: 'How do I start a project with TechAntum?',
+          question: 'How do I start a project with Techantum Solutions?',
           answer:
             "Reach out through our contact form, email us at info@techantum.com, or call us directly. Share your project idea, goals, and timeline. We'll schedule a free consultation and provide a detailed proposal within 48 hours.",
         },
@@ -403,9 +364,9 @@ export const defaultCmsEntries: CmsEntry[] = [
     label: 'Services Hero',
     content: {
       eyebrow: 'Our Services',
-      title: 'Pre-Engineered Building Solutions',
+      title: 'Websites, Web Apps & Mobile Applications',
       description:
-        'Warehouse & godowns, industrial sheds, EC poultry sheds, and convention centers — designed, fabricated, and erected by KEIL across India.',
+        'Website development, custom web applications, and mobile app development — tailored packages from launch to enterprise scale.',
     },
   },
   {
@@ -413,14 +374,14 @@ export const defaultCmsEntries: CmsEntry[] = [
     entry_group: 'about',
     label: 'About Hero',
     content: {
-      eyebrow: 'About KEIL',
-      title: 'Building Infrastructure That Lasts',
+      eyebrow: 'About Techantum Solutions',
+      title: 'Building Your Digital Future',
       description:
-        'KEIL is a leading pre-engineered building (PEB) contractor specializing in warehouses, industrial sheds, poultry structures, and convention centers.',
+        'Techantum Solutions is a full-service IT company specializing in websites, web applications, and mobile apps for businesses ready to scale.',
       description2:
-        'With decades of engineering expertise, we deliver cost-effective, durable structures from design through handover — on time and to specification.',
-      image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd',
-      imageAlt: 'KEIL pre-engineered building construction site',
+        'With expertise across modern technologies and agile delivery, we help clients in India, Germany, and the United States turn ideas into reliable digital products.',
+      image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c',
+      imageAlt: 'Techantum Solutions software development team collaborating',
     },
   },
   {
@@ -493,7 +454,7 @@ export const defaultCmsEntries: CmsEntry[] = [
     label: 'Blog Hero',
     content: {
       eyebrow: 'Insights & Updates',
-      title: 'TechAntum Blog',
+      title: 'Techantum Solutions Blog',
       description:
         'Articles on web development, mobile apps, technology trends, and digital product strategy.',
     },
@@ -520,9 +481,9 @@ export const defaultCmsEntries: CmsEntry[] = [
     label: 'Testimonials Hero',
     content: {
       eyebrow: 'Client Stories',
-      title: 'Trusted by Businesses Worldwide',
+      title: 'Trusted by Clients in India, Germany & the United States',
       description:
-        'Read what our clients say about working with TechAntum on websites, web apps, and mobile applications.',
+        'See what businesses say about working with Techantum Solutions on their digital projects.',
     },
   },
   {

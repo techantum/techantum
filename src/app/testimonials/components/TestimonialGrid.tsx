@@ -4,18 +4,30 @@ import type { TestimonialItem } from '@/lib/testimonials-data';
 interface TestimonialGridProps {
   testimonials: TestimonialItem[];
   selectedCategory: string;
-  selectedCountry: string;
+}
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-1 mb-4">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Icon
+          key={star}
+          name="StarIcon"
+          size={20}
+          className={star <= rating ? 'text-accent' : 'text-border'}
+          variant={star <= rating ? 'solid' : 'outline'}
+        />
+      ))}
+    </div>
+  );
 }
 
 export default function TestimonialGrid({
   testimonials,
   selectedCategory,
-  selectedCountry,
 }: TestimonialGridProps) {
   const filteredTestimonials = testimonials.filter((testimonial) => {
-    const categoryMatch = selectedCategory === 'All' || testimonial.service === selectedCategory;
-    const countryMatch = selectedCountry === 'All' || testimonial.country === selectedCountry;
-    return categoryMatch && countryMatch;
+    return selectedCategory === 'All' || testimonial.service === selectedCategory;
   });
 
   return (
@@ -35,38 +47,17 @@ export default function TestimonialGrid({
                   key={testimonial.id}
                   className="bg-card p-4 rounded-2xl shadow-sm border border-border hover-lift"
                 >
-                  <div className="flex items-center gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Icon key={i} name="StarIcon" size={20} className="text-accent" variant="solid" />
-                    ))}
-                  </div>
-
+                  <StarRating rating={testimonial.rating} />
                   <p className="font-inter text-base text-foreground mb-6 leading-relaxed">
                     &ldquo;{testimonial.text}&rdquo;
                   </p>
-
-                  <div className="pt-4 border-t border-border">
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
                     <p className="font-inter font-semibold text-sm text-foreground">
-                      {testimonial.name}
+                      {testimonial.company}
                     </p>
-                    <p className="font-inter text-xs text-muted-foreground">{testimonial.company}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="font-inter text-xs text-muted-foreground">
-                        {testimonial.country}
-                      </span>
-                      <span className="font-inter text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                        {testimonial.service}
-                      </span>
-                    </div>
-                    {testimonial.date && (
-                      <p className="font-inter text-xs text-muted-foreground mt-2">
-                        {new Date(testimonial.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </p>
-                    )}
+                    <span className="font-inter text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                      {testimonial.service}
+                    </span>
                   </div>
                 </div>
               ))}

@@ -1,15 +1,12 @@
 export type DivisionSlug =
-  | 'warehouse-godowns'
-  | 'industrial-sheds'
-  | 'ec-poultry-sheds'
-  | 'convention-centers';
+  | 'website-development'
+  | 'web-application-development'
+  | 'mobile-application-development';
 
-export type PlanSlug = string;
-
-export interface ComparisonRow {
-  feature: string;
-  values: Record<string, string>;
-}
+export type WebsitePlanSlug = 'launch' | 'growth' | 'enterprise';
+export type WebAppPlanSlug = 'accelerate' | 'scale' | 'transform';
+export type MobilePlanSlug = 'launch' | 'growth' | 'enterprise';
+export type PlanSlug = WebsitePlanSlug | WebAppPlanSlug | MobilePlanSlug;
 
 export interface ServicePlan {
   slug: PlanSlug;
@@ -34,296 +31,419 @@ export interface ServiceDivision {
   title: string;
   description: string;
   marketingMessage: string;
-  packagesHeadline: string;
-  overview: string;
-  howItWorks: string;
-  keyFeatures: string[];
-  categories: string[];
-  executionProcess: string[];
   targetAudience: string[];
   benefits: string[];
-  industriesServed: string[];
   icon: string;
   iconClass: string;
   bgClass: string;
   image: string;
   imageAlt: string;
   plans: ServicePlan[];
-  comparisonRows: ComparisonRow[];
 }
 
 export const digitalTransformationJourney = [
-  'Site Assessment & Planning',
-  'Structural Design & Engineering',
-  'Material Fabrication',
-  'Foundation & Civil Works',
-  'PEB Erection & Assembly',
-  'Quality Inspection',
-  'Handover & Documentation',
-  'After-Sales Support',
+  'Strategy & Consulting',
+  'UI/UX Design',
+  'Website Development',
+  'Web Application Development',
+  'Mobile Application Development',
+  'Cloud Deployment',
+  'Integrations & Automation',
+  'Maintenance & Support',
+  'Digital Growth & Optimization',
 ];
 
 export const salesFunnelSteps = [
   { stage: 'Awareness', action: 'Website Visitor' },
-  { stage: 'Interest', action: 'Browse Services & Portfolio' },
-  { stage: 'Consideration', action: 'Request Quote / Enquiry' },
-  { stage: 'Evaluation', action: 'Site Visit & Requirement Analysis' },
-  { stage: 'Proposal', action: 'Technical & Commercial Proposal' },
-  { stage: 'Decision', action: 'Contract & Advance' },
-  { stage: 'Execution', action: 'Design, Fabrication & Erection' },
-  { stage: 'Delivery', action: 'Project Handover' },
-  { stage: 'Retention', action: 'Maintenance & Future Projects' },
+  { stage: 'Interest', action: 'Download Company Profile' },
+  { stage: 'Consideration', action: 'Book Free Consultation' },
+  { stage: 'Evaluation', action: 'Requirement Analysis' },
+  { stage: 'Proposal', action: 'Solution Proposal' },
+  { stage: 'Presentation', action: 'Technical Presentation' },
+  { stage: 'Estimation', action: 'Project Estimation' },
+  { stage: 'Decision', action: 'Contract' },
+  { stage: 'Delivery', action: 'Development' },
+  { stage: 'Retention', action: 'Support & Maintenance' },
 ];
 
 export const leadGenerationPlan = {
   topOfFunnel: {
     title: 'Top of Funnel — Awareness',
-    goal: 'Reach industrial and commercial buyers searching for PEB solutions.',
+    goal: 'Increase brand visibility and attract qualified traffic.',
     tactics: [
-      'SEO for warehouse & shed keywords',
-      'Google Business Profile optimization',
-      'Project portfolio showcase',
+      'SEO-optimized website',
       'Industry-specific landing pages',
-      'Google Ads for high-intent searches',
-      'LinkedIn for B2B visibility',
+      'Google Ads',
+      'LinkedIn Ads',
+      'Facebook & Instagram campaigns',
+      'Case studies',
+      'Client testimonials',
+      'Technical blogs',
+      'Short-form videos',
+      'Webinar series',
     ],
   },
   middleOfFunnel: {
     title: 'Middle of Funnel — Consideration',
-    goal: 'Educate prospects on PEB benefits and KEIL capabilities.',
+    goal: 'Educate prospects and build trust.',
     tactics: [
-      'Service detail pages with process breakdown',
-      'Case studies and project galleries',
-      'Free site assessment offer',
-      'Brochure downloads',
+      'Free website audit',
+      'Free consultation call',
+      'Technology assessment',
+      'ROI calculator',
+      'Live demos',
+      'Industry-specific solution brochures',
+      'Email nurturing campaigns',
       'WhatsApp follow-ups',
-      'Email nurturing for warm leads',
     ],
   },
   bottomOfFunnel: {
     title: 'Bottom of Funnel — Decision',
-    goal: 'Convert enquiries into signed construction contracts.',
+    goal: 'Convert opportunities into signed projects.',
     tactics: [
-      'Detailed BOQ and technical proposals',
-      'Site visits and reference projects',
-      'Transparent timelines and pricing',
-      'Client testimonials and credentials',
-      'Fast response within 24 hours',
+      'Customized proposals',
+      'Solution architecture presentations',
+      'Pilot or Proof of Concept (PoC)',
+      'Client references',
+      'Transparent pricing',
+      'Project roadmap',
+      'Implementation timeline',
     ],
   },
-};
-
-export const seoKeywordsByDivision: Record<DivisionSlug, string[]> = {
-  'warehouse-godowns': [
-    'warehouse construction',
-    'godown construction',
-    'PEB warehouse',
-    'storage shed manufacturer',
-  ],
-  'industrial-sheds': [
-    'industrial shed manufacturer',
-    'factory shed construction',
-    'pre-engineered industrial building',
-    'PEB industrial shed',
-  ],
-  'ec-poultry-sheds': [
-    'poultry shed construction',
-    'EC poultry shed',
-    'broiler shed manufacturer',
-    'poultry farm building',
-  ],
-  'convention-centers': [
-    'convention center construction',
-    'exhibition hall PEB',
-    'large span building',
-    'commercial PEB structure',
-  ],
 };
 
 export const serviceDivisions: ServiceDivision[] = [
   {
-    slug: 'warehouse-godowns',
-    name: 'Warehouse / Godowns',
-    shortName: 'Warehouses',
-    eyebrow: 'Storage Solutions',
-    title: 'Warehouse & Godown Construction',
+    slug: 'website-development',
+    name: 'Website Development',
+    shortName: 'Websites',
+    eyebrow: 'Website Development',
+    title: 'Professional Websites That Convert Visitors Into Customers',
     description:
-      'Durable, cost-effective pre-engineered warehouses and godowns designed for logistics, manufacturing, and bulk storage operations.',
-    marketingMessage: 'Spacious, structurally sound storage buildings delivered on schedule.',
-    packagesHeadline: 'Design → Fabricate → Erect → Handover',
-    overview:
-      'Our warehouse and godown solutions use pre-engineered steel structures for clear spans, high bay storage, and rapid construction — ideal for logistics hubs, distribution centers, and industrial storage.',
-    howItWorks:
-      'We assess your site and storage requirements, design the optimal PEB layout, fabricate components off-site, and erect the structure with our experienced teams — minimizing disruption and downtime.',
-    keyFeatures: [
-      'Clear span designs up to large widths',
-      'Customizable bay spacing and heights',
-      'Loading dock and mezzanine options',
-      'Ventilation and insulation provisions',
-      'Fire-rated design options',
+      'Build credibility, improve Google visibility, and generate leads with fast, mobile-optimized, SEO-ready websites.',
+    marketingMessage: 'Professional websites that convert visitors into customers.',
+    targetAudience: [
+      'Small Businesses',
+      'Educational Institutions',
+      'Hospitals',
+      'Builders',
+      'Restaurants',
+      'Manufacturers',
+      'Consultants',
     ],
-    categories: ['Standard Godown', 'Multi-bay Warehouse', 'Logistics Hub', 'Cold Storage Shell'],
-    executionProcess: [
-      'Requirement gathering & site survey',
-      'Structural design & client approval',
-      'Foundation & civil works',
-      'PEB fabrication & delivery',
-      'Erection and quality inspection',
-      'Handover with documentation',
-    ],
-    targetAudience: ['Logistics Companies', 'Manufacturers', 'Wholesalers', '3PL Operators'],
     benefits: [
-      'Faster construction vs conventional',
-      'Lower lifecycle maintenance cost',
-      'Expandable modular design',
-      'Engineered for local wind/seismic loads',
+      'Build credibility',
+      'Improve Google visibility',
+      'Generate leads',
+      'Faster loading',
+      'Mobile optimized',
+      'SEO ready',
     ],
-    industriesServed: ['Logistics', 'Manufacturing', 'Retail Distribution', 'Cold Storage'],
-    icon: 'BuildingStorefrontIcon',
+    icon: 'ComputerDesktopIcon',
     iconClass: 'text-primary',
     bgClass: 'bg-primary/10',
-    image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d',
-    imageAlt: 'Large pre-engineered warehouse structure',
-    plans: [],
-    comparisonRows: [],
+    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f',
+    imageAlt: 'Modern responsive business website on laptop and mobile',
+    plans: [
+      {
+        slug: 'launch',
+        name: 'Launch Website',
+        tagline: 'Establish your online presence',
+        bestFor: 'Startups & Small Businesses',
+        description:
+          'Ideal for businesses establishing their online presence with a professional, CMS-powered website.',
+        scope: 'Up to 5 CMS Pages',
+        includes: [
+          'Up to 5 Pages',
+          'CMS',
+          'Mobile Responsive',
+          'Contact Forms',
+          'Basic SEO Setup',
+          'Speed Optimization',
+          'SSL Ready',
+          'Google Analytics',
+          'Social Media Integration',
+          'Training',
+        ],
+        image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085',
+        imageAlt: 'Startup business website launch on laptop',
+      },
+      {
+        slug: 'growth',
+        name: 'Growth Website',
+        tagline: 'Generate leads and grow online',
+        bestFor: 'Growing Businesses',
+        description:
+          'For companies looking to generate leads and improve their online presence with content and conversion tools.',
+        scope: 'Up to 10 CMS Pages',
+        includes: [
+          'Everything in Launch',
+          'Up to 10 Pages',
+          'Blog',
+          'Portfolio',
+          'Testimonials',
+          'Service Landing Pages',
+          'Lead Capture',
+          'Enhanced SEO',
+          'Performance Optimization',
+          'Advanced Forms',
+          'Marketing Integrations',
+        ],
+        highlighted: true,
+        image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3',
+        imageAlt: 'Growth-focused website with lead capture forms',
+      },
+      {
+        slug: 'enterprise',
+        name: 'Enterprise Website',
+        tagline: 'Scalable digital platforms',
+        bestFor: 'Large Organizations',
+        description:
+          'For organizations requiring scalable digital platforms with integrations, compliance, and dedicated support.',
+        scope: 'Custom Enterprise Website Platform',
+        includes: [
+          'Unlimited Pages',
+          'Custom CMS',
+          'Multi-language',
+          'Multi-location',
+          'Custom Modules',
+          'CRM Integration',
+          'ERP Integration',
+          'HRMS Integration',
+          'Workflow Automation',
+          'API Integrations',
+          'Security Compliance',
+          'Analytics Dashboard',
+          'High Availability',
+          'Advanced SEO',
+          'Dedicated Support',
+        ],
+        image: 'https://images.unsplash.com/photo-1547658719-da2b51169166',
+        imageAlt: 'Enterprise website platform dashboard',
+      },
+    ],
   },
   {
-    slug: 'industrial-sheds',
-    name: 'Industrial Sheds',
-    shortName: 'Industrial Sheds',
-    eyebrow: 'Industrial Buildings',
-    title: 'Industrial Shed Construction',
+    slug: 'web-application-development',
+    name: 'Web Application Development',
+    shortName: 'Web Applications',
+    eyebrow: 'Web Application Development',
+    title: 'Automate Operations. Eliminate Manual Work. Scale Your Business.',
     description:
-      'Robust pre-engineered industrial sheds for factories, workshops, processing plants, and heavy-duty manufacturing operations.',
-    marketingMessage: 'Heavy-duty industrial sheds built for productivity and long-term performance.',
-    packagesHeadline: 'Design → Fabricate → Erect → Handover',
-    overview:
-      'KEIL industrial sheds combine structural strength with flexible layouts — supporting cranes, heavy equipment, and future expansion for growing manufacturing businesses.',
-    howItWorks:
-      'From load calculations to crane beam integration, we engineer each shed for your operational needs, fabricate at our facility, and complete erection with strict safety and quality protocols.',
-    keyFeatures: [
-      'Crane-compatible structures',
-      'Heavy-duty flooring connections',
-      'Natural lighting & ventilation',
-      'Office-warehouse combinations',
-      'Future expansion provisions',
+      'Custom web applications engineered for process automation, centralized data, and real-time reporting.',
+    marketingMessage: 'Automate operations. Eliminate manual work. Scale your business.',
+    targetAudience: [
+      'SMEs',
+      'Enterprises',
+      'Manufacturing',
+      'Healthcare',
+      'Education',
+      'Logistics',
+      'Retail',
     ],
-    categories: ['Factory Shed', 'Workshop Building', 'Processing Plant Shell', 'Multi-unit Industrial Park'],
-    executionProcess: [
-      'Operational requirement study',
-      'Structural & MEP coordination',
-      'Foundation design',
-      'Fabrication & galvanizing',
-      'Erection & commissioning support',
-      'Final inspection & handover',
-    ],
-    targetAudience: ['Manufacturers', 'Engineering Units', 'Auto Ancillaries', 'Industrial Parks'],
     benefits: [
-      'Optimized for heavy loads',
-      'Quick occupancy timeline',
-      'Custom crane and door specifications',
-      'Compliance with industrial standards',
+      'Process automation',
+      'Centralized data',
+      'Productivity improvement',
+      'Real-time reporting',
+      'Cost reduction',
+      'Better decision making',
     ],
-    industriesServed: ['Manufacturing', 'Engineering', 'Automotive', 'Industrial Infrastructure'],
-    icon: 'BuildingOffice2Icon',
+    icon: 'CodeBracketIcon',
     iconClass: 'text-secondary',
     bgClass: 'bg-secondary/10',
-    image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd',
-    imageAlt: 'Industrial manufacturing shed under construction',
-    plans: [],
-    comparisonRows: [],
+    image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c',
+    imageAlt: 'Developer building custom web application',
+    plans: [
+      {
+        slug: 'accelerate',
+        name: 'Accelerate',
+        tagline: 'Build fast and validate ideas',
+        bestFor: 'MVP & Startup Products',
+        description:
+          'Designed for startups and businesses launching digital products quickly to validate ideas in the market.',
+        solutions: [
+          'Customer Portal',
+          'Booking System',
+          'CRM Lite',
+          'Inventory',
+          'Dashboard',
+          'Appointment System',
+          'Workflow Automation',
+          'Admin Panel',
+        ],
+        features: [
+          'Authentication',
+          'Role Management',
+          'Reports',
+          'Email Notifications',
+          'Basic Integrations',
+          'Cloud Deployment',
+        ],
+        image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71',
+        imageAlt: 'MVP web application dashboard for startups',
+      },
+      {
+        slug: 'scale',
+        name: 'Scale',
+        tagline: 'Automate multiple departments',
+        bestFor: 'Growing Businesses',
+        description:
+          'For businesses automating multiple departments with approval workflows, payments, and integrations.',
+        solutions: [
+          'ERP Modules',
+          'HRMS',
+          'School Management',
+          'Healthcare Systems',
+          'Property Management',
+          'Logistics',
+          'Manufacturing',
+          'Finance Systems',
+        ],
+        features: [
+          'Multi Roles',
+          'Approval Workflows',
+          'API Integration',
+          'Payment Gateway',
+          'Reports',
+          'Dashboards',
+          'Audit Logs',
+          'Automation',
+        ],
+        highlighted: true,
+        image: 'https://images.unsplash.com/photo-1551434678-e076c223a692',
+        imageAlt: 'Business automation web application interface',
+      },
+      {
+        slug: 'transform',
+        name: 'Transform',
+        tagline: 'Enterprise-grade platforms',
+        bestFor: 'Enterprise Digital Transformation',
+        description:
+          'Enterprise-grade platforms for large-scale digital transformation with microservices and high availability.',
+        solutions: [
+          'SaaS Platforms',
+          'Enterprise ERP',
+          'Banking',
+          'Telecom',
+          'Insurance',
+          'Government Portals',
+          'AI Automation',
+          'Workflow Engines',
+          'Data Analytics',
+        ],
+        features: [
+          'High Scalability',
+          'Microservices',
+          'Multi-Tenant',
+          'Enterprise Security',
+          'SSO',
+          'API Gateway',
+          'AI Integration',
+          'DevOps',
+          'High Availability',
+          'Disaster Recovery',
+        ],
+        image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa',
+        imageAlt: 'Enterprise digital transformation platform',
+      },
+    ],
   },
   {
-    slug: 'ec-poultry-sheds',
-    name: 'EC Poultry Sheds',
-    shortName: 'Poultry Sheds',
-    eyebrow: 'Agricultural Structures',
-    title: 'EC Poultry Shed Construction',
+    slug: 'mobile-application-development',
+    name: 'Mobile Application Development',
+    shortName: 'Mobile Applications',
+    eyebrow: 'Mobile Application Development',
+    title: "Put Your Business in Your Customers' Pockets",
     description:
-      'Environment-controlled (EC) poultry sheds engineered for broiler, layer, and hatchery operations with optimal ventilation and biosecurity.',
-    marketingMessage: 'Specialized poultry buildings designed for productivity and bird welfare.',
-    packagesHeadline: 'Design → Fabricate → Erect → Handover',
-    overview:
-      'Our EC poultry sheds integrate structural PEB design with ventilation, insulation, and layout planning tailored for modern poultry farming standards.',
-    howItWorks:
-      'We collaborate on flock capacity, climate control needs, and equipment layout, then deliver a turnkey shed structure ready for poultry equipment installation.',
-    keyFeatures: [
-      'EC-compatible structural design',
-      'Optimized span for ventilation systems',
-      'Insulated panel-ready structures',
-      'Biosecurity-friendly layouts',
-      'Scalable multi-shed farm designs',
+      'Native and cross-platform mobile apps for better customer engagement, faster services, and brand loyalty.',
+    marketingMessage: "Put your business in your customers' pockets.",
+    targetAudience: [
+      'Product Companies',
+      'Startups',
+      'Retail',
+      'Healthcare',
+      'Logistics',
+      'Real Estate',
     ],
-    categories: ['Broiler Shed', 'Layer Shed', 'Hatchery Building', 'Feed Storage Unit'],
-    executionProcess: [
-      'Farm capacity planning',
-      'EC layout & structural design',
-      'Civil & drainage works',
-      'PEB erection',
-      'Coordination with equipment vendors',
-      'Handover & farmer training support',
-    ],
-    targetAudience: ['Poultry Farmers', 'Agri Entrepreneurs', 'Contract Farming Companies'],
     benefits: [
-      'Designed for Indian climate conditions',
-      'Faster farm setup',
-      'Lower structural maintenance',
-      'Expandable farm layouts',
+      'Better customer engagement',
+      'Faster services',
+      'Push notifications',
+      'Brand loyalty',
+      'Mobile workforce',
+      'Real-time access',
     ],
-    industriesServed: ['Agriculture', 'Poultry Farming', 'Food Processing'],
-    icon: 'HomeModernIcon',
+    icon: 'DevicePhoneMobileIcon',
     iconClass: 'text-accent',
     bgClass: 'bg-accent/10',
-    image: 'https://images.unsplash.com/photo-1548550020-6cfc8c307a05',
-    imageAlt: 'Modern poultry farm building structure',
-    plans: [],
-    comparisonRows: [],
-  },
-  {
-    slug: 'convention-centers',
-    name: 'Convention Centers',
-    shortName: 'Convention Centers',
-    eyebrow: 'Commercial Structures',
-    title: 'Convention Center Construction',
-    description:
-      'Large-span pre-engineered convention centers and exhibition halls for events, trade shows, and commercial gatherings.',
-    marketingMessage: 'Impressive large-span venues built with speed and structural elegance.',
-    packagesHeadline: 'Design → Fabricate → Erect → Handover',
-    overview:
-      'KEIL convention center solutions deliver column-free large spans, high ceilings, and flexible floor plans for exhibitions, conferences, and multi-purpose commercial use.',
-    howItWorks:
-      'We work with architects and event planners on span requirements, acoustics considerations, and services integration — delivering a PEB shell ready for interior fit-out.',
-    keyFeatures: [
-      'Large clear spans',
-      'High eave heights',
-      'Multiple entry and loading points',
-      'Future partition flexibility',
-      'Premium finish options',
+    image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c',
+    imageAlt: 'Mobile applications on smartphone devices',
+    plans: [
+      {
+        slug: 'launch',
+        name: 'Launch Mobile',
+        tagline: 'MVP mobile apps',
+        bestFor: 'MVP Apps',
+        description: 'Android or iOS MVP apps to validate your product idea and reach early users quickly.',
+        features: [
+          'Android or iOS',
+          'Login',
+          'Dashboard',
+          'Push Notifications',
+          'APIs',
+          'Admin Panel',
+          'App Store Deployment',
+        ],
+        image: 'https://images.unsplash.com/photo-1555774698-0c77d0d5c11d',
+        imageAlt: 'MVP mobile app on smartphone',
+      },
+      {
+        slug: 'growth',
+        name: 'Growth Mobile',
+        tagline: 'Cross-platform business apps',
+        bestFor: 'Business Apps',
+        description:
+          'Cross-platform Android and iOS apps with payments, offline support, and CRM integrations.',
+        features: [
+          'Android + iOS',
+          'Cross Platform',
+          'Offline Support',
+          'Payments',
+          'Maps',
+          'QR Scanner',
+          'Reports',
+          'CRM Integration',
+          'Analytics',
+        ],
+        highlighted: true,
+        image: 'https://images.unsplash.com/photo-1586717791821-3f44a563fa4c',
+        imageAlt: 'Cross-platform business mobile application',
+      },
+      {
+        slug: 'enterprise',
+        name: 'Enterprise Mobile',
+        tagline: 'Large-scale mobile ecosystems',
+        bestFor: 'Enterprise Mobility',
+        description:
+          'Enterprise mobile solutions with biometric auth, IoT integration, MDM support, and high performance.',
+        features: [
+          'Enterprise Security',
+          'Biometric Authentication',
+          'Offline Sync',
+          'AI Features',
+          'IoT Integration',
+          'ERP Integration',
+          'Multi-language',
+          'Multi-region',
+          'Analytics',
+          'MDM Support',
+          'High Performance',
+        ],
+        image: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea',
+        imageAlt: 'Enterprise mobile application ecosystem',
+      },
     ],
-    categories: ['Exhibition Hall', 'Convention Center', 'Multipurpose Arena', 'Community Hall'],
-    executionProcess: [
-      'Concept & span planning',
-      'Architectural coordination',
-      'Structural engineering',
-      'Fabrication & logistics',
-      'Erection in phases if required',
-      'Handover for fit-out',
-    ],
-    targetAudience: ['Event Organizers', 'Commercial Developers', 'Institutions', 'Government Bodies'],
-    benefits: [
-      'Column-free event spaces',
-      'Shorter construction timelines',
-      'Cost-effective large spans',
-      'Designed for heavy footfall',
-    ],
-    industriesServed: ['Commercial Infrastructure', 'Hospitality', 'Events', 'Institutional'],
-    icon: 'BuildingLibraryIcon',
-    iconClass: 'text-primary',
-    bgClass: 'bg-primary/10',
-    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87',
-    imageAlt: 'Large convention center interior space',
-    plans: [],
-    comparisonRows: [],
   },
 ];
 
@@ -331,8 +451,9 @@ export function getDivision(slug: string): ServiceDivision | undefined {
   return serviceDivisions.find((d) => d.slug === slug);
 }
 
-export function getPlan(_divisionSlug: string, _planSlug: string): ServicePlan | undefined {
-  return undefined;
+export function getPlan(divisionSlug: string, planSlug: string): ServicePlan | undefined {
+  const division = getDivision(divisionSlug);
+  return division?.plans.find((p) => p.slug === planSlug);
 }
 
 export function getDivisionPath(slug: DivisionSlug): string {
@@ -343,16 +464,55 @@ export function getPlanPath(divisionSlug: DivisionSlug, planSlug: PlanSlug): str
   return `/services/${divisionSlug}/${planSlug}`;
 }
 
-export function getContactHref(division: ServiceDivision, _plan?: ServicePlan): string {
+export function getContactHref(division: ServiceDivision, plan?: ServicePlan): string {
   const params = new URLSearchParams();
-  params.set('service', division.name);
+  if (plan) {
+    if (division.slug === 'website-development') {
+      params.set('service', `Website Development — ${plan.name.replace(' Website', '')}`);
+    } else if (division.slug === 'web-application-development') {
+      params.set('service', `Web Application — ${plan.name}`);
+    } else {
+      params.set('service', `Mobile App — ${plan.name.replace(' Mobile', '')}`);
+    }
+  } else {
+    params.set('service', division.name);
+  }
   return `/contact?${params.toString()}`;
 }
 
-export const allDivisionSlugs = serviceDivisions.map((d) => d.slug) as DivisionSlug[];
+export const allDivisionSlugs = serviceDivisions.map((d) => d.slug);
 
-export const allPlanPaths: { division: DivisionSlug; plan: PlanSlug }[] = [];
+export const allPlanPaths = serviceDivisions.flatMap((division) =>
+  division.plans.map((plan) => ({
+    division: division.slug,
+    plan: plan.slug,
+  }))
+);
 
-export function getPlanComparisonRows(_division: ServiceDivision): ComparisonRow[] {
-  return [];
-}
+export const seoKeywordsByDivision: Record<DivisionSlug, string[]> = {
+  'website-development': [
+    'website development company',
+    'business website design',
+    'CMS website development',
+    'SEO website development',
+    'corporate website India',
+    'small business website',
+    'lead generation website',
+  ],
+  'web-application-development': [
+    'custom web application development',
+    'ERP development',
+    'SaaS development company',
+    'business automation software',
+    'web app development India',
+    'enterprise web application',
+  ],
+  'mobile-application-development': [
+    'mobile app development company',
+    'iOS Android app development',
+    'cross platform mobile app',
+    'enterprise mobile app',
+    'MVP mobile app development',
+    'React Native development',
+  ],
+};

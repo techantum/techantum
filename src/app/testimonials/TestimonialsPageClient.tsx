@@ -11,21 +11,14 @@ export default function TestimonialsPageClient({
   testimonials: TestimonialItem[];
 }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedCountry, setSelectedCountry] = useState('All');
 
   return (
     <>
       <TestimonialFilters
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
-        selectedCountry={selectedCountry}
-        setSelectedCountry={setSelectedCountry}
       />
-      <TestimonialGrid
-        testimonials={testimonials}
-        selectedCategory={selectedCategory}
-        selectedCountry={selectedCountry}
-      />
+      <TestimonialGrid testimonials={testimonials} selectedCategory={selectedCategory} />
     </>
   );
 }

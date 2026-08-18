@@ -1,0 +1,187 @@
+{
+  "missionTitle": "Our Mission",
+  "missionDescription": "To empower businesses with high-quality digital products that drive growth, improve efficiency, and create exceptional user experiences.",
+  "missionCards": [
+    {
+      "id": "mission_quality",
+      "icon": "CodeBracketIcon",
+      "iconClass": "text-primary",
+      "bgClass": "bg-primary/10",
+      "title": "Quality Code",
+      "description": "Clean, maintainable, and well-tested code built with modern best practices and industry standards."
+    },
+    {
+      "id": "mission_delivery",
+      "icon": "RocketLaunchIcon",
+      "iconClass": "text-secondary",
+      "bgClass": "bg-secondary/10",
+      "title": "Fast Delivery",
+      "description": "Agile development with regular demos and milestones so you see progress every step of the way."
+    },
+    {
+      "id": "mission_partnership",
+      "icon": "UserGroupIcon",
+      "iconClass": "text-accent",
+      "bgClass": "bg-accent/10",
+      "title": "Partnership Focus",
+      "description": "We work as an extension of your team with transparent communication and long-term support."
+    }
+  ],
+  "timelineTitle": "Our Journey",
+  "timelineDescription": "From a small web studio to a full-service IT company — here's how we've grown.",
+  "milestones": [
+    {
+      "id": "mile_1",
+      "year": "2018",
+      "title": "Techantum Solutions Founded",
+      "description": "Started as a web development studio in Hyderabad, India"
+    },
+    {
+      "id": "mile_2",
+      "year": "2019",
+      "title": "First Major Clients",
+      "description": "Delivered corporate websites and web apps for clients across Europe"
+    },
+    {
+      "id": "mile_3",
+      "year": "2020",
+      "title": "Mobile Development",
+      "description": "Expanded services to include iOS and Android app development"
+    },
+    {
+      "id": "mile_4",
+      "year": "2021",
+      "title": "SaaS Expertise",
+      "description": "Built multiple SaaS platforms and admin dashboards for startups"
+    },
+    {
+      "id": "mile_5",
+      "year": "2022",
+      "title": "50+ Projects",
+      "description": "Reached milestone of 50 successfully delivered digital products"
+    },
+    {
+      "id": "mile_6",
+      "year": "2023",
+      "title": "Cloud & DevOps",
+      "description": "Added cloud deployment, CI/CD, and infrastructure services"
+    },
+    {
+      "id": "mile_7",
+      "year": "2024",
+      "title": "150+ Projects",
+      "description": "Delivered over 150 websites, web apps, and mobile applications"
+    },
+    {
+      "id": "mile_8",
+      "year": "2026",
+      "title": "Continued Innovation",
+      "description": "Expanding AI integration, cross-platform development, and enterprise solutions"
+    }
+  ],
+  "valuesTitle": "Our Core Values",
+  "valuesDescription": "The principles that guide every project and client relationship at Techantum Solutions.",
+  "values": [
+    {
+      "id": "val_quality",
+      "icon": "CheckBadgeIcon",
+      "title": "Quality First",
+      "description": "Every line of code is reviewed, tested, and built to last. We never cut corners on quality."
+    },
+    {
+      "id": "val_reliability",
+      "icon": "ClockIcon",
+      "title": "On-Time Delivery",
+      "description": "We set realistic timelines and stick to them. Regular updates keep you informed at every stage."
+    },
+    {
+      "id": "val_transparency",
+      "icon": "DocumentTextIcon",
+      "title": "Transparency",
+      "description": "Clear pricing, honest timelines, and open communication. No hidden costs or surprise scope changes."
+    },
+    {
+      "id": "val_security",
+      "icon": "ShieldCheckIcon",
+      "title": "Security",
+      "description": "Security best practices built into every project — authentication, encryption, and secure deployments."
+    },
+    {
+      "id": "val_innovation",
+      "icon": "LightBulbIcon",
+      "title": "Innovation",
+      "description": "We stay current with the latest technologies and recommend the best tools for your specific needs."
+    },
+    {
+      "id": "val_support",
+      "icon": "ChatBubbleBottomCenterTextIcon",
+      "title": "Ongoing Support",
+      "description": "Post-launch maintenance, updates, and dedicated support to keep your product running smoothly."
+    }
+  ],
+  "regionsTitle": "Where We Work",
+  "regionsDescription": "We deliver digital products for clients in India, Germany, and the United States.",
+  "regions": [
+    {
+      "id": "reg_in",
+      "name": "India",
+      "countryCode": "in"
+    },
+    {
+      "id": "reg_de",
+      "name": "Germany",
+      "countryCode": "de"
+    },
+    {
+      "id": "reg_us",
+      "name": "United States",
+      "countryCode": "us"
+    }
+  ],
+  "certificationsTitle": "Standards & Practices",
+  "certificationsDescription": "We follow industry best practices for security, quality, and project delivery.",
+  "certifications": [
+    {
+      "id": "cert_iso",
+      "title": "ISO 27001",
+      "description": "Information Security Management",
+      "icon": "ShieldCheckIcon"
+    },
+    {
+      "id": "cert_gdpr",
+      "title": "GDPR Compliant",
+      "description": "Data Protection Standards",
+      "icon": "LockClosedIcon"
+    },
+    {
+      "id": "cert_agile",
+      "title": "Agile Certified",
+      "description": "Scrum & Kanban Methodology",
+      "icon": "ArrowPathIcon"
+    },
+    {
+      "id": "cert_cloud",
+      "title": "Cloud Partners",
+      "description": "AWS, Google Cloud, Azure",
+      "icon": "CloudIcon"
+    }
+  ],
+  "glanceTitle": "Techantum Solutions at a Glance",
+  "glanceStats": [
+    {
+      "id": "glance_projects",
+      "label": "Projects Delivered",
+      "value": "150+"
+    },
+    {
+      "id": "glance_clients",
+      "label": "Happy Clients",
+      "value": "80+"
+    },
+    {
+      "id": "glance_established",
+      "label": "Established",
+      "value": "2018"
+    }
+  ]
+}

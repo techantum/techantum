@@ -2,6 +2,7 @@ import Link from 'next/link';
 import PageHeroSection from '@/components/common/PageHeroSection';
 import Icon from '@/components/ui/AppIcon';
 import AppImage from '@/components/ui/AppImage';
+import PlanCard from './PlanCard';
 import type { ServiceDivision } from '@/lib/service-packages-data';
 import { getContactHref } from '@/lib/service-packages-data';
 
@@ -16,29 +17,54 @@ export default function DivisionPageContent({ division }: { division: ServiceDiv
 
       <section className="py-8 reveal">
         <div className="page-container">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
             <div>
-              <h2 className="font-bricolage text-2xl font-bold text-foreground mb-4">Service Overview</h2>
-              <p className="font-inter text-muted-foreground mb-6">{division.overview}</p>
+              <div className="flex items-center gap-3 mb-4">
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${division.bgClass}`}
+                >
+                  <Icon name={division.icon as any} size={24} className={division.iconClass} />
+                </div>
+                <h2 className="font-bricolage text-2xl font-bold text-foreground">
+                  {division.marketingMessage}
+                </h2>
+              </div>
+              <p className="font-inter text-muted-foreground mb-6">
+                We focus on business outcomes — not just technology. Every package is designed to
+                deliver measurable results for your industry.
+              </p>
 
-              <h3 className="font-bricolage text-lg font-semibold text-foreground mb-3">How It Works</h3>
-              <p className="font-inter text-muted-foreground mb-6">{division.howItWorks}</p>
-
-              <h3 className="font-bricolage text-lg font-semibold text-foreground mb-3">Key Features</h3>
-              <ul className="space-y-2 mb-6">
-                {division.keyFeatures.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 font-inter text-sm">
-                    <Icon name="CheckCircleIcon" size={18} className="text-primary shrink-0 mt-0.5" />
-                    {feature}
+              <h3 className="font-bricolage text-lg font-semibold text-foreground mb-3">
+                Core Benefits
+              </h3>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
+                {division.benefits.map((benefit) => (
+                  <li key={benefit} className="flex items-center gap-2 font-inter text-sm">
+                    <Icon name="CheckCircleIcon" size={18} className="text-primary shrink-0" />
+                    {benefit}
                   </li>
                 ))}
               </ul>
+
+              <h3 className="font-bricolage text-lg font-semibold text-foreground mb-3">
+                Suitable to
+              </h3>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {division.targetAudience.map((audience) => (
+                  <span
+                    key={audience}
+                    className="font-inter text-xs bg-muted text-foreground px-3 py-1.5 rounded-full"
+                  >
+                    {audience}
+                  </span>
+                ))}
+              </div>
 
               <Link
                 href={getContactHref(division)}
                 className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-6 py-3 rounded-full font-inter font-medium text-sm hover:bg-secondary/90 transition-colors"
               >
-                Request a Quote
+                Book Free Consultation
                 <Icon name="ArrowRightIcon" size={18} />
               </Link>
             </div>
@@ -57,58 +83,27 @@ export default function DivisionPageContent({ division }: { division: ServiceDiv
       </section>
 
       <section className="page-section bg-muted/50 reveal">
-        <div className="page-container grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <h2 className="font-bricolage text-2xl font-bold text-foreground mb-4">Benefits</h2>
-            <ul className="space-y-2">
-              {division.benefits.map((benefit) => (
-                <li key={benefit} className="flex items-center gap-2 font-inter text-sm">
-                  <Icon name="CheckBadgeIcon" size={18} className="text-primary shrink-0" />
-                  {benefit}
-                </li>
-              ))}
-            </ul>
+        <div className="page-container">
+          <div className="text-center mb-5">
+            <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
+              Service Packages
+            </span>
+            <h2 className="font-bricolage text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Launch → Growth → Enterprise
+            </h2>
+            <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">
+              Choose the package that matches your business maturity. Each plan includes a clear
+              scope and path to upgrade as you grow.
+            </p>
           </div>
-          <div>
-            <h2 className="font-bricolage text-2xl font-bold text-foreground mb-4">Industries Served</h2>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {division.industriesServed.map((industry) => (
-                <span key={industry} className="font-inter text-xs bg-card border border-border px-3 py-1.5 rounded-full">
-                  {industry}
-                </span>
-              ))}
-            </div>
-            <h3 className="font-bricolage text-lg font-semibold text-foreground mb-3">Categories</h3>
-            <div className="flex flex-wrap gap-2">
-              {division.categories.map((cat) => (
-                <span key={cat} className="font-inter text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full">
-                  {cat}
-                </span>
-              ))}
-            </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal reveal-stagger">
+            {division.plans.map((plan) => (
+              <PlanCard key={plan.slug} division={division} plan={plan} />
+            ))}
           </div>
         </div>
       </section>
-
-      {division.executionProcess.length > 0 && (
-        <section className="page-section reveal">
-          <div className="page-container max-w-3xl">
-            <h2 className="font-bricolage text-2xl font-bold text-foreground mb-6 text-center">
-              Project Execution Process
-            </h2>
-            <ol className="space-y-3">
-              {division.executionProcess.map((step, index) => (
-                <li key={step} className="flex items-start gap-3 font-inter text-muted-foreground">
-                  <span className="bg-primary text-primary-foreground w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                    {index + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-      )}
 
       <section className="py-8 reveal">
         <div className="page-container text-center">

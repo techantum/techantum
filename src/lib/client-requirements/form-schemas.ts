@@ -18,7 +18,7 @@ export const REPEATABLE_BLOCKS: Record<'services' | 'projects' | 'testimonials',
   services: {
     addLabel: 'Add service',
     fields: [
-      { key: 'service_name', label: 'Service name', type: 'text', placeholder: 'e.g. Warehouse construction' },
+      { key: 'service_name', label: 'Service name', type: 'text', placeholder: 'e.g. Custom web application' },
       { key: 'overview', label: 'Overview', type: 'richtext', placeholder: 'What you offer and who it is for' },
       { key: 'key_features', label: 'Key features / benefits', type: 'textarea', rows: 3 },
     ],
