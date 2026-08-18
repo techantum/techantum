@@ -107,7 +107,7 @@ export async function middleware(request: NextRequest) {
     "img-src 'self' data: https: blob:",
     "media-src 'self' https://*.supabase.co blob: data:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://www.googletagmanager.com https://www.google.com https://www.facebook.com https://px.ads.linkedin.com",
+    "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.facebook.com https://px.ads.linkedin.com",
     "frame-src 'self' https://www.google.com https://www.recaptcha.net https://pagead2.googlesyndication.com https://www.googletagmanager.com",
     "object-src 'none'",
     "base-uri 'self'",

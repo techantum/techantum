@@ -48,6 +48,15 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
+    id: 'sales',
+    label: 'Lead Discovery',
+    icon: 'MapPinIcon',
+    defaultOpen: true,
+    items: [
+      { href: '/admin/lead-discovery', label: 'Places Search', icon: 'MagnifyingGlassCircleIcon' },
+    ],
+  },
+  {
     id: 'content',
     label: 'Site Content',
     icon: 'DocumentTextIcon',
