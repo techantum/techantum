@@ -35,4 +35,6 @@ fi
 
 export NODE_ENV=production
 export PORT=4028
+# Prefer IPv4 so Google API keys with IPv4 allowlists work on this dual-stack host.
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--dns-result-order=ipv4first"
 exec ./node_modules/.bin/next start --port 4028

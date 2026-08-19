@@ -36,6 +36,8 @@ export default function Footer({ branding = defaultBranding }: { branding?: Site
                 src={footerLogo}
                 alt={branding.company_name}
                 className="h-12 w-auto object-contain mb-4"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <h3 className="font-bricolage font-bold text-xl text-foreground mb-4">

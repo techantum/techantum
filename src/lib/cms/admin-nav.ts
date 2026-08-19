@@ -25,10 +25,22 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
-    id: 'projects',
-    label: 'Projects',
-    icon: 'FolderIcon',
+    id: 'ops',
+    label: 'Projects & Tickets',
+    icon: 'BriefcaseIcon',
     defaultOpen: true,
+    items: [
+      { href: '/admin/ops', label: 'Dashboard', icon: 'ChartBarSquareIcon', exact: true },
+      { href: '/admin/ops/create', label: 'Create Ticket', icon: 'PlusCircleIcon' },
+      { href: '/admin/ops/clients', label: 'Clients', icon: 'UserGroupIcon' },
+      { href: '/admin/ops/projects', label: 'Projects', icon: 'FolderIcon' },
+      { href: '/admin/ops/tickets', label: 'Tickets', icon: 'TicketIcon' },
+    ],
+  },
+  {
+    id: 'projects',
+    label: 'Requirement Links',
+    icon: 'ClipboardDocumentListIcon',
     items: [
       { href: '/admin/projects', label: 'All Projects', icon: 'FolderOpenIcon' },
       { href: '/admin/projects/create', label: 'Create Project', icon: 'PlusCircleIcon' },

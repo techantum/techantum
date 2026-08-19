@@ -13,6 +13,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 4028,
+        NODE_OPTIONS: '--dns-result-order=ipv4first',
       },
     },
   ],

@@ -1,4 +1,8 @@
+import dns from 'node:dns';
 import { MAX_RESULTS, PAGE_SIZE } from './config';
+
+// This VPS has IPv4 allowlisted on the Google key; Node otherwise dials IPv6 first.
+dns.setDefaultResultOrder('ipv4first');
 
 const PLACES_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 
@@ -41,6 +45,38 @@ function getApiKey() {
   return key;
 }
 
+function formatPlacesApiError(
+  httpStatus: number,
+  error?: {
+    message?: string;
+    status?: string;
+    details?: { reason?: string; metadata?: { callerIp?: string } }[];
+  }
+) {
+  const reason = error?.details?.find((d) => d.reason)?.reason;
+  const callerIp = error?.details?.find((d) => d.metadata?.callerIp)?.metadata?.callerIp;
+  const raw = error?.message || `Google Places API error (${httpStatus})`;
+
+  if (reason === 'API_KEY_IP_ADDRESS_BLOCKED' || /IP address restriction/i.test(raw)) {
+    const ipHint = callerIp ? ` Current outbound IP: ${callerIp}.` : '';
+    return (
+      `Google blocked this server IP on the Places API key.${ipHint} ` +
+      'In Google Cloud → Credentials → this API key → Application restrictions → IP addresses, add this server IPv4 (and IPv6 if listed).'
+    );
+  }
+
+  if (error?.status === 'PERMISSION_DENIED' || httpStatus === 403) {
+    return (
+      'Google Places API permission denied. In Google Cloud: enable "Places API (New)" ' +
+      '(APIs & Services → Library), turn on billing, then on this API key set API restrictions to include ' +
+      '"Places API (New)" — the legacy "Places API" is not enough. ' +
+      (raw && raw !== 'The caller does not have permission' ? `Google said: ${raw}` : '')
+    ).trim();
+  }
+
+  return raw;
+}
+
 function normalizePlaceId(id: string | undefined) {
   if (!id) return '';
   return id.replace(/^places\//, '');
@@ -74,18 +110,15 @@ export async function searchPlacesTextQuery(textQuery: string, regionCode: strin
     const payload = (await res.json()) as {
       places?: GooglePlace[];
       nextPageToken?: string;
-      error?: { message?: string; status?: string };
+      error?: {
+        message?: string;
+        status?: string;
+        details?: { reason?: string; metadata?: { callerIp?: string } }[];
+      };
     };
 
     if (!res.ok) {
-      const status = payload.error?.status;
-      const raw = payload.error?.message || `Google Places API error (${res.status})`;
-      if (status === 'PERMISSION_DENIED' || res.status === 403) {
-        throw new Error(
-          'Google Places API permission denied. Enable "Places API (New)" in Google Cloud, turn on billing, and ensure your API key is allowed to call it (API restrictions → Places API (New)).'
-        );
-      }
-      throw new Error(raw);
+      throw new Error(formatPlacesApiError(res.status, payload.error));
     }
 
     const batch = payload.places ?? [];

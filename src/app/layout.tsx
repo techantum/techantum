@@ -22,8 +22,12 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/** Shared marketing layout — static shell with ISR (admin routes opt out via force-dynamic). */
-export const revalidate = 300;
+/**
+ * Do not set `revalidate` on the root layout. Time-based ISR here rewrites
+ * prerendered HTML with stale CSS chunk hashes (404s for `/_next/static/css/*`).
+ * Marketing pages keep their own `revalidate = 300`; CMS saves call
+ * `revalidatePath('/', 'layout')`.
+ */
 
 export async function generateMetadata(): Promise<Metadata> {
   const [seo, branding] = await Promise.all([getSeo(), getBranding()]);

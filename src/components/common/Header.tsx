@@ -48,6 +48,8 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
                 src={branding.logo_url}
                 alt={branding.company_name}
                 className="h-12 w-auto object-contain"
+                fetchPriority="high"
+                decoding="async"
               />
             ) : (
               <div className="h-12 w-12 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
