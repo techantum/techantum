@@ -2,6 +2,8 @@ import { getOpenAiConfig, TECHANTUM_AI_SYSTEM_INSTRUCTIONS } from './config';
 import type { AIReplyStructured, ExtractedLeadData, WhatsAppContact, WhatsAppConversation, WhatsAppMessage } from './types';
 import { formatKnowledgeContext, searchKnowledge } from './knowledge';
 import type { AISettings } from './types';
+import { classifySession, type SessionKind } from './greeting';
+import { getWebsiteServiceCatalog, TECHANTUM_OUT_OF_SCOPE_REPLY } from './website-knowledge';
 
 const STRUCTURED_SCHEMA = {
   type: 'object',
@@ -75,6 +77,7 @@ function buildUserPrompt(input: {
   recentMessages: WhatsAppMessage[];
   knowledgeContext: string;
   settings: AISettings;
+  sessionKind: SessionKind;
 }) {
   const history = input.recentMessages
     .slice(-12)
@@ -94,12 +97,15 @@ function buildUserPrompt(input: {
     .filter(Boolean)
     .join('\n');
 
-  return `TECHANTUM KNOWLEDGE BASE:
+  return `${getWebsiteServiceCatalog()}
+
+ADDITIONAL KNOWLEDGE ENTRIES:
 ${input.knowledgeContext}
 
 CUSTOMER RECORD:
 ${customerFacts || 'No confirmed customer details yet.'}
 
+SESSION: ${input.sessionKind.toUpperCase()}
 CONVERSATION SUMMARY:
 ${input.conversation.conversation_summary || 'No summary yet.'}
 
@@ -122,6 +128,7 @@ export async function generateWhatsAppReply(input: {
   const { apiKey, model } = getOpenAiConfig();
   const knowledge = await searchKnowledge(input.customerMessage, input.settings.knowledge_retrieval_limit);
   const knowledgeContext = formatKnowledgeContext(knowledge);
+  const sessionKind = classifySession(input.recentMessages);
 
   if (!apiKey) {
     return {
@@ -139,56 +146,9 @@ export async function generateWhatsAppReply(input: {
     };
   }
 
-  const userPrompt = buildUserPrompt({ ...input, knowledgeContext });
+  const userPrompt = buildUserPrompt({ ...input, knowledgeContext, sessionKind });
 
   try {
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        instructions: `${TECHANTUM_AI_SYSTEM_INSTRUCTIONS}\n\nReturn ONLY valid JSON with this schema:\n${JSON.stringify(STRUCTURED_SCHEMA)}`,
-        input: userPrompt,
-        previous_response_id: input.conversation.last_ai_response_id || undefined,
-        text: { format: { type: 'json_object' } },
-        temperature: 0.4,
-        max_output_tokens: 700,
-      }),
-    });
-
-    const data = (await res.json().catch(() => ({}))) as {
-      id?: string;
-      output_text?: string;
-      output?: { content?: { type?: string; text?: string }[] }[];
-      error?: { message?: string };
-    };
-
-    if (!res.ok) {
-      throw new Error(data.error?.message || `OpenAI error ${res.status}`);
-    }
-
-    const rawText =
-      data.output_text ||
-      data.output?.flatMap((o) => o.content || []).find((c) => c.type === 'output_text')?.text ||
-      data.output?.flatMap((o) => o.content || []).find((c) => c.text)?.text ||
-      '';
-
-    const parsed = safeParseStructured(rawText);
-    if (!parsed) throw new Error('Malformed AI structured output');
-
-    if (!parsed.is_techantum_related) {
-      parsed.reply_text = input.settings.out_of_scope_message;
-      parsed.knowledge_sufficient = false;
-    } else if (!parsed.knowledge_sufficient && !parsed.handoff_required) {
-      parsed.reply_text = input.settings.fallback_message;
-    }
-
-    parsed.reply_text = parsed.reply_text.trim().slice(0, input.settings.max_response_length);
-    return { reply: parsed, responseId: data.id || null };
-  } catch {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -205,65 +165,118 @@ export async function generateWhatsAppReply(input: {
         temperature: 0.4,
         max_tokens: 700,
       }),
+      signal: AbortSignal.timeout(20000),
     });
 
     const data = (await res.json().catch(() => ({}))) as {
+      id?: string;
       choices?: { message?: { content?: string } }[];
+      error?: { message?: string };
     };
-    const parsed = safeParseStructured(data.choices?.[0]?.message?.content || '');
-    if (!parsed) {
-      return {
-        reply: {
-          reply_text: input.settings.fallback_message,
-          intent: 'OTHER',
-          is_techantum_related: true,
-          knowledge_sufficient: false,
-          lead_stage: input.conversation.lead_stage,
-          handoff_required: true,
-          handoff_reason: 'AI_PARSE_ERROR',
-          extracted_data: emptyExtracted(),
-        },
-        responseId: null,
-      };
+
+    if (!res.ok) {
+      throw new Error(data.error?.message || `OpenAI error ${res.status}`);
     }
+
+    const rawText = data.choices?.[0]?.message?.content || '';
+    const parsed = safeParseStructured(rawText);
+    if (!parsed) throw new Error('Malformed AI structured output');
+
+    if (!parsed.is_techantum_related) {
+      parsed.reply_text = TECHANTUM_OUT_OF_SCOPE_REPLY;
+      parsed.knowledge_sufficient = false;
+      parsed.handoff_required = true;
+      parsed.handoff_reason = parsed.handoff_reason || 'OUT_OF_SCOPE';
+      parsed.lead_stage = 'HUMAN_FOLLOWUP';
+    } else if (!parsed.reply_text.trim()) {
+      parsed.reply_text = input.settings.fallback_message;
+    }
+
     parsed.reply_text = parsed.reply_text.trim().slice(0, input.settings.max_response_length);
-    return { reply: parsed, responseId: null };
+    return { reply: parsed, responseId: data.id || null };
+  } catch (err) {
+    console.error('[whatsapp ai] generate failed', err instanceof Error ? err.message : err);
+    return {
+      reply: {
+        reply_text: input.settings.fallback_message,
+        intent: 'OTHER',
+        is_techantum_related: true,
+        knowledge_sufficient: false,
+        lead_stage: input.conversation.lead_stage,
+        handoff_required: true,
+        handoff_reason: 'AI_PARSE_ERROR',
+        extracted_data: emptyExtracted(),
+      },
+      responseId: null,
+    };
   }
 }
 
-export async function summarizeConversation(messages: WhatsAppMessage[], contact: WhatsAppContact): Promise<string> {
+export function buildLocalSummary(input: {
+  contact: WhatsAppContact;
+  messages: WhatsAppMessage[];
+  reply?: AIReplyStructured;
+  sessionKind?: SessionKind;
+}): string {
+  const name = input.contact.first_name || input.contact.profile_name || 'Unknown';
+  const lastCustomer = [...input.messages].reverse().find((m) => m.sender_type === 'CUSTOMER')?.text_content;
+  const lines = [
+    `Contact: ${name} (${input.contact.phone_number})`,
+    input.sessionKind ? `Session: ${input.sessionKind}` : null,
+    lastCustomer ? `Latest customer message: ${lastCustomer.slice(0, 240)}` : null,
+    input.reply?.intent ? `Intent: ${input.reply.intent}` : null,
+    input.reply?.extracted_data.service ? `Service: ${input.reply.extracted_data.service}` : null,
+    input.reply?.extracted_data.requirement ? `Requirement: ${input.reply.extracted_data.requirement}` : null,
+    `Stage: ${input.reply?.lead_stage || 'NEW'}`,
+    input.reply?.handoff_required ? `Handoff: ${input.reply.handoff_reason || 'required'}` : null,
+  ].filter(Boolean);
+  return lines.join('\n');
+}
+
+export async function summarizeConversation(
+  messages: WhatsAppMessage[],
+  contact: WhatsAppContact,
+  reply?: AIReplyStructured,
+  sessionKind?: SessionKind
+): Promise<string> {
+  const fallback = buildLocalSummary({ contact, messages, reply, sessionKind });
   const { apiKey, model } = getOpenAiConfig();
-  if (!apiKey || messages.length < 4) return '';
+  if (!apiKey || messages.length < 1) return fallback;
 
   const transcript = messages
     .slice(-30)
     .map((m) => `${m.sender_type}: ${m.text_content || ''}`)
     .join('\n');
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Summarize this Techantum WhatsApp sales conversation for internal CRM use. Include customer name/company if known, requirement, service interest, timeline, location, and next step. Be factual; mark uncertain details as unconfirmed.',
-        },
-        {
-          role: 'user',
-          content: `Customer phone: ${contact.phone_number}\n\n${transcript}`,
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 400,
-    }),
-  });
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Summarize this Techantum WhatsApp sales conversation for internal CRM use in 4-8 short lines. Include customer name/company if known, whether this is a new or returning chat, requirement, service interest, timeline, location, and next step. Be factual; mark uncertain details as unconfirmed.',
+          },
+          {
+            role: 'user',
+            content: `Customer phone: ${contact.phone_number}\nSession: ${sessionKind || 'unknown'}\n\n${transcript}`,
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 400,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
 
-  const data = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content?.trim() || '';
+    const data = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
+    return data.choices?.[0]?.message?.content?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
 }

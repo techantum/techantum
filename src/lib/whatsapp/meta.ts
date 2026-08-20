@@ -60,6 +60,64 @@ export async function sendWhatsAppSessionText(to: string, body: string): Promise
   };
 }
 
+export async function getWhatsAppReceiveHealth() {
+  const { accessToken, phoneNumberId, graphVersion, configured } = getWhatsAppAiConfig();
+  if (!configured) {
+    return {
+      receiving: false,
+      display_number: null,
+      webhook_url: null,
+      issues: ['WhatsApp is not configured on the server.'],
+    };
+  }
+
+  const res = await fetch(
+    `${GRAPH_BASE}/${graphVersion}/${phoneNumberId}?fields=display_phone_number,health_status,webhook_configuration`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
+  );
+  const payload = (await res.json().catch(() => ({}))) as {
+    display_phone_number?: string;
+    webhook_configuration?: { phone_number?: string; application?: string };
+    health_status?: {
+      entities?: {
+        additional_info?: string[];
+        errors?: { error_description?: string; possible_solution?: string }[];
+      }[];
+    };
+    error?: { message?: string };
+  };
+
+  if (!res.ok) {
+    return {
+      receiving: false,
+      display_number: null,
+      webhook_url: null,
+      issues: [payload.error?.message || `Could not read WhatsApp health (${res.status}).`],
+    };
+  }
+
+  const notes =
+    payload.health_status?.entities?.flatMap((entity) => [
+      ...(entity.additional_info || []),
+      ...(entity.errors || []).map((err) => err.error_description || '').filter(Boolean),
+    ]) || [];
+  const missingWebhook = notes.some((note) => /not subscribed to the message webhook/i.test(note));
+
+  return {
+    receiving: !missingWebhook,
+    display_number: payload.display_phone_number || null,
+    webhook_url:
+      payload.webhook_configuration?.phone_number ||
+      payload.webhook_configuration?.application ||
+      'https://techantum.com/api/webhooks/whatsapp',
+    issues: missingWebhook
+      ? [
+          'Meta is not subscribed to the messages webhook, so inbound chats never reach TechAntum.',
+        ]
+      : [],
+  };
+}
+
 export async function applyWhatsAppMessageStatusUpdate(input: {
   provider_message_id: string;
   status: string;

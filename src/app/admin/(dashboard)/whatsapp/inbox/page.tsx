@@ -1,13 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminAlert from '@/components/admin/AdminAlert';
-import { adminInputClass } from '@/components/admin/AdminField';
-import { OpsPageShell, formatOpsWhen } from '@/components/admin/ops/OpsUi';
-import type { WhatsAppContact, WhatsAppConversation, WhatsAppMessage } from '@/lib/whatsapp/types';
+import { adminSelectClass } from '@/components/admin/AdminField';
+import type {
+  ConversationStatus,
+  LeadStage,
+  WhatsAppContact,
+  WhatsAppConversation,
+  WhatsAppMessage,
+} from '@/lib/whatsapp/types';
 
 type Detail = {
   conversation: WhatsAppConversation;
@@ -15,22 +20,52 @@ type Detail = {
   lead: Record<string, unknown> | null;
 };
 
+const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: 'NEW', label: 'New' },
+  { value: 'ENGAGED', label: 'Engaged' },
+  { value: 'REQUIREMENT_IDENTIFIED', label: 'Requirement identified' },
+  { value: 'QUALIFIED', label: 'Qualified' },
+  { value: 'PROPOSAL_REQUESTED', label: 'Proposal requested' },
+  { value: 'HUMAN_FOLLOWUP', label: 'Human follow-up' },
+  { value: 'CONVERTED', label: 'Converted' },
+  { value: 'LOST', label: 'Lost' },
+];
+
+const CONVERSATION_STATUSES: { value: ConversationStatus; label: string }[] = [
+  { value: 'OPEN', label: 'Open' },
+  { value: 'CLOSED', label: 'Closed' },
+  { value: 'ARCHIVED', label: 'Archived' },
+];
+
 function contactLabel(contact?: WhatsAppContact | null) {
   if (!contact) return 'Unknown';
   return contact.first_name || contact.profile_name || contact.phone_number;
 }
 
-function modeVariant(mode: string): 'green' | 'amber' | 'rose' | 'indigo' {
-  if (mode === 'AI') return 'green';
-  if (mode === 'HYBRID') return 'amber';
-  return 'rose';
+function initials(contact?: WhatsAppContact | null) {
+  const name = contactLabel(contact).trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase() || '?';
 }
 
-function senderStyle(sender: string) {
-  if (sender === 'CUSTOMER') return 'bg-white border-border ml-0 mr-8';
-  if (sender === 'AI') return 'bg-indigo-50 border-indigo-100 ml-8 mr-0';
-  if (sender === 'STAFF') return 'bg-emerald-50 border-emerald-100 ml-8 mr-0';
-  return 'bg-muted/40 border-border mx-4 text-center text-xs';
+function formatChatTime(iso?: string | null) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function previewText(row: WhatsAppConversation) {
+  const summary = (row.conversation_summary || '').split('\n').find((line) => line.trim());
+  if (summary) return summary.replace(/^Contact:\s*/i, '');
+  return row.lead_stage.replace(/_/g, ' ').toLowerCase();
+}
+
+function isOutgoing(sender: string) {
+  return sender === 'AI' || sender === 'STAFF';
 }
 
 export default function WhatsAppInboxPage() {
@@ -41,8 +76,10 @@ export default function WhatsAppInboxPage() {
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const threadRef = useRef<HTMLDivElement>(null);
 
   const loadList = useCallback(() => {
     fetch(`/api/admin/whatsapp/conversations?search=${encodeURIComponent(search)}`)
@@ -55,14 +92,11 @@ export default function WhatsAppInboxPage() {
       .finally(() => setLoading(false));
   }, [search]);
 
-  const loadDetail = useCallback((id: string) => {
-    fetch(`/api/admin/whatsapp/conversations/${id}`)
-      .then(async (r) => {
-        const body = await r.json();
-        if (!r.ok) throw new Error(body.error || 'Failed to load conversation');
-        setDetail(body);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load conversation'));
+  const loadDetail = useCallback(async (id: string) => {
+    const res = await fetch(`/api/admin/whatsapp/conversations/${id}`);
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Failed to load conversation');
+    setDetail(body);
   }, []);
 
   useEffect(() => {
@@ -70,11 +104,30 @@ export default function WhatsAppInboxPage() {
   }, [loadList]);
 
   useEffect(() => {
-    if (selectedId) loadDetail(selectedId);
-    else setDetail(null);
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    setShowInfo(false);
+    setDraft('');
+    loadDetail(selectedId).catch((err) => setError(err instanceof Error ? err.message : 'Failed to load conversation'));
   }, [selectedId, loadDetail]);
 
-  const selected = useMemo(() => rows.find((r) => r.id === selectedId) || detail?.conversation || null, [rows, selectedId, detail]);
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [detail?.messages.length, selectedId]);
+
+  const selected = useMemo(
+    () => rows.find((r) => r.id === selectedId) || detail?.conversation || null,
+    [rows, selectedId, detail]
+  );
+  const contact = (detail?.conversation.whatsapp_contacts || selected?.whatsapp_contacts) as WhatsAppContact | undefined;
+  const summary =
+    detail?.conversation.conversation_summary ||
+    selected?.conversation_summary ||
+    (detail?.lead?.ai_summary as string | undefined) ||
+    '';
 
   const action = async (path: string, success: string) => {
     if (!selectedId) return;
@@ -84,7 +137,22 @@ export default function WhatsAppInboxPage() {
     if (!res.ok) return setError(body.error || 'Action failed');
     setMessage(success);
     loadList();
-    loadDetail(selectedId);
+    loadDetail(selectedId).catch(() => undefined);
+  };
+
+  const updateStatus = async (patch: { lead_stage?: string; status?: string }) => {
+    if (!selectedId) return;
+    setError('');
+    const res = await fetch(`/api/admin/whatsapp/conversations/${selectedId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const body = await res.json();
+    if (!res.ok) return setError(body.error || 'Status update failed');
+    setMessage('Status updated.');
+    setRows((prev) => prev.map((row) => (row.id === selectedId ? { ...row, ...body } : row)));
+    loadDetail(selectedId).catch(() => undefined);
   };
 
   const sendMessage = async () => {
@@ -100,7 +168,7 @@ export default function WhatsAppInboxPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Send failed');
       setDraft('');
-      loadDetail(selectedId);
+      await loadDetail(selectedId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Send failed');
     } finally {
@@ -108,34 +176,35 @@ export default function WhatsAppInboxPage() {
     }
   };
 
-  const contact = (selected?.whatsapp_contacts || detail?.conversation.whatsapp_contacts) as WhatsAppContact | undefined;
-
   return (
-    <OpsPageShell>
-      <AdminPageHeader title="WhatsApp Inbox" description="AI and staff conversations with customers." />
-
+    <div className="space-y-3">
+      <AdminPageHeader title="WhatsApp Inbox" description="Chats with customers. Select a conversation to reply." />
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
-      <div className="flex gap-2 mb-2">
-        <input
-          className={`${adminInputClass} max-w-sm`}
-          placeholder="Search name, phone, company…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && loadList()}
-        />
-        <AdminButton onClick={loadList}>Search</AdminButton>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 min-h-[70vh]">
-        <div className="rounded-lg border border-border overflow-hidden bg-card">
-          <div className="px-3 py-2 border-b border-border bg-muted/30 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Conversations
+      <div className="flex h-[calc(100vh-11rem)] min-h-[560px] overflow-hidden rounded-xl border border-[#d1d7db] bg-white shadow-sm">
+        <aside className={`${selectedId ? 'hidden md:flex' : 'flex'} w-full md:w-[360px] shrink-0 flex-col border-r border-[#e9edef] bg-white`}>
+          <div className="flex items-center gap-3 bg-[#f0f2f5] px-4 py-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00a884] text-sm font-semibold text-white">
+              T
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#111b21]">Techantum chats</p>
+              <p className="text-[11px] text-[#667781]">{rows.length} conversation{rows.length === 1 ? '' : 's'}</p>
+            </div>
           </div>
-          <div className="max-h-[70vh] overflow-y-auto divide-y divide-border/60">
-            {loading && <p className="p-3 text-sm text-muted-foreground">Loading…</p>}
-            {!loading && rows.length === 0 && <p className="p-3 text-sm text-muted-foreground">No conversations yet.</p>}
+          <div className="bg-[#f0f2f5] px-3 pb-3">
+            <input
+              className="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-[#111b21] outline-none ring-1 ring-transparent placeholder:text-[#667781] focus:ring-[#00a884]"
+              placeholder="Search or start a new chat"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadList()}
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {loading && <p className="p-4 text-sm text-[#667781]">Loading chats…</p>}
+            {!loading && rows.length === 0 && <p className="p-4 text-sm text-[#667781]">No conversations yet.</p>}
             {rows.map((row) => {
               const c = row.whatsapp_contacts as WhatsAppContact | undefined;
               const active = row.id === selectedId;
@@ -144,97 +213,168 @@ export default function WhatsAppInboxPage() {
                   key={row.id}
                   type="button"
                   onClick={() => setSelectedId(row.id)}
-                  className={`w-full text-left p-3 hover:bg-muted/30 ${active ? 'bg-indigo-50' : ''}`}
+                  className={`flex w-full items-center gap-3 border-b border-[#f0f2f5] px-3 py-3 text-left hover:bg-[#f5f6f6] ${
+                    active ? 'bg-[#f0f2f5]' : 'bg-white'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold truncate">{contactLabel(c)}</p>
-                    <AdminBadge variant={modeVariant(row.mode)}>{row.mode}</AdminBadge>
+                  <div
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${
+                      row.mode === 'HUMAN' ? 'bg-[#54656f]' : 'bg-[#00a884]'
+                    }`}
+                  >
+                    {initials(c)}
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">{c?.company_name || c?.phone_number}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {row.last_inbound_at ? formatOpsWhen(row.last_inbound_at) : '—'} · {row.lead_stage}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="truncate text-[15px] font-medium text-[#111b21]">{contactLabel(c)}</p>
+                      <span className="shrink-0 text-[11px] text-[#667781]">{formatChatTime(row.last_inbound_at)}</span>
+                    </div>
+                    <p className="mt-0.5 truncate text-[13px] text-[#667781]">{previewText(row)}</p>
+                  </div>
                 </button>
               );
             })}
           </div>
-        </div>
+        </aside>
 
-        <div className="rounded-lg border border-border bg-card flex flex-col min-h-[70vh]">
+        <section className={`${selectedId ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col bg-[#efeae2]`}>
           {!selected ? (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Select a conversation</div>
+            <div className="flex flex-1 flex-col items-center justify-center bg-[#f0f2f5] text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#00a884] text-2xl font-bold text-white">
+                T
+              </div>
+              <p className="text-lg font-medium text-[#41525d]">Techantum WhatsApp</p>
+              <p className="mt-1 max-w-sm text-sm text-[#667781]">Select a chat from the left to view messages, summary and status.</p>
+            </div>
           ) : (
             <>
-              <div className="px-4 py-3 border-b border-border flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-semibold text-foreground">{contactLabel(contact)}</h2>
-                  <p className="text-xs text-muted-foreground">{contact?.phone_number} · {contact?.company_name || 'No company yet'}</p>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <AdminBadge variant={modeVariant(selected.mode)}>{selected.mode}</AdminBadge>
-                    <AdminBadge>{selected.lead_stage}</AdminBadge>
-                    {selected.handoff_required && <AdminBadge variant="rose">Handoff</AdminBadge>}
-                  </div>
+              <header className="flex items-center gap-3 bg-[#f0f2f5] px-4 py-2.5">
+                <button type="button" className="md:hidden text-[#54656f]" onClick={() => setSelectedId(null)}>
+                  ←
+                </button>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00a884] text-sm font-semibold text-white">
+                  {initials(contact)}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <AdminButton size="sm" onClick={() => action('takeover', 'Human takeover enabled.')}>Take over</AdminButton>
-                  <AdminButton size="sm" onClick={() => action('enable-ai', 'AI enabled.')}>Enable AI</AdminButton>
-                  <AdminButton size="sm" onClick={() => action('hybrid', 'Hybrid mode enabled.')}>Hybrid</AdminButton>
-                  <AdminButton size="sm" onClick={() => action('close', 'Conversation closed.')}>Close</AdminButton>
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setShowInfo((v) => !v)}>
+                  <p className="truncate text-[15px] font-medium text-[#111b21]">{contactLabel(contact)}</p>
+                  <p className="truncate text-[12px] text-[#667781]">
+                    {contact?.phone_number}
+                    {contact?.company_name ? ` · ${contact.company_name}` : ''}
+                    {selected.mode ? ` · ${selected.mode}` : ''}
+                  </p>
+                </button>
+                <div className="hidden items-center gap-1 sm:flex">
+                  <AdminButton size="sm" onClick={() => action('takeover', 'Human takeover enabled.')}>
+                    Take over
+                  </AdminButton>
+                  <AdminButton size="sm" onClick={() => action('enable-ai', 'AI enabled.')}>
+                    Enable AI
+                  </AdminButton>
+                  <AdminButton size="sm" onClick={() => setShowInfo((v) => !v)}>
+                    {showInfo ? 'Hide details' : 'Details'}
+                  </AdminButton>
                 </div>
-              </div>
+              </header>
 
-              <div className="grid grid-cols-1 xl:grid-cols-[1fr_240px] flex-1 min-h-0">
-                <div className="flex flex-col min-h-0 border-r border-border/60">
-                  <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {(detail?.messages || []).map((m) => (
-                      <div key={m.id} className={`rounded-lg border px-3 py-2 text-sm ${senderStyle(m.sender_type)}`}>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                          {m.sender_type} · {formatOpsWhen(m.created_at)}
-                        </p>
-                        <p className="whitespace-pre-wrap">{m.text_content}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-3 border-t border-border flex gap-2">
-                    <input
-                      className={adminInputClass}
-                      placeholder="Type a reply…"
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                    />
-                    <AdminButton variant="primary" disabled={sending || !draft.trim()} onClick={sendMessage}>
-                      {sending ? 'Sending…' : 'Send'}
-                    </AdminButton>
-                  </div>
-                </div>
-
-                <aside className="p-3 space-y-3 text-sm overflow-y-auto">
+              {showInfo && (
+                <div className="grid gap-3 border-b border-[#e9edef] bg-white p-4 md:grid-cols-2">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Contact</p>
-                    <p>{contact?.email || '—'}</p>
-                    <p>{contact?.location || '—'}</p>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#667781]">Summary</p>
+                    <p className="whitespace-pre-wrap text-sm text-[#111b21]">
+                      {summary || 'Summary will appear after the assistant replies.'}
+                    </p>
                   </div>
-                  {detail?.lead && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Lead</p>
-                      <p className="font-mono text-xs">{String(detail.lead.lead_code || '')}</p>
-                      <p>{String(detail.lead.service || '—')}</p>
-                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{String(detail.lead.ai_summary || detail.conversation.conversation_summary || '—')}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#667781]">Lead status</span>
+                      <select
+                        className={`${adminSelectClass} mt-1`}
+                        value={detail?.conversation.lead_stage || selected.lead_stage}
+                        onChange={(e) => updateStatus({ lead_stage: e.target.value })}
+                      >
+                        {LEAD_STAGES.map((stage) => (
+                          <option key={stage.value} value={stage.value}>
+                            {stage.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#667781]">Chat status</span>
+                      <select
+                        className={`${adminSelectClass} mt-1`}
+                        value={detail?.conversation.status || selected.status}
+                        onChange={(e) => updateStatus({ status: e.target.value })}
+                      >
+                        {CONVERSATION_STATUSES.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="sm:col-span-2 flex flex-wrap gap-1.5">
+                      <AdminBadge variant={selected.mode === 'AI' ? 'green' : selected.mode === 'HYBRID' ? 'amber' : 'rose'}>
+                        {selected.mode}
+                      </AdminBadge>
+                      {selected.handoff_required && <AdminBadge variant="rose">Handoff</AdminBadge>}
+                      <AdminButton size="sm" onClick={() => action('hybrid', 'Hybrid mode enabled.')}>
+                        Hybrid
+                      </AdminButton>
+                      <AdminButton size="sm" onClick={() => action('close', 'Conversation closed.')}>
+                        Close
+                      </AdminButton>
                     </div>
-                  )}
-                  {!detail?.lead && selected.conversation_summary && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">AI summary</p>
-                      <p className="text-xs whitespace-pre-wrap">{selected.conversation_summary}</p>
+                  </div>
+                </div>
+              )}
+
+              <div ref={threadRef} className="flex-1 space-y-1 overflow-y-auto px-4 py-3 md:px-10">
+                {(detail?.messages || []).map((m) => {
+                  const outgoing = isOutgoing(m.sender_type);
+                  return (
+                    <div key={m.id} className={`flex ${outgoing ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[85%] rounded-lg px-2.5 py-1.5 shadow-sm md:max-w-[65%] ${
+                          outgoing ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'
+                        }`}
+                      >
+                        {m.sender_type !== 'CUSTOMER' && (
+                          <p className="text-[10px] font-semibold text-[#00a884]">{m.sender_type === 'AI' ? 'Assistant' : 'Staff'}</p>
+                        )}
+                        <p className="whitespace-pre-wrap text-[14.2px] leading-5 text-[#111b21]">{m.text_content}</p>
+                        <p className="mt-0.5 text-right text-[10px] text-[#667781]">{formatChatTime(m.created_at)}</p>
+                      </div>
                     </div>
-                  )}
-                </aside>
+                  );
+                })}
+                {detail && detail.messages.length === 0 && (
+                  <p className="py-8 text-center text-sm text-[#667781]">No messages in this chat yet.</p>
+                )}
               </div>
+
+              <footer className="flex items-center gap-2 bg-[#f0f2f5] px-3 py-2.5">
+                <input
+                  className="h-11 flex-1 rounded-lg border-0 bg-white px-4 text-sm text-[#111b21] outline-none placeholder:text-[#667781]"
+                  placeholder="Type a message"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+                />
+                <button
+                  type="button"
+                  disabled={sending || !draft.trim()}
+                  onClick={sendMessage}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white disabled:opacity-50"
+                  aria-label="Send"
+                >
+                  {sending ? '…' : '➤'}
+                </button>
+              </footer>
             </>
           )}
-        </div>
+        </section>
       </div>
-    </OpsPageShell>
+    </div>
   );
 }

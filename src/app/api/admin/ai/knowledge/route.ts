@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       keywords: body.keywords?.trim() || null,
       allow_ai: body.allow_ai ?? true,
       status: body.status || 'DRAFT',
+      source_type: 'MANUAL',
       created_by: auth.user.id,
       updated_by: auth.user.id,
     })

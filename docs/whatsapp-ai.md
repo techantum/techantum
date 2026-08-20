@@ -59,8 +59,7 @@ Tables:
 2. Add a WhatsApp Business phone number.
 3. Copy **Phone number ID**, **WABA ID**, and permanent **access token**.
 4. Set webhook URL:
-   - Production: `https://api.techantum.com/api/webhooks/whatsapp`
-   - Or your deployed site: `https://YOUR_DOMAIN/api/webhooks/whatsapp`
+   - Production: `https://techantum.com/api/webhooks/whatsapp`
 5. Subscribe to `messages` field.
 6. Set verify token to match `META_WHATSAPP_VERIFY_TOKEN`.
 7. Enable app secret and set `META_WHATSAPP_APP_SECRET`.
@@ -75,6 +74,14 @@ Tables:
 ## Knowledge base
 
 Admin → **WhatsApp AI → Knowledge Base**
+
+Train the assistant from:
+
+- Manual title/content entries
+- Website URLs (HTML pages or PDF links)
+- Uploaded PDF files (text PDFs; scanned image PDFs are not supported)
+
+Imported text is split into published entries the assistant can retrieve.
 
 Only entries with:
 

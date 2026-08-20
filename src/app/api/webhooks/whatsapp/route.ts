@@ -27,8 +27,10 @@ type StatusRow = {
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
+  console.info('[whatsapp webhook] POST bytes=', rawBody.length);
   const signature = request.headers.get('x-hub-signature-256');
   if (!verifyWebhookSignature(rawBody, signature)) {
+    console.error('[whatsapp webhook] invalid signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
   }
 
   const inboundMessages = parseInboundMessages(payload);
+  console.info('[whatsapp webhook] inbound count=', inboundMessages.length);
   for (const message of inboundMessages) {
     try {
       if (!message.text && message.type === 'text') continue;

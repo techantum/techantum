@@ -4,16 +4,18 @@ import { getAISettings } from '@/lib/whatsapp/knowledge';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getWhatsAppAiConfig, getOpenAiConfig } from '@/lib/whatsapp/config';
 import { getWhatsAppDeliveryInfo } from '@/lib/ops/whatsapp';
+import { getWhatsAppReceiveHealth } from '@/lib/whatsapp/meta';
 
 export async function GET() {
   const auth = await requireAdmin();
   if ('error' in auth && auth.error) return auth.error;
 
-  const [settings, waConfig, openAi, delivery] = await Promise.all([
+  const [settings, waConfig, openAi, delivery, receiveHealth] = await Promise.all([
     getAISettings(),
     Promise.resolve(getWhatsAppAiConfig()),
     Promise.resolve(getOpenAiConfig()),
     getWhatsAppDeliveryInfo().catch(() => null),
+    getWhatsAppReceiveHealth().catch(() => null),
   ]);
 
   return NextResponse.json({
@@ -22,8 +24,11 @@ export async function GET() {
       configured: waConfig.configured,
       phone_number_id: waConfig.phoneNumberId ? `${waConfig.phoneNumberId.slice(0, 4)}…` : null,
       business_account_id: waConfig.businessAccountId ? `${waConfig.businessAccountId.slice(0, 4)}…` : null,
-      display_number: delivery?.from_number || null,
+      display_number: receiveHealth?.display_number || delivery?.from_number || null,
       template_status: delivery?.template_status || null,
+      receiving: receiveHealth?.receiving ?? false,
+      webhook_url: receiveHealth?.webhook_url || 'https://techantum.com/api/webhooks/whatsapp',
+      issues: receiveHealth?.issues || [],
     },
     openai: {
       configured: openAi.configured,

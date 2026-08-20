@@ -16,6 +16,7 @@ if [[ -f .env ]]; then
   source <(node --input-type=module -e "
 import fs from 'fs';
 const text = fs.readFileSync('.env','utf8');
+const map = new Map();
 for (const raw of text.split(/\\n/)) {
   const line = raw.trim();
   if (!line || line.startsWith('#')) continue;
@@ -27,8 +28,12 @@ for (const raw of text.split(/\\n/)) {
   if ((val.startsWith('\"') && val.endsWith('\"')) || (val.startsWith(\"'\") && val.endsWith(\"'\"))) {
     val = val.slice(1, -1);
   }
-  process.stdout.write(key + '=' + JSON.stringify(val) + '\\n');
+  const prev = map.get(key);
+  // nano line-wrap often appends '>' and would clobber a complete earlier value
+  if (prev && (val.endsWith('>') || val.length < prev.length) && prev.length >= val.length) continue;
+  map.set(key, val);
 }
+for (const [key, val] of map) process.stdout.write(key + '=' + JSON.stringify(val) + '\\n');
 ")
   set +a
 fi

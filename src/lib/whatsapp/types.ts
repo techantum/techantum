@@ -126,6 +126,8 @@ export interface AISettings {
   updated_at?: string;
 }
 
+export type KnowledgeSourceType = 'MANUAL' | 'URL' | 'PDF';
+
 export interface KnowledgeEntry {
   id: string;
   category_id: string;
@@ -134,6 +136,9 @@ export interface KnowledgeEntry {
   keywords: string | null;
   status: KnowledgeStatus;
   allow_ai: boolean;
+  source_type?: KnowledgeSourceType;
+  source_url?: string | null;
+  source_file_url?: string | null;
   ai_knowledge_categories?: { name: string; slug: string };
 }
 

@@ -14,6 +14,7 @@ import {
 } from './conversation';
 import { sendWhatsAppSessionText } from './meta';
 import type { InboundWhatsAppMessage } from './types';
+import { applyGreetingPrefix, buildGreetingOpening, classifySession } from './greeting';
 
 export { parseInboundMessages, parseStatusUpdates } from './webhook-utils';
 
@@ -36,6 +37,11 @@ export async function processInboundWhatsAppMessage(inbound: InboundWhatsAppMess
     !conversation.ai_enabled;
 
   if (shouldSkipAi) {
+    console.warn('[whatsapp webhook] skipping AI reply', {
+      ai_enabled: settings.ai_enabled,
+      conversation_mode: conversation.mode,
+      conversation_ai_enabled: conversation.ai_enabled,
+    });
     if (conversation.mode === 'HUMAN' || conversation.handoff_required) {
       await applyHandoff(conversation.id, 'STAFF_MODE', settings.handoff_mode);
     }
@@ -44,6 +50,7 @@ export async function processInboundWhatsAppMessage(inbound: InboundWhatsAppMess
 
   const customerText = inbound.text || '';
   const recentMessages = await getRecentMessages(conversation.id, 20);
+  const sessionKind = classifySession(recentMessages);
 
   const { reply, responseId } = await generateWhatsAppReply({
     customerMessage: customerText,
@@ -53,10 +60,12 @@ export async function processInboundWhatsAppMessage(inbound: InboundWhatsAppMess
     settings,
   });
 
-  let summary: string | undefined;
-  if (settings.auto_conversation_summary && recentMessages.length >= 6) {
-    summary = await summarizeConversation(recentMessages, contact);
-  }
+  const greeting = buildGreetingOpening({ kind: sessionKind, contact });
+  reply.reply_text = applyGreetingPrefix(reply.reply_text, greeting);
+
+  const summary = settings.auto_conversation_summary
+    ? await summarizeConversation(recentMessages, contact, reply, sessionKind)
+    : undefined;
 
   await applyExtractedData(contact.id, conversation.id, reply.extracted_data);
   await updateConversationAfterAI(conversation.id, reply, responseId, summary);
@@ -66,6 +75,9 @@ export async function processInboundWhatsAppMessage(inbound: InboundWhatsAppMess
   }
 
   const sendResult = await sendWhatsAppSessionText(contact.phone_number, reply.reply_text);
+  if (!sendResult.ok) {
+    console.error('[whatsapp webhook] send failed', sendResult.error_message);
+  }
   await saveOutboundMessage({
     conversationId: conversation.id,
     contactId: contact.id,

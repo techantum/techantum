@@ -41,6 +41,7 @@ export async function searchKnowledge(query: string, limit = 6): Promise<Knowled
         `title.ilike.%${term}%`,
         `content.ilike.%${term}%`,
         `keywords.ilike.%${term}%`,
+        `source_url.ilike.%${term}%`,
       ])
       .join(',');
     builder = builder.or(orFilter);
@@ -55,7 +56,8 @@ export function formatKnowledgeContext(entries: KnowledgeEntry[]): string {
   return entries
     .map((entry, index) => {
       const category = entry.ai_knowledge_categories?.name || 'General';
-      return `[${index + 1}] ${category} — ${entry.title}\n${entry.content}`;
+      const source = entry.source_url ? `\nSource: ${entry.source_url}` : '';
+      return `[${index + 1}] ${category} — ${entry.title}${source}\n${entry.content}`;
     })
     .join('\n\n---\n\n');
 }

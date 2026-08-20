@@ -65,14 +65,32 @@ export default function WhatsAppSettingsPage() {
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
+      {whatsapp.receiving === false && (
+        <AdminAlert variant="error">
+          Meta is not subscribed to the <strong>messages</strong> webhook, so AI never sees incoming chats.
+          Open{' '}
+          <a
+            className="underline"
+            href="https://developers.facebook.com/apps/27686807767646135/whatsapp-business/wa-settings/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            WhatsApp Configuration
+          </a>
+          , set Callback URL to <code>https://techantum.com/api/webhooks/whatsapp</code>, then click{' '}
+          <strong>Subscribe</strong> next to the <strong>messages</strong> field. Verify token:{' '}
+          <code>techantum-wa-verify-2026-xK9mP2</code>. After that, message +91 79892 02678 from a different phone.
+        </AdminAlert>
+      )}
       <AdminSection title="Connection status">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <OpsOverviewField label="WhatsApp configured">{whatsapp.configured ? 'Yes' : 'No'}</OpsOverviewField>
           <OpsOverviewField label="Display number">{String(whatsapp.display_number || '—')}</OpsOverviewField>
           <OpsOverviewField label="OpenAI configured">{openai.configured ? 'Yes' : 'No'}</OpsOverviewField>
+          <OpsOverviewField label="Receiving inbound">{whatsapp.receiving ? 'Yes' : 'No'}</OpsOverviewField>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Webhook URL: <code className="bg-muted px-1 rounded">https://api.techantum.com/api/webhooks/whatsapp</code> (or your deployed site URL)
+          Webhook URL: <code className="bg-muted px-1 rounded">https://techantum.com/api/webhooks/whatsapp</code>
         </p>
       </AdminSection>
 

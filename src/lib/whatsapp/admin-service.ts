@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { WhatsAppConversation, WhatsAppMessage } from './types';
+import type { LeadStage, WhatsAppConversation, WhatsAppMessage, ConversationStatus } from './types';
 
 export async function listConversations(search = '') {
   const supabase = createAdminClient();
@@ -51,6 +51,43 @@ export async function getConversationDetail(id: string) {
     messages: (messages || []) as WhatsAppMessage[],
     lead,
   };
+}
+
+const LEAD_STAGES: LeadStage[] = [
+  'NEW',
+  'ENGAGED',
+  'REQUIREMENT_IDENTIFIED',
+  'QUALIFIED',
+  'PROPOSAL_REQUESTED',
+  'HUMAN_FOLLOWUP',
+  'CONVERTED',
+  'LOST',
+];
+
+const CONVERSATION_STATUSES: ConversationStatus[] = ['OPEN', 'CLOSED', 'ARCHIVED'];
+
+export async function updateConversationStatus(
+  id: string,
+  input: { lead_stage?: string; status?: string }
+) {
+  const supabase = createAdminClient();
+  const updates: Record<string, string> = {};
+  if (input.lead_stage && LEAD_STAGES.includes(input.lead_stage as LeadStage)) {
+    updates.lead_stage = input.lead_stage;
+  }
+  if (input.status && CONVERSATION_STATUSES.includes(input.status as ConversationStatus)) {
+    updates.status = input.status;
+  }
+  if (Object.keys(updates).length === 0) throw new Error('No valid status fields to update');
+
+  const { data, error } = await supabase
+    .from('whatsapp_conversations')
+    .update(updates)
+    .eq('id', id)
+    .select('*, whatsapp_contacts(*)')
+    .single();
+  if (error || !data) throw new Error(error?.message || 'Failed to update status');
+  return data as WhatsAppConversation;
 }
 
 export async function logAudit(action: string, entityType: string, entityId: string, userId?: string, metadata?: Record<string, unknown>) {
