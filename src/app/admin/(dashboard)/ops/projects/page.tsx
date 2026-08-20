@@ -7,6 +7,7 @@ import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminBadge from '@/components/admin/AdminBadge';
 import { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
+import { OpsPageShell, OpsStatusBadge, OpsTd, OpsTh } from '@/components/admin/ops/OpsUi';
 import { PROJECT_STATUS_LABELS, isClosedStatus } from '@/lib/ops/config';
 import { todayISO } from '@/lib/ops/working-days';
 import type { OpsProject } from '@/lib/ops/types';
@@ -31,59 +32,82 @@ export default function OpsProjectsPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <OpsPageShell>
       <AdminPageHeader
         title="Delivery projects"
         description="Onboarded client projects with estimates and delivery dates."
-        action={<Link href="/admin/ops/create"><AdminButton variant="primary">+ Create Ticket</AdminButton></Link>}
+        action={
+          <Link href="/admin/ops/create">
+            <AdminButton variant="primary">+ Create Ticket</AdminButton>
+          </Link>
+        }
       />
       {error && <p className="text-sm text-rose-700">{error}</p>}
-      <AdminSection title="All projects">
-        <div className="flex flex-wrap gap-2">
-          <input className={`${adminInputClass} max-w-xs`} placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className={`${adminSelectClass} max-w-xs`} value={status} onChange={(e) => setStatus(e.target.value)}>
+
+      <AdminSection title={`${rows.length} project(s)`}>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <input
+            className={`${adminInputClass} max-w-xs`}
+            placeholder="Search…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && load()}
+          />
+          <select className={`${adminSelectClass} max-w-[180px]`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
-            {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
           <AdminButton onClick={load}>Filter</AdminButton>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b">
-                <th className="py-2 pr-3">ID</th>
-                <th className="py-2 pr-3">Client</th>
-                <th className="py-2 pr-3">Project</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2 pr-3">Start</th>
-                <th className="py-2 pr-3">Delivery</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const overdue = !isClosedStatus(row.status) && row.current_end_date < today;
-                return (
-                  <tr key={row.id} className="border-b border-border/60">
-                    <td className="py-2 pr-3 font-mono text-xs">{row.project_code}</td>
-                    <td className="py-2 pr-3">{row.ops_clients?.name}</td>
-                    <td className="py-2 pr-3"><Link className="text-indigo-600 hover:underline" href={`/admin/ops/projects/${row.id}`}>{row.project_name}</Link></td>
-                    <td className="py-2 pr-3">
-                      <AdminBadge variant={overdue ? 'rose' : 'indigo'}>{PROJECT_STATUS_LABELS[row.status] || row.status}</AdminBadge>
-                      {overdue && <span className="ml-2 text-xs font-semibold text-rose-700">Overdue</span>}
-                    </td>
-                    <td className="py-2 pr-3">{row.start_date}</td>
-                    <td className="py-2 pr-3">{row.current_end_date}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {rows.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">No delivery projects yet.</p>}
-        </div>
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No delivery projects yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <OpsTh>ID</OpsTh>
+                  <OpsTh>Client</OpsTh>
+                  <OpsTh>Project</OpsTh>
+                  <OpsTh>Status</OpsTh>
+                  <OpsTh>Start</OpsTh>
+                  <OpsTh>Delivery</OpsTh>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const overdue = !isClosedStatus(row.status) && row.current_end_date < today;
+                  return (
+                    <tr key={row.id} className="hover:bg-muted/20">
+                      <OpsTd className="font-mono text-[11px]">{row.project_code}</OpsTd>
+                      <OpsTd>{row.ops_clients?.name}</OpsTd>
+                      <OpsTd>
+                        <Link className="text-indigo-600 hover:underline font-medium" href={`/admin/ops/projects/${row.id}`}>
+                          {row.project_name}
+                        </Link>
+                      </OpsTd>
+                      <OpsTd>
+                        <OpsStatusBadge label={PROJECT_STATUS_LABELS[row.status] || row.status} overdue={overdue} />
+                      </OpsTd>
+                      <OpsTd className="whitespace-nowrap">{row.start_date}</OpsTd>
+                      <OpsTd className="whitespace-nowrap">{row.current_end_date}</OpsTd>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </AdminSection>
-    </div>
+    </OpsPageShell>
   );
 }

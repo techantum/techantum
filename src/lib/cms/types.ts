@@ -10,6 +10,7 @@ export interface SiteBranding {
   whatsapp: string;
   whatsapp_href: string;
   whatsapp_widget_message: string;
+  whatsapp_widget_enabled: boolean;
   email: string;
   address: string;
   footer_description: string;

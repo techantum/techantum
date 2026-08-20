@@ -60,6 +60,17 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
+    id: 'whatsapp-ai',
+    label: 'WhatsApp AI',
+    icon: 'ChatBubbleLeftRightIcon',
+    defaultOpen: true,
+    items: [
+      { href: '/admin/whatsapp/inbox', label: 'Inbox', icon: 'InboxIcon' },
+      { href: '/admin/whatsapp/knowledge', label: 'Knowledge Base', icon: 'BookOpenIcon' },
+      { href: '/admin/whatsapp/settings', label: 'AI Settings', icon: 'Cog6ToothIcon' },
+    ],
+  },
+  {
     id: 'sales',
     label: 'Lead Discovery',
     icon: 'MapPinIcon',

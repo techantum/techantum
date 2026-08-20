@@ -32,6 +32,7 @@ export const defaultBranding: SiteBranding = {
   whatsapp: '+91 90000 00000',
   whatsapp_href: '919000000000',
   whatsapp_widget_message: 'Hello! I would like to inquire about Techantum Solutions IT services.',
+  whatsapp_widget_enabled: true,
   email: 'info@techantum.com',
   address: 'Hyderabad, India',
   footer_description:
@@ -57,6 +58,7 @@ const BRANDING_TEXT_KEYS: (keyof SiteBranding)[] = [
 /** DB nulls must not override defaults — keeps form inputs controlled with strings. */
 export function normalizeSiteBranding(data?: Partial<SiteBranding> | null): SiteBranding {
   const merged = { ...defaultBranding, ...data };
+  merged.whatsapp_widget_enabled = data?.whatsapp_widget_enabled ?? defaultBranding.whatsapp_widget_enabled;
   for (const key of BRANDING_TEXT_KEYS) {
     if (merged[key] == null) {
       merged[key] = defaultBranding[key] as SiteBranding[typeof key];

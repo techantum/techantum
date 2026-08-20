@@ -6,6 +6,7 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
 import { adminInputClass } from '@/components/admin/AdminField';
+import { OpsPageShell, OpsTd, OpsTh } from '@/components/admin/ops/OpsUi';
 import type { OpsClient } from '@/lib/ops/types';
 
 export default function OpsClientsPage() {
@@ -29,44 +30,62 @@ export default function OpsClientsPage() {
   }, []);
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <OpsPageShell>
       <AdminPageHeader
         title="Clients"
         description="One client can have many projects. Do not duplicate records for a new project."
-        action={<Link href="/admin/ops/create"><AdminButton variant="primary">+ Create Ticket</AdminButton></Link>}
+        action={
+          <Link href="/admin/ops/create">
+            <AdminButton variant="primary">+ Create Ticket</AdminButton>
+          </Link>
+        }
       />
       {error && <p className="text-sm text-rose-700">{error}</p>}
-      <AdminSection title="All clients">
-        <div className="flex gap-2">
-          <input className={adminInputClass} placeholder="Search name, email, phone…" value={search} onChange={(e) => setSearch(e.target.value)} />
+
+      <AdminSection title={`${clients.length} client(s)`}>
+        <div className="flex gap-2 mb-3">
+          <input
+            className={`${adminInputClass} max-w-sm`}
+            placeholder="Search name, email, phone…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && load()}
+          />
           <AdminButton onClick={load}>Search</AdminButton>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Name</th>
-                <th className="py-2 pr-3">WhatsApp</th>
-                <th className="py-2 pr-3">Email</th>
-                <th className="py-2 pr-3">Location</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((client) => (
-                <tr key={client.id} className="border-b border-border/60">
-                  <td className="py-2 pr-3 font-mono text-xs">{client.client_code}</td>
-                  <td className="py-2 pr-3"><Link className="text-indigo-600 hover:underline" href={`/admin/ops/clients/${client.id}`}>{client.name}</Link></td>
-                  <td className="py-2 pr-3">{client.whatsapp_number || '—'}</td>
-                  <td className="py-2 pr-3">{client.email || '—'}</td>
-                  <td className="py-2 pr-3">{client.location || '—'}</td>
+        {clients.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No clients yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <OpsTh>Code</OpsTh>
+                  <OpsTh>Name</OpsTh>
+                  <OpsTh>WhatsApp</OpsTh>
+                  <OpsTh>Email</OpsTh>
+                  <OpsTh>Location</OpsTh>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {clients.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">No clients yet.</p>}
-        </div>
+              </thead>
+              <tbody>
+                {clients.map((client) => (
+                  <tr key={client.id} className="hover:bg-muted/20">
+                    <OpsTd className="font-mono text-[11px]">{client.client_code}</OpsTd>
+                    <OpsTd>
+                      <Link className="text-indigo-600 hover:underline font-medium" href={`/admin/ops/clients/${client.id}`}>
+                        {client.name}
+                      </Link>
+                    </OpsTd>
+                    <OpsTd>{client.whatsapp_number || '—'}</OpsTd>
+                    <OpsTd>{client.email || '—'}</OpsTd>
+                    <OpsTd>{client.location || '—'}</OpsTd>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </AdminSection>
-    </div>
+    </OpsPageShell>
   );
 }

@@ -8,6 +8,7 @@ import AdminField, { adminInputClass, adminSelectClass, adminTextareaClass } fro
 import AdminFormGrid from '@/components/admin/AdminFormGrid';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminAlert from '@/components/admin/AdminAlert';
+import { OpsGrid, OpsOverviewField, OpsPageShell } from '@/components/admin/ops/OpsUi';
 import { ScheduleSummary, ScopeFields, WhatsAppModal } from '@/components/admin/ops/OpsShared';
 import { estimateEndDate, todayISO } from '@/lib/ops/working-days';
 import { TICKET_TYPE_LABELS } from '@/lib/ops/config';
@@ -197,23 +198,27 @@ export default function OpsCreatePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <OpsPageShell>
       <AdminPageHeader title="Create Ticket" description="Onboard a new project or add a ticket to an existing client project." />
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
       <AdminSection title="What would you like to create?">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {(['new', 'existing'] as const).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setMode(item)}
-              className={`rounded-xl border p-4 text-left ${mode === item ? 'border-indigo-500 bg-indigo-50' : 'border-border bg-white'}`}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                mode === item ? 'border-indigo-500 bg-indigo-50' : 'border-border bg-white hover:border-indigo-200'
+              }`}
             >
-              <p className="font-semibold">{item === 'new' ? 'New Project' : 'Existing Project Ticket'}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {item === 'new' ? 'Onboard a client and create a delivery project.' : 'Log a feature, enhancement, or bug against an existing project.'}
+              <p className="text-sm font-semibold">{item === 'new' ? 'New Project' : 'Existing Project Ticket'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {item === 'new'
+                  ? 'Onboard a client and create a delivery project.'
+                  : 'Log a feature, enhancement, or bug against an existing project.'}
               </p>
             </button>
           ))}
@@ -222,44 +227,83 @@ export default function OpsCreatePage() {
 
       {mode === 'new' && !created && (
         <>
-          <AdminSection title="Client Information">
-            <AdminFormGrid cols={2}>
-              <AdminField label="Client name *"><input className={adminInputClass} value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} /></AdminField>
-              <AdminField label="Location"><input className={adminInputClass} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></AdminField>
-              <AdminField label="Contact number"><input className={adminInputClass} value={form.contact_number} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} /></AdminField>
-              <AdminField label="WhatsApp number" hint="Stored as +91…"><input className={adminInputClass} value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="+919876543210" /></AdminField>
-              <AdminField label="Email"><input type="email" className={adminInputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></AdminField>
-            </AdminFormGrid>
-          </AdminSection>
+          <OpsGrid>
+            <AdminSection title="Client information">
+              <AdminFormGrid cols={1}>
+                <AdminField label="Client name *">
+                  <input className={adminInputClass} value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} />
+                </AdminField>
+                <AdminField label="Location">
+                  <input className={adminInputClass} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+                </AdminField>
+                <AdminField label="Contact number">
+                  <input className={adminInputClass} value={form.contact_number} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} />
+                </AdminField>
+                <AdminField label="WhatsApp number" hint="Stored as +91…">
+                  <input className={adminInputClass} value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="+919876543210" />
+                </AdminField>
+                <AdminField label="Email">
+                  <input type="email" className={adminInputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                </AdminField>
+              </AdminFormGrid>
+            </AdminSection>
 
-          <AdminSection title="Project Information">
-            <AdminFormGrid cols={2}>
-              <AdminField label="Type of project *">
-                <select className={adminSelectClass} value={form.project_type} onChange={(e) => {
-                  const project_type = e.target.value;
-                  setForm({ ...form, project_type, package_name: config?.packagesByType?.[project_type]?.[0] || '' });
-                }}>
-                  {(config?.projectTypes ?? []).map((type) => <option key={type}>{type}</option>)}
-                </select>
-              </AdminField>
-              <AdminField label="Package *">
-                <select className={adminSelectClass} value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })}>
-                  {packages.map((pkg) => <option key={pkg}>{pkg}</option>)}
-                </select>
-              </AdminField>
-              <AdminField label="Website domain"><input className={adminInputClass} value={form.website_domain} onChange={(e) => setForm({ ...form, website_domain: e.target.value })} placeholder="example.com" /></AdminField>
-              <AdminField label="Hosting provider"><input className={adminInputClass} value={form.hosting_provider} onChange={(e) => setForm({ ...form, hosting_provider: e.target.value })} placeholder="Hostinger, AWS, Client Hosting…" /></AdminField>
-            </AdminFormGrid>
-            <ScopeFields documentUrl={form.scope_document_url} url={form.scope_url} onDocumentUrl={(scope_document_url) => setForm({ ...form, scope_document_url })} onUrl={(scope_url) => setForm({ ...form, scope_url })} />
-          </AdminSection>
+            <AdminSection title="Project information">
+              <AdminFormGrid cols={1}>
+                <AdminField label="Type of project *">
+                  <select
+                    className={adminSelectClass}
+                    value={form.project_type}
+                    onChange={(e) => {
+                      const project_type = e.target.value;
+                      setForm({ ...form, project_type, package_name: config?.packagesByType?.[project_type]?.[0] || '' });
+                    }}
+                  >
+                    {(config?.projectTypes ?? []).map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
+                  </select>
+                </AdminField>
+                <AdminField label="Package *">
+                  <select className={adminSelectClass} value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })}>
+                    {packages.map((pkg) => (
+                      <option key={pkg}>{pkg}</option>
+                    ))}
+                  </select>
+                </AdminField>
+                <AdminField label="Website domain">
+                  <input className={adminInputClass} value={form.website_domain} onChange={(e) => setForm({ ...form, website_domain: e.target.value })} placeholder="example.com" />
+                </AdminField>
+                <AdminField label="Hosting provider">
+                  <input className={adminInputClass} value={form.hosting_provider} onChange={(e) => setForm({ ...form, hosting_provider: e.target.value })} placeholder="Hostinger, AWS, Client Hosting…" />
+                </AdminField>
+              </AdminFormGrid>
+              <ScopeFields
+                documentUrl={form.scope_document_url}
+                url={form.scope_url}
+                onDocumentUrl={(scope_document_url) => setForm({ ...form, scope_document_url })}
+                onUrl={(scope_url) => setForm({ ...form, scope_url })}
+              />
+            </AdminSection>
+          </OpsGrid>
 
-          <AdminSection title="Internal Information" description="Never sent to the client on WhatsApp." accent="amber">
+          <AdminSection title="Internal information" description="Never sent to the client on WhatsApp." accent="amber">
             <AdminFormGrid cols={3}>
-              <AdminField label="Estimated hours *"><input type="number" min="0.5" step="0.5" className={adminInputClass} value={form.estimated_hours} onChange={(e) => setForm({ ...form, estimated_hours: e.target.value })} /></AdminField>
-              <AdminField label="Cost per hour (INR) *"><input type="number" min="0" className={adminInputClass} value={form.cost_per_hour} onChange={(e) => setForm({ ...form, cost_per_hour: e.target.value })} /></AdminField>
-              <AdminField label="Number of developers *"><input type="number" min="1" className={adminInputClass} value={form.developers_count} onChange={(e) => setForm({ ...form, developers_count: e.target.value })} /></AdminField>
-              <AdminField label="Start date *"><input type="date" min={minDate} className={adminInputClass} value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></AdminField>
-              <AdminField label="Estimated end date"><input className={adminInputClass} value={newEndDate} readOnly /></AdminField>
+              <AdminField label="Estimated hours *">
+                <input type="number" min="0.5" step="0.5" className={adminInputClass} value={form.estimated_hours} onChange={(e) => setForm({ ...form, estimated_hours: e.target.value })} />
+              </AdminField>
+              <AdminField label="Cost per hour (INR) *">
+                <input type="number" min="0" className={adminInputClass} value={form.cost_per_hour} onChange={(e) => setForm({ ...form, cost_per_hour: e.target.value })} />
+              </AdminField>
+              <AdminField label="Developers *">
+                <input type="number" min="1" className={adminInputClass} value={form.developers_count} onChange={(e) => setForm({ ...form, developers_count: e.target.value })} />
+              </AdminField>
+              <AdminField label="Start date *">
+                <input type="date" min={minDate} className={adminInputClass} value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+              </AdminField>
+              <AdminField label="Estimated end date">
+                <input className={adminInputClass} value={newEndDate} readOnly />
+              </AdminField>
             </AdminFormGrid>
             <ScheduleSummary hours={Number(form.estimated_hours) || 0} developers={Number(form.developers_count) || 1} startDate={form.start_date} endDate={newEndDate} />
           </AdminSection>
@@ -272,20 +316,30 @@ export default function OpsCreatePage() {
           )}
 
           <div className="flex gap-2">
-            <AdminButton variant="primary" disabled={saving} onClick={() => createProject(false)}>{saving ? 'Saving…' : 'Create project'}</AdminButton>
+            <AdminButton variant="primary" disabled={saving} onClick={() => createProject(false)}>
+              {saving ? 'Saving…' : 'Create project'}
+            </AdminButton>
             {duplicates.length > 0 && (
-              <AdminButton disabled={saving} onClick={() => createProject(true)}>Create anyway</AdminButton>
+              <AdminButton disabled={saving} onClick={() => createProject(true)}>
+                Create anyway
+              </AdminButton>
             )}
           </div>
         </>
       )}
 
       {created && (
-        <AdminSection title="Send Welcome Message" accent="emerald">
-          <p className="text-sm">Project {created.project.project_code} is ready. Preview the WhatsApp welcome message before sending.</p>
+        <AdminSection title="Send welcome message" accent="emerald">
+          <p className="text-sm mb-2">
+            Project <strong>{created.project.project_code}</strong> is ready. Preview the WhatsApp welcome message before sending.
+          </p>
           <div className="flex gap-2">
-            <AdminButton variant="primary" onClick={openWelcome}>Preview message</AdminButton>
-            <Link href={`/admin/ops/projects/${created.project.id}`} className="text-sm text-indigo-600 self-center">Open project</Link>
+            <AdminButton variant="primary" onClick={openWelcome}>
+              Preview message
+            </AdminButton>
+            <Link href={`/admin/ops/projects/${created.project.id}`} className="text-sm text-indigo-600 self-center">
+              Open project
+            </Link>
           </div>
         </AdminSection>
       )}
@@ -293,63 +347,118 @@ export default function OpsCreatePage() {
       {mode === 'existing' && (
         <>
           <AdminSection title="Select client">
-            <input className={`${adminInputClass} mb-3`} placeholder="Search name, phone, WhatsApp, email…" value={clientQuery} onChange={(e) => setClientQuery(e.target.value)} />
-            <div className="max-h-48 overflow-auto border rounded-xl divide-y">
+            <input
+              className={`${adminInputClass} mb-2 max-w-md`}
+              placeholder="Search name, phone, WhatsApp, email…"
+              value={clientQuery}
+              onChange={(e) => setClientQuery(e.target.value)}
+            />
+            <div className="max-h-40 overflow-auto rounded-lg border divide-y">
               {filteredClients.map((client) => (
-                <button key={client.id} type="button" onClick={() => selectClient(client)} className={`w-full text-left px-4 py-2 text-sm ${selectedClient?.id === client.id ? 'bg-indigo-50' : 'hover:bg-muted/40'}`}>
-                  <span className="font-medium">{client.name}</span> <span className="text-muted-foreground">{client.client_code} · {client.email || client.whatsapp_number || ''}</span>
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => selectClient(client)}
+                  className={`w-full text-left px-3 py-2 text-sm ${selectedClient?.id === client.id ? 'bg-indigo-50' : 'hover:bg-muted/40'}`}
+                >
+                  <span className="font-medium">{client.name}</span>{' '}
+                  <span className="text-muted-foreground text-xs">
+                    {client.client_code} · {client.email || client.whatsapp_number || ''}
+                  </span>
                 </button>
               ))}
             </div>
-            <p className="text-sm mt-3"><Link href="/admin/ops/clients" className="text-indigo-600">+ Add new client</Link> if they are not listed.</p>
+            <p className="text-xs mt-2">
+              <Link href="/admin/ops/clients" className="text-indigo-600">
+                + Add new client
+              </Link>{' '}
+              if they are not listed.
+            </p>
           </AdminSection>
 
           {selectedClient && (
             <>
-              <AdminSection title="Client information" description="Read-only. Use Edit Client to change master data.">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                  <p><span className="text-muted-foreground">Name</span><br />{selectedClient.name}</p>
-                  <p><span className="text-muted-foreground">Location</span><br />{selectedClient.location || '—'}</p>
-                  <p><span className="text-muted-foreground">Contact</span><br />{selectedClient.contact_number || '—'}</p>
-                  <p><span className="text-muted-foreground">WhatsApp</span><br />{selectedClient.whatsapp_number || '—'}</p>
-                  <p><span className="text-muted-foreground">Email</span><br />{selectedClient.email || '—'}</p>
-                  <p><span className="text-muted-foreground">Domain</span><br />{selectedClient.website_domain || '—'}</p>
-                  <p><span className="text-muted-foreground">Hosting</span><br />{selectedClient.hosting_provider || '—'}</p>
+              <AdminSection title="Client snapshot" description="Read-only. Edit from client page.">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <OpsOverviewField label="Name">{selectedClient.name}</OpsOverviewField>
+                  <OpsOverviewField label="Location">{selectedClient.location || '—'}</OpsOverviewField>
+                  <OpsOverviewField label="WhatsApp">{selectedClient.whatsapp_number || '—'}</OpsOverviewField>
+                  <OpsOverviewField label="Email">{selectedClient.email || '—'}</OpsOverviewField>
+                  <OpsOverviewField label="Domain">{selectedClient.website_domain || '—'}</OpsOverviewField>
+                  <OpsOverviewField label="Hosting">{selectedClient.hosting_provider || '—'}</OpsOverviewField>
                 </div>
-                <Link href={`/admin/ops/clients/${selectedClient.id}`} className="text-sm text-indigo-600">Edit client</Link>
+                <Link href={`/admin/ops/clients/${selectedClient.id}`} className="text-xs text-indigo-600 mt-2 inline-block">
+                  Edit client
+                </Link>
               </AdminSection>
 
-              <AdminSection title="Ticket details">
-                <AdminFormGrid cols={2}>
-                  <AdminField label="Select project *">
-                    <select className={adminSelectClass} value={ticketForm.project_id} onChange={(e) => setTicketForm({ ...ticketForm, project_id: e.target.value })}>
-                      <option value="">Choose project</option>
-                      {clientProjects.map((p) => <option key={p.id} value={p.id}>{p.project_name} ({p.project_code})</option>)}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Ticket type *">
-                    <select className={adminSelectClass} value={ticketForm.ticket_type} onChange={(e) => setTicketForm({ ...ticketForm, ticket_type: e.target.value })}>
-                      {Object.entries(TICKET_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Ticket title *" span={2}><input className={adminInputClass} value={ticketForm.title} onChange={(e) => setTicketForm({ ...ticketForm, title: e.target.value })} placeholder="Add OTP Login" /></AdminField>
-                  <AdminField label="Description / requirement" span={2}><textarea className={adminTextareaClass} value={ticketForm.description} onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })} /></AdminField>
-                </AdminFormGrid>
-                <ScopeFields documentUrl={ticketForm.scope_document_url} url={ticketForm.scope_url} onDocumentUrl={(scope_document_url) => setTicketForm({ ...ticketForm, scope_document_url })} onUrl={(scope_url) => setTicketForm({ ...ticketForm, scope_url })} />
-              </AdminSection>
+              <OpsGrid>
+                <AdminSection title="Ticket details">
+                  <AdminFormGrid cols={1}>
+                    <AdminField label="Select project *">
+                      <select className={adminSelectClass} value={ticketForm.project_id} onChange={(e) => setTicketForm({ ...ticketForm, project_id: e.target.value })}>
+                        <option value="">Choose project</option>
+                        {clientProjects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.project_name} ({p.project_code})
+                          </option>
+                        ))}
+                      </select>
+                    </AdminField>
+                    <AdminField label="Ticket type *">
+                      <select className={adminSelectClass} value={ticketForm.ticket_type} onChange={(e) => setTicketForm({ ...ticketForm, ticket_type: e.target.value })}>
+                        {Object.entries(TICKET_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </AdminField>
+                    <AdminField label="Ticket title *">
+                      <input className={adminInputClass} value={ticketForm.title} onChange={(e) => setTicketForm({ ...ticketForm, title: e.target.value })} placeholder="Add OTP Login" />
+                    </AdminField>
+                    <AdminField label="Description / requirement">
+                      <textarea className={adminTextareaClass} rows={3} value={ticketForm.description} onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                    </AdminField>
+                  </AdminFormGrid>
+                  <ScopeFields
+                    documentUrl={ticketForm.scope_document_url}
+                    url={ticketForm.scope_url}
+                    onDocumentUrl={(scope_document_url) => setTicketForm({ ...ticketForm, scope_document_url })}
+                    onUrl={(scope_url) => setTicketForm({ ...ticketForm, scope_url })}
+                  />
+                </AdminSection>
 
-              <AdminSection title="Internal estimation" accent="amber">
-                <AdminFormGrid cols={3}>
-                  <AdminField label="Estimated hours *"><input type="number" min="0.5" step="0.5" className={adminInputClass} value={ticketForm.estimated_hours} onChange={(e) => setTicketForm({ ...ticketForm, estimated_hours: e.target.value })} /></AdminField>
-                  <AdminField label="Cost per hour (INR) *"><input type="number" min="0" className={adminInputClass} value={ticketForm.cost_per_hour} onChange={(e) => setTicketForm({ ...ticketForm, cost_per_hour: e.target.value })} /></AdminField>
-                  <AdminField label="Developers *"><input type="number" min="1" className={adminInputClass} value={ticketForm.developers_count} onChange={(e) => setTicketForm({ ...ticketForm, developers_count: e.target.value })} /></AdminField>
-                  <AdminField label="Start date *"><input type="date" min={minDate} className={adminInputClass} value={ticketForm.start_date} onChange={(e) => setTicketForm({ ...ticketForm, start_date: e.target.value })} /></AdminField>
-                  <AdminField label="Estimated end date"><input className={adminInputClass} value={ticketEndDate} readOnly /></AdminField>
-                </AdminFormGrid>
-                <ScheduleSummary hours={Number(ticketForm.estimated_hours) || 0} developers={Number(ticketForm.developers_count) || 1} startDate={ticketForm.start_date} endDate={ticketEndDate} />
-              </AdminSection>
+                <AdminSection title="Internal estimation" accent="amber">
+                  <AdminFormGrid cols={1}>
+                    <AdminField label="Estimated hours *">
+                      <input type="number" min="0.5" step="0.5" className={adminInputClass} value={ticketForm.estimated_hours} onChange={(e) => setTicketForm({ ...ticketForm, estimated_hours: e.target.value })} />
+                    </AdminField>
+                    <AdminField label="Cost per hour (INR) *">
+                      <input type="number" min="0" className={adminInputClass} value={ticketForm.cost_per_hour} onChange={(e) => setTicketForm({ ...ticketForm, cost_per_hour: e.target.value })} />
+                    </AdminField>
+                    <AdminField label="Developers *">
+                      <input type="number" min="1" className={adminInputClass} value={ticketForm.developers_count} onChange={(e) => setTicketForm({ ...ticketForm, developers_count: e.target.value })} />
+                    </AdminField>
+                    <AdminField label="Start date *">
+                      <input type="date" min={minDate} className={adminInputClass} value={ticketForm.start_date} onChange={(e) => setTicketForm({ ...ticketForm, start_date: e.target.value })} />
+                    </AdminField>
+                    <AdminField label="Estimated end date">
+                      <input className={adminInputClass} value={ticketEndDate} readOnly />
+                    </AdminField>
+                  </AdminFormGrid>
+                  <ScheduleSummary
+                    hours={Number(ticketForm.estimated_hours) || 0}
+                    developers={Number(ticketForm.developers_count) || 1}
+                    startDate={ticketForm.start_date}
+                    endDate={ticketEndDate}
+                  />
+                </AdminSection>
+              </OpsGrid>
 
-              <AdminButton variant="primary" disabled={saving} onClick={createTicket}>{saving ? 'Saving…' : 'Create ticket'}</AdminButton>
+              <AdminButton variant="primary" disabled={saving} onClick={createTicket}>
+                {saving ? 'Saving…' : 'Create ticket'}
+              </AdminButton>
             </>
           )}
         </>
@@ -368,6 +477,6 @@ export default function OpsCreatePage() {
         error={waError}
         warning={waWarning}
       />
-    </div>
+    </OpsPageShell>
   );
 }

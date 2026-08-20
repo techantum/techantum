@@ -8,8 +8,22 @@ import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminAlert from '@/components/admin/AdminAlert';
+import AdminStatCard from '@/components/admin/AdminStatCard';
+import CommunicationAccordion from '@/components/admin/ops/CommunicationAccordion';
+import {
+  formatOpsWhen,
+  InternalEstimationGrid,
+  OpsBackLink,
+  OpsGrid,
+  OpsGridSpan,
+  OpsLinkedItem,
+  OpsOverviewField,
+  OpsPageShell,
+  OpsTimelineItem,
+} from '@/components/admin/ops/OpsUi';
 import { adminInputClass, adminSelectClass, adminTextareaClass } from '@/components/admin/AdminField';
 import { WhatsAppModal } from '@/components/admin/ops/OpsShared';
+import Icon from '@/components/ui/AppIcon';
 import { PROJECT_STATUS_LABELS, TICKET_STATUS_LABELS, isClosedStatus } from '@/lib/ops/config';
 import { internalCost, isOverdue, type OpsCommunication, type OpsDateExtension, type OpsProject, type OpsStatusHistory, type OpsTicket } from '@/lib/ops/types';
 import { todayISO } from '@/lib/ops/working-days';
@@ -46,7 +60,9 @@ export default function OpsProjectDetailPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'));
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
 
   const patchStatus = async () => {
     setError('');
@@ -110,94 +126,181 @@ export default function OpsProjectDetailPage() {
     }
   };
 
-  if (!detail) return <p className="text-sm text-muted-foreground">{error || 'Loading…'}</p>;
+  if (!detail) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <p className="text-sm text-muted-foreground">{error || 'Loading…'}</p>
+      </div>
+    );
+  }
+
   const p = detail.project;
   const overdue = isOverdue(p.current_end_date, p.status, todayISO());
   const cost = internalCost(Number(p.estimated_hours), Number(p.cost_per_hour));
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <OpsPageShell>
       <AdminPageHeader
         title={p.project_name}
         description={`${p.project_code} · ${p.ops_clients?.name || ''}`}
-        action={<AdminButton variant="primary" onClick={openUpdate}>Send client update</AdminButton>}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <OpsBackLink href="/admin/ops/projects" label="All projects" />
+            <AdminButton variant="primary" onClick={openUpdate}>
+              <Icon name="PaperAirplaneIcon" size={16} />
+              Send client update
+            </AdminButton>
+          </div>
+        }
       />
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
-      <AdminSection title="Project overview">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <p><span className="text-muted-foreground">Project ID</span><br />{p.project_code}</p>
-          <p><span className="text-muted-foreground">Client</span><br /><Link className="text-indigo-600" href={`/admin/ops/clients/${p.client_id}`}>{p.ops_clients?.name}</Link></p>
-          <p><span className="text-muted-foreground">Type / package</span><br />{p.project_type} · {p.package_name}</p>
-          <p><span className="text-muted-foreground">Status</span><br /><AdminBadge variant={overdue ? 'rose' : 'indigo'}>{PROJECT_STATUS_LABELS[p.status] || p.status}</AdminBadge> {overdue && <span className="text-rose-700 font-semibold">Overdue</span>}</p>
-          <p><span className="text-muted-foreground">Start</span><br />{p.start_date}</p>
-          <p><span className="text-muted-foreground">Original delivery</span><br />{p.original_end_date}</p>
-          <p><span className="text-muted-foreground">Current delivery</span><br />{p.current_end_date}</p>
+      <AdminSection title="Project overview" description="Client-facing scope and timeline." accent={overdue ? 'rose' : 'indigo'}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <AdminStatCard
+            label="Status"
+            value={PROJECT_STATUS_LABELS[p.status] || p.status}
+            accent={overdue ? 'rose' : 'blue'}
+            icon="FlagIcon"
+            hint={overdue ? 'Overdue' : undefined}
+          />
+          <AdminStatCard label="Start date" value={p.start_date} icon="CalendarIcon" />
+          <AdminStatCard label="Original delivery" value={p.original_end_date} icon="ClockIcon" />
+          <AdminStatCard label="Current delivery" value={p.current_end_date} accent={overdue ? 'rose' : 'green'} icon="TruckIcon" />
         </div>
-      </AdminSection>
 
-      <AdminSection title="Project scope">
-        {p.scope_document_url ? <a className="text-indigo-600 text-sm" href={p.scope_document_url} target="_blank" rel="noreferrer">Open PDF</a> : <p className="text-sm text-muted-foreground">No PDF uploaded.</p>}
-        {p.scope_url && <p className="text-sm mt-2"><a className="text-indigo-600" href={p.scope_url} target="_blank" rel="noreferrer">{p.scope_url}</a></p>}
-      </AdminSection>
-
-      <AdminSection title="Internal estimation" description="Internal only. Never included in WhatsApp messages." accent="amber">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <p><span className="text-muted-foreground">Hours</span><br />{p.estimated_hours}</p>
-          <p><span className="text-muted-foreground">Cost / hour</span><br />₹{p.cost_per_hour}</p>
-          <p><span className="text-muted-foreground">Developers</span><br />{p.developers_count}</p>
-          <p><span className="text-muted-foreground">Internal cost</span><br />₹{cost.toLocaleString('en-IN')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <OpsOverviewField label="Project ID">
+            <span className="font-mono text-xs">{p.project_code}</span>
+          </OpsOverviewField>
+          <OpsOverviewField label="Client">
+            <Link className="text-indigo-600 hover:underline inline-flex items-center gap-1" href={`/admin/ops/clients/${p.client_id}`}>
+              {p.ops_clients?.name}
+              <Icon name="ArrowTopRightOnSquareIcon" size={14} />
+            </Link>
+          </OpsOverviewField>
+          <OpsOverviewField label="Type / package">
+            {p.project_type} · {p.package_name}
+          </OpsOverviewField>
         </div>
-      </AdminSection>
 
-      <AdminSection title="Update status">
-        <div className="flex flex-wrap gap-2">
-          <select className={adminSelectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <input className={adminInputClass} placeholder="Optional note" value={note} onChange={(e) => setNote(e.target.value)} />
-          <AdminButton onClick={patchStatus}>Save status</AdminButton>
-        </div>
-      </AdminSection>
-
-      <AdminSection title="Extend delivery date">
-        <p className="text-sm text-muted-foreground">Current delivery: {p.current_end_date}</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-          <input type="date" className={adminInputClass} min={p.current_end_date} value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-          <textarea className={adminTextareaClass} placeholder="Reason for extension *" value={reason} onChange={(e) => setReason(e.target.value)} />
-        </div>
-        <AdminButton className="mt-3" onClick={extend}>Save extension</AdminButton>
-      </AdminSection>
-
-      <AdminSection title="Tickets">
-        {detail.tickets.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : detail.tickets.map((t) => (
-          <p key={t.id} className="text-sm">
-            <Link className="text-indigo-600 hover:underline" href={`/admin/ops/tickets/${t.id}`}>{t.ticket_code} · {t.title}</Link>{' '}
-            <AdminBadge>{TICKET_STATUS_LABELS[t.status] || t.status}</AdminBadge>
-            {!isClosedStatus(t.status) && t.current_end_date < todayISO() && <span className="ml-2 text-xs text-rose-700 font-semibold">Overdue</span>}
-          </p>
-        ))}
-      </AdminSection>
-
-      <AdminSection title="Delivery extension history">
-        {detail.extensions.length === 0 ? <p className="text-sm text-muted-foreground">No extensions.</p> : detail.extensions.map((row) => (
-          <p key={row.id} className="text-sm">{row.previous_end_date} → {row.new_end_date} · {row.reason} · {row.created_at}</p>
-        ))}
-      </AdminSection>
-      <AdminSection title="Status history">
-        {detail.statusHistory.map((row) => (
-          <p key={row.id} className="text-sm">{row.previous_status || '—'} → {row.new_status} · {row.note || ''} · {row.created_at}</p>
-        ))}
-      </AdminSection>
-      <AdminSection title="Communication history">
-        {detail.communications.length === 0 ? <p className="text-sm text-muted-foreground">No messages yet.</p> : detail.communications.map((c) => (
-          <div key={c.id} className="rounded-xl border p-3 text-sm mb-2">
-            <p className="text-xs text-muted-foreground">{c.created_at} · {c.status} · {c.recipient}</p>
-            <pre className="whitespace-pre-wrap font-sans mt-2">{c.message_body}</pre>
+        {(p.scope_document_url || p.scope_url) && (
+          <div className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Scope</p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {p.scope_document_url && (
+                <a className="text-indigo-600 hover:underline inline-flex items-center gap-1" href={p.scope_document_url} target="_blank" rel="noreferrer">
+                  <Icon name="DocumentIcon" size={14} />
+                  Open PDF
+                </a>
+              )}
+              {p.scope_url && (
+                <a className="text-indigo-600 hover:underline truncate max-w-full" href={p.scope_url} target="_blank" rel="noreferrer">
+                  {p.scope_url}
+                </a>
+              )}
+            </div>
           </div>
-        ))}
+        )}
       </AdminSection>
+
+      <OpsGrid>
+        <AdminSection title="Internal estimation" description="Not shared with the client." accent="amber">
+          <InternalEstimationGrid
+            hours={p.estimated_hours}
+            rate={p.cost_per_hour}
+            developers={p.developers_count}
+            cost={cost}
+          />
+        </AdminSection>
+
+        <AdminSection title="Update status" accent="sky">
+          <div className="space-y-2">
+            <select className={adminSelectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
+              {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input className={adminInputClass} placeholder="Optional note" value={note} onChange={(e) => setNote(e.target.value)} />
+            <AdminButton onClick={patchStatus}>Save status</AdminButton>
+          </div>
+        </AdminSection>
+
+        <AdminSection title="Extend delivery date" accent="violet">
+          <p className="text-sm text-muted-foreground mb-2">
+            Current: <strong className="text-foreground">{p.current_end_date}</strong>
+          </p>
+          <div className="space-y-2">
+            <input type="date" className={adminInputClass} min={p.current_end_date} value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+            <textarea className={adminTextareaClass} rows={2} placeholder="Reason for extension *" value={reason} onChange={(e) => setReason(e.target.value)} />
+            <AdminButton onClick={extend}>Save extension</AdminButton>
+          </div>
+        </AdminSection>
+
+        <AdminSection title="Tickets" description={`${detail.tickets.length} linked`}>
+          {detail.tickets.length === 0 ? (
+            <p className="text-sm text-muted-foreground">None.</p>
+          ) : (
+            <div>
+              {detail.tickets.map((t) => {
+                const ticketOverdue = !isClosedStatus(t.status) && t.current_end_date < todayISO();
+                return (
+                  <OpsLinkedItem
+                    key={t.id}
+                    href={`/admin/ops/tickets/${t.id}`}
+                    code={t.ticket_code}
+                    title={t.title}
+                    badge={<AdminBadge variant={ticketOverdue ? 'rose' : 'indigo'}>{TICKET_STATUS_LABELS[t.status] || t.status}</AdminBadge>}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </AdminSection>
+
+        <AdminSection title="Status history" description={`${detail.statusHistory.length} change(s)`}>
+          {detail.statusHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No status changes yet.</p>
+          ) : (
+            <div className="max-h-52 overflow-y-auto pr-1">
+              {detail.statusHistory.map((row) => (
+                <OpsTimelineItem
+                  key={row.id}
+                  title={`${row.previous_status ? PROJECT_STATUS_LABELS[row.previous_status as keyof typeof PROJECT_STATUS_LABELS] || row.previous_status : '—'} → ${PROJECT_STATUS_LABELS[row.new_status as keyof typeof PROJECT_STATUS_LABELS] || row.new_status}`}
+                  meta={formatOpsWhen(row.created_at)}
+                  body={row.note || undefined}
+                />
+              ))}
+            </div>
+          )}
+        </AdminSection>
+
+        <AdminSection title="Delivery extensions" description={`${detail.extensions.length} extension(s)`} accent="emerald">
+          {detail.extensions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No extensions yet.</p>
+          ) : (
+            <div className="max-h-52 overflow-y-auto pr-1">
+              {detail.extensions.map((row) => (
+                <OpsTimelineItem
+                  key={row.id}
+                  title={`${row.previous_end_date} → ${row.new_end_date}`}
+                  meta={formatOpsWhen(row.created_at)}
+                  body={row.reason}
+                />
+              ))}
+            </div>
+          )}
+        </AdminSection>
+
+        <OpsGridSpan>
+          <AdminSection title="Communication history" description={`${detail.communications.length} message(s)`} accent="indigo">
+            <CommunicationAccordion items={detail.communications} emptyMessage="No messages for this project yet." />
+          </AdminSection>
+        </OpsGridSpan>
+      </OpsGrid>
 
       <WhatsAppModal
         open={waOpen}
@@ -212,6 +315,6 @@ export default function OpsProjectDetailPage() {
         error={waError}
         warning={waWarning}
       />
-    </div>
+    </OpsPageShell>
   );
 }

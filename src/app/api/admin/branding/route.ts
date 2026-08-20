@@ -17,6 +17,7 @@ const BRANDING_KEYS: (keyof SiteBranding)[] = [
   'whatsapp',
   'whatsapp_href',
   'whatsapp_widget_message',
+  'whatsapp_widget_enabled',
   'email',
   'address',
   'footer_description',
