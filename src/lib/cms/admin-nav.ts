@@ -49,6 +49,16 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
+    id: 'recruitment',
+    label: 'Recruitment',
+    icon: 'UserPlusIcon',
+    items: [
+      { href: '/admin/recruitment', label: 'Dashboard', icon: 'ChartBarSquareIcon', exact: true },
+      { href: '/admin/recruitment/roles', label: 'Job Roles', icon: 'BriefcaseIcon' },
+      { href: '/admin/recruitment/roles/new', label: 'Create Role', icon: 'PlusCircleIcon' },
+    ],
+  },
+  {
     id: 'sales',
     label: 'Lead Discovery',
     icon: 'MapPinIcon',

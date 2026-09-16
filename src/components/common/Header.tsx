@@ -40,7 +40,7 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
         isScrolled ? 'navbar-glass-scrolled' : 'navbar-glass'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-5">
+      <div className="page-container">
         <div className="flex items-center justify-between h-14 sm:h-16">
           <Link href="/" className="flex items-center shrink-0" aria-label={branding.company_name}>
             {branding.logo_url ? (

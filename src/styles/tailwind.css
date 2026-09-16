@@ -136,7 +136,16 @@
     }
 
     .page-container {
-      @apply max-w-7xl mx-auto px-4 sm:px-5;
+      width: min(80vw, 100%);
+      margin-left: auto;
+      margin-right: auto;
+      @apply px-4 sm:px-5;
+    }
+
+    .admin-content-width {
+      width: min(80vw, 100%);
+      margin-left: auto;
+      margin-right: auto;
     }
 
   .page-hero.reveal {
