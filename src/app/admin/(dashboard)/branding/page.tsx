@@ -97,7 +97,7 @@ export default function BrandingAdminPage() {
   if (loading) return <p className="text-muted-foreground">Loading branding…</p>;
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
+    <form onSubmit={handleSave} className="w-full space-y-6">
       <AdminPageHeader
         title="Branding"
         description="Logo, favicon, company identity, contact details, and WhatsApp widget."
@@ -235,6 +235,7 @@ export default function BrandingAdminPage() {
             onChange={(e) => update('whatsapp_widget_message', e.target.value)}
             rows={2}
             className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            placeholder="Shown only to first-time visitors. Returning visitors open the existing WhatsApp chat with no pre-filled text."
           />
         </div>
       </AdminSection>

@@ -2,8 +2,9 @@ import { getOpenAiConfig, TECHANTUM_AI_SYSTEM_INSTRUCTIONS } from './config';
 import type { AIReplyStructured, ExtractedLeadData, WhatsAppContact, WhatsAppConversation, WhatsAppMessage } from './types';
 import { formatKnowledgeContext, searchKnowledge } from './knowledge';
 import type { AISettings } from './types';
-import { classifySession, type SessionKind } from './greeting';
-import { getWebsiteServiceCatalog, TECHANTUM_OUT_OF_SCOPE_REPLY } from './website-knowledge';
+import { classifySession, stripUnconfirmedFallback, type SessionKind } from './greeting';
+import { getWebsiteServiceCatalog, TECHANTUM_CONTINUE_REPLY, TECHANTUM_OUT_OF_SCOPE_REPLY } from './website-knowledge';
+import { formatQualificationSummary, humanContinueReply, normalizeQualification, formatConversationStory, stripBrokenGeneric } from './qualification';
 
 const STRUCTURED_SCHEMA = {
   type: 'object',
@@ -78,6 +79,7 @@ function buildUserPrompt(input: {
   knowledgeContext: string;
   settings: AISettings;
   sessionKind: SessionKind;
+  qualification?: unknown;
 }) {
   const history = input.recentMessages
     .slice(-12)
@@ -97,6 +99,14 @@ function buildUserPrompt(input: {
     .filter(Boolean)
     .join('\n');
 
+  const qualification = input.conversation.qualification
+    ? formatQualificationSummary({
+        name: input.contact.first_name || input.contact.profile_name,
+        phone: input.contact.phone_number,
+        qualification: normalizeQualification(input.conversation.qualification),
+      })
+    : 'Not started.';
+
   return `${getWebsiteServiceCatalog()}
 
 ADDITIONAL KNOWLEDGE ENTRIES:
@@ -104,6 +114,9 @@ ${input.knowledgeContext}
 
 CUSTOMER RECORD:
 ${customerFacts || 'No confirmed customer details yet.'}
+
+QUALIFICATION / PROSPECT ASSESSMENT:
+${qualification}
 
 SESSION: ${input.sessionKind.toUpperCase()}
 CONVERSATION SUMMARY:
@@ -115,7 +128,7 @@ ${history || 'No prior messages.'}
 NEW CUSTOMER MESSAGE:
 ${input.customerMessage}
 
-Respond with JSON matching the schema. reply_text must be WhatsApp-friendly plain text only (no markdown). Max ~${input.settings.max_response_length} characters.`;
+Respond with JSON matching the schema. Speak simple Indian English. Continue this chat — do not restart. Do not mention price, budget or cost. Thank them professionally and build trust. reply_text must be WhatsApp-friendly plain text only (no markdown). Max ~${input.settings.max_response_length} characters.`;
 }
 
 export async function generateWhatsAppReply(input: {
@@ -130,16 +143,19 @@ export async function generateWhatsAppReply(input: {
   const knowledgeContext = formatKnowledgeContext(knowledge);
   const sessionKind = classifySession(input.recentMessages);
 
+  const qualification = normalizeQualification(input.conversation.qualification);
+  const fallbackText = humanContinueReply(qualification, input.customerMessage) || TECHANTUM_CONTINUE_REPLY;
+
   if (!apiKey) {
     return {
       reply: {
-        reply_text: input.settings.fallback_message,
+        reply_text: fallbackText,
         intent: 'OTHER',
         is_techantum_related: true,
         knowledge_sufficient: false,
         lead_stage: input.conversation.lead_stage,
-        handoff_required: true,
-        handoff_reason: 'AI_NOT_CONFIGURED',
+        handoff_required: false,
+        handoff_reason: null,
         extracted_data: emptyExtracted(),
       },
       responseId: null,
@@ -162,10 +178,10 @@ export async function generateWhatsAppReply(input: {
           { role: 'system', content: `${TECHANTUM_AI_SYSTEM_INSTRUCTIONS}\nReturn JSON only.` },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.4,
-        max_tokens: 700,
+        temperature: 0.3,
+        max_tokens: 500,
       }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(12000),
     });
 
     const data = (await res.json().catch(() => ({}))) as {
@@ -188,8 +204,8 @@ export async function generateWhatsAppReply(input: {
       parsed.handoff_required = true;
       parsed.handoff_reason = parsed.handoff_reason || 'OUT_OF_SCOPE';
       parsed.lead_stage = 'HUMAN_FOLLOWUP';
-    } else if (!parsed.reply_text.trim()) {
-      parsed.reply_text = input.settings.fallback_message;
+    } else {
+      parsed.reply_text = stripBrokenGeneric(stripUnconfirmedFallback(parsed.reply_text)) || fallbackText;
     }
 
     parsed.reply_text = parsed.reply_text.trim().slice(0, input.settings.max_response_length);
@@ -198,13 +214,13 @@ export async function generateWhatsAppReply(input: {
     console.error('[whatsapp ai] generate failed', err instanceof Error ? err.message : err);
     return {
       reply: {
-        reply_text: input.settings.fallback_message,
+        reply_text: fallbackText,
         intent: 'OTHER',
         is_techantum_related: true,
-        knowledge_sufficient: false,
+        knowledge_sufficient: Boolean(knowledge.length),
         lead_stage: input.conversation.lead_stage,
-        handoff_required: true,
-        handoff_reason: 'AI_PARSE_ERROR',
+        handoff_required: false,
+        handoff_reason: null,
         extracted_data: emptyExtracted(),
       },
       responseId: null,
@@ -217,29 +233,19 @@ export function buildLocalSummary(input: {
   messages: WhatsAppMessage[];
   reply?: AIReplyStructured;
   sessionKind?: SessionKind;
+  qualification?: unknown;
 }): string {
-  const name = input.contact.first_name || input.contact.profile_name || 'Unknown';
-  const lastCustomer = [...input.messages].reverse().find((m) => m.sender_type === 'CUSTOMER')?.text_content;
-  const lines = [
-    `Contact: ${name} (${input.contact.phone_number})`,
-    input.sessionKind ? `Session: ${input.sessionKind}` : null,
-    lastCustomer ? `Latest customer message: ${lastCustomer.slice(0, 240)}` : null,
-    input.reply?.intent ? `Intent: ${input.reply.intent}` : null,
-    input.reply?.extracted_data.service ? `Service: ${input.reply.extracted_data.service}` : null,
-    input.reply?.extracted_data.requirement ? `Requirement: ${input.reply.extracted_data.requirement}` : null,
-    `Stage: ${input.reply?.lead_stage || 'NEW'}`,
-    input.reply?.handoff_required ? `Handoff: ${input.reply.handoff_reason || 'required'}` : null,
-  ].filter(Boolean);
-  return lines.join('\n');
+  return formatConversationStory(normalizeQualification(input.qualification), input.messages);
 }
 
 export async function summarizeConversation(
   messages: WhatsAppMessage[],
   contact: WhatsAppContact,
   reply?: AIReplyStructured,
-  sessionKind?: SessionKind
+  sessionKind?: SessionKind,
+  qualification?: unknown
 ): Promise<string> {
-  const fallback = buildLocalSummary({ contact, messages, reply, sessionKind });
+  const fallback = formatConversationStory(normalizeQualification(qualification), messages);
   const { apiKey, model } = getOpenAiConfig();
   if (!apiKey || messages.length < 1) return fallback;
 
@@ -261,15 +267,15 @@ export async function summarizeConversation(
           {
             role: 'system',
             content:
-              'Summarize this Techantum WhatsApp sales conversation for internal CRM use in 4-8 short lines. Include customer name/company if known, whether this is a new or returning chat, requirement, service interest, timeline, location, and next step. Be factual; mark uncertain details as unconfirmed.',
+              'You write a short internal recap of a Techantum WhatsApp chat for a business-development person. 4 to 8 short lines. Cover what the customer asked, what they chose, the requirement in their words, and the next step. Do not repeat Prospect/Contact/Session/Intent/Stage labels. Do not invent budget, price or timeline. Be factual.',
           },
           {
             role: 'user',
-            content: `Customer phone: ${contact.phone_number}\nSession: ${sessionKind || 'unknown'}\n\n${transcript}`,
+            content: `Customer: ${contact.first_name || contact.profile_name || ''} ${contact.phone_number}\n\n${transcript}`,
           },
         ],
         temperature: 0.2,
-        max_tokens: 400,
+        max_tokens: 280,
       }),
       signal: AbortSignal.timeout(15000),
     });

@@ -143,6 +143,56 @@ export default function WhatsAppSettingsPage() {
         </div>
         <AdminButton variant="primary" className="mt-3" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</AdminButton>
       </AdminSection>
+
+      <AdminSection title="Auto follow-up">
+        <p className="mb-3 text-sm text-muted-foreground">
+          If a customer goes quiet, WhatsApp sends a greeting and one relevant question from the previous chat.
+          Messages go out only between 9:00 am and 8:00 pm India time. WhatsApp also limits free replies to 24 hours
+          after the customer last messaged, so 12 hours is the reliable first nudge.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={settings.followup_enabled !== false}
+              onChange={(e) => setSettings({ ...settings, followup_enabled: e.target.checked })}
+            />
+            Send follow-up messages automatically
+          </label>
+          <AdminField label="First follow-up after">
+            <select
+              className={adminSelectClass}
+              value={settings.followup_first_hours === 24 ? 24 : 12}
+              onChange={(e) => setSettings({ ...settings, followup_first_hours: Number(e.target.value) })}
+            >
+              <option value={12}>12 hours</option>
+              <option value={24}>24 hours</option>
+            </select>
+          </AdminField>
+          <AdminField label="Second follow-up after">
+            <select
+              className={adminSelectClass}
+              value={settings.followup_second_hours || 20}
+              onChange={(e) => setSettings({ ...settings, followup_second_hours: Number(e.target.value) })}
+            >
+              <option value={20}>20 hours (recommended)</option>
+              <option value={24}>24 hours</option>
+              <option value={0}>No second follow-up</option>
+            </select>
+          </AdminField>
+          <AdminField label="Maximum follow-ups per chat">
+            <select
+              className={adminSelectClass}
+              value={settings.followup_max || 2}
+              onChange={(e) => setSettings({ ...settings, followup_max: Number(e.target.value) })}
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+            </select>
+          </AdminField>
+        </div>
+        <AdminButton variant="primary" className="mt-3" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</AdminButton>
+      </AdminSection>
     </OpsPageShell>
   );
 }

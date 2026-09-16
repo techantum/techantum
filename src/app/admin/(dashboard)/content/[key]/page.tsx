@@ -21,7 +21,7 @@ export default function ContentEditPage() {
   if (!key) return null;
 
   return (
-    <div className="space-y-4 max-w-lg">
+    <div className="w-full space-y-4">
       <p className="text-muted-foreground text-sm">
         Editing <span className="font-mono text-foreground">{key}</span>.{' '}
         <Link href="/admin/content" className="text-primary hover:underline">

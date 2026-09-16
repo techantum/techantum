@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { buildWhatsAppMeUrl, markWebsiteWhatsAppOpened, websiteVisitorHasChatted } from '@/lib/whatsapp/website-chat';
 
 interface WhatsAppWidgetProps {
   phoneNumber?: string;
@@ -15,11 +17,14 @@ const WhatsAppWidget: React.FC<WhatsAppWidgetProps> = ({
   label = 'Chat on WhatsApp',
 }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const pathname = usePathname();
+
+  if (pathname?.startsWith('/admin')) return null;
 
   const handleWhatsAppClick = () => {
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    const url = buildWhatsAppMeUrl(phoneNumber, websiteVisitorHasChatted() ? '' : message);
+    markWebsiteWhatsAppOpened();
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   if (!isVisible) return null;

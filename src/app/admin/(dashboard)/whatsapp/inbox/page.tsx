@@ -13,11 +13,18 @@ import type {
   WhatsAppConversation,
   WhatsAppMessage,
 } from '@/lib/whatsapp/types';
+import {
+  formatConversationStory,
+  inboxHeadline,
+  normalizeQualification,
+  qualificationFacts,
+} from '@/lib/whatsapp/qualification';
 
 type Detail = {
   conversation: WhatsAppConversation;
   messages: WhatsAppMessage[];
   lead: Record<string, unknown> | null;
+  appointment?: { id: string; code: string; status: string; requested_slot_text?: string | null; scheduled_at?: string | null } | null;
 };
 
 const LEAD_STAGES: { value: LeadStage; label: string }[] = [
@@ -39,7 +46,7 @@ const CONVERSATION_STATUSES: { value: ConversationStatus; label: string }[] = [
 
 function contactLabel(contact?: WhatsAppContact | null) {
   if (!contact) return 'Unknown';
-  return contact.first_name || contact.profile_name || contact.phone_number;
+  return (contact.first_name || contact.profile_name || contact.phone_number || 'Unknown').replace(/^~/, '').trim();
 }
 
 function initials(contact?: WhatsAppContact | null) {
@@ -59,13 +66,55 @@ function formatChatTime(iso?: string | null) {
 }
 
 function previewText(row: WhatsAppConversation) {
-  const summary = (row.conversation_summary || '').split('\n').find((line) => line.trim());
-  if (summary) return summary.replace(/^Contact:\s*/i, '');
+  const q = normalizeQualification(row.qualification);
+  const headline = inboxHeadline(q);
+  if (headline) return headline;
+  if (q.service) return q.service.replace(/_/g, ' ').toLowerCase();
+  if (q.prospect === 'PROSPECT') return 'Qualified prospect';
+  if (q.prospect === 'NOT_PROSPECT') return 'Not a current prospect';
+  if (q.prospect === 'NURTURE') return 'Nurture — follow up';
   return row.lead_stage.replace(/_/g, ' ').toLowerCase();
+}
+
+function prospectMeta(row?: WhatsAppConversation | null) {
+  const q = normalizeQualification(row?.qualification);
+  if (!q.prospect || q.prospect === 'UNKNOWN') return null;
+  if (q.prospect === 'PROSPECT') return { label: 'Prospect: Yes', variant: 'green' as const, why: q.prospect_reason };
+  if (q.prospect === 'NOT_PROSPECT') return { label: 'Prospect: No', variant: 'rose' as const, why: q.prospect_reason };
+  return { label: 'Prospect: Nurture', variant: 'amber' as const, why: q.prospect_reason };
 }
 
 function isOutgoing(sender: string) {
   return sender === 'AI' || sender === 'STAFF';
+}
+
+function storySteps(story: string, brief?: string) {
+  return story
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^requirement in their words:/i.test(line))
+    .map((line) => {
+      if (/hello! i would like to inquire about techantum/i.test(line)) return 'Opened the chat from the website.';
+      return line.replace(/^opened with:\s*/i, 'Opened with: ');
+    })
+    .filter((line, index, all) => all.indexOf(line) === index)
+    .filter((line) => !brief || !line.toLowerCase().includes(brief.trim().toLowerCase()));
+}
+
+function FactChip({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'green' | 'amber' | 'rose' }) {
+  const tones = {
+    slate: 'bg-[#f6f7f8] text-[#111b21]',
+    green: 'bg-emerald-50 text-emerald-800',
+    amber: 'bg-amber-50 text-amber-900',
+    rose: 'bg-rose-50 text-rose-800',
+  };
+  return (
+    <div className={`rounded-lg px-3 py-2 ${tones[tone]}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[#667781]">{label}</p>
+      <p className="mt-0.5 text-sm font-medium leading-5">{value}</p>
+    </div>
+  );
 }
 
 export default function WhatsAppInboxPage() {
@@ -80,20 +129,24 @@ export default function WhatsAppInboxPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
+  const nearBottomRef = useRef(true);
 
-  const loadList = useCallback(() => {
-    fetch(`/api/admin/whatsapp/conversations?search=${encodeURIComponent(search)}`)
+  const loadList = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
+    fetch(`/api/admin/whatsapp/conversations?search=${encodeURIComponent(search)}`, { cache: 'no-store' })
       .then(async (r) => {
         const body = await r.json();
         if (!r.ok) throw new Error(body.error || 'Failed to load');
         setRows(body);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .catch((err) => {
+        if (!silent) setError(err instanceof Error ? err.message : 'Failed to load');
+      })
       .finally(() => setLoading(false));
   }, [search]);
 
   const loadDetail = useCallback(async (id: string) => {
-    const res = await fetch(`/api/admin/whatsapp/conversations/${id}`);
+    const res = await fetch(`/api/admin/whatsapp/conversations/${id}`, { cache: 'no-store' });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || 'Failed to load conversation');
     setDetail(body);
@@ -110,12 +163,27 @@ export default function WhatsAppInboxPage() {
     }
     setShowInfo(false);
     setDraft('');
+    nearBottomRef.current = true;
     loadDetail(selectedId).catch((err) => setError(err instanceof Error ? err.message : 'Failed to load conversation'));
   }, [selectedId, loadDetail]);
 
   useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      loadList(true);
+      if (selectedId) loadDetail(selectedId).catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 3500);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [loadList, loadDetail, selectedId]);
+
+  useEffect(() => {
     const el = threadRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && nearBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [detail?.messages.length, selectedId]);
 
   const selected = useMemo(
@@ -123,11 +191,13 @@ export default function WhatsAppInboxPage() {
     [rows, selectedId, detail]
   );
   const contact = (detail?.conversation.whatsapp_contacts || selected?.whatsapp_contacts) as WhatsAppContact | undefined;
-  const summary =
-    detail?.conversation.conversation_summary ||
-    selected?.conversation_summary ||
-    (detail?.lead?.ai_summary as string | undefined) ||
-    '';
+  const qualification = normalizeQualification(detail?.conversation.qualification || selected?.qualification);
+  const facts = qualificationFacts(qualification);
+  const story = formatConversationStory(qualification, detail?.messages || []);
+  const brief = facts.find((row) => row.label === 'What they want')?.value;
+  const snapshot = facts.filter((row) => ['Service', 'Requirement', 'Call'].includes(row.label));
+  const steps = storySteps(story, brief);
+  const prospect = prospectMeta(selected);
 
   const action = async (path: string, success: string) => {
     if (!selectedId) return;
@@ -168,6 +238,7 @@ export default function WhatsAppInboxPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Send failed');
       setDraft('');
+      nearBottomRef.current = true;
       await loadDetail(selectedId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Send failed');
@@ -177,8 +248,16 @@ export default function WhatsAppInboxPage() {
   };
 
   return (
-    <div className="space-y-3">
-      <AdminPageHeader title="WhatsApp Inbox" description="Chats with customers. Select a conversation to reply." />
+    <div className="w-full space-y-3">
+      <AdminPageHeader
+        title="WhatsApp Inbox"
+        description="Chats with customers. Select a conversation to reply."
+        action={
+          <a href="/admin/whatsapp/chats">
+            <AdminButton>Chats list</AdminButton>
+          </a>
+        }
+      />
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
@@ -190,7 +269,13 @@ export default function WhatsAppInboxPage() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[#111b21]">Techantum chats</p>
-              <p className="text-[11px] text-[#667781]">{rows.length} conversation{rows.length === 1 ? '' : 's'}</p>
+              <p className="flex items-center gap-1.5 text-[11px] text-[#667781]">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00a884] opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00a884]" />
+                </span>
+                Live · {rows.length} conversation{rows.length === 1 ? '' : 's'}
+              </p>
             </div>
           </div>
           <div className="bg-[#f0f2f5] px-3 pb-3">
@@ -229,7 +314,22 @@ export default function WhatsAppInboxPage() {
                       <p className="truncate text-[15px] font-medium text-[#111b21]">{contactLabel(c)}</p>
                       <span className="shrink-0 text-[11px] text-[#667781]">{formatChatTime(row.last_inbound_at)}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-[13px] text-[#667781]">{previewText(row)}</p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      {prospectMeta(row) && (
+                        <span
+                          className={`shrink-0 rounded px-1 py-px text-[10px] font-semibold ${
+                            prospectMeta(row)?.variant === 'green'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : prospectMeta(row)?.variant === 'rose'
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-amber-50 text-amber-800'
+                          }`}
+                        >
+                          {prospectMeta(row)?.label.replace('Prospect: ', '')}
+                        </span>
+                      )}
+                      <p className="truncate text-[13px] text-[#667781]">{previewText(row)}</p>
+                    </div>
                   </div>
                 </button>
               );
@@ -258,78 +358,162 @@ export default function WhatsAppInboxPage() {
                 <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setShowInfo((v) => !v)}>
                   <p className="truncate text-[15px] font-medium text-[#111b21]">{contactLabel(contact)}</p>
                   <p className="truncate text-[12px] text-[#667781]">
-                    {contact?.phone_number}
+                    Live · {contact?.phone_number}
                     {contact?.company_name ? ` · ${contact.company_name}` : ''}
-                    {selected.mode ? ` · ${selected.mode}` : ''}
                   </p>
                 </button>
-                <div className="hidden items-center gap-1 sm:flex">
-                  <AdminButton size="sm" onClick={() => action('takeover', 'Human takeover enabled.')}>
-                    Take over
-                  </AdminButton>
-                  <AdminButton size="sm" onClick={() => action('enable-ai', 'AI enabled.')}>
-                    Enable AI
-                  </AdminButton>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`hidden rounded-full px-2 py-0.5 text-[11px] font-semibold sm:inline ${
+                      selected.mode === 'AI'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : selected.mode === 'HYBRID'
+                          ? 'bg-amber-50 text-amber-800'
+                          : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {selected.mode}
+                  </span>
                   <AdminButton size="sm" onClick={() => setShowInfo((v) => !v)}>
                     {showInfo ? 'Hide details' : 'Details'}
                   </AdminButton>
                 </div>
               </header>
 
+              {prospect && !showInfo && (
+                <div className="flex flex-wrap items-center gap-2 border-b border-[#e9edef] bg-white px-4 py-2">
+                  <AdminBadge variant={prospect.variant}>{prospect.label}</AdminBadge>
+                  {snapshot.map((row) => (
+                    <span key={row.label} className="rounded-full bg-[#f0f2f5] px-2 py-0.5 text-[11px] font-medium text-[#54656f]">
+                      {row.value.replace(' — team should call', '')}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {showInfo && (
-                <div className="grid gap-3 border-b border-[#e9edef] bg-white p-4 md:grid-cols-2">
-                  <div>
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#667781]">Summary</p>
-                    <p className="whitespace-pre-wrap text-sm text-[#111b21]">
-                      {summary || 'Summary will appear after the assistant replies.'}
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="text-sm">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#667781]">Lead status</span>
-                      <select
-                        className={`${adminSelectClass} mt-1`}
-                        value={detail?.conversation.lead_stage || selected.lead_stage}
-                        onChange={(e) => updateStatus({ lead_stage: e.target.value })}
-                      >
-                        {LEAD_STAGES.map((stage) => (
-                          <option key={stage.value} value={stage.value}>
-                            {stage.label}
-                          </option>
+                <div className="max-h-[46%] overflow-y-auto border-b border-[#e9edef] bg-[#f0f2f5] px-3 py-3 md:px-4">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.9fr)]">
+                    <div className="rounded-2xl border border-[#e9edef] bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-[#111b21]">Lead snapshot</h3>
+                        {prospect && <AdminBadge variant={prospect.variant}>{prospect.label}</AdminBadge>}
+                      </div>
+                      {brief ? (
+                        <p className="rounded-xl bg-[#f6f7f8] px-3 py-2.5 text-sm leading-6 text-[#111b21]">{brief}</p>
+                      ) : (
+                        <p className="text-sm text-[#667781]">Waiting for them to share what they need.</p>
+                      )}
+                      {snapshot.length > 0 && (
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {snapshot.map((row) => (
+                            <FactChip
+                              key={row.label}
+                              label={row.label}
+                              value={row.value.replace(' — team should call', '')}
+                              tone={row.label === 'Call' && /requested/i.test(row.value) ? 'green' : 'slate'}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {steps.length > 0 && (
+                        <ol className="mt-4 space-y-2 border-t border-[#f0f2f5] pt-3">
+                          {steps.map((step, index) => (
+                            <li key={step} className="flex gap-3 text-sm leading-5 text-[#111b21]">
+                              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#e9edef] text-[10px] font-semibold text-[#54656f]">
+                                {index + 1}
+                              </span>
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#e9edef] bg-white p-4 shadow-sm">
+                      <h3 className="mb-3 text-sm font-semibold text-[#111b21]">Manage</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#667781]">Lead</span>
+                          <select
+                            className={`${adminSelectClass} py-2 text-sm`}
+                            value={detail?.conversation.lead_stage || selected.lead_stage}
+                            onChange={(e) => updateStatus({ lead_stage: e.target.value })}
+                          >
+                            {LEAD_STAGES.map((stage) => (
+                              <option key={stage.value} value={stage.value}>
+                                {stage.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#667781]">Chat</span>
+                          <select
+                            className={`${adminSelectClass} py-2 text-sm`}
+                            value={detail?.conversation.status || selected.status}
+                            onChange={(e) => updateStatus({ status: e.target.value })}
+                          >
+                            {CONVERSATION_STATUSES.map((status) => (
+                              <option key={status.value} value={status.value}>
+                                {status.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+
+                      <p className="mb-1.5 mt-4 text-[10px] font-semibold uppercase tracking-wide text-[#667781]">Mode</p>
+                      <div className="flex rounded-xl bg-[#f0f2f5] p-1">
+                        {(
+                          [
+                            { id: 'AI', label: 'AI', run: () => action('enable-ai', 'AI enabled.') },
+                            { id: 'HYBRID', label: 'Hybrid', run: () => action('hybrid', 'Hybrid mode enabled.') },
+                            { id: 'HUMAN', label: 'Take over', run: () => action('takeover', 'Human takeover enabled.') },
+                          ] as const
+                        ).map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={item.run}
+                            className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                              selected.mode === item.id
+                                ? 'bg-white text-[#111b21] shadow-sm'
+                                : 'text-[#667781] hover:text-[#111b21]'
+                            }`}
+                          >
+                            {item.label}
+                          </button>
                         ))}
-                      </select>
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#667781]">Chat status</span>
-                      <select
-                        className={`${adminSelectClass} mt-1`}
-                        value={detail?.conversation.status || selected.status}
-                        onChange={(e) => updateStatus({ status: e.target.value })}
-                      >
-                        {CONVERSATION_STATUSES.map((status) => (
-                          <option key={status.value} value={status.value}>
-                            {status.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="sm:col-span-2 flex flex-wrap gap-1.5">
-                      <AdminBadge variant={selected.mode === 'AI' ? 'green' : selected.mode === 'HYBRID' ? 'amber' : 'rose'}>
-                        {selected.mode}
-                      </AdminBadge>
-                      {selected.handoff_required && <AdminBadge variant="rose">Handoff</AdminBadge>}
-                      <AdminButton size="sm" onClick={() => action('hybrid', 'Hybrid mode enabled.')}>
-                        Hybrid
-                      </AdminButton>
-                      <AdminButton size="sm" onClick={() => action('close', 'Conversation closed.')}>
-                        Close
-                      </AdminButton>
+                      </div>
+                      {selected.handoff_required && (
+                        <p className="mt-2 text-xs font-medium text-rose-700">Handoff needed — a person should reply.</p>
+                      )}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {detail?.appointment?.id && (
+                          <a href={`/admin/whatsapp/appointments/${detail.appointment.id}`}>
+                            <AdminButton size="sm">
+                              Appointment {detail.appointment.code}
+                            </AdminButton>
+                          </a>
+                        )}
+                        <AdminButton size="sm" variant="danger" onClick={() => action('close', 'Conversation closed.')}>
+                          Close chat
+                        </AdminButton>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div ref={threadRef} className="flex-1 space-y-1 overflow-y-auto px-4 py-3 md:px-10">
+              <div
+                ref={threadRef}
+                className="flex-1 space-y-1 overflow-y-auto px-4 py-3 md:px-10"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                }}
+              >
                 {(detail?.messages || []).map((m) => {
                   const outgoing = isOutgoing(m.sender_type);
                   return (
@@ -340,7 +524,9 @@ export default function WhatsAppInboxPage() {
                         }`}
                       >
                         {m.sender_type !== 'CUSTOMER' && (
-                          <p className="text-[10px] font-semibold text-[#00a884]">{m.sender_type === 'AI' ? 'Assistant' : 'Staff'}</p>
+                          <p className="text-[10px] font-semibold text-[#00a884]">
+                            {m.message_type === 'followup' ? 'Follow-up' : m.sender_type === 'AI' ? 'Assistant' : 'Staff'}
+                          </p>
                         )}
                         <p className="whitespace-pre-wrap text-[14.2px] leading-5 text-[#111b21]">{m.text_content}</p>
                         <p className="mt-0.5 text-right text-[10px] text-[#667781]">{formatChatTime(m.created_at)}</p>

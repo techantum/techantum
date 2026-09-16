@@ -43,7 +43,7 @@ export default function ContentBriefPage() {
   if (loading) return <p className="text-muted-foreground">Loading content brief…</p>;
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="w-full space-y-8">
       <AdminPageHeader
         title="Content Brief"
         description="UI/UX design questionnaire — track what information has been provided for the Techantum Solutions website."

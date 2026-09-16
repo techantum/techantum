@@ -106,7 +106,7 @@ export default function PartnersAdminPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Partners"
         description="Create sales and marketing partners. They receive an email invite to set their password and onboard to the Partner Portal."

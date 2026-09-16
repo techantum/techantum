@@ -46,6 +46,7 @@ export const LEAD_SEGMENTS = [
   'Diagnostic Centers',
 ] as const;
 
-export function buildTextQuery(segment: string, area: string, city: string) {
-  return `${segment} in ${area}, ${city}`;
+export function buildTextQuery(segment: string, city: string, state?: string, country?: string, area?: string) {
+  const location = [area, city, state, country].filter(Boolean).join(', ');
+  return `${segment} in ${location}`;
 }

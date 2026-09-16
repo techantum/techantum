@@ -74,7 +74,7 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Projects"
         description="Create client requirement projects. Draft links stay hidden until you set status to Active."

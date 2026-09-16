@@ -1,5 +1,39 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { LeadStage, WhatsAppConversation, WhatsAppMessage, ConversationStatus } from './types';
+import { findConversationAppointment } from './appointments';
+import type {
+  LeadStage,
+  WhatsAppConversation,
+  WhatsAppConversationNote,
+  WhatsAppMessage,
+  ConversationStatus,
+} from './types';
+
+async function attachAppointments(rows: WhatsAppConversation[]) {
+  if (rows.length === 0) return rows;
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_appointments')
+    .select('id, code, status, conversation_id, created_at')
+    .in(
+      'conversation_id',
+      rows.map((row) => row.id)
+    )
+    .neq('status', 'CANCELLED')
+    .order('created_at', { ascending: false });
+
+  const latest = new Map<string, { id: string; code: string; status: string }>();
+  for (const appointment of data || []) {
+    const conversationId = String(appointment.conversation_id || '');
+    if (!conversationId || latest.has(conversationId)) continue;
+    latest.set(conversationId, {
+      id: String(appointment.id),
+      code: String(appointment.code),
+      status: String(appointment.status),
+    });
+  }
+
+  return rows.map((row) => ({ ...row, appointment: latest.get(row.id) || null }));
+}
 
 export async function listConversations(search = '') {
   const supabase = createAdminClient();
@@ -7,7 +41,7 @@ export async function listConversations(search = '') {
     .from('whatsapp_conversations')
     .select('*, whatsapp_contacts(*)')
     .order('last_inbound_at', { ascending: false, nullsFirst: false })
-    .limit(100);
+    .limit(200);
 
   if (error) throw new Error(error.message);
   let rows = (data || []) as WhatsAppConversation[];
@@ -21,7 +55,7 @@ export async function listConversations(search = '') {
         .some((v) => String(v).toLowerCase().includes(q));
     });
   }
-  return rows;
+  return attachAppointments(rows);
 }
 
 export async function getConversationDetail(id: string) {
@@ -50,7 +84,44 @@ export async function getConversationDetail(id: string) {
     conversation: conversation as WhatsAppConversation,
     messages: (messages || []) as WhatsAppMessage[],
     lead,
+    appointment: conversation.id ? await findConversationAppointment(conversation.id) : null,
+    notes: conversation.id ? await listConversationNotes(conversation.id) : [],
   };
+}
+
+export async function listConversationNotes(conversationId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('whatsapp_conversation_notes')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as WhatsAppConversationNote[];
+}
+
+export async function addConversationNote(conversationId: string, body: string, userId?: string) {
+  const text = body.trim();
+  if (!text) throw new Error('Write a note before saving.');
+  const supabase = createAdminClient();
+  const { data: conversation, error: convError } = await supabase
+    .from('whatsapp_conversations')
+    .select('id')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (convError || !conversation) throw new Error(convError?.message || 'Conversation not found');
+
+  const { data, error } = await supabase
+    .from('whatsapp_conversation_notes')
+    .insert({
+      conversation_id: conversationId,
+      body: text,
+      created_by: userId || null,
+    })
+    .select('*')
+    .single();
+  if (error || !data) throw new Error(error?.message || 'Failed to save note');
+  return data as WhatsAppConversationNote;
 }
 
 const LEAD_STAGES: LeadStage[] = [

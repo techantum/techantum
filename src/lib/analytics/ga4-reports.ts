@@ -1,4 +1,9 @@
-import { getAnalyticsDateRange, getGa4Config, type AnalyticsRange } from './ga4-config';
+import {
+  getAnalyticsDateRange,
+  getGa4Config,
+  type AnalyticsCustomDates,
+  type AnalyticsRange,
+} from './ga4-config';
 import { runGa4Report } from './ga4-client';
 
 export interface AnalyticsSummary {
@@ -46,13 +51,16 @@ function num(value?: string | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export async function fetchWebsiteAnalytics(range: AnalyticsRange): Promise<WebsiteAnalyticsReport> {
+export async function fetchWebsiteAnalytics(
+  range: AnalyticsRange,
+  custom?: AnalyticsCustomDates
+): Promise<WebsiteAnalyticsReport> {
   const config = getGa4Config();
   if (!config) {
     throw new Error('GA4 is not configured.');
   }
 
-  const rangeMeta = getAnalyticsDateRange(range);
+  const rangeMeta = getAnalyticsDateRange(range, custom);
   const dateRanges = [{ startDate: rangeMeta.apiStartDate, endDate: rangeMeta.apiEndDate }];
 
   const [summaryRes, dailyRes, pagesRes, locationsRes] = await Promise.all([

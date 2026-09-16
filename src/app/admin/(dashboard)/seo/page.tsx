@@ -65,7 +65,7 @@ export default function SeoAdminPage() {
   const ga4LooksInvalid = Boolean(form.ga4_id?.trim()) && !ga4Active;
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
+    <form onSubmit={handleSave} className="w-full space-y-6">
       <AdminPageHeader
         title="SEO & Marketing"
         description="Google SEO tags, Search Console, tracking pixels, and social media marketing profiles."

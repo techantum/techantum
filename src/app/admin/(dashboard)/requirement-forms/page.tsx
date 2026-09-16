@@ -54,7 +54,7 @@ export default function RequirementFormsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader title="Requirement Forms" description="Manage reusable form templates for future clients and project types." />
       {message && <p className="text-sm bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg">{message}</p>}
       <AdminSection title="Create Template" description="Sections and questions are stored dynamically in the database. The seeded CMS template includes the full 12-section questionnaire.">

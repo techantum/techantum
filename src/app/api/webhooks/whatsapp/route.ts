@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { applyWhatsAppStatusUpdate } from '@/lib/ops/whatsapp';
-import { applyWhatsAppMessageStatusUpdate, verifyWebhookSignature } from '@/lib/whatsapp/meta';
+import { applyWhatsAppMessageStatusUpdate, markWhatsAppReadAndTyping, sendWhatsAppSessionText, verifyWebhookSignature } from '@/lib/whatsapp/meta';
 import { parseInboundMessages, parseStatusUpdates, processInboundWhatsAppMessage } from '@/lib/whatsapp/processor';
 import { getWhatsAppAiConfig } from '@/lib/whatsapp/config';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -43,36 +44,51 @@ export async function POST(request: Request) {
 
   const inboundMessages = parseInboundMessages(payload);
   console.info('[whatsapp webhook] inbound count=', inboundMessages.length);
+
   for (const message of inboundMessages) {
-    try {
-      if (!message.text && message.type === 'text') continue;
-      if (message.type !== 'text' && !message.text) {
-        message.text =
-          "I received your attachment. Our team may need to review it. Could you briefly tell me what you'd like help with?";
-      }
-      await processInboundWhatsAppMessage(message);
-    } catch (err) {
-      console.error('[whatsapp webhook] inbound processing failed', err);
-    }
+    void markWhatsAppReadAndTyping(message.whatsapp_message_id);
   }
 
   const statuses = parseStatusUpdates(payload) as StatusRow[];
-  for (const row of statuses) {
-    if (!row.id || !row.status) continue;
-    const firstError = row.errors?.[0];
-    const errorMessage =
-      [firstError?.title, firstError?.message, firstError?.error_data?.details].filter(Boolean).join(' — ') || null;
-    await applyWhatsAppStatusUpdate({
-      provider_message_id: row.id,
-      status: row.status,
-      error_message: errorMessage,
-    }).catch(() => undefined);
-    await applyWhatsAppMessageStatusUpdate({
-      provider_message_id: row.id,
-      status: row.status,
-      error_message: errorMessage,
-    }).catch(() => undefined);
-  }
+
+  after(async () => {
+    for (const message of inboundMessages) {
+      try {
+        if (!message.text && message.type === 'text') continue;
+        if (message.type !== 'text' && !message.text) {
+          message.text =
+            "I received your attachment. Could you briefly tell me what you'd like help with?";
+        }
+        await processInboundWhatsAppMessage(message);
+      } catch (err) {
+        console.error('[whatsapp webhook] inbound processing failed', err);
+        const phone = message.from;
+        if (phone) {
+          await sendWhatsAppSessionText(
+            phone,
+            'I am here and I received your message. Please share that again, or tell me a convenient date and time.'
+          ).catch(() => undefined);
+        }
+      }
+    }
+
+    for (const row of statuses) {
+      if (!row.id || !row.status) continue;
+      const firstError = row.errors?.[0];
+      const errorMessage =
+        [firstError?.title, firstError?.message, firstError?.error_data?.details].filter(Boolean).join(' — ') || null;
+      await applyWhatsAppStatusUpdate({
+        provider_message_id: row.id,
+        status: row.status,
+        error_message: errorMessage,
+      }).catch(() => undefined);
+      await applyWhatsAppMessageStatusUpdate({
+        provider_message_id: row.id,
+        status: row.status,
+        error_message: errorMessage,
+      }).catch(() => undefined);
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

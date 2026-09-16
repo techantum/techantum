@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import { defaultBranding } from '@/lib/cms/default-content';
 import type { SiteBranding } from '@/lib/cms/types';
+import WhatsAppChatLink from '@/components/common/WhatsAppChatLink';
 import { getDivisionPath, serviceDivisions } from '@/lib/service-packages-data';
 
 export default function Footer({ branding = defaultBranding }: { branding?: SiteBranding }) {
@@ -57,15 +58,14 @@ export default function Footer({ branding = defaultBranding }: { branding?: Site
                 <a href={`tel:${branding.phone_href}`} className="hover:text-primary transition-colors">
                   {branding.phone}
                 </a>
-                <a
-                  href={`https://wa.me/${branding.whatsapp_href}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <WhatsAppChatLink
+                  phone={branding.whatsapp_href}
+                  firstMessage={branding.whatsapp_widget_message}
                   className="hover:text-primary transition-colors ml-1"
                   title={`WhatsApp ${branding.whatsapp}`}
                 >
                   <Icon name="ChatBubbleLeftRightIcon" size={16} className="shrink-0" />
-                </a>
+                </WhatsAppChatLink>
               </p>
               <p className="flex items-center gap-2">
                 <Icon name="EnvelopeIcon" size={16} className="shrink-0" />

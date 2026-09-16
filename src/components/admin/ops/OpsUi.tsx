@@ -73,7 +73,7 @@ export function OpsCompactTable({ children, empty }: { children: ReactNode; empt
 
 export function OpsTh({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <th className={`py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b border-border ${className}`}>
+    <th className={`py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-gradient-to-r from-slate-50 to-indigo-50 border-b border-indigo-50 ${className}`}>
       {children}
     </th>
   );
@@ -120,7 +120,7 @@ export function OpsBackLink({ href, label }: { href: string; label: string }) {
 }
 
 export function OpsPageShell({ children }: { children: ReactNode }) {
-  return <div className="space-y-4 max-w-6xl">{children}</div>;
+  return <div className="w-full space-y-5">{children}</div>;
 }
 
 export function OpsGrid({ children, className = '' }: { children: ReactNode; className?: string }) {

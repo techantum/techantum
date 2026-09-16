@@ -73,7 +73,7 @@ export default function RedirectsAdminPage() {
   const activeCount = redirects.filter((r) => r.enabled).length;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Redirects"
         description={`Manage URL redirects for moved or broken pages. ${activeCount} active.`}

@@ -84,7 +84,7 @@ export default function PageSeoAdminPage() {
   const allPaths = [...new Set([...DEFAULT_PATHS, ...rows.map((r) => r.path)])].sort();
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Page Indexing"
         description="Control search indexing, custom meta, OG images, and page-specific scripts per URL."

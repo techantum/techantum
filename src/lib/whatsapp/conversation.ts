@@ -56,6 +56,27 @@ export async function findOrCreateContact(input: {
   return created as WhatsAppContact;
 }
 
+export async function contactHasEarlierChat(contactId: string, conversationId: string) {
+  const supabase = createAdminClient();
+  const { data: other } = await supabase
+    .from('whatsapp_conversations')
+    .select('id')
+    .eq('contact_id', contactId)
+    .neq('id', conversationId)
+    .limit(1)
+    .maybeSingle();
+  if (other) return true;
+
+  const { data: outbound } = await supabase
+    .from('whatsapp_messages')
+    .select('id')
+    .eq('contact_id', contactId)
+    .in('sender_type', ['AI', 'STAFF'])
+    .limit(1)
+    .maybeSingle();
+  return Boolean(outbound);
+}
+
 export async function findOrCreateOpenConversation(contactId: string, defaultMode: 'AI' | 'HYBRID' | 'HUMAN' = 'AI') {
   const supabase = createAdminClient();
   const { data: open } = await supabase
@@ -118,7 +139,7 @@ export async function saveInboundMessage(input: {
 
   await supabase
     .from('whatsapp_conversations')
-    .update({ last_inbound_at: new Date().toISOString() })
+    .update({ last_inbound_at: new Date().toISOString(), followup_count: 0 })
     .eq('id', input.conversationId);
 
   return data as WhatsAppMessage;
@@ -131,6 +152,7 @@ export async function saveOutboundMessage(input: {
   senderType: 'AI' | 'STAFF' | 'SYSTEM';
   providerMessageId?: string | null;
   aiGenerated?: boolean;
+  messageType?: string;
 }): Promise<WhatsAppMessage> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -141,7 +163,7 @@ export async function saveOutboundMessage(input: {
       whatsapp_message_id: input.providerMessageId || null,
       direction: 'OUTBOUND',
       sender_type: input.senderType,
-      message_type: 'text',
+      message_type: input.messageType || 'text',
       text_content: input.text,
       delivery_status: input.providerMessageId ? 'SENT' : 'FAILED',
       ai_generated: input.aiGenerated ?? false,
@@ -165,9 +187,9 @@ export async function getRecentMessages(conversationId: string, limit = 20): Pro
     .from('whatsapp_messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(limit);
-  return (data || []) as WhatsAppMessage[];
+  return ((data || []) as WhatsAppMessage[]).slice().reverse();
 }
 
 export async function applyExtractedData(contactId: string, conversationId: string, extracted: AIReplyStructured['extracted_data']) {
@@ -200,7 +222,9 @@ export async function upsertLeadFromConversation(input: {
     reply.handoff_required ||
     extracted.requirement ||
     extracted.service ||
-    ['QUALIFIED', 'PROPOSAL_REQUESTED', 'HUMAN_FOLLOWUP', 'REQUIREMENT_IDENTIFIED'].includes(String(reply.lead_stage));
+    ['QUALIFIED', 'PROPOSAL_REQUESTED', 'HUMAN_FOLLOWUP', 'REQUIREMENT_IDENTIFIED', 'ENGAGED'].includes(
+      String(reply.lead_stage)
+    );
 
   if (!meaningful) return null;
 
@@ -218,7 +242,11 @@ export async function upsertLeadFromConversation(input: {
         timeline: extracted.timeline,
         budget: extracted.budget,
         lead_stage: reply.lead_stage,
-        status: reply.handoff_required ? 'HUMAN_FOLLOWUP' : 'ENGAGED',
+        status: reply.handoff_required
+          ? 'HUMAN_FOLLOWUP'
+          : reply.lead_stage === 'QUALIFIED'
+            ? 'QUALIFIED'
+            : 'ENGAGED',
         ai_summary: input.summary || undefined,
         conversation_id: conversation.id,
       })
@@ -277,6 +305,7 @@ export async function updateConversationAfterAI(
   reply: AIReplyStructured,
   responseId: string | null,
   summary?: string,
+  qualification?: Record<string, unknown> | null,
 ) {
   const supabase = createAdminClient();
   await supabase
@@ -288,6 +317,7 @@ export async function updateConversationAfterAI(
       conversation_summary: summary || undefined,
       handoff_required: reply.handoff_required,
       handoff_reason: reply.handoff_reason,
+      ...(qualification ? { qualification } : {}),
     })
     .eq('id', conversationId);
 }

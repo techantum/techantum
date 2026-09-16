@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
-import { getAnalyticsDateRange, isGa4Configured, type AnalyticsRange } from '@/lib/analytics/ga4-config';
+import {
+  getAnalyticsDateRange,
+  isGa4Configured,
+  parseCustomDates,
+  type AnalyticsCustomDates,
+  type AnalyticsRange,
+} from '@/lib/analytics/ga4-config';
 import { fetchWebsiteAnalytics } from '@/lib/analytics/ga4-reports';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const VALID_RANGES = new Set<AnalyticsRange>(['7d', '28d', '90d']);
+const VALID_RANGES = new Set<AnalyticsRange>([
+  'today',
+  'yesterday',
+  '7d',
+  'week',
+  '28d',
+  'month',
+  '90d',
+  'custom',
+]);
 
 function parseRange(value: string | null): AnalyticsRange {
   if (value && VALID_RANGES.has(value as AnalyticsRange)) {
@@ -30,11 +45,31 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const range = parseRange(url.searchParams.get('range'));
+  let custom: AnalyticsCustomDates | undefined;
+
+  if (range === 'custom') {
+    const parsed = parseCustomDates(url.searchParams.get('from'), url.searchParams.get('to'));
+    if (!parsed.ok) {
+      return noStore(
+        {
+          configured: isGa4Configured(),
+          range: getAnalyticsDateRange('28d'),
+          error: parsed.error,
+          summary: null,
+          daily: [],
+          pages: [],
+          locations: [],
+        },
+        400
+      );
+    }
+    custom = { from: parsed.from, to: parsed.to };
+  }
 
   if (!isGa4Configured()) {
     return noStore({
       configured: false,
-      range: getAnalyticsDateRange(range),
+      range: getAnalyticsDateRange(range, custom),
       error:
         'GA4 API is not configured. Set GA4_PROPERTY_ID plus either GA4_SERVICE_ACCOUNT_JSON or GA4_CLIENT_EMAIL + GA4_PRIVATE_KEY, then grant the service account Viewer access in GA4.',
       summary: null,
@@ -45,7 +80,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const report = await fetchWebsiteAnalytics(range);
+    const report = await fetchWebsiteAnalytics(range, custom);
     return noStore(report);
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'Failed to load analytics';
@@ -73,7 +108,7 @@ export async function GET(request: Request) {
     return noStore(
       {
         configured: true,
-        range: getAnalyticsDateRange(range),
+        range: getAnalyticsDateRange(range, custom),
         error: message,
         summary: null,
         daily: [],

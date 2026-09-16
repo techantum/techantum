@@ -64,8 +64,19 @@ export default function AdminDashboardPage() {
   if (loading) return <p className="text-muted-foreground">Loading dashboard…</p>;
   if (!stats) return <p className="text-muted-foreground">Unable to load dashboard stats.</p>;
 
+  const quickLinks = [
+    { href: '/admin/analytics', label: 'Website analytics', tone: 'from-indigo-500 to-violet-500' },
+    { href: '/admin/content', label: 'Edit site content', tone: 'from-sky-500 to-cyan-500' },
+    { href: '/admin/submissions', label: 'Manage leads', tone: 'from-amber-500 to-orange-500' },
+    { href: '/admin/lead-discovery', label: 'Lead discovery', tone: 'from-fuchsia-500 to-rose-500' },
+    { href: '/admin/branding', label: 'Update branding', tone: 'from-emerald-500 to-teal-500' },
+    { href: '/admin/seo', label: 'Global SEO', tone: 'from-violet-500 to-indigo-500' },
+    { href: '/admin/page-seo', label: 'Page indexing', tone: 'from-cyan-500 to-blue-500' },
+    { href: '/admin/partner-catalog', label: 'Wizard questions', tone: 'from-rose-500 to-pink-500' },
+  ];
+
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="w-full space-y-8">
       <AdminPageHeader
         title="Overview"
         description="Key metrics for your website, leads, and SEO at a glance."
@@ -104,19 +115,20 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white/90 backdrop-blur rounded-2xl border border-border shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-border bg-gradient-to-r from-indigo-500/10 to-violet-500/5 flex items-center justify-between">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/80 shadow-lg shadow-indigo-500/5 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
+          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/50 flex items-center justify-between">
             <h2 className="font-bricolage font-semibold text-foreground">Recent leads</h2>
-            <Link href="/admin/submissions" className="text-sm text-indigo-600 hover:underline font-medium">
+            <Link href="/admin/submissions" className="text-sm text-indigo-600 hover:underline font-semibold">
               View all
             </Link>
           </div>
           {stats.recentLeads.length === 0 ? (
             <p className="px-5 py-8 text-sm text-muted-foreground text-center">No leads yet.</p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-slate-100">
               {stats.recentLeads.map((lead) => (
-                <li key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                <li key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-indigo-50/40">
                   <div className="min-w-0">
                     <p className="font-medium text-sm text-foreground truncate">{lead.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
@@ -133,31 +145,28 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        <div className="bg-white/90 backdrop-blur rounded-2xl border border-border shadow-sm p-5 space-y-4">
-          <h2 className="font-bricolage font-semibold text-foreground">Quick links</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {[
-              { href: '/admin/analytics', label: 'Website analytics', icon: 'ChartBarIcon' },
-              { href: '/admin/content', label: 'Edit site content', icon: 'PencilSquareIcon' },
-              { href: '/admin/submissions', label: 'Manage leads', icon: 'InboxIcon' },
-              { href: '/admin/branding', label: 'Update branding', icon: 'PaintBrushIcon' },
-              { href: '/admin/seo', label: 'Global SEO', icon: 'MagnifyingGlassIcon' },
-              { href: '/admin/page-seo', label: 'Page indexing', icon: 'DocumentCheckIcon' },
-              { href: '/admin/partner-catalog', label: 'Wizard questions', icon: 'ClipboardDocumentListIcon' },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border text-sm font-medium hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-all"
-              >
-                <span className="text-indigo-500">→</span>
-                {link.label}
-              </Link>
-            ))}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/80 shadow-lg shadow-cyan-500/5 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500" />
+          <div className="p-5 space-y-4">
+            <h2 className="font-bricolage font-semibold text-foreground">Quick links</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {quickLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white/80 text-sm font-semibold hover:-translate-y-0.5 hover:shadow-md transition-all"
+                >
+                  <span className={`h-8 w-8 rounded-xl bg-gradient-to-br ${link.tone} text-white flex items-center justify-center text-xs shadow-sm`}>
+                    →
+                  </span>
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground pt-1">
+              Marketing pages use static generation (SSG) with 5-minute revalidation for fast performance.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground pt-2">
-            Marketing pages use static generation (SSG) with 5-minute revalidation for fast performance.
-          </p>
         </div>
       </div>
     </div>

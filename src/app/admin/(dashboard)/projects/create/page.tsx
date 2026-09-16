@@ -79,7 +79,7 @@ export default function CreateProjectPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader title="Create Project" description="Generate a secure requirement collection link for a client." />
       <Link href="/admin/projects" className="text-sm text-muted-foreground hover:text-primary">Back to projects</Link>
       {message && (

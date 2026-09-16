@@ -2,7 +2,10 @@ import { defaultAboutOverview, defaultAboutUsp } from '../techantum-defaults';
 import { digitalTransformationJourney, serviceDivisions } from '../service-packages-data';
 
 export const TECHANTUM_OUT_OF_SCOPE_REPLY =
-  'Thank you for sharing that. This sits a little beyond Techantum Solutions’ website, web application and mobile application services. Our team will get back to you regarding this.';
+  'This is a bit outside our website, web app and mobile app work. Our team can still check and get back to you.';
+
+export const TECHANTUM_CONTINUE_REPLY =
+  'Thank you. Please share in 1–2 lines what you need. Our team will review it and speak with you to understand the complete requirement.';
 
 export function getWebsiteServiceCatalog(): string {
   const divisions = serviceDivisions
@@ -36,5 +39,5 @@ ${divisions}
 
 End-to-end journey: ${digitalTransformationJourney.join(' → ')}.
 
-We do not quote exact prices, discounts or delivery dates unless they appear in the knowledge base. For anything outside websites, web applications, mobile applications, UI/UX, integrations, cloud deployment and related support, say the team will follow up.`;
+We do not mention price, budget, discounts or delivery dates. For anything outside websites, web applications, mobile applications, UI/UX, integrations, cloud deployment and related support, say the team will follow up.`;
 }

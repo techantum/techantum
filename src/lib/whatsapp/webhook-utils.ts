@@ -33,15 +33,18 @@ export function parseInboundMessages(payload: Record<string, unknown>): InboundW
         let text: string | undefined;
         let media_id: string | undefined;
         let media_mime_type: string | undefined;
+        let interactive_id: string | undefined;
 
         if (type === 'text') {
           text = String((message.text as { body?: string })?.body || '');
         } else if (type === 'interactive') {
           const interactive = message.interactive as {
-            button_reply?: { title?: string };
-            list_reply?: { title?: string };
+            button_reply?: { id?: string; title?: string };
+            list_reply?: { id?: string; title?: string };
           };
-          text = interactive?.button_reply?.title || interactive?.list_reply?.title || '[Interactive response]';
+          const reply = interactive?.button_reply || interactive?.list_reply;
+          text = reply?.title || '[Interactive response]';
+          interactive_id = reply?.id;
         } else if (['image', 'document', 'audio', 'video'].includes(type)) {
           const media = message[type] as { id?: string; mime_type?: string };
           media_id = media?.id;
@@ -57,6 +60,7 @@ export function parseInboundMessages(payload: Record<string, unknown>): InboundW
           profile_name: profile,
           media_id,
           media_mime_type,
+          interactive_id,
           raw: message,
         });
       }

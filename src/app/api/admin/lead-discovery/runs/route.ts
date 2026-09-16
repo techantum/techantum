@@ -24,21 +24,26 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    const name = typeof body.name === 'string' ? body.name : '';
+
     if (body.search) {
-      const saved = await saveLeadSearchRun(body.search, auth.user.id);
+      const saved = await saveLeadSearchRun(body.search, auth.user.id, name);
       return NextResponse.json(saved);
     }
 
     const search = await runLeadSearch({
-      city: body.city,
-      area: String(body.area || '').trim(),
+      country: String(body.country || '').trim(),
+      state: String(body.state || '').trim(),
+      countryCode: String(body.countryCode || '').trim(),
+      city: String(body.city || '').trim(),
+      area: String(body.area || body.city || '').trim(),
       segment: String(body.segment || '').trim(),
       minRating: body.minRating != null && body.minRating !== '' ? Number(body.minRating) : null,
       hasWebsite: (body.hasWebsite as WebsiteFilter) || 'any',
       hasPhone: (body.hasPhone as PhoneFilter) || 'any',
     });
 
-    const saved = await saveLeadSearchRun(search, auth.user.id);
+    const saved = await saveLeadSearchRun(search, auth.user.id, name);
     return NextResponse.json(saved);
   } catch (err) {
     return NextResponse.json(

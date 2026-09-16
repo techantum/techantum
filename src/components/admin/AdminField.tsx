@@ -33,7 +33,7 @@ export default function AdminField({
 }
 
 export const adminInputClass =
-  'w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm text-foreground shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 hover:border-indigo-200';
+  'w-full px-3 py-2.5 rounded-xl border border-indigo-100 bg-white/90 text-sm text-foreground shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 hover:border-indigo-200';
 
 export const adminSelectClass = adminInputClass;
 

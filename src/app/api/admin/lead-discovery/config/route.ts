@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
-import { DEFAULT_CITY, HYDERABAD_AREAS, LEAD_SEGMENTS } from '@/lib/places/config';
+import { DEFAULT_CITY } from '@/lib/places/config';
+import { GOOGLE_PLACE_SEGMENTS } from '@/lib/places/place-types';
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -8,7 +9,8 @@ export async function GET() {
 
   return NextResponse.json({
     defaultCity: DEFAULT_CITY,
-    areas: HYDERABAD_AREAS,
-    segments: LEAD_SEGMENTS,
+    defaultCountry: 'India',
+    defaultCountryCode: 'IN',
+    segments: GOOGLE_PLACE_SEGMENTS,
   });
 }

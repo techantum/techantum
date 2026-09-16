@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get('search') || '';
     const rows = await listConversations(search);
-    return NextResponse.json(rows);
+    return NextResponse.json(rows, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to load conversations' }, { status: 500 });
   }

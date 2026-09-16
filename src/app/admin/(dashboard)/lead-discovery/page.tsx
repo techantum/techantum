@@ -1,85 +1,274 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminStatCard from '@/components/admin/AdminStatCard';
-import { PRIORITY_LABELS } from '@/lib/places/priority';
+import AdminAlert from '@/components/admin/AdminAlert';
+import LeadExportMenu from '@/components/admin/lead-discovery/LeadExportMenu';
+import LeadResultsTable from '@/components/admin/lead-discovery/LeadResultsTable';
+import PlacesSearchSelect, { type PlacesOption } from '@/components/admin/lead-discovery/PlacesSearchSelect';
+import { countryOptions } from '@/lib/places/countries';
+import { catalogAreas, catalogCities, catalogStates, mergePlaceOptions } from '@/lib/places/location-catalog';
+import { GOOGLE_PLACE_SEGMENTS } from '@/lib/places/place-types';
+import { defaultSearchName, displaySearchName } from '@/lib/places/sheet-data';
 import type {
-  LeadDiscoveryResult,
-  LeadDiscoveryResultRow,
   LeadDiscoveryRun,
   LeadSearchResponse,
   PhoneFilter,
   WebsiteFilter,
 } from '@/lib/places/types';
 
-const PRIORITY_BADGE: Record<string, string> = {
-  high: 'bg-rose-100 text-rose-800',
-  medium: 'bg-amber-100 text-amber-800',
-  normal: 'bg-slate-100 text-slate-700',
+const INPUT =
+  'w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm font-inter shadow-sm focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300';
+
+const DEFAULT_COUNTRY: PlacesOption = {
+  placeId: 'iso:IN',
+  label: 'India',
+  description: 'IN',
+  types: ['country'],
 };
 
-const INPUT =
-  'w-full rounded-lg border border-border bg-input px-3 py-2 text-sm font-inter focus:ring-2 focus:ring-ring focus:border-transparent';
-
-interface ConfigResponse {
-  defaultCity: string;
-  areas: string[];
-  segments: string[];
+interface PlaceMeta {
+  countryCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+async function suggestPlaces(body: Record<string, unknown>): Promise<PlacesOption[]> {
+  const res = await fetch('/api/admin/lead-discovery/suggest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload.error || 'Google Maps lookup failed');
+  return payload.suggestions ?? [];
+}
+
+async function loadPlaceDetails(placeId: string) {
+  const res = await fetch('/api/admin/lead-discovery/suggest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ placeId }),
+  });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload.error || 'Failed to load place details');
+  return payload as {
+    name: string;
+    country: string | null;
+    countryCode: string | null;
+    state: string | null;
+    city: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  };
+}
+
+function isoCodeFromOption(option: PlacesOption | null) {
+  if (!option) return null;
+  if (option.placeId.startsWith('iso:')) return option.placeId.slice(4);
+  if (option.description && /^[A-Z]{2}$/.test(option.description)) return option.description;
+  return null;
+}
+
 export default function LeadDiscoveryPage() {
-  const [config, setConfig] = useState<ConfigResponse | null>(null);
-  const [city, setCity] = useState('Hyderabad');
-  const [area, setArea] = useState('');
-  const [segment, setSegment] = useState('');
-  const [customArea, setCustomArea] = useState('');
-  const [customSegment, setCustomSegment] = useState('');
+  const [country, setCountry] = useState<PlacesOption | null>(DEFAULT_COUNTRY);
+  const [state, setState] = useState<PlacesOption | null>(null);
+  const [city, setCity] = useState<PlacesOption | null>(null);
+  const [area, setArea] = useState<PlacesOption | null>(null);
+  const [segment, setSegment] = useState<PlacesOption | null>(null);
+  const [countryMeta, setCountryMeta] = useState<PlaceMeta>({
+    countryCode: 'IN',
+    latitude: 20.5937,
+    longitude: 78.9629,
+  });
+  const [stateMeta, setStateMeta] = useState<PlaceMeta>({ countryCode: 'IN', latitude: null, longitude: null });
   const [minRating, setMinRating] = useState('');
   const [hasWebsite, setHasWebsite] = useState<WebsiteFilter>('any');
   const [hasPhone, setHasPhone] = useState<PhoneFilter>('any');
+  const [searchName, setSearchName] = useState('');
+  const [nameTouched, setNameTouched] = useState(false);
   const [preview, setPreview] = useState<LeadSearchResponse | null>(null);
-  const [savedRun, setSavedRun] = useState<LeadDiscoveryRun | null>(null);
-  const [savedResults, setSavedResults] = useState<LeadDiscoveryResultRow[]>([]);
   const [history, setHistory] = useState<LeadDiscoveryRun[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [viewRunId, setViewRunId] = useState<string | null>(null);
-  const [viewResults, setViewResults] = useState<LeadDiscoveryResultRow[]>([]);
 
-  const resolvedArea = area === '__custom__' ? customArea.trim() : area;
-  const resolvedSegment = segment === '__custom__' ? customSegment.trim() : segment;
+  const cityName = city?.label || '';
+  const areaName = area?.label || '';
+  const stateName = state?.label || '';
+  const countryName = country?.label || '';
+  const segmentName = segment?.label || '';
+  const suggestedName = defaultSearchName({
+    segment: segmentName,
+    area: areaName,
+    city: cityName,
+    state: stateName,
+    country: countryName,
+  });
 
   const payload = useMemo(
     () => ({
-      city,
-      area: resolvedArea,
-      segment: resolvedSegment,
+      country: countryName,
+      state: stateName,
+      countryCode: countryMeta.countryCode || '',
+      city: cityName,
+      area: areaName,
+      segment: segmentName,
       minRating: minRating ? Number(minRating) : null,
       hasWebsite,
       hasPhone,
+      name: (searchName || suggestedName).trim(),
     }),
-    [city, resolvedArea, resolvedSegment, minRating, hasWebsite, hasPhone]
+    [countryName, stateName, countryMeta.countryCode, cityName, areaName, segmentName, minRating, hasWebsite, hasPhone, searchName, suggestedName]
   );
 
-  const loadConfig = useCallback(() => {
-    fetch('/api/admin/lead-discovery/config')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.defaultCity) {
-          setConfig(data);
-          setCity(data.defaultCity);
-          if (data.areas?.length) setArea(data.areas[0]);
-          if (data.segments?.length) setSegment(data.segments[0]);
-        }
-      });
+  const countryList = useMemo(() => countryOptions(), []);
+  const stateList = useMemo(
+    () => catalogStates(countryMeta.countryCode),
+    [countryMeta.countryCode]
+  );
+  const cityList = useMemo(
+    () => catalogCities(countryMeta.countryCode, state?.label),
+    [countryMeta.countryCode, state?.label]
+  );
+  const areaList = useMemo(() => catalogAreas(city?.label), [city?.label]);
+  const segmentList = useMemo(
+    () =>
+      GOOGLE_PLACE_SEGMENTS.map((item) => ({
+        placeId: item.value,
+        label: item.label,
+        description: 'Google Maps place type',
+        types: [item.value],
+      })),
+    []
+  );
+
+  const fetchCountries = useCallback(async (query: string) => {
+    try {
+      return mergePlaceOptions(await suggestPlaces({ kind: 'country', query }), countryOptions(query));
+    } catch {
+      return countryOptions(query);
+    }
   }, []);
+
+  const fetchStates = useCallback(
+    async (query: string) => {
+      const local = catalogStates(countryMeta.countryCode, query);
+      try {
+        return mergePlaceOptions(
+          await suggestPlaces({ kind: 'state', query, regionCode: countryMeta.countryCode }),
+          local
+        );
+      } catch {
+        return local;
+      }
+    },
+    [countryMeta.countryCode]
+  );
+
+  const fetchCities = useCallback(
+    async (query: string) => {
+      const local = catalogCities(countryMeta.countryCode, state?.label, query);
+      try {
+        return mergePlaceOptions(
+          await suggestPlaces({ kind: 'city', query, regionCode: countryMeta.countryCode }),
+          local
+        );
+      } catch {
+        return local;
+      }
+    },
+    [countryMeta.countryCode, state?.label]
+  );
+
+  const fetchAreas = useCallback(
+    async (query: string) => {
+      const local = catalogAreas(city?.label, query);
+      try {
+        return mergePlaceOptions(
+          await suggestPlaces({ kind: 'area', query, regionCode: countryMeta.countryCode }),
+          local
+        );
+      } catch {
+        return local;
+      }
+    },
+    [city?.label, countryMeta.countryCode]
+  );
+
+  const fetchSegments = useCallback(async (query: string) => suggestPlaces({ kind: 'segment', query }), []);
+
+  const applyCountry = async (option: PlacesOption | null) => {
+    setCountry(option);
+    setState(null);
+    setCity(null);
+    setArea(null);
+    setStateMeta({ countryCode: isoCodeFromOption(option), latitude: null, longitude: null });
+    if (!option) {
+      setCountryMeta({ countryCode: null, latitude: null, longitude: null });
+      return;
+    }
+    const iso = isoCodeFromOption(option);
+    if (iso) {
+      setCountryMeta({ countryCode: iso, latitude: iso === 'IN' ? 20.5937 : null, longitude: iso === 'IN' ? 78.9629 : null });
+      return;
+    }
+    try {
+      const details = await loadPlaceDetails(option.placeId);
+      setCountry({ ...option, label: details.country || details.name || option.label });
+      setCountryMeta({
+        countryCode: details.countryCode,
+        latitude: details.latitude,
+        longitude: details.longitude,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load country');
+    }
+  };
+
+  const applyState = async (option: PlacesOption | null) => {
+    setState(option);
+    setCity(null);
+    setArea(null);
+    if (!option) {
+      setStateMeta({ countryCode: countryMeta.countryCode, latitude: null, longitude: null });
+      return;
+    }
+    if (option.placeId.startsWith('custom:') || option.placeId.startsWith('state:')) {
+      setStateMeta({ countryCode: countryMeta.countryCode, latitude: countryMeta.latitude, longitude: countryMeta.longitude });
+      return;
+    }
+    try {
+      const details = await loadPlaceDetails(option.placeId);
+      setState({ ...option, label: details.state || details.name || option.label });
+      setStateMeta({
+        countryCode: details.countryCode || countryMeta.countryCode,
+        latitude: details.latitude,
+        longitude: details.longitude,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load state');
+    }
+  };
+
+  const applyCity = async (option: PlacesOption | null) => {
+    setCity(option);
+    setArea(null);
+    if (!option || option.placeId.startsWith('custom:') || option.placeId.startsWith('iso:') || option.placeId.startsWith('city:')) return;
+    try {
+      const details = await loadPlaceDetails(option.placeId);
+      setCity({ ...option, label: details.city || details.name || option.label });
+    } catch {
+      // City label from autocomplete is already usable for Places text search.
+    }
+  };
 
   const loadHistory = useCallback(() => {
     fetch('/api/admin/lead-discovery/runs')
@@ -88,18 +277,18 @@ export default function LeadDiscoveryPage() {
   }, []);
 
   useEffect(() => {
-    loadConfig();
     loadHistory();
-  }, [loadConfig, loadHistory]);
+  }, [loadHistory]);
+
+  useEffect(() => {
+    if (!nameTouched) setSearchName(suggestedName);
+  }, [suggestedName, nameTouched]);
 
   const runSearch = async (save: boolean) => {
     setLoading(true);
     setError('');
     setMessage('');
     setPreview(null);
-    setSavedRun(null);
-    setSavedResults([]);
-    setViewRunId(null);
 
     try {
       const url = save ? '/api/admin/lead-discovery/runs' : '/api/admin/lead-discovery/search';
@@ -112,10 +301,7 @@ export default function LeadDiscoveryPage() {
       if (!res.ok) throw new Error(body.error || 'Search failed');
 
       if (save) {
-        setSavedRun(body.run);
-        setSavedResults(body.results ?? []);
-        setPreview(body.run ? { ...payload, text_query: body.run.text_query, raw_count: body.run.raw_count, result_count: body.run.result_count, filters: payload, results: body.results } : null);
-        setMessage(`Saved ${body.run.result_count} lead(s) to database.`);
+        setMessage(`Saved “${displaySearchName(body.run)}” with ${body.run.result_count} lead(s).`);
         loadHistory();
       } else {
         setPreview(body as LeadSearchResponse);
@@ -136,13 +322,12 @@ export default function LeadDiscoveryPage() {
       const res = await fetch('/api/admin/lead-discovery/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ search: preview }),
+        body: JSON.stringify({ search: preview, name: payload.name }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Save failed');
-      setSavedRun(body.run);
-      setSavedResults(body.results ?? []);
-      setMessage(`Saved ${body.run.result_count} lead(s).`);
+      setPreview(null);
+      setMessage(`Saved “${displaySearchName(body.run)}” with ${body.run.result_count} lead(s).`);
       loadHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -151,213 +336,211 @@ export default function LeadDiscoveryPage() {
     }
   };
 
-  const openRun = async (runId: string) => {
-    setViewRunId(runId);
-    setViewResults([]);
-    const res = await fetch(`/api/admin/lead-discovery/runs/${runId}`);
-    const body = await res.json();
-    if (res.ok) {
-      setSavedRun(body.run);
-      setViewResults(body.results ?? []);
-    }
-  };
-
-  const displayResults: LeadDiscoveryResult[] = viewRunId
-    ? viewResults
-    : savedRun
-      ? savedResults
-      : preview?.results ?? [];
-
-  const highPriorityCount = displayResults.filter((r) => r.priority === 'high').length;
+  const canSearch = Boolean(cityName && segmentName);
 
   return (
-    <div className="space-y-6 max-w-7xl">
-      <AdminPageHeader
-        title="Lead Discovery"
-        description="Find local business leads via Google Places — filter by area and segment, save to database, and export for field sales."
-      />
+    <div className="w-full space-y-6">
+      <AdminPageHeader title="Places Search" />
 
-      {message && (
-        <p className="text-sm bg-green-50 text-green-800 border border-green-200 px-4 py-2 rounded-lg">{message}</p>
-      )}
-      {error && (
-        <p className="text-sm bg-rose-50 text-rose-800 border border-rose-200 px-4 py-2 rounded-lg">{error}</p>
-      )}
+      {message && <AdminAlert variant="success">{message}</AdminAlert>}
+      {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <AdminStatCard label="Saved searches" value={history.length} />
-        <AdminStatCard label="Current results" value={displayResults.length} />
-        <AdminStatCard label="No website (high priority)" value={highPriorityCount} accent="rose" />
+        <AdminStatCard label="Saved searches" value={history.length} icon="BookmarkIcon" accent="violet" />
+        <AdminStatCard label="Preview results" value={preview?.result_count ?? 0} icon="MagnifyingGlassIcon" accent="blue" />
+        <AdminStatCard
+          label="No website (high priority)"
+          value={preview?.results.filter((r) => r.priority === 'high').length ?? 0}
+          accent="rose"
+          icon="ExclamationTriangleIcon"
+        />
       </div>
 
-      <AdminSection title="New search" description="Query Google Places and build a filtered lead list.">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <label className="text-sm font-medium">
-            City
-            <input value={city} onChange={(e) => setCity(e.target.value)} className={`mt-1 ${INPUT}`} />
+      <AdminSection title="New search" description="Select country, state, city, and segment. Type in any box to filter the list." accent="sky">
+        <div className="space-y-4">
+          <label className="text-sm font-medium block">
+            Search name
+            <input
+              value={searchName}
+              onChange={(e) => {
+                setNameTouched(true);
+                setSearchName(e.target.value);
+              }}
+              className={`mt-1 ${INPUT}`}
+              placeholder="e.g. Clinics in Hyderabad — April outreach"
+            />
           </label>
-          <label className="text-sm font-medium">
-            Area
-            <select value={area} onChange={(e) => setArea(e.target.value)} className={`mt-1 ${INPUT}`}>
-              {(config?.areas ?? []).map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-              <option value="__custom__">Custom area…</option>
-            </select>
-          </label>
-          {area === '__custom__' && (
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <PlacesSearchSelect
+              label="Country"
+              placeholder="Select country"
+              value={country}
+              onChange={applyCountry}
+              fetcher={fetchCountries}
+              localOptions={countryList}
+              hint="Click to see the full country list, or type to filter."
+            />
+            <PlacesSearchSelect
+              label="State / region"
+              placeholder={country ? 'Select state' : 'Select a country first'}
+              value={state}
+              onChange={applyState}
+              fetcher={fetchStates}
+              localOptions={stateList}
+              disabled={!country}
+              hint={stateList.length ? 'Click to see all states, or type to filter.' : 'Type to search states in Google Maps.'}
+            />
+            <PlacesSearchSelect
+              label="City"
+              placeholder={state || country ? 'Select city' : 'Select a country first'}
+              value={city}
+              onChange={applyCity}
+              fetcher={fetchCities}
+              localOptions={cityList}
+              disabled={!country}
+              hint={cityList.length ? 'Click to see cities, or type to filter / search more.' : 'Type to search cities in Google Maps.'}
+            />
+            <PlacesSearchSelect
+              label="Area / pincode"
+              placeholder={city ? 'Select area or type PIN' : 'Select a city first'}
+              value={area}
+              onChange={setArea}
+              fetcher={fetchAreas}
+              localOptions={areaList}
+              disabled={!city}
+              allowCustom
+              hint="Click for local areas, or type a locality / PIN code (e.g. 500081)."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <PlacesSearchSelect
+              label="Segment"
+              placeholder="Select segment"
+              value={segment}
+              onChange={setSegment}
+              fetcher={fetchSegments}
+              localOptions={segmentList}
+              allowCustom
+              hint="Click to see Google Maps business types, or type to filter."
+            />
             <label className="text-sm font-medium">
-              Custom area
-              <input value={customArea} onChange={(e) => setCustomArea(e.target.value)} className={`mt-1 ${INPUT}`} placeholder="e.g. Madhapur" />
+              Minimum rating
+              <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`mt-1 ${INPUT}`}>
+                <option value="">Any</option>
+                <option value="3">3.0+</option>
+                <option value="3.5">3.5+</option>
+                <option value="4">4.0+</option>
+                <option value="4.5">4.5+</option>
+              </select>
             </label>
-          )}
-          <label className="text-sm font-medium">
-            Segment
-            <select value={segment} onChange={(e) => setSegment(e.target.value)} className={`mt-1 ${INPUT}`}>
-              {(config?.segments ?? []).map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-              <option value="__custom__">Custom segment…</option>
-            </select>
-          </label>
-          {segment === '__custom__' && (
             <label className="text-sm font-medium">
-              Custom segment
-              <input value={customSegment} onChange={(e) => setCustomSegment(e.target.value)} className={`mt-1 ${INPUT}`} placeholder="e.g. Clinics" />
+              Has website
+              <select value={hasWebsite} onChange={(e) => setHasWebsite(e.target.value as WebsiteFilter)} className={`mt-1 ${INPUT}`}>
+                <option value="any">Any</option>
+                <option value="yes">Yes</option>
+                <option value="no">No — best website prospects</option>
+              </select>
             </label>
-          )}
-          <label className="text-sm font-medium">
-            Minimum rating
-            <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`mt-1 ${INPUT}`}>
-              <option value="">Any</option>
-              <option value="3">3.0+</option>
-              <option value="3.5">3.5+</option>
-              <option value="4">4.0+</option>
-              <option value="4.5">4.5+</option>
-            </select>
-          </label>
-          <label className="text-sm font-medium">
-            Has website
-            <select value={hasWebsite} onChange={(e) => setHasWebsite(e.target.value as WebsiteFilter)} className={`mt-1 ${INPUT}`}>
-              <option value="any">Any</option>
-              <option value="yes">Yes</option>
-              <option value="no">No — best website prospects</option>
-            </select>
-          </label>
-          <label className="text-sm font-medium">
-            Has phone
-            <select value={hasPhone} onChange={(e) => setHasPhone(e.target.value as PhoneFilter)} className={`mt-1 ${INPUT}`}>
-              <option value="any">Any</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
-          </label>
+            <label className="text-sm font-medium">
+              Has phone
+              <select value={hasPhone} onChange={(e) => setHasPhone(e.target.value as PhoneFilter)} className={`mt-1 ${INPUT}`}>
+                <option value="any">Any</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+          </div>
         </div>
 
         <p className="text-xs text-muted-foreground mt-4">
-          Query preview: <span className="font-mono">{resolvedSegment && resolvedArea ? `${resolvedSegment} in ${resolvedArea}, ${city}` : '—'}</span>
+          Query preview:{' '}
+          <span className="font-mono">
+            {segmentName && cityName
+              ? `${segmentName} in ${[areaName, cityName, stateName, countryName].filter(Boolean).join(', ')}`
+              : '—'}
+          </span>
         </p>
 
         <div className="flex flex-wrap gap-3 mt-5">
-          <button type="button" disabled={loading || !resolvedArea || !resolvedSegment} onClick={() => runSearch(false)} className="bg-card border border-border px-4 py-2 rounded-lg text-sm font-semibold hover:bg-muted disabled:opacity-50">
+          <button
+            type="button"
+            disabled={loading || !canSearch}
+            onClick={() => runSearch(false)}
+            className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+          >
             {loading ? 'Searching…' : 'Preview search'}
           </button>
-          <button type="button" disabled={loading || !resolvedArea || !resolvedSegment} onClick={() => runSearch(true)} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50">
+          <button
+            type="button"
+            disabled={loading || !canSearch || !payload.name}
+            onClick={() => runSearch(true)}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 shadow-md shadow-indigo-500/25 hover:brightness-110 disabled:opacity-50"
+          >
             {loading ? 'Working…' : 'Search & save'}
           </button>
-          {preview && !savedRun && (
-            <button type="button" disabled={loading} onClick={savePreview} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">
-              Save preview to DB
-            </button>
-          )}
-          {savedRun && (
-            <a href={`/api/admin/lead-discovery/runs/${savedRun.id}/export`} className="inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">
-              Download Excel
-            </a>
+          {preview && (
+            <>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={savePreview}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 shadow-md shadow-emerald-500/20 hover:brightness-110 disabled:opacity-50"
+              >
+                Save preview
+              </button>
+              <LeadExportMenu
+                preview={preview}
+                results={preview.results}
+                searchName={payload.name}
+                onMessage={setMessage}
+                onError={setError}
+              />
+            </>
           )}
         </div>
       </AdminSection>
 
-      {displayResults.length > 0 && (
-        <AdminSection
-          title="Results"
-          description={preview?.text_query || savedRun?.text_query || ''}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="pb-3 pr-3 font-medium">Priority</th>
-                  <th className="pb-3 pr-3 font-medium">Business</th>
-                  <th className="pb-3 pr-3 font-medium">Phone</th>
-                  <th className="pb-3 pr-3 font-medium">Website</th>
-                  <th className="pb-3 pr-3 font-medium">Rating</th>
-                  <th className="pb-3 font-medium">Maps</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayResults.map((row) => (
-                  <tr key={row.place_id} className="border-b border-border/60 align-top">
-                    <td className="py-3 pr-3">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_BADGE[row.priority]}`}>
-                        {PRIORITY_LABELS[row.priority as keyof typeof PRIORITY_LABELS]}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <p className="font-medium">{row.business_name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{row.formatted_address}</p>
-                    </td>
-                    <td className="py-3 pr-3 text-xs">{row.phone || '—'}</td>
-                    <td className="py-3 pr-3 text-xs max-w-[180px] truncate">
-                      {row.website_uri ? (
-                        <a href={row.website_uri} target="_blank" rel="noreferrer" className="text-primary hover:underline">{row.website_uri.replace(/^https?:\/\//, '')}</a>
-                      ) : (
-                        <span className="text-rose-600 font-medium">No website</span>
-                      )}
-                    </td>
-                    <td className="py-3 pr-3 text-xs">
-                      {row.rating != null ? `${row.rating} (${row.review_count ?? 0})` : '—'}
-                    </td>
-                    <td className="py-3">
-                      {row.google_maps_uri ? (
-                        <a href={row.google_maps_uri} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">Open</a>
-                      ) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {preview && (
+        <AdminSection title="Preview results" description={preview.text_query} accent="violet">
+          <LeadResultsTable results={preview.results} />
         </AdminSection>
       )}
 
-      <AdminSection title="Search history" description="Previously saved lead discovery runs.">
+      <AdminSection title="Saved searches" description="Every saved Places search. Open details to see only that list." accent="emerald">
         {history.length === 0 ? (
           <p className="text-sm text-muted-foreground">No saved searches yet.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-emerald-100/80">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="pb-3 pr-4 font-medium">When</th>
-                  <th className="pb-3 pr-4 font-medium">Query</th>
-                  <th className="pb-3 pr-4 font-medium">Results</th>
-                  <th className="pb-3 font-medium">Actions</th>
+                <tr className="bg-gradient-to-r from-emerald-50 via-white to-cyan-50 text-left text-slate-500">
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">When</th>
+                  <th className="px-4 py-3 font-semibold">Query</th>
+                  <th className="px-4 py-3 font-semibold">Results</th>
+                  <th className="px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((run) => (
-                  <tr key={run.id} className="border-b border-border/60">
-                    <td className="py-3 pr-4 text-xs text-muted-foreground">{formatDate(run.created_at)}</td>
-                    <td className="py-3 pr-4">
-                      <p className="font-medium">{run.segment} · {run.area}</p>
+                  <tr key={run.id} className="border-t border-slate-100 hover:bg-emerald-50/40">
+                    <td className="px-4 py-3 font-semibold text-slate-900">{displaySearchName(run)}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(run.created_at)}</td>
+                    <td className="px-4 py-3">
                       <p className="text-xs text-muted-foreground font-mono">{run.text_query}</p>
                     </td>
-                    <td className="py-3 pr-4">{run.result_count}</td>
-                    <td className="py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => openRun(run.id)} className="text-xs text-primary hover:underline">View</button>
-                        <a href={`/api/admin/lead-discovery/runs/${run.id}/export`} className="text-xs text-indigo-600 hover:underline">Excel</a>
+                    <td className="px-4 py-3">{run.result_count}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          href={`/admin/lead-discovery/${run.id}`}
+                          className="text-xs font-semibold text-indigo-600 hover:underline"
+                        >
+                          Details
+                        </Link>
+                        <LeadExportMenu size="sm" runId={run.id} run={run} onMessage={setMessage} onError={setError} />
                       </div>
                     </td>
                   </tr>
@@ -367,10 +550,6 @@ export default function LeadDiscoveryPage() {
           </div>
         )}
       </AdminSection>
-
-      <p className="text-xs text-muted-foreground">
-        Data from Google Places API. Results are deduplicated by Place ID and sorted with no-website leads first.
-      </p>
     </div>
   );
 }

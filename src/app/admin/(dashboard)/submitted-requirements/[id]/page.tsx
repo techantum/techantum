@@ -69,7 +69,7 @@ export default function SubmittedRequirementDetailPage() {
   if (!detail?.requirement) return <p className="text-sm text-muted-foreground">Loading requirement...</p>;
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader title={detail.project.project_name} description={`${detail.project.company_name} - ${detail.project.project_code}`} />
       <Link href="/admin/submitted-requirements" className="text-sm text-muted-foreground hover:text-primary">Back to submitted requirements</Link>
       {message && <p className="text-sm bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg">{message}</p>}

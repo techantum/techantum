@@ -58,6 +58,12 @@ export async function PUT(request: Request) {
       business_hours: body.business_hours,
       after_hours_message: body.after_hours_message,
       handoff_mode: body.handoff_mode,
+      followup_enabled: body.followup_enabled,
+      followup_first_hours: body.followup_first_hours,
+      followup_second_hours: body.followup_second_hours,
+      followup_max: body.followup_max,
+      followup_start_hour: body.followup_start_hour,
+      followup_end_hour: body.followup_end_hour,
     })
     .eq('id', 1)
     .select('*')

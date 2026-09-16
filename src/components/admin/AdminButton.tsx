@@ -6,11 +6,12 @@ interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm border border-indigo-600',
-  secondary: 'bg-white text-foreground border border-border hover:bg-muted/60 hover:border-indigo-200',
-  ghost: 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-  danger: 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100',
-  success: 'bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600',
+  primary:
+    'text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 shadow-md shadow-indigo-500/25 hover:brightness-110 border-transparent',
+  secondary: 'bg-white/90 text-slate-800 border border-indigo-100 hover:bg-indigo-50 hover:border-indigo-200',
+  ghost: 'text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 border-transparent',
+  danger: 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-md shadow-rose-500/20 border-transparent hover:brightness-110',
+  success: 'text-white bg-gradient-to-r from-emerald-500 to-teal-500 shadow-md shadow-emerald-500/20 border-transparent hover:brightness-110',
 };
 
 const sizes = {
@@ -30,7 +31,7 @@ export default function AdminButton({
     <button
       type="button"
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {children}

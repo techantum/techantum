@@ -140,7 +140,7 @@ export default function AdminPartnerRequirementDetailPage() {
   const latestPrompt = [...data.prompts].sort((a, b) => b.version - a.version)[0];
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title={String(req.project_name || 'Requirement Detail')}
         description={`Reference ${String(req.reference_id)}`}

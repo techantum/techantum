@@ -222,7 +222,7 @@ export default function PartnerCatalogAdminPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Partner Service Catalog"
         description="Manage service packages, comparison features, and discovery wizard questions for the Partner Portal."

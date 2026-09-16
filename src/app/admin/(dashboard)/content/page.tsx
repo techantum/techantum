@@ -133,7 +133,7 @@ export default function ContentAdminPage() {
   if (loading) return <p className="text-muted-foreground">Loading site content…</p>;
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="w-full space-y-8">
       <AdminPageHeader
         title="Site Content"
         description="Edit every page section to match your live website. Click Edit to open the section form in a popup — including image uploads."

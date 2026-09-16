@@ -60,6 +60,134 @@ export async function sendWhatsAppSessionText(to: string, body: string): Promise
   };
 }
 
+async function postWhatsAppMessage(body: Record<string, unknown>): Promise<SessionSendResult> {
+  const { accessToken, phoneNumberId, graphVersion, configured } = getWhatsAppAiConfig();
+  if (!configured) {
+    return { ok: false, provider_message_id: null, error_message: 'WhatsApp is not configured on the server.' };
+  }
+  const res = await fetch(`${GRAPH_BASE}/${graphVersion}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = (await res.json().catch(() => ({}))) as {
+    messages?: { id?: string }[];
+    error?: { message?: string };
+  };
+  if (!res.ok) {
+    return {
+      ok: false,
+      provider_message_id: null,
+      error_message: payload.error?.message || `WhatsApp send failed (${res.status}).`,
+    };
+  }
+  return {
+    ok: true,
+    provider_message_id: payload.messages?.[0]?.id ?? null,
+    error_message: null,
+  };
+}
+
+export async function sendWhatsAppButtons(
+  to: string,
+  body: string,
+  buttons: { id: string; title: string }[]
+): Promise<SessionSendResult> {
+  const text = body.trim().slice(0, 1024);
+  const actionButtons = buttons.slice(0, 3).map((button) => ({
+    type: 'reply',
+    reply: { id: button.id.slice(0, 256), title: button.title.slice(0, 20) },
+  }));
+  if (!text || actionButtons.length === 0) {
+    return { ok: false, provider_message_id: null, error_message: 'Empty interactive message.' };
+  }
+
+  const result = await postWhatsAppMessage({
+    messaging_product: 'whatsapp',
+    to: whatsappApiTo(to),
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text },
+      action: { buttons: actionButtons },
+    },
+  });
+
+  if (result.ok) return result;
+
+  const numbered = `${text}\n\n${buttons.map((button, index) => `${index + 1}) ${button.title}`).join('\n')}`;
+  return sendWhatsAppSessionText(to, numbered);
+}
+
+export async function sendWhatsAppList(
+  to: string,
+  body: string,
+  list: { button: string; sections: { title: string; rows: { id: string; title: string; description?: string }[] }[] }
+): Promise<SessionSendResult> {
+  const text = body.trim().slice(0, 1024);
+  const sections = (list.sections || [])
+    .map((section) => ({
+      title: section.title.slice(0, 24),
+      rows: (section.rows || []).slice(0, 10).map((row) => ({
+        id: row.id.slice(0, 200),
+        title: row.title.slice(0, 24),
+        ...(row.description ? { description: row.description.slice(0, 72) } : {}),
+      })),
+    }))
+    .filter((section) => section.rows.length > 0)
+    .slice(0, 10);
+  if (!text || sections.length === 0) {
+    return { ok: false, provider_message_id: null, error_message: 'Empty list message.' };
+  }
+
+  const result = await postWhatsAppMessage({
+    messaging_product: 'whatsapp',
+    to: whatsappApiTo(to),
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      body: { text },
+      action: {
+        button: (list.button || 'View options').slice(0, 20),
+        sections,
+      },
+    },
+  });
+
+  if (result.ok) return result;
+
+  const numbered = `${text}\n\n${sections
+    .flatMap((section) => section.rows.map((row, index) => `${index + 1}) ${row.title}`))
+    .join('\n')}`;
+  return sendWhatsAppSessionText(to, numbered);
+}
+
+export async function markWhatsAppReadAndTyping(messageId: string): Promise<void> {
+  const { accessToken, phoneNumberId, graphVersion, configured } = getWhatsAppAiConfig();
+  if (!configured || !messageId) return;
+  try {
+    await fetch(`${GRAPH_BASE}/${graphVersion}/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        status: 'read',
+        message_id: messageId,
+        typing_indicator: { type: 'text' },
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (err) {
+    console.warn('[whatsapp] typing indicator failed', err instanceof Error ? err.message : err);
+  }
+}
+
 export async function getWhatsAppReceiveHealth() {
   const { accessToken, phoneNumberId, graphVersion, configured } = getWhatsAppAiConfig();
   if (!configured) {

@@ -1,4 +1,23 @@
-export type AnalyticsRange = '7d' | '28d' | '90d';
+export type AnalyticsRange =
+  | 'today'
+  | 'yesterday'
+  | '7d'
+  | 'week'
+  | '28d'
+  | 'month'
+  | '90d'
+  | 'custom';
+
+export const ANALYTICS_RANGE_LABELS: Record<AnalyticsRange, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  '7d': 'Last 7 days',
+  week: 'Last week',
+  '28d': 'Last 28 days',
+  month: 'Last month',
+  '90d': 'Last 90 days',
+  custom: 'Custom range',
+};
 
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '—';
@@ -23,10 +42,5 @@ export function formatGa4Date(date: string): string {
 }
 
 export function getAnalyticsRangeLabel(range: AnalyticsRange): string {
-  const labels: Record<AnalyticsRange, string> = {
-    '7d': 'Last 7 days',
-    '28d': 'Last 28 days',
-    '90d': 'Last 90 days',
-  };
-  return labels[range];
+  return ANALYTICS_RANGE_LABELS[range];
 }

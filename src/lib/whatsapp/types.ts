@@ -88,7 +88,20 @@ export interface WhatsAppConversation {
   handoff_reason: string | null;
   last_inbound_at: string | null;
   last_outbound_at: string | null;
+  created_at?: string;
+  followup_count?: number;
+  last_followup_at?: string | null;
+  qualification?: import('./qualification').QualificationState | Record<string, unknown> | null;
   whatsapp_contacts?: WhatsAppContact;
+  appointment?: { id: string; code: string; status: string } | null;
+}
+
+export interface WhatsAppConversationNote {
+  id: string;
+  conversation_id: string;
+  body: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface WhatsAppMessage {
@@ -123,6 +136,12 @@ export interface AISettings {
   business_hours: Record<string, unknown>;
   after_hours_message: string;
   handoff_mode: 'HUMAN' | 'HYBRID';
+  followup_enabled: boolean;
+  followup_first_hours: number;
+  followup_second_hours: number;
+  followup_max: number;
+  followup_start_hour: number;
+  followup_end_hour: number;
   updated_at?: string;
 }
 
@@ -151,5 +170,6 @@ export interface InboundWhatsAppMessage {
   profile_name?: string;
   media_id?: string;
   media_mime_type?: string;
+  interactive_id?: string;
   raw: Record<string, unknown>;
 }

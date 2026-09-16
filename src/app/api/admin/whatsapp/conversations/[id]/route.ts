@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const detail = await getConversationDetail(id);
-    return NextResponse.json(detail);
+    return NextResponse.json(detail, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Not found' }, { status: 404 });
   }

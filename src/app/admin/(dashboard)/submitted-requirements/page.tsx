@@ -50,7 +50,7 @@ export default function SubmittedRequirementsPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader title="Submitted Requirements" description="Review client submissions, request clarification, and export requirement packs." />
       <AdminSection title="Review Queue" description={`${rows.length} requirement(s)`}>
         <div className="flex flex-wrap gap-3">

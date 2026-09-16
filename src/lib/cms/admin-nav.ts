@@ -18,23 +18,64 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: 'HomeIcon',
-    defaultOpen: true,
     items: [
       { href: '/admin', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
       { href: '/admin/analytics', label: 'Website Analytics', icon: 'ChartBarIcon' },
+      { href: '/admin/gbp-analytics', label: 'Maps / GBP Analytics', icon: 'MapPinIcon' },
     ],
   },
   {
     id: 'ops',
     label: 'Projects & Tickets',
     icon: 'BriefcaseIcon',
-    defaultOpen: true,
     items: [
       { href: '/admin/ops', label: 'Dashboard', icon: 'ChartBarSquareIcon', exact: true },
       { href: '/admin/ops/create', label: 'Create Ticket', icon: 'PlusCircleIcon' },
       { href: '/admin/ops/clients', label: 'Clients', icon: 'UserGroupIcon' },
       { href: '/admin/ops/projects', label: 'Projects', icon: 'FolderIcon' },
       { href: '/admin/ops/tickets', label: 'Tickets', icon: 'TicketIcon' },
+    ],
+  },
+  {
+    id: 'whatsapp-ai',
+    label: 'WhatsApp AI',
+    icon: 'ChatBubbleLeftRightIcon',
+    items: [
+      { href: '/admin/whatsapp/inbox', label: 'Inbox', icon: 'InboxIcon' },
+      { href: '/admin/whatsapp/chats', label: 'Chats', icon: 'TableCellsIcon' },
+      { href: '/admin/whatsapp/appointments', label: 'Appointments', icon: 'CalendarDaysIcon' },
+      { href: '/admin/whatsapp/knowledge', label: 'Knowledge Base', icon: 'BookOpenIcon' },
+      { href: '/admin/whatsapp/settings', label: 'AI Settings', icon: 'Cog6ToothIcon' },
+    ],
+  },
+  {
+    id: 'sales',
+    label: 'Lead Discovery',
+    icon: 'MapPinIcon',
+    items: [
+      { href: '/admin/lead-discovery', label: 'Places Search', icon: 'MagnifyingGlassCircleIcon' },
+    ],
+  },
+  {
+    id: 'content',
+    label: 'Site Content',
+    icon: 'DocumentTextIcon',
+    items: [
+      { href: '/admin/content-brief', label: 'Content Brief', icon: 'ClipboardDocumentListIcon' },
+      { href: '/admin/content', label: 'Pages & Sections', icon: 'PencilSquareIcon' },
+      { href: '/admin/branding', label: 'Branding', icon: 'PaintBrushIcon' },
+      { href: '/admin/submissions', label: 'Leads', icon: 'InboxIcon' },
+      { href: '/admin/marketing', label: 'Marketing Hub', icon: 'MegaphoneIcon' },
+    ],
+  },
+  {
+    id: 'seo',
+    label: 'SEO & Discovery',
+    icon: 'GlobeAltIcon',
+    items: [
+      { href: '/admin/seo', label: 'Global SEO', icon: 'MagnifyingGlassIcon' },
+      { href: '/admin/page-seo', label: 'Page Indexing', icon: 'DocumentCheckIcon' },
+      { href: '/admin/redirects', label: 'Redirects', icon: 'ArrowPathIcon' },
     ],
   },
   {
@@ -52,54 +93,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: 'partners',
     label: 'Partner Portal',
     icon: 'UserGroupIcon',
-    defaultOpen: true,
     items: [
       { href: '/admin/partners', label: 'Partners', icon: 'UsersIcon' },
       { href: '/admin/partner-catalog', label: 'Service Catalog', icon: 'Squares2X2Icon' },
       { href: '/admin/partner-requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
-    ],
-  },
-  {
-    id: 'whatsapp-ai',
-    label: 'WhatsApp AI',
-    icon: 'ChatBubbleLeftRightIcon',
-    defaultOpen: true,
-    items: [
-      { href: '/admin/whatsapp/inbox', label: 'Inbox', icon: 'InboxIcon' },
-      { href: '/admin/whatsapp/knowledge', label: 'Knowledge Base', icon: 'BookOpenIcon' },
-      { href: '/admin/whatsapp/settings', label: 'AI Settings', icon: 'Cog6ToothIcon' },
-    ],
-  },
-  {
-    id: 'sales',
-    label: 'Lead Discovery',
-    icon: 'MapPinIcon',
-    defaultOpen: true,
-    items: [
-      { href: '/admin/lead-discovery', label: 'Places Search', icon: 'MagnifyingGlassCircleIcon' },
-    ],
-  },
-  {
-    id: 'content',
-    label: 'Site Content',
-    icon: 'DocumentTextIcon',
-    defaultOpen: true,
-    items: [
-      { href: '/admin/content-brief', label: 'Content Brief', icon: 'ClipboardDocumentListIcon' },
-      { href: '/admin/content', label: 'Pages & Sections', icon: 'PencilSquareIcon' },
-      { href: '/admin/branding', label: 'Branding', icon: 'PaintBrushIcon' },
-      { href: '/admin/submissions', label: 'Leads', icon: 'InboxIcon' },
-      { href: '/admin/marketing', label: 'Marketing Hub', icon: 'MegaphoneIcon' },
-    ],
-  },
-  {
-    id: 'seo',
-    label: 'SEO & Discovery',
-    icon: 'GlobeAltIcon',
-    items: [
-      { href: '/admin/seo', label: 'Global SEO', icon: 'MagnifyingGlassIcon' },
-      { href: '/admin/page-seo', label: 'Page Indexing', icon: 'DocumentCheckIcon' },
-      { href: '/admin/redirects', label: 'Redirects', icon: 'ArrowPathIcon' },
     ],
   },
 ];

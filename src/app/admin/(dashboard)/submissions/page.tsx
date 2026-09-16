@@ -84,7 +84,7 @@ export default function SubmissionsAdminPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Leads"
         description="Contact form and homepage hero submissions. Update status to track follow-ups and conversions."
@@ -100,7 +100,7 @@ export default function SubmissionsAdminPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-border px-3 py-2 text-sm bg-white"
+          className="rounded-xl border border-indigo-100 px-3 py-2 text-sm bg-white/90 shadow-sm"
         >
           <option value="all">All statuses</option>
           <option value="pending">Pending</option>
@@ -110,7 +110,7 @@ export default function SubmissionsAdminPage() {
         <select
           value={sourceFilter}
           onChange={(e) => setSourceFilter(e.target.value)}
-          className="rounded-lg border border-border px-3 py-2 text-sm bg-white"
+          className="rounded-xl border border-indigo-100 px-3 py-2 text-sm bg-white/90 shadow-sm"
         >
           <option value="all">All sources</option>
           <option value="homepage_hero">Homepage hero</option>
@@ -119,7 +119,7 @@ export default function SubmissionsAdminPage() {
         <button
           type="button"
           onClick={load}
-          className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted bg-white"
+          className="rounded-xl border border-indigo-100 px-3 py-2 text-sm hover:bg-indigo-50 bg-white/90 font-semibold text-indigo-700"
         >
           Refresh
         </button>
@@ -128,15 +128,16 @@ export default function SubmissionsAdminPage() {
       {loading ? (
         <p className="text-muted-foreground">Loading leads…</p>
       ) : submissions.length === 0 ? (
-        <p className="text-muted-foreground bg-white rounded-xl border border-border p-8 text-center">
+        <p className="text-muted-foreground bg-white/80 backdrop-blur rounded-3xl border border-white/80 p-8 text-center shadow-sm">
           No leads match your filters.
         </p>
       ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/80 overflow-hidden shadow-lg shadow-indigo-500/5">
+          <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30 text-left">
+                <tr className="border-b border-indigo-50 bg-gradient-to-r from-indigo-50 via-white to-fuchsia-50 text-left">
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Phone</th>
@@ -150,7 +151,7 @@ export default function SubmissionsAdminPage() {
                 {submissions.map((row) => {
                   const statusMeta = STATUS_OPTIONS.find((s) => s.value === row.status);
                   return (
-                    <tr key={row.id} className="border-b border-border hover:bg-muted/20">
+                    <tr key={row.id} className="border-b border-slate-100 hover:bg-indigo-50/40">
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                         {formatDate(row.created_at)}
                       </td>
@@ -191,8 +192,9 @@ export default function SubmissionsAdminPage() {
 
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl border border-border max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between sticky top-0 bg-white">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl border border-white max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500" />
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/95">
               <h2 className="font-semibold text-lg">Lead details</h2>
               <button
                 type="button"

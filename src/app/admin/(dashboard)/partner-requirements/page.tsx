@@ -72,7 +72,7 @@ export default function AdminPartnerRequirementsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Partner Requirements"
         description="All client requirements submitted through the Partner Portal with generated SOW documents."

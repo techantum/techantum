@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { searchPlacesTextQuery } from './client';
 import { buildTextQuery, DEFAULT_CITY, DEFAULT_REGION } from './config';
 import { computeLeadPriority } from './priority';
+import { defaultSearchName } from './sheet-data';
 import type {
   LeadDiscoveryResult,
   LeadDiscoveryResultRow,
@@ -48,12 +49,14 @@ function sortResults(rows: LeadDiscoveryResult[]) {
 
 export async function runLeadSearch(input: LeadSearchFilters): Promise<LeadSearchResponse> {
   const city = input.city?.trim() || DEFAULT_CITY;
-  const area = input.area.trim();
+  const country = input.country?.trim() || '';
+  const state = input.state?.trim() || '';
+  const area = (input.area || '').trim();
   const segment = input.segment.trim();
-  if (!area || !segment) throw new Error('Area and segment are required.');
+  if (!city || !segment) throw new Error('City and segment are required.');
 
-  const text_query = buildTextQuery(segment, area, city);
-  const raw = await searchPlacesTextQuery(text_query, DEFAULT_REGION);
+  const text_query = buildTextQuery(segment, city, state, country, area);
+  const raw = await searchPlacesTextQuery(text_query, input.countryCode?.trim() || DEFAULT_REGION);
 
   const mapped: LeadDiscoveryResult[] = raw.map((row) => ({
     ...row,
@@ -74,7 +77,7 @@ export async function runLeadSearch(input: LeadSearchFilters): Promise<LeadSearc
 
   return {
     text_query,
-    filters: { ...input, city, area, segment },
+    filters: { ...input, city, area: area || city, segment, country, state },
     raw_count: raw.length,
     result_count: filtered.length,
     results: sortResults(filtered),
@@ -83,15 +86,19 @@ export async function runLeadSearch(input: LeadSearchFilters): Promise<LeadSearc
 
 export async function saveLeadSearchRun(
   search: LeadSearchResponse,
-  createdBy?: string
+  createdBy?: string,
+  name?: string
 ): Promise<{ run: LeadDiscoveryRun; results: LeadDiscoveryResultRow[] }> {
   const supabase = createAdminClient();
   const { data: run, error: runError } = await supabase
     .from('lead_discovery_runs')
     .insert({
       created_by: createdBy ?? null,
+      name: (name || '').trim() || defaultSearchName(search.filters),
+      country: search.filters.country || null,
+      state: search.filters.state || null,
       city: search.filters.city,
-      area: search.filters.area,
+      area: search.filters.area || search.filters.city,
       segment: search.filters.segment,
       text_query: search.text_query,
       min_rating: search.filters.minRating ?? null,

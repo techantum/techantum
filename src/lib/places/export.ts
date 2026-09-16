@@ -1,10 +1,11 @@
 import ExcelJS from 'exceljs';
 import { PRIORITY_LABELS } from './priority';
-import type { LeadDiscoveryResultRow, LeadDiscoveryRun } from './types';
+import { displaySearchName, exportBaseName } from './sheet-data';
+import type { LeadDiscoveryResult, LeadDiscoveryResultRow, LeadDiscoveryRun } from './types';
 
 export async function buildLeadDiscoveryWorkbook(
   run: LeadDiscoveryRun,
-  results: LeadDiscoveryResultRow[]
+  results: Array<LeadDiscoveryResult | LeadDiscoveryResultRow>
 ) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'TechAntum Lead Discovery';
@@ -51,14 +52,17 @@ export async function buildLeadDiscoveryWorkbook(
       primary_type: row.primary_type ?? '',
       google_maps_uri: row.google_maps_uri ?? '',
       place_id: row.place_id,
-      lead_status: row.lead_status,
-      notes: row.notes ?? '',
+      lead_status: 'lead_status' in row ? row.lead_status : '',
+      notes: 'notes' in row ? row.notes ?? '' : '',
     });
   }
 
   const meta = workbook.addWorksheet('Search Info');
   meta.addRows([
+    ['Name', displaySearchName(run)],
     ['Query', run.text_query],
+    ['Country', run.country || ''],
+    ['State', run.state || ''],
     ['City', run.city],
     ['Area', run.area],
     ['Segment', run.segment],
@@ -76,9 +80,6 @@ export async function buildLeadDiscoveryWorkbook(
   return Buffer.from(buffer);
 }
 
-export function exportFilename(run: LeadDiscoveryRun) {
-  const slug = (value: string) =>
-    value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const date = new Date(run.created_at).toISOString().slice(0, 10);
-  return `leads-${slug(run.city)}-${slug(run.area)}-${slug(run.segment)}-${date}.xlsx`;
+export function exportFilename(run: LeadDiscoveryRun, extension = 'xlsx') {
+  return `${exportBaseName(run)}.${extension}`;
 }

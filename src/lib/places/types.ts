@@ -4,6 +4,9 @@ export type LeadPriority = 'high' | 'medium' | 'normal';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'closed' | 'skipped';
 
 export interface LeadSearchFilters {
+  country?: string;
+  state?: string;
+  countryCode?: string;
   city: string;
   area: string;
   segment: string;
@@ -43,6 +46,9 @@ export interface LeadSearchResponse {
 export interface LeadDiscoveryRun {
   id: string;
   created_by: string | null;
+  name: string | null;
+  country?: string | null;
+  state?: string | null;
   city: string;
   area: string;
   segment: string;

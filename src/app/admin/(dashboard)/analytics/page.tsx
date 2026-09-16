@@ -35,28 +35,56 @@ interface AnalyticsResponse {
 }
 
 const RANGE_OPTIONS: { value: AnalyticsRange; label: string }[] = [
-  { value: '7d', label: '7 days' },
-  { value: '28d', label: '28 days' },
-  { value: '90d', label: '90 days' },
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: 'week', label: 'Last week' },
+  { value: '28d', label: 'Last 28 days' },
+  { value: 'month', label: 'Last month' },
+  { value: '90d', label: 'Last 90 days' },
+  { value: 'custom', label: 'Custom' },
 ];
+
+function isoUtc(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultCustomDates() {
+  const end = new Date();
+  const start = new Date();
+  start.setUTCDate(end.getUTCDate() - 6);
+  return { from: isoUtc(start), to: isoUtc(end) };
+}
 
 function formatNumber(value: number): string {
   return value.toLocaleString('en-IN');
 }
 
 export default function WebsiteAnalyticsPage() {
+  const defaults = defaultCustomDates();
   const [range, setRange] = useState<AnalyticsRange>('28d');
+  const [customFrom, setCustomFrom] = useState(defaults.from);
+  const [customTo, setCustomTo] = useState(defaults.to);
+  const [customError, setCustomError] = useState<string | null>(null);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const todayIso = isoUtc(new Date());
 
-  const load = useCallback(async (selectedRange: AnalyticsRange) => {
+  const load = useCallback(async (selectedRange: AnalyticsRange, from?: string, to?: string) => {
     setLoading(true);
+    setCustomError(null);
     try {
-      const res = await fetch(`/api/admin/analytics?range=${selectedRange}&_=${Date.now()}`, {
+      const params = new URLSearchParams({ range: selectedRange, _: String(Date.now()) });
+      if (selectedRange === 'custom' && from && to) {
+        params.set('from', from);
+        params.set('to', to);
+      }
+      const res = await fetch(`/api/admin/analytics?${params}`, {
         cache: 'no-store',
       });
       const json = (await res.json()) as AnalyticsResponse;
       setData(json);
+      if (!res.ok && json.error) setCustomError(json.error);
     } catch {
       setData(null);
     } finally {
@@ -65,8 +93,21 @@ export default function WebsiteAnalyticsPage() {
   }, []);
 
   useEffect(() => {
+    if (range === 'custom') return;
     load(range);
   }, [load, range]);
+
+  function applyCustomRange() {
+    if (!customFrom || !customTo) {
+      setCustomError('Choose both a start and end date.');
+      return;
+    }
+    if (customFrom > customTo) {
+      setCustomError('Start date must be on or before the end date.');
+      return;
+    }
+    load('custom', customFrom, customTo);
+  }
 
   const chartData =
     data?.daily.map((point) => ({
@@ -75,10 +116,9 @@ export default function WebsiteAnalyticsPage() {
     })) ?? [];
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="w-full space-y-6">
       <AdminPageHeader
         title="Website Analytics"
-        description="Live pull from Google Analytics 4 — same “Last N days” window as the GA date picker (property timezone)."
         action={
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {RANGE_OPTIONS.map((option) => (
@@ -97,7 +137,9 @@ export default function WebsiteAnalyticsPage() {
             ))}
             <button
               type="button"
-              onClick={() => load(range)}
+              onClick={() =>
+                range === 'custom' ? load('custom', customFrom, customTo) : load(range)
+              }
               disabled={loading}
               className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 disabled:opacity-60"
             >
@@ -106,6 +148,45 @@ export default function WebsiteAnalyticsPage() {
           </div>
         }
       />
+
+      {range === 'custom' && (
+        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-indigo-100 bg-white/80 px-4 py-3 shadow-sm">
+          <label className="space-y-1">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              From
+            </span>
+            <input
+              type="date"
+              value={customFrom}
+              max={customTo || todayIso}
+              onChange={(event) => setCustomFrom(event.target.value)}
+              className="rounded-xl border border-indigo-100 bg-white px-3 py-2 text-sm text-foreground shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              To
+            </span>
+            <input
+              type="date"
+              value={customTo}
+              max={todayIso}
+              min={customFrom}
+              onChange={(event) => setCustomTo(event.target.value)}
+              className="rounded-xl border border-indigo-100 bg-white px-3 py-2 text-sm text-foreground shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={applyCustomRange}
+            disabled={loading}
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+          >
+            Apply
+          </button>
+          {customError && <p className="text-sm text-rose-600">{customError}</p>}
+        </div>
+      )}
 
       {loading && <p className="text-sm text-muted-foreground">Loading analytics…</p>}
 
@@ -187,28 +268,24 @@ export default function WebsiteAnalyticsPage() {
             <AdminStatCard
               label="New users"
               value={formatNumber(data.summary.newUsers)}
-              hint="First-time visitors"
               icon="UserPlusIcon"
               accent="blue"
             />
             <AdminStatCard
               label="Sessions"
               value={formatNumber(data.summary.sessions)}
-              hint="Total visits"
               icon="ArrowPathRoundedSquareIcon"
               accent="green"
             />
             <AdminStatCard
               label="Page views"
               value={formatNumber(data.summary.pageViews)}
-              hint="All pages"
               icon="EyeIcon"
               accent="amber"
             />
             <AdminStatCard
               label="Avg. engagement"
               value={formatDuration(data.summary.avgEngagementTimeSeconds)}
-              hint="Per active user (GA4)"
               icon="ClockIcon"
               accent="rose"
             />
@@ -223,7 +300,6 @@ export default function WebsiteAnalyticsPage() {
             {data.fetchedAt
               ? ` · Updated ${new Date(data.fetchedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
               : ''}
-            . Compare in GA using the same date preset — not Realtime.
           </p>
 
           <AdminSection
@@ -267,7 +343,7 @@ export default function WebsiteAnalyticsPage() {
           </AdminSection>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <AdminSection title="Top pages" description="Views and average engagement time per user" accent="sky">
+            <AdminSection title="Top pages" accent="sky">
               {data.pages.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No page data yet.</p>
               ) : (
@@ -300,7 +376,7 @@ export default function WebsiteAnalyticsPage() {
               )}
             </AdminSection>
 
-            <AdminSection title="Visitor locations" description="Top countries and cities" accent="emerald">
+            <AdminSection title="Visitor locations" accent="emerald">
               {data.locations.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No location data yet.</p>
               ) : (
@@ -332,14 +408,6 @@ export default function WebsiteAnalyticsPage() {
         </>
       )}
 
-      {!loading && data?.configured && !data.error && (
-        <p className="text-xs text-muted-foreground">
-          Data sourced from Google Analytics 4. Allow up to 24 hours for GA to finalize reports.{' '}
-          <Link href="/admin/seo" className="text-indigo-600 hover:underline">
-            Manage tracking tags
-          </Link>
-        </p>
-      )}
     </div>
   );
 }

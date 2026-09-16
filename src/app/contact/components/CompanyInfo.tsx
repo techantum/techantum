@@ -1,4 +1,5 @@
 import Icon from '@/components/ui/AppIcon';
+import WhatsAppChatLink from '@/components/common/WhatsAppChatLink';
 import type { SiteBranding } from '@/lib/cms/types';
 
 interface BusinessHour {
@@ -49,14 +50,13 @@ export default function CompanyInfo({ page, branding }: CompanyInfoProps) {
             <Icon name="ChatBubbleLeftRightIcon" size={20} className="text-primary mt-0.5 shrink-0" />
             <div className="flex-1">
               <p className="font-inter text-sm font-medium text-foreground mb-1">WhatsApp</p>
-              <a
-                href={`https://wa.me/${branding.whatsapp_href}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <WhatsAppChatLink
+                phone={branding.whatsapp_href}
+                firstMessage={branding.whatsapp_widget_message}
                 className="font-inter text-sm text-primary hover:underline"
               >
                 {branding.whatsapp}
-              </a>
+              </WhatsAppChatLink>
             </div>
           </div>
 

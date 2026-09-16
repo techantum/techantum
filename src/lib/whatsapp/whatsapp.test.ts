@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import crypto from 'node:crypto';
 import { parseInboundMessages, verifyWebhookSignature } from './webhook-utils.ts';
-import { applyGreetingPrefix, buildGreetingOpening, classifySession, getTimeOfDayGreeting } from './greeting.ts';
+import { applyGreetingPrefix, buildGreetingOpening, buildGreetingReply, casualChatReply, classifySession, getTimeOfDayGreeting, isAcknowledgement, isCasualChat, isGreetingOnly, isGreetingTurn, isWebsiteWidgetOpener, stripCustomerEcho, stripServiceQuestion, stripUnconfirmedFallback } from './greeting.ts';
 import { serviceDivisions } from '../service-packages-data.ts';
 import type { WhatsAppMessage } from './types.ts';
 
@@ -49,6 +49,37 @@ describe('parseInboundMessages', () => {
     assert.equal(rows[0].text, 'Hi, I need a website.');
     assert.equal(rows[0].profile_name, 'Rahul');
   });
+
+  it('extracts WhatsApp button replies', () => {
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                contacts: [{ wa_id: '919999999999', profile: { name: 'Rahul' } }],
+                messages: [
+                  {
+                    from: '919999999999',
+                    id: 'wamid.BTN1',
+                    timestamp: '1710000000',
+                    type: 'interactive',
+                    interactive: {
+                      type: 'button_reply',
+                      button_reply: { id: 'svc_website', title: 'Website' },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const rows = parseInboundMessages(payload);
+    assert.equal(rows[0].text, 'Website');
+    assert.equal(rows[0].interactive_id, 'svc_website');
+  });
 });
 
 describe('time-based greeting and session detection', () => {
@@ -88,6 +119,92 @@ describe('time-based greeting and session detection', () => {
     const prefixed = applyGreetingPrefix('We build professional websites.', opening);
     assert.match(prefixed, /Good morning Rahul/);
     assert.match(prefixed, /We build professional websites/);
+    assert.doesNotMatch(prefixed, /don.t have that information confirmed/i);
+  });
+
+  it('does not put the unconfirmed fallback into the welcome', () => {
+    const opening = buildGreetingOpening({
+      kind: 'fresh',
+      contact: { first_name: 'Rahul', profile_name: 'Rahul' },
+      now: new Date('2026-08-20T03:30:00.000Z'),
+    });
+    const welcome = buildGreetingReply({
+      kind: 'fresh',
+      contact: { first_name: 'Rahul', profile_name: 'Rahul' },
+      now: new Date('2026-08-20T03:30:00.000Z'),
+    });
+    assert.match(welcome, /Good morning Rahul/);
+    assert.match(welcome, /Thank you for contacting Techantum Solutions/);
+    assert.doesNotMatch(welcome, /How can we help you today/);
+    assert.doesNotMatch(welcome, /don.t have that information confirmed/i);
+    assert.doesNotMatch(welcome, /our team help you/i);
+
+    const stripped = stripUnconfirmedFallback(
+      `${opening}\n\nI don't have that information confirmed right now. I can have our team help you with it.`
+    );
+    assert.doesNotMatch(stripped, /don.t have that information confirmed/i);
+
+    const prefixed = applyGreetingPrefix(
+      "I don't have that information confirmed right now. I can have our team help you with it.",
+      opening
+    );
+    assert.match(prefixed, /Good morning Rahul/);
+    assert.doesNotMatch(prefixed, /How can we help you today\? We build websites/i);
+    assert.doesNotMatch(prefixed, /don.t have that information confirmed/i);
+    assert.equal(
+      stripUnconfirmedFallback('How can we help you today? We build websites, web applications and mobile applications.'),
+      ''
+    );
+    assert.doesNotMatch(opening, /Are you looking for a website/i);
+    assert.doesNotMatch(welcome, /Are you looking for a website/i);
+    const greetingWithQuestion = applyGreetingPrefix(
+      'Are you looking for a website, web application or mobile application?',
+      opening
+    );
+    assert.match(greetingWithQuestion, /Good morning Rahul/);
+    assert.doesNotMatch(greetingWithQuestion, /Are you looking for a website/i);
+    assert.equal(
+      stripServiceQuestion(`${opening}\n\nAre you looking for a website, web application or mobile application?`),
+      opening
+    );
+    assert.doesNotMatch(
+      stripCustomerEcho('Got it — Showcase my products. I have noted this.', 'Showcase my products'),
+      /Showcase my products/i
+    );
+  });
+
+  it('treats the website starter as a greeting, not a new requirement', () => {
+    assert.equal(isWebsiteWidgetOpener('Hello! I would like to inquire about Techantum Solutions IT services.'), true);
+    assert.equal(isWebsiteWidgetOpener('Hello! I would like to inquire about your services.'), true);
+    assert.equal(isWebsiteWidgetOpener('Hi, welcome back. I wanted to continue our conversation.'), true);
+    assert.equal(isWebsiteWidgetOpener('I need a website for my shop'), false);
+    assert.equal(isGreetingTurn('Hello! I would like to inquire about Techantum Solutions IT services.'), true);
+  });
+
+  it('treats a known contact with no messages in a new thread as returning', () => {
+    const inbound = [{ sender_type: 'CUSTOMER', created_at: '2026-08-24T10:00:00.000Z' }] as WhatsAppMessage[];
+    assert.equal(classifySession(inbound, new Date('2026-08-24T10:01:00.000Z'), { hadPriorChat: true }), 'returning');
+  });
+
+  it('does not treat a how-are-you as a time slot', () => {
+    assert.equal(isCasualChat('How are you doing today?'), true);
+    assert.match(casualChatReply('How are you doing today?'), /doing great/i);
+  });
+
+  it('treats simple hellos as greetings and real questions as questions', () => {
+    assert.equal(isGreetingOnly('Hi'), true);
+    assert.equal(isGreetingOnly('Hello!'), true);
+    assert.equal(isGreetingOnly('Good morning'), true);
+    assert.equal(isGreetingOnly('Hi, I need a website.'), false);
+    assert.equal(isGreetingOnly('What does a Launch website include?'), false);
+    assert.equal(isGreetingOnly('Ok'), false);
+    assert.equal(isGreetingOnly('okay'), false);
+    assert.equal(isGreetingOnly('What up'), true);
+    assert.equal(isGreetingOnly('whats up'), true);
+    assert.equal(isAcknowledgement('Ok'), true);
+    assert.equal(isAcknowledgement('okay'), true);
+    assert.equal(isAcknowledgement('Thanks'), true);
+    assert.equal(isAcknowledgement('Hi, I need a website.'), false);
   });
 
   it('does not greet again in an ongoing session', () => {

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { defaultBranding } from '@/lib/cms/default-content';
 import type { SiteBranding } from '@/lib/cms/types';
+import WhatsAppChatLink from '@/components/common/WhatsAppChatLink';
 import { getDivisionPath, serviceDivisions } from '@/lib/service-packages-data';
 
 export default function Header({ branding = defaultBranding }: { branding?: SiteBranding }) {
@@ -146,15 +147,14 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
                   <Icon name="PhoneIcon" size={16} />
                   {branding.phone}
                 </a>
-                <a
-                  href={`https://wa.me/${branding.whatsapp_href}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <WhatsAppChatLink
+                  phone={branding.whatsapp_href}
+                  firstMessage={branding.whatsapp_widget_message}
                   className="text-foreground hover:text-primary transition-colors"
                   title={`WhatsApp ${branding.whatsapp}`}
                 >
                   <Icon name="ChatBubbleLeftRightIcon" size={16} />
-                </a>
+                </WhatsAppChatLink>
               </div>
               <a
                 href={`mailto:${branding.email}`}
@@ -249,15 +249,14 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
                     <Icon name="PhoneIcon" size={16} />
                     {branding.phone}
                   </a>
-                  <a
-                    href={`https://wa.me/${branding.whatsapp_href}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <WhatsAppChatLink
+                    phone={branding.whatsapp_href}
+                    firstMessage={branding.whatsapp_widget_message}
                     className="text-foreground hover:text-primary transition-colors"
                     title={`WhatsApp ${branding.whatsapp}`}
                   >
                     <Icon name="ChatBubbleLeftRightIcon" size={16} />
-                  </a>
+                  </WhatsAppChatLink>
                 </div>
                 <a
                   href={`mailto:${branding.email}`}
