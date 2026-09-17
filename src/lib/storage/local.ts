@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 
 /** VPS/local disk storage. Defaults to public/uploads (served as /uploads/...). */
@@ -35,4 +35,19 @@ export async function saveUploadedFile(
 
   const relativePath = `uploads/${subdir}/${fileName}`;
   return { relativePath, url: getPublicUploadUrl(relativePath) };
+}
+
+export async function deleteUploadedFile(urlOrPath: string | null | undefined) {
+  if (!urlOrPath) return;
+  try {
+    const raw = urlOrPath.includes('://') ? new URL(urlOrPath).pathname : urlOrPath;
+    const match = raw.match(/^\/?(?:uploads\/)?(recruitment-resumes\/[^/]+)$/);
+    if (!match) return;
+    const root = path.resolve(path.join(getUploadRoot(), 'recruitment-resumes'));
+    const full = path.resolve(path.join(getUploadRoot(), match[1]));
+    if (full !== root && !full.startsWith(`${root}${path.sep}`)) return;
+    await unlink(full);
+  } catch {
+    /* missing file is fine */
+  }
 }

@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import {
   getGbpDateRange,
-  isGbpConfigured,
+  isGbpReady,
   resolveGbpCredentials,
   type AnalyticsCustomDates,
   type AnalyticsRange,
 } from '@/lib/gbp/config';
 import { parseCustomDates } from '@/lib/analytics/ga4-config';
 import { fetchGbpAnalytics } from '@/lib/gbp/reports';
+import { discoverGbpLocationCatalog, gbpServiceEmail, pendingGbpInviteMessage } from '@/lib/gbp/client';
+import { getGbpOAuthStatus } from '@/lib/gbp/oauth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -43,10 +45,7 @@ function noStore(body: unknown, status = 200) {
 function setupError() {
   const hasCreds = Boolean(resolveGbpCredentials());
   const hasLocation = Boolean(process.env.GBP_LOCATION_ID?.trim());
-  const serviceEmail =
-    process.env.GBP_CLIENT_EMAIL?.trim() ||
-    process.env.GA4_CLIENT_EMAIL?.trim() ||
-    'your-service-account@….iam.gserviceaccount.com';
+  const serviceEmail = gbpServiceEmail() || 'your-service-account@….iam.gserviceaccount.com';
 
   if (!hasCreds) {
     return [
@@ -75,16 +74,20 @@ export async function GET(request: Request) {
   const range = parseRange(url.searchParams.get('range'));
   let custom: AnalyticsCustomDates | undefined;
 
+  const oauth = await getGbpOAuthStatus();
+  const ready = await isGbpReady();
+
   if (range === 'custom') {
     const parsed = parseCustomDates(url.searchParams.get('from'), url.searchParams.get('to'));
     if (!parsed.ok) {
       return noStore(
         {
-          configured: isGbpConfigured(),
+          configured: ready,
           range: getGbpDateRange('28d'),
           error: parsed.error,
           summary: null,
           daily: [],
+          oauth,
         },
         400
       );
@@ -92,32 +95,35 @@ export async function GET(request: Request) {
     custom = { from: parsed.from, to: parsed.to };
   }
 
-  if (!isGbpConfigured()) {
+  if (!ready) {
     return noStore({
       configured: false,
       range: getGbpDateRange(range, custom),
-      error: setupError(),
+      error: oauth.clientId && oauth.hasClientSecret
+        ? 'Click Connect Owner Google login and sign in with the Google account that owns Techantum Solutions on Maps.'
+        : setupError(),
       summary: null,
       daily: [],
+      serviceEmail: gbpServiceEmail(),
       hasCredentials: Boolean(resolveGbpCredentials()),
-      hasLocationId: Boolean(process.env.GBP_LOCATION_ID?.trim()),
+      hasLocationId: Boolean(oauth.locationId),
+      oauth,
     });
   }
 
   try {
     const report = await fetchGbpAnalytics(range, custom);
-    return noStore(report);
+    return noStore({ ...report, oauth });
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'Failed to load GBP analytics';
     const permissionDenied = /PERMISSION_DENIED|sufficient permissions|403/i.test(raw);
-    const notFound = /NOT_FOUND|404/i.test(raw);
+    const notFound = /NOT_FOUND|entity was not found|\b404\b/i.test(raw);
     const quotaExceeded =
       /Quota exceeded|RESOURCE_EXHAUSTED|rateLimitExceeded|429/i.test(raw);
     const unavailable = /UNAVAILABLE|No connection established|EAI_AGAIN|ENOTFOUND|ECONNREFUSED/i.test(
       raw
     );
-    const serviceEmail =
-      process.env.GBP_CLIENT_EMAIL?.trim() || process.env.GA4_CLIENT_EMAIL?.trim();
+    const serviceEmail = gbpServiceEmail();
     const projectHint =
       raw.match(/project_number:(\d+)/)?.[1] ||
       process.env.GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ||
@@ -125,6 +131,8 @@ export async function GET(request: Request) {
 
     let errorCode: 'quota' | 'permission' | 'not_found' | 'unavailable' | 'unknown' = 'unknown';
     let message = raw;
+    let discoveredLocations: Awaited<ReturnType<typeof discoverGbpLocationCatalog>>['locations'] =
+      [];
 
     if (quotaExceeded) {
       errorCode = 'quota';
@@ -153,8 +161,37 @@ export async function GET(request: Request) {
         .join(' ');
     } else if (notFound) {
       errorCode = 'not_found';
-      message =
-        'GBP location was not found. Check GBP_LOCATION_ID (use the numeric location id from Discover locations).';
+      try {
+        const catalog = await discoverGbpLocationCatalog();
+        discoveredLocations = catalog.locations;
+        if (catalog.pendingInviteBlocked || catalog.invitations.length > 0) {
+          errorCode = 'permission';
+          message = pendingGbpInviteMessage(catalog.invitations, catalog.inviteAcceptError);
+        } else if (discoveredLocations.length > 0) {
+          message = [
+            `GBP_LOCATION_ID ${process.env.GBP_LOCATION_ID?.trim() || ''} is not a valid listing id.`,
+            'Use the numeric location ID from Discover locations (not the Maps cid= value).',
+          ].join(' ');
+        } else {
+          errorCode = 'permission';
+          message = [
+            'The Google service account is not a Manager on the Techantum Business Profile, so no listings are visible.',
+            serviceEmail
+              ? `In business.google.com → People and access, add ${serviceEmail} as Manager.`
+              : 'Add the service account email as Manager on the Business Profile.',
+            'Wait a few minutes, then click Discover locations.',
+          ].join(' ');
+        }
+      } catch {
+        discoveredLocations = [];
+        errorCode = 'permission';
+        message = [
+          'The Google service account is not a Manager on the Techantum Business Profile, so no listings are visible.',
+          serviceEmail
+            ? `In business.google.com → People and access, add ${serviceEmail} as Manager.`
+            : 'Add the service account email as Manager on the Business Profile.',
+        ].join(' ');
+      }
     } else if (unavailable) {
       errorCode = 'unavailable';
       message =
@@ -167,8 +204,11 @@ export async function GET(request: Request) {
         range: getGbpDateRange(range, custom),
         error: message,
         errorCode,
-        locationId: process.env.GBP_LOCATION_ID?.trim() || undefined,
-        profileUrl: process.env.GBP_PROFILE_URL?.trim() || undefined,
+        serviceEmail,
+        locationId: oauth.locationId || process.env.GBP_LOCATION_ID?.trim() || undefined,
+        profileUrl: oauth.mapsUri || process.env.GBP_PROFILE_URL?.trim() || undefined,
+        discoveredLocations: discoveredLocations.length ? discoveredLocations : undefined,
+        oauth,
         summary: null,
         daily: [],
       },

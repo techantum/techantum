@@ -1,4 +1,6 @@
-import { getOpenAiConfig, TECHANTUM_AI_SYSTEM_INSTRUCTIONS } from './config';
+import { generateAIChat } from '@/lib/ai';
+import { parseModelJson } from '@/lib/ai/json';
+import { TECHANTUM_AI_SYSTEM_INSTRUCTIONS } from './config';
 import type { AIReplyStructured, ExtractedLeadData, WhatsAppContact, WhatsAppConversation, WhatsAppMessage } from './types';
 import { formatKnowledgeContext, searchKnowledge } from './knowledge';
 import type { AISettings } from './types';
@@ -62,7 +64,7 @@ function emptyExtracted(): ExtractedLeadData {
 
 function safeParseStructured(raw: string): AIReplyStructured | null {
   try {
-    const parsed = JSON.parse(raw) as AIReplyStructured;
+    const parsed = parseModelJson<AIReplyStructured>(raw);
     if (!parsed.reply_text || typeof parsed.reply_text !== 'string') return null;
     parsed.extracted_data = { ...emptyExtracted(), ...(parsed.extracted_data || {}) };
     return parsed;
@@ -138,64 +140,28 @@ export async function generateWhatsAppReply(input: {
   recentMessages: WhatsAppMessage[];
   settings: AISettings;
 }): Promise<{ reply: AIReplyStructured; responseId: string | null }> {
-  const { apiKey, model } = getOpenAiConfig();
   const knowledge = await searchKnowledge(input.customerMessage, input.settings.knowledge_retrieval_limit);
   const knowledgeContext = formatKnowledgeContext(knowledge);
   const sessionKind = classifySession(input.recentMessages);
 
   const qualification = normalizeQualification(input.conversation.qualification);
   const fallbackText = humanContinueReply(qualification, input.customerMessage) || TECHANTUM_CONTINUE_REPLY;
-
-  if (!apiKey) {
-    return {
-      reply: {
-        reply_text: fallbackText,
-        intent: 'OTHER',
-        is_techantum_related: true,
-        knowledge_sufficient: false,
-        lead_stage: input.conversation.lead_stage,
-        handoff_required: false,
-        handoff_reason: null,
-        extracted_data: emptyExtracted(),
-      },
-      responseId: null,
-    };
-  }
-
   const userPrompt = buildUserPrompt({ ...input, knowledgeContext, sessionKind });
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: `${TECHANTUM_AI_SYSTEM_INSTRUCTIONS}\nReturn JSON only.` },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 500,
-      }),
-      signal: AbortSignal.timeout(12000),
+    const generated = await generateAIChat({
+      purpose: 'whatsapp_reply',
+      json: true,
+      temperature: 0.3,
+      maxTokens: 500,
+      timeoutMs: 18000,
+      messages: [
+        { role: 'system', content: `${TECHANTUM_AI_SYSTEM_INSTRUCTIONS}\nReturn JSON only.` },
+        { role: 'user', content: userPrompt },
+      ],
     });
 
-    const data = (await res.json().catch(() => ({}))) as {
-      id?: string;
-      choices?: { message?: { content?: string } }[];
-      error?: { message?: string };
-    };
-
-    if (!res.ok) {
-      throw new Error(data.error?.message || `OpenAI error ${res.status}`);
-    }
-
-    const rawText = data.choices?.[0]?.message?.content || '';
-    const parsed = safeParseStructured(rawText);
+    const parsed = safeParseStructured(generated.text);
     if (!parsed) throw new Error('Malformed AI structured output');
 
     if (!parsed.is_techantum_related) {
@@ -209,7 +175,7 @@ export async function generateWhatsAppReply(input: {
     }
 
     parsed.reply_text = parsed.reply_text.trim().slice(0, input.settings.max_response_length);
-    return { reply: parsed, responseId: data.id || null };
+    return { reply: parsed, responseId: generated.id || null };
   } catch (err) {
     console.error('[whatsapp ai] generate failed', err instanceof Error ? err.message : err);
     return {
@@ -246,8 +212,7 @@ export async function summarizeConversation(
   qualification?: unknown
 ): Promise<string> {
   const fallback = formatConversationStory(normalizeQualification(qualification), messages);
-  const { apiKey, model } = getOpenAiConfig();
-  if (!apiKey || messages.length < 1) return fallback;
+  if (messages.length < 1) return fallback;
 
   const transcript = messages
     .slice(-30)
@@ -255,33 +220,24 @@ export async function summarizeConversation(
     .join('\n');
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You write a short internal recap of a Techantum WhatsApp chat for a business-development person. 4 to 8 short lines. Cover what the customer asked, what they chose, the requirement in their words, and the next step. Do not repeat Prospect/Contact/Session/Intent/Stage labels. Do not invent budget, price or timeline. Be factual.',
-          },
-          {
-            role: 'user',
-            content: `Customer: ${contact.first_name || contact.profile_name || ''} ${contact.phone_number}\n\n${transcript}`,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 280,
-      }),
-      signal: AbortSignal.timeout(15000),
+    const generated = await generateAIChat({
+      purpose: 'whatsapp_summary',
+      temperature: 0.2,
+      maxTokens: 280,
+      timeoutMs: 15000,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You write a short internal recap of a Techantum WhatsApp chat for a business-development person. 4 to 8 short lines. Cover what the customer asked, what they chose, the requirement in their words, and the next step. Do not repeat Prospect/Contact/Session/Intent/Stage labels. Do not invent budget, price or timeline. Be factual.',
+        },
+        {
+          role: 'user',
+          content: `Customer: ${contact.first_name || contact.profile_name || ''} ${contact.phone_number}\n\n${transcript}`,
+        },
+      ],
     });
-
-    const data = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
-    return data.choices?.[0]?.message?.content?.trim() || fallback;
+    return generated.text.trim() || fallback;
   } catch {
     return fallback;
   }

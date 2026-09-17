@@ -1,3 +1,4 @@
+import { generateAIChat } from '@/lib/ai';
 import type { RequirementRecord } from './types';
 
 const ARCHITECT_PROMPT = `You are a Senior Solution Architect with 20 years of experience at TechAntum Solutions.
@@ -109,33 +110,20 @@ export async function generateSowContent(
   summary: ReturnType<typeof buildRequirementSummary>,
   promptText: string
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (apiKey) {
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: ARCHITECT_PROMPT },
-            { role: 'user', content: promptText },
-          ],
-          temperature: 0.4,
-          max_tokens: 4000,
-        }),
-      });
-
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch {
-      /* fall through to template */
-    }
+  try {
+    const generated = await generateAIChat({
+      purpose: 'partner_sow',
+      temperature: 0.4,
+      maxTokens: 4000,
+      timeoutMs: 45000,
+      messages: [
+        { role: 'system', content: ARCHITECT_PROMPT },
+        { role: 'user', content: promptText },
+      ],
+    });
+    if (generated.text) return generated.text;
+  } catch {
+    /* fall through to template */
   }
 
   return buildTemplateSow(requirement, answers, summary);

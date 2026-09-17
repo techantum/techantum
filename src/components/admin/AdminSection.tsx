@@ -32,18 +32,20 @@ export default function AdminSection({
   action,
 }: AdminSectionProps) {
   return (
-    <section className="w-full bg-white/85 backdrop-blur-xl rounded-3xl border border-white/80 shadow-lg shadow-slate-900/5 overflow-hidden">
-      <div className={`h-1.5 bg-gradient-to-r ${accentStyles[accent]}`} />
-      <div
-        className={`px-5 py-4 border-b border-slate-100 bg-gradient-to-r ${headerStyles[accent]} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}
-      >
-        <div>
-          <h2 className="font-bricolage font-semibold text-slate-900">{title}</h2>
-          {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+    <section className="w-full bg-white/85 backdrop-blur-xl rounded-3xl border border-white/80 shadow-lg shadow-slate-900/5">
+      <div className="overflow-hidden rounded-t-3xl">
+        <div className={`h-1.5 bg-gradient-to-r ${accentStyles[accent]}`} />
+        <div
+          className={`px-5 py-4 border-b border-slate-100 bg-gradient-to-r ${headerStyles[accent]} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}
+        >
+          <div>
+            <h2 className="font-bricolage font-semibold text-slate-900">{title}</h2>
+            {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+          </div>
+          {action}
         </div>
-        {action}
       </div>
-      <div className="p-5 space-y-4">{children}</div>
+      <div className="p-5 space-y-4 overflow-visible">{children}</div>
     </section>
   );
 }

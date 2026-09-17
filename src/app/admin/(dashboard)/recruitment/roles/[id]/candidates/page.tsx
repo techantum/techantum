@@ -23,6 +23,7 @@ export default function RoleCandidatesPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = () => {
     fetch(`/api/admin/recruitment/roles/${roleId}`)
@@ -73,6 +74,28 @@ export default function RoleCandidatesPage() {
     setCompareIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 5)));
   };
 
+  const removeCandidate = async (row: RecruitmentCandidate) => {
+    const label = row.name || row.resume_file_name || 'this candidate';
+    if (!window.confirm(`Delete ${label}? The profile, AI assessment and resume file will be removed. This cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(row.id);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`/api/admin/recruitment/candidates/${row.id}`, { method: 'DELETE' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Delete failed');
+      setRows((prev) => prev.filter((item) => item.id !== row.id));
+      setCompareIds((prev) => prev.filter((id) => id !== row.id));
+      setMessage(`${label} deleted.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <OpsPageShell>
       <AdminPageHeader
@@ -111,9 +134,17 @@ export default function RoleCandidatesPage() {
                 <OpsTh>Recommendation</OpsTh>
                 <OpsTh>Status</OpsTh>
                 <OpsTh>Applied</OpsTh>
+                <OpsTh>Actions</OpsTh>
               </tr>
             </thead>
             <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-6 px-3 text-sm text-muted-foreground text-center">
+                    No candidates yet.
+                  </td>
+                </tr>
+              )}
               {rows.map((row) => (
                 <tr key={row.id} className="hover:bg-muted/20">
                   <OpsTd>
@@ -128,6 +159,16 @@ export default function RoleCandidatesPage() {
                   <OpsTd className="max-w-[200px] truncate">{row.ai_recommendation || '—'}</OpsTd>
                   <OpsTd><AdminBadge>{CANDIDATE_STATUS_LABELS[row.status] || row.status}</AdminBadge></OpsTd>
                   <OpsTd>{row.application_date}</OpsTd>
+                  <OpsTd>
+                    <AdminButton
+                      size="sm"
+                      variant="danger"
+                      disabled={deletingId === row.id}
+                      onClick={() => removeCandidate(row)}
+                    >
+                      {deletingId === row.id ? 'Deleting…' : 'Delete'}
+                    </AdminButton>
+                  </OpsTd>
                 </tr>
               ))}
             </tbody>

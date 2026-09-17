@@ -1,15 +1,11 @@
 import {
-  getGbpConfig,
   getGbpDateRange,
   type AnalyticsCustomDates,
   type AnalyticsRange,
 } from './config';
-import {
-  fetchGbpMultiDailyMetrics,
-  type GbpDailyMetric,
-  type FetchMultiDailyMetricsResponse,
-} from './client';
+import { fetchGbpMultiDailyMetrics, type GbpDailyMetric, type FetchMultiDailyMetricsResponse } from './client';
 import { getGbpCache, setGbpCache } from './cache';
+import { getGbpOAuthStatus } from './oauth';
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -109,13 +105,14 @@ export async function fetchGbpAnalytics(
   range: AnalyticsRange,
   custom?: AnalyticsCustomDates
 ): Promise<GbpAnalyticsReport> {
-  const config = getGbpConfig();
-  if (!config) {
-    throw new Error('GBP is not configured.');
+  const oauth = await getGbpOAuthStatus();
+  const locationId = oauth.locationId?.trim();
+  if (!locationId) {
+    throw new Error('GBP location is not selected. Connect Owner Google login, then Discover locations.');
   }
 
   const rangeMeta = getGbpDateRange(range, custom);
-  const cacheKey = `gbp:${config.locationId}:${rangeMeta.startDate}:${rangeMeta.endDate}`;
+  const cacheKey = `gbp:${locationId}:${rangeMeta.startDate}:${rangeMeta.endDate}`;
   const cached = getGbpCache<GbpAnalyticsReport>(cacheKey);
   if (cached) {
     return { ...cached, fetchedAt: cached.fetchedAt };
@@ -156,8 +153,8 @@ export async function fetchGbpAnalytics(
 
   const report: GbpAnalyticsReport = {
     configured: true,
-    locationId: config.locationId,
-    profileUrl: config.profileUrl,
+    locationId,
+    profileUrl: oauth.mapsUri || undefined,
     fetchedAt: new Date().toISOString(),
     range: rangeMeta,
     summary: {

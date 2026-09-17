@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
@@ -15,6 +15,7 @@ import type { AreaAssessmentResult, RecruitmentCandidate } from '@/lib/recruitme
 
 export default function CandidateAssessmentPage() {
   const id = String(useParams().id);
+  const router = useRouter();
   const [candidate, setCandidate] = useState<RecruitmentCandidate | null>(null);
   const [areaResults, setAreaResults] = useState<AreaAssessmentResult[]>([]);
   const [history, setHistory] = useState<{ new_status: string; created_at: string; comments: string | null }[]>([]);
@@ -70,6 +71,20 @@ export default function CandidateAssessmentPage() {
     load();
   };
 
+  const removeProfile = async () => {
+    const label = candidate?.name || candidate?.resume_file_name || 'this candidate';
+    if (!window.confirm(`Delete ${label}? The profile, AI assessment and resume file will be removed. This cannot be undone.`)) {
+      return;
+    }
+    setWorking(true);
+    setError('');
+    const res = await fetch(`/api/admin/recruitment/candidates/${id}`, { method: 'DELETE' });
+    const body = await res.json().catch(() => ({}));
+    setWorking(false);
+    if (!res.ok) return setError(body.error || 'Delete failed');
+    router.push(`/admin/recruitment/roles/${candidate?.job_role_id}/candidates`);
+  };
+
   if (!candidate) return <p className="text-sm text-muted-foreground p-4">{error || 'Loading…'}</p>;
 
   const role = candidate.recruitment_job_roles;
@@ -87,6 +102,7 @@ export default function CandidateAssessmentPage() {
               </Link>
             )}
             <AdminButton onClick={reassess} disabled={working}>Re-run AI</AdminButton>
+            <AdminButton variant="danger" onClick={removeProfile} disabled={working}>Delete profile</AdminButton>
           </div>
         }
       />

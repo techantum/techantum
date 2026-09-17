@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { deleteUploadedFile } from '@/lib/storage/local';
 import { runResumeAssessment } from './ai';
 import { recommendAction, classifyFit } from './config';
 import { buildAreaResults, overallPercent, summarizeScores, validateWeightages } from './scoring';
@@ -57,6 +58,21 @@ export async function recordStatusChange(
     changed_by: userId,
     comments: comments || null,
   });
+}
+
+export async function deleteCandidate(candidateId: string) {
+  const supabase = createAdminClient();
+  const { data: candidate, error } = await supabase
+    .from('recruitment_candidates')
+    .select('id, resume_url')
+    .eq('id', candidateId)
+    .maybeSingle();
+  if (error || !candidate) throw new Error('Candidate not found');
+
+  await supabase.from('recruitment_candidates').update({ latest_assessment_id: null }).eq('id', candidateId);
+  const { error: deleteError } = await supabase.from('recruitment_candidates').delete().eq('id', candidateId);
+  if (deleteError) throw new Error(deleteError.message);
+  await deleteUploadedFile(candidate.resume_url);
 }
 
 export async function assessCandidate(candidateId: string, userId: string) {

@@ -32,8 +32,13 @@ See `.env.example`. Minimum for AI assistant:
 - `META_WHATSAPP_PHONE_NUMBER_ID`
 - `META_WHATSAPP_VERIFY_TOKEN`
 - `META_WHATSAPP_APP_SECRET` (recommended for webhook signature validation)
-- `OPENAI_API_KEY`
+- `OPENAI_API_KEY` / encrypted key in **Admin → AI Gateway**
 - `OPENAI_MODEL` (default `gpt-4o-mini`)
+- Gemini fallback key in **Admin → AI Gateway** (recommended)
+
+Enable assistant in admin: **WhatsApp AI → AI Settings → AI enabled**.
+
+If OpenAI credits are exhausted, the AI Gateway automatically retries with Gemini. Ordinary rate-limit 429s do not trigger fallback.
 
 Enable assistant in admin: **WhatsApp AI → AI Settings → AI enabled**.
 

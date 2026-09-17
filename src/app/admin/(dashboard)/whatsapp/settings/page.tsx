@@ -55,12 +55,13 @@ export default function WhatsAppSettingsPage() {
 
   const whatsapp = (status?.whatsapp || {}) as Record<string, unknown>;
   const openai = (status?.openai || {}) as Record<string, unknown>;
+  const gateway = (status?.gateway || {}) as Record<string, unknown>;
 
   return (
     <OpsPageShell>
       <AdminPageHeader
         title="WhatsApp AI Settings"
-        description="Control assistant behaviour. API keys remain in server environment variables."
+        description="Control assistant behaviour. Manage encrypted API keys in AI Gateway."
       />
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
@@ -87,10 +88,15 @@ export default function WhatsAppSettingsPage() {
           <OpsOverviewField label="WhatsApp configured">{whatsapp.configured ? 'Yes' : 'No'}</OpsOverviewField>
           <OpsOverviewField label="Display number">{String(whatsapp.display_number || '—')}</OpsOverviewField>
           <OpsOverviewField label="OpenAI configured">{openai.configured ? 'Yes' : 'No'}</OpsOverviewField>
+          <OpsOverviewField label="Gemini fallback">{gateway.geminiConfigured ? 'Yes' : 'No'}</OpsOverviewField>
           <OpsOverviewField label="Receiving inbound">{whatsapp.receiving ? 'Yes' : 'No'}</OpsOverviewField>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
           Webhook URL: <code className="bg-muted px-1 rounded">https://techantum.com/api/webhooks/whatsapp</code>
+          {' · '}
+          <a className="underline" href="/admin/ai/providers">
+            Open AI Gateway
+          </a>
         </p>
       </AdminSection>
 

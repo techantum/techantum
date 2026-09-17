@@ -46,6 +46,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/admin/whatsapp/appointments', label: 'Appointments', icon: 'CalendarDaysIcon' },
       { href: '/admin/whatsapp/knowledge', label: 'Knowledge Base', icon: 'BookOpenIcon' },
       { href: '/admin/whatsapp/settings', label: 'AI Settings', icon: 'Cog6ToothIcon' },
+      { href: '/admin/ai/providers', label: 'AI Gateway', icon: 'ShieldCheckIcon' },
     ],
   },
   {

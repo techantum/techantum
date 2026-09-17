@@ -66,6 +66,13 @@ export function isGbpConfigured(): boolean {
   return getGbpConfig() !== null;
 }
 
+export async function isGbpReady(): Promise<boolean> {
+  const { getGbpOAuthStatus } = await import('./oauth');
+  const oauth = await getGbpOAuthStatus();
+  if (oauth.hasRefreshToken && oauth.locationId) return true;
+  return getGbpConfig() !== null;
+}
+
 export function getGbpDateRange(range: AnalyticsRange, custom?: AnalyticsCustomDates) {
   return getAnalyticsDateRange(range, custom);
 }

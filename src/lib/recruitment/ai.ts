@@ -1,3 +1,5 @@
+import { generateAIChat } from '@/lib/ai';
+import { parseModelJson } from '@/lib/ai/json';
 import type { AIAssessmentPayload, RecruitmentAssessmentArea, RecruitmentJobRole } from './types';
 
 const SYSTEM = `You are Techantum's recruitment screening assistant.
@@ -8,17 +10,13 @@ Rules:
 - If resume mentions achievement without numbers, note missing_information and a recommended_screening_question.
 - fit_summary: 100-200 words, management-level, Techantum context.
 - screening_questions: 5-10 specific questions based on gaps.
-- Return valid JSON only.`;
+- Return valid JSON only. No markdown fences, no trailing commas, no commentary.`;
 
 export async function runResumeAssessment(input: {
   role: RecruitmentJobRole;
   areas: RecruitmentAssessmentArea[];
   resumeText: string;
 }): Promise<AIAssessmentPayload> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
-
-  const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
   const activeAreas = input.areas.filter((a) => a.status === 'ACTIVE').sort((a, b) => a.display_order - b.display_order);
 
   const criteria = activeAreas
@@ -73,32 +71,34 @@ Return JSON:
   "recommendation": "string"
 }`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 4000,
-    }),
-  });
-
-  const data = (await res.json().catch(() => ({}))) as {
-    choices?: { message?: { content?: string } }[];
-    error?: { message?: string };
+  const request = {
+    purpose: 'recruitment_assessment' as const,
+    json: true,
+    temperature: 0.2,
+    maxTokens: 4000,
+    timeoutMs: 70000,
+    messages: [
+      { role: 'system' as const, content: SYSTEM },
+      { role: 'user' as const, content: userPrompt },
+    ],
   };
 
-  if (!res.ok) throw new Error(data.error?.message || `OpenAI error ${res.status}`);
+  let lastParseError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const generated = await generateAIChat({
+      ...request,
+      temperature: attempt === 0 ? 0.2 : 0.1,
+    });
+    try {
+      const parsed = parseModelJson<AIAssessmentPayload>(generated.text || '{}');
+      if (!parsed.area_results?.length) throw new Error('AI returned no assessment areas.');
+      return parsed;
+    } catch (error) {
+      lastParseError = error;
+    }
+  }
 
-  const parsed = JSON.parse(data.choices?.[0]?.message?.content || '{}') as AIAssessmentPayload;
-  if (!parsed.area_results?.length) throw new Error('AI returned no assessment areas.');
-  return parsed;
+  throw lastParseError instanceof Error && lastParseError.message === 'AI returned no assessment areas.'
+    ? lastParseError
+    : new Error('AI returned invalid JSON. Please retry the assessment.');
 }

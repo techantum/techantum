@@ -68,3 +68,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAdmin();
+  if ('error' in auth && auth.error) return auth.error;
+  const { id } = await params;
+  try {
+    const { deleteCandidate } = await import('@/lib/recruitment/service');
+    await deleteCandidate(id);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Delete failed';
+    const status = message === 'Candidate not found' ? 404 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+}

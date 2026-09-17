@@ -1,5 +1,5 @@
+import { generateAIChat } from '@/lib/ai';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getOpenAiConfig } from './config';
 import { getRecentMessages, saveOutboundMessage } from './conversation';
 import { getAISettings } from './knowledge';
 import { sendWhatsAppSessionText } from './meta';
@@ -16,36 +16,25 @@ export {
 } from './followup-schedule';
 
 export async function polishFollowupMessage(base: string, transcript: string): Promise<string> {
-  const { apiKey, model } = getOpenAiConfig();
-  if (!apiKey) return base;
-
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.3,
-        max_tokens: 180,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Write one short WhatsApp follow-up in simple Indian English. Start with a time-of-day greeting. Ask one relevant question based on the previous chat. Do not repeat the customer\'s words. Do not mention price or budget. Do not restart the whole conversation. Plain text only.',
-          },
-          {
-            role: 'user',
-            content: `Draft to improve:\n${base}\n\nRecent chat:\n${transcript.slice(-1800)}`,
-          },
-        ],
-      }),
-      signal: AbortSignal.timeout(8000),
+    const generated = await generateAIChat({
+      purpose: 'whatsapp_followup',
+      temperature: 0.3,
+      maxTokens: 180,
+      timeoutMs: 8000,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Write one short WhatsApp follow-up in simple Indian English. Start with a time-of-day greeting. Ask one relevant question based on the previous chat. Do not repeat the customer\'s words. Do not mention price or budget. Do not restart the whole conversation. Plain text only.',
+        },
+        {
+          role: 'user',
+          content: `Draft to improve:\n${base}\n\nRecent chat:\n${transcript.slice(-1800)}`,
+        },
+      ],
     });
-    const data = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
-    const text = data.choices?.[0]?.message?.content?.trim() || '';
+    const text = generated.text.trim();
     if (!text || text.length > 600) return base;
     if (/shall i ask someone to call/i.test(text) && /team will call you/i.test(base)) return base;
     return text;
