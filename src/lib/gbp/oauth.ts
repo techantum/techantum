@@ -43,7 +43,7 @@ export function gbpOAuthRedirectUri() {
 }
 
 export function siteGoogleRedirectUri(origin: string) {
-  return `${origin.replace(/\/$/, '')}/api/admin/gbp-analytics/oauth/callback`;
+  return `${origin.replace(/\/$/, '')}/api/public/auth/google/callback`;
 }
 
 export function newOAuthState() {

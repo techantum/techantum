@@ -8,29 +8,16 @@ import Icon from '@/components/ui/AppIcon';
 import { safeNextPath } from '@/lib/auth/safe-next';
 import { loadFacebookSdk } from '@/lib/whatsapp-provider/facebook-sdk';
 
-type AuthConfig = { googleClientId?: string; facebookAppId?: string; facebookSdkVersion?: string };
+type AuthConfig = {
+  googleClientId?: string;
+  facebookAppId?: string;
+  facebookSdkVersion?: string;
+  googleOrigin?: string;
+  googleRedirectUri?: string;
+};
 
 const inputClass =
   'w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300';
-
-function loadGoogleSdk() {
-  return new Promise<void>((resolve, reject) => {
-    if (window.google?.accounts?.oauth2) return resolve();
-    const existing = document.getElementById('google-gsi-client') as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('Could not load Google sign-in.')));
-      return;
-    }
-    const script = document.createElement('script');
-    script.id = 'google-gsi-client';
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Could not load Google sign-in.'));
-    document.head.appendChild(script);
-  });
-}
 
 export default function SiteLoginPanel() {
   const router = useRouter();
@@ -71,62 +58,14 @@ export default function SiteLoginPanel() {
     router.refresh();
   };
 
-  const oauthGoogle = async () => {
+  const oauthGoogle = () => {
     setError('');
     if (!csrfToken) {
       setError('Please wait a moment and try again.');
       return;
     }
-    if (!config.googleClientId) {
-      setError('Google sign-in is not configured yet. Please use Facebook or WhatsApp OTP.');
-      return;
-    }
     setBusy('google');
-    try {
-      await loadGoogleSdk();
-      const client = window.google.accounts.oauth2.initCodeClient({
-        client_id: config.googleClientId,
-        scope: 'openid email profile',
-        ux_mode: 'popup',
-        callback: async (response) => {
-          try {
-            if (response.error || !response.code) {
-              throw new Error(
-                response.error === 'popup_closed_by_user' || response.error === 'access_denied'
-                  ? 'Google sign-in was cancelled.'
-                  : 'Google sign-in did not complete. Add http://localhost:3005 under Authorized JavaScript origins for this Google client.'
-              );
-            }
-            const res = await fetch('/api/public/auth/google', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code: response.code, csrfToken }),
-            });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(body.error || 'Google sign-in failed.');
-            await finishSession(body.tokenHash);
-          } catch (err) {
-            const raw = err instanceof Error ? err.message : 'Google sign-in failed.';
-            setError(
-              /origin|javascript origins|idpiframe|redirect_uri/i.test(raw)
-                ? 'Google blocked this localhost origin. In Google Cloud → Credentials → your Web client, add http://localhost:3005 under Authorized JavaScript origins, then try again.'
-                : raw
-            );
-          } finally {
-            setBusy('');
-          }
-        },
-      });
-      client.requestCode();
-    } catch (err) {
-      setBusy('');
-      const raw = err instanceof Error ? err.message : 'Google sign-in failed.';
-      setError(
-        /origin|javascript origins|idpiframe|redirect_uri/i.test(raw)
-          ? 'Google blocked this localhost origin. In Google Cloud → Credentials → your Web client, add http://localhost:3005 under Authorized JavaScript origins, then try again.'
-          : raw
-      );
-    }
+    window.location.assign(`/api/public/auth/google/start?next=${encodeURIComponent(next)}`);
   };
 
   const oauthFacebook = async () => {
@@ -350,21 +289,4 @@ function FacebookMark() {
       />
     </svg>
   );
-}
-
-declare global {
-  interface Window {
-    google: {
-      accounts: {
-        oauth2: {
-          initCodeClient: (cfg: {
-            client_id?: string;
-            scope: string;
-            ux_mode: 'popup' | 'redirect';
-            callback: (response: { code?: string; error?: string }) => void;
-          }) => { requestCode: () => void };
-        };
-      };
-    };
-  }
 }

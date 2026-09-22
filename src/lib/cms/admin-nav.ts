@@ -25,6 +25,16 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
+    id: 'meta-ads',
+    label: 'Meta Ads',
+    icon: 'PresentationChartLineIcon',
+    items: [
+      { href: '/admin/meta-ads', label: 'Ads Analytics', icon: 'ChartBarIcon', exact: true },
+      { href: '/admin/meta-ads/campaigns', label: 'Campaigns', icon: 'MegaphoneIcon' },
+      { href: '/admin/meta-ads/logs', label: 'API Logs', icon: 'CommandLineIcon' },
+    ],
+  },
+  {
     id: 'ops',
     label: 'Projects & Tickets',
     icon: 'BriefcaseIcon',

@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start",
     "type-check": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/lib/ops/working-days.test.ts src/lib/whatsapp/whatsapp.test.ts src/lib/whatsapp/ingest.test.ts src/lib/whatsapp/qualification.test.ts src/lib/whatsapp/followup.test.ts src/lib/whatsapp/appointment.test.ts src/lib/ai/gateway.test.ts src/lib/whatsapp-provider/whatsapp-provider.test.ts src/lib/whatsapp-provider/login-otp.test.ts"
+    "test": "node --test --experimental-strip-types src/lib/ops/working-days.test.ts src/lib/whatsapp/whatsapp.test.ts src/lib/whatsapp/ingest.test.ts src/lib/whatsapp/qualification.test.ts src/lib/whatsapp/followup.test.ts src/lib/whatsapp/appointment.test.ts src/lib/ai/gateway.test.ts src/lib/whatsapp-provider/whatsapp-provider.test.ts src/lib/whatsapp-provider/login-otp.test.ts src/lib/meta-ads/meta-ads.test.ts"
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.14",

@@ -1,6 +1,6 @@
 export type AdminRole = 'SUPER_ADMIN' | 'ADMIN';
 
-export const SUPER_ADMIN_ONLY_NAV_GROUPS = ['whatsapp-provider', 'whatsapp-ai', 'recruitment', 'partners'] as const;
+export const SUPER_ADMIN_ONLY_NAV_GROUPS = ['whatsapp-provider', 'whatsapp-ai', 'recruitment', 'partners', 'meta-ads'] as const;
 
 export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/wa-provider',
@@ -10,6 +10,7 @@ export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/partners',
   '/admin/partner-catalog',
   '/admin/partner-requirements',
+  '/admin/meta-ads',
 ];
 
 export const SUPER_ADMIN_ONLY_API_PREFIXES = [
@@ -20,6 +21,7 @@ export const SUPER_ADMIN_ONLY_API_PREFIXES = [
   '/api/admin/partners',
   '/api/admin/partner-catalog',
   '/api/admin/partner-requirements',
+  '/api/admin/meta-ads',
 ];
 
 export function isSuperAdmin(role?: string | null): boolean {

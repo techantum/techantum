@@ -15,7 +15,8 @@ async function facebookAppIdFromWhatsAppToken() {
   return body.id || '';
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const origin = new URL(request.url).origin;
   const [gbp, metaAppId] = await Promise.all([
     getGbpOAuthCredentials().catch(() => ({ clientId: '' })),
     facebookAppIdFromWhatsAppToken().catch(() => ''),
@@ -25,5 +26,7 @@ export async function GET() {
     googleClientId: gbp.clientId || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() || '',
     facebookAppId: meta.publicAppId || meta.appId || metaAppId || process.env.NEXT_PUBLIC_META_APP_ID?.trim() || '',
     facebookSdkVersion: meta.graphVersion || process.env.WHATSAPP_API_VERSION?.trim() || 'v21.0',
+    googleOrigin: origin,
+    googleRedirectUri: `${origin}/api/public/auth/google/callback`,
   });
 }
