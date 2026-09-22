@@ -6,6 +6,7 @@ import Icon from '@/components/ui/AppIcon';
 import { defaultBranding } from '@/lib/cms/default-content';
 import type { SiteBranding } from '@/lib/cms/types';
 import WhatsAppChatLink from '@/components/common/WhatsAppChatLink';
+import HeaderAuthLink from '@/components/common/HeaderAuthLink';
 import { getDivisionPath, serviceDivisions } from '@/lib/service-packages-data';
 
 export default function Header({ branding = defaultBranding }: { branding?: SiteBranding }) {
@@ -163,6 +164,7 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
                 {branding.email}
               </a>
             </div>
+            <HeaderAuthLink />
             <Link
               href="/contact"
               className="bg-secondary text-secondary-foreground px-6 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary/90 transition-colors btn-shine"
@@ -264,6 +266,7 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
                 >
                   {branding.email}
                 </a>
+                <HeaderAuthLink compact />
                 <Link
                   href="/contact"
                   className="bg-secondary text-secondary-foreground px-6 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary/90 transition-colors inline-block mt-2"

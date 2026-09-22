@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { ADMIN_NAV_GROUPS } from '@/lib/cms/admin-nav';
+import { ADMIN_NAV_GROUPS, type AdminNavGroup } from '@/lib/cms/admin-nav';
+import { filterNavGroups, type AdminRole } from '@/lib/admin/roles';
 import Icon from '@/components/ui/AppIcon';
 
 function isNavActive(pathname: string, href: string, exact?: boolean) {
@@ -20,10 +21,11 @@ function openGroupsForPath(pathname: string) {
   return Object.fromEntries(ADMIN_NAV_GROUPS.map((g) => [g.id, groupHasActiveItem(pathname, g.id)]));
 }
 
-export default function AdminShell({ children }: { children: React.ReactNode }) {
+export default function AdminShell({ children, role = 'ADMIN' }: { children: React.ReactNode; role?: AdminRole }) {
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const supabase = createClient();
+  const navGroups = useMemo(() => filterNavGroups(ADMIN_NAV_GROUPS, role), [role]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => openGroupsForPath(pathname));
   const [appointmentCount, setAppointmentCount] = useState(0);
@@ -37,6 +39,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }, [pathname]);
 
   useEffect(() => {
+    if (role !== 'SUPER_ADMIN') return;
     let cancelled = false;
     const loadAppointments = async () => {
       try {
@@ -55,11 +58,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [pathname]);
+  }, [pathname, role]);
 
   const activeGroupId = useMemo(
-    () => ADMIN_NAV_GROUPS.find((g) => groupHasActiveItem(pathname, g.id))?.id,
-    [pathname]
+    () => navGroups.find((g) => groupHasActiveItem(pathname, g.id))?.id,
+    [pathname, navGroups]
   );
 
   const handleSignOut = async () => {
@@ -92,7 +95,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       </div>
 
       <nav className="relative flex-1 overflow-y-auto px-3 py-4 space-y-1.5">
-        {ADMIN_NAV_GROUPS.map((group) => {
+        {navGroups.map((group: AdminNavGroup) => {
           const isOpen = openGroups[group.id];
           const isGroupActive = activeGroupId === group.id;
 

@@ -6,6 +6,7 @@ export const STATIC_PUBLIC_ROUTES = [
   '/portfolio',
   '/about',
   '/contact',
+  '/login',
   '/thank-you',
   '/blog',
   '/testimonials',

@@ -8,6 +8,7 @@ const nextConfig = {
   async redirects() {
     return [
       { source: '/products/:path*', destination: '/services', permanent: true },
+      { source: '/connect-whatsapp', destination: '/login', permanent: false },
     ];
   },
 

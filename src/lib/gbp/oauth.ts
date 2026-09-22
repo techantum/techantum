@@ -42,6 +42,10 @@ export function gbpOAuthRedirectUri() {
   return `${siteOrigin()}/api/admin/gbp-analytics/oauth/callback`;
 }
 
+export function siteGoogleRedirectUri(origin: string) {
+  return `${origin.replace(/\/$/, '')}/api/admin/gbp-analytics/oauth/callback`;
+}
+
 export function newOAuthState() {
   return randomBytes(24).toString('hex');
 }
@@ -200,13 +204,13 @@ export async function clearGbpOAuthTokens() {
   if (error) throw new Error(error.message);
 }
 
-export async function createGbpOAuthClient() {
+export async function createGbpOAuthClient(redirectUri = gbpOAuthRedirectUri()) {
   const { clientId, clientSecret } = await getGbpOAuthCredentials();
   if (!clientId || !clientSecret) return null;
   return new OAuth2Client({
     clientId,
     clientSecret,
-    redirectUri: gbpOAuthRedirectUri(),
+    redirectUri,
   });
 }
 
@@ -231,6 +235,37 @@ export async function buildGbpOAuthUrl(state: string) {
     scope: GBP_OAUTH_SCOPES,
     state,
   });
+}
+
+export async function exchangeGoogleLoginCode(code: string, redirectUri: string) {
+  const client = await createGbpOAuthClient(redirectUri);
+  if (!client) {
+    throw new Error('Google sign-in is not configured.');
+  }
+  const { tokens } = await client.getToken(code);
+  if (!tokens.access_token && !tokens.id_token) {
+    throw new Error('Google did not return a sign-in token.');
+  }
+  client.setCredentials(tokens);
+  let email = '';
+  let name = '';
+  let sub = '';
+  if (tokens.id_token) {
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: (await getGbpOAuthCredentials()).clientId,
+    });
+    const payload = ticket.getPayload();
+    email = payload?.email || '';
+    name = payload?.name || '';
+    sub = payload?.sub || '';
+  }
+  if (!email && tokens.access_token) {
+    const info = await client.getTokenInfo(tokens.access_token);
+    email = info.email || '';
+  }
+  if (!email) throw new Error('Google did not share an email address.');
+  return { email, name, sub };
 }
 
 export async function exchangeGbpOAuthCode(code: string) {
