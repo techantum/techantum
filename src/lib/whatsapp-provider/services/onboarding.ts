@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { ONBOARDING_STEPS } from '../config';
+import { getMetaProviderConfig, ONBOARDING_STEPS } from '../config';
 import { writeAuditLog, notify, createAlert } from '../audit';
 import { readClientCredential } from '../credentials';
 import { MetaWhatsAppService } from '../meta/service';
@@ -34,6 +34,7 @@ export async function logOnboardingEvent(sessionId: string, clientId: string, st
 export async function completeEmbeddedSignup(input: {
   clientId: string;
   code?: string;
+  accessToken?: string;
   wabaId?: string;
   phoneNumberId?: string;
   businessId?: string;
@@ -44,7 +45,13 @@ export async function completeEmbeddedSignup(input: {
   const service = new MetaWhatsAppService({ clientId: input.clientId });
 
   try {
-    if (input.code) {
+    if (input.accessToken) {
+      await service.persistClientToken(input.clientId, input.accessToken);
+      await logOnboardingEvent(session.id, input.clientId, 3, 'store_token', 'COMPLETED', {});
+    } else if (input.code) {
+      if (!getMetaProviderConfig().appSecret) {
+        throw new Error('Meta returned an Embedded Signup code. Add META_APP_SECRET on the server so TechAntum can exchange it and import the WABA.');
+      }
       const exchanged = await service.exchangeAuthorizationCode(input.code);
       if (!exchanged.ok || !exchanged.data?.access_token) {
         await logOnboardingEvent(session.id, input.clientId, 3, 'exchange_code', 'FAILED', { error: exchanged.error });

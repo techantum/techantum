@@ -1,3 +1,4 @@
+import { facebookLoginRedirectUri } from '@/lib/auth/public-origin';
 import { getMetaProviderConfig } from '../config';
 import { storeClientCredential } from '../credentials';
 import { metaPaginate, metaRequest } from './meta-client';
@@ -29,6 +30,7 @@ export class MetaWhatsAppService {
     const body = new URLSearchParams({
       client_id: cfg.appId,
       client_secret: cfg.appSecret,
+      redirect_uri: facebookLoginRedirectUri(),
       code,
     });
     return metaRequest<{ access_token?: string; expires_in?: number }>({

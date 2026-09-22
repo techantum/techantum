@@ -19,7 +19,7 @@ const WhatsAppWidget: React.FC<WhatsAppWidgetProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const pathname = usePathname();
 
-  if (pathname?.startsWith('/admin')) return null;
+  if (pathname?.startsWith('/admin') || pathname === '/login' || pathname?.startsWith('/auth/') || pathname?.startsWith('/portal')) return null;
 
   const handleWhatsAppClick = () => {
     const url = buildWhatsAppMeUrl(phoneNumber, websiteVisitorHasChatted() ? '' : message);

@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { discoverGbpLocationCatalog } from '@/lib/gbp/client';
-import { exchangeGbpOAuthCode, exchangeGoogleLoginCode, saveGbpOAuthLocation, saveGbpOAuthTokens, siteGoogleRedirectUri } from '@/lib/gbp/oauth';
+import { exchangeGbpOAuthCode, exchangeGoogleLoginCode, gbpOAuthRedirectUri, saveGbpOAuthLocation, saveGbpOAuthTokens } from '@/lib/gbp/oauth';
+import { publicSiteOrigin } from '@/lib/auth/public-origin';
 import { createClient } from '@/lib/supabase/server';
 import { issueSiteSessionForUser } from '@/lib/auth/site-session';
 import { safeNextPath } from '@/lib/auth/safe-next';
@@ -14,14 +15,14 @@ function adminRedirect(query: string) {
 }
 
 async function completeSiteGoogleLogin(request: Request, code: string, state: string) {
-  const origin = new URL(request.url).origin;
+  const origin = publicSiteOrigin();
   const cookieStore = await cookies();
   const expected = cookieStore.get('site_google_oauth_state')?.value;
   if (!expected || expected !== state) return null;
 
   const next = safeNextPath(cookieStore.get('site_google_next')?.value);
   try {
-    const profile = await exchangeGoogleLoginCode(code, siteGoogleRedirectUri(origin));
+    const profile = await exchangeGoogleLoginCode(code, gbpOAuthRedirectUri());
     const issued = await issueSiteSessionForUser({
       email: profile.email,
       name: profile.name,
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const oauthError = url.searchParams.get('error');
-  const origin = url.origin;
+  const origin = publicSiteOrigin();
 
   if (state?.startsWith('site_')) {
     if (oauthError) {

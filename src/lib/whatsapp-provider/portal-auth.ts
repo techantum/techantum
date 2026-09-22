@@ -13,12 +13,14 @@ export async function requirePortalUser(permission?: WaPermission) {
   if (error || !user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
 
   const admin = createAdminClient();
-  const { data: membership } = await admin
+  const { data: memberships } = await admin
     .from('wa_client_users')
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'ACTIVE')
-    .maybeSingle();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const membership = memberships?.[0];
   if (!membership) return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   const role = membership.role as ClientPortalRole;
   if (permission && !clientHasPermission(role, permission)) {

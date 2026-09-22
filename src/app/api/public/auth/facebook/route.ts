@@ -1,8 +1,10 @@
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/security/rateLimiter';
 import { validateCSRFToken } from '@/lib/security/csrf';
-import { getMetaProviderConfig } from '@/lib/whatsapp-provider/config';
-import { issueSiteSessionForUser, jsonError } from '@/lib/auth/site-session';
+import { exchangeFacebookCode, issueFacebookSession } from '@/lib/auth/facebook-login';
+import { jsonError } from '@/lib/auth/site-session';
+import { safeNextPath } from '@/lib/auth/safe-next';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,35 +20,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid security token. Please refresh the page.' }, { status: 403 });
   }
 
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get('site_facebook_oauth_state')?.value;
+  const state = String(body.state || '').trim();
+  if (!expectedState || expectedState !== state) {
+    return NextResponse.json({ error: 'Facebook sign-in expired. Please try again.' }, { status: 400 });
+  }
+
   const accessToken = String(body.accessToken || '').trim();
-  if (!accessToken) {
+  const code = String(body.code || '').trim();
+  if (!accessToken && !code) {
     return NextResponse.json({ error: 'Facebook sign-in was cancelled. Please try again.' }, { status: 400 });
   }
 
   try {
-    const meta = getMetaProviderConfig();
-    const profileRes = await fetch(
-      `https://graph.facebook.com/${meta.graphVersion || 'v21.0'}/me?fields=id,name,email&access_token=${encodeURIComponent(accessToken)}`,
-      { cache: 'no-store' }
-    );
-    const profile = (await profileRes.json().catch(() => ({}))) as {
-      id?: string;
-      name?: string;
-      email?: string;
-      error?: { message?: string };
-    };
-    if (!profileRes.ok || !profile.id) {
-      throw Object.assign(new Error(profile.error?.message || 'Facebook could not verify that sign-in.'), { status: 400 });
-    }
-
-    const email = profile.email || `fb${profile.id}@facebook.techantum.local`;
-    const session = await issueSiteSessionForUser({
-      email,
-      name: profile.name,
-      method: 'facebook',
-      metadata: { facebook_id: profile.id },
-    });
-    return NextResponse.json({ ok: true, tokenHash: session.tokenHash });
+    const token = accessToken || (await exchangeFacebookCode(code));
+    const session = await issueFacebookSession(token);
+    const next = safeNextPath(cookieStore.get('site_facebook_next')?.value);
+    const response = NextResponse.json({ ok: true, tokenHash: session.tokenHash, next });
+    response.cookies.set('site_facebook_oauth_state', '', { path: '/', maxAge: 0 });
+    response.cookies.set('site_facebook_next', '', { path: '/', maxAge: 0 });
+    return response;
   } catch (err) {
     const { error, status } = jsonError(err);
     return NextResponse.json({ error }, { status });

@@ -84,7 +84,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dest, match.is_permanent ? 301 : 302);
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-url-path', pathname);
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
   response.headers.set('x-pathname', pathname);
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -112,7 +116,7 @@ export async function middleware(request: NextRequest) {
     "frame-src 'self' https://www.google.com https://accounts.google.com https://www.recaptcha.net https://pagead2.googlesyndication.com https://www.googletagmanager.com https://www.facebook.com https://web.facebook.com https://business.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://www.facebook.com https://web.facebook.com https://m.facebook.com",
     ...(isDev ? [] : ['upgrade-insecure-requests']),
   ].join('; ');
 

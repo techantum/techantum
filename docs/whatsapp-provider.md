@@ -30,6 +30,14 @@ For WhatsApp OTP, create an authentication template (`WHATSAPP_LOGIN_OTP_TEMPLAT
 
 Allow `techantum.com` in the Meta app domain settings. The app must be **Live** for real customers.
 
+Website Facebook login redirect URI (Facebook Login → Settings → Valid OAuth Redirect URIs):
+
+`https://techantum.com/auth/facebook`
+
+Google website login uses the same Web OAuth client as Maps / GBP. Authorized redirect URI:
+
+`https://techantum.com/api/admin/gbp-analytics/oauth/callback`
+
 
 | Role | WhatsApp Provider | WhatsApp AI | Recruitment | Partner Portal | Rest of Admin |
 | --- | --- | --- | --- | --- | --- |

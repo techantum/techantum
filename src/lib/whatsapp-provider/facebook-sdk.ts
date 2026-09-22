@@ -15,6 +15,7 @@ declare global {
 
 export type EmbeddedSignupResult = {
   code: string;
+  accessToken?: string;
   wabaId?: string;
   phoneNumberId?: string;
   businessId?: string;
@@ -66,7 +67,11 @@ export function loadFacebookSdk(appId: string, version: string) {
   });
 }
 
-export async function launchEmbeddedSignup(opts: { appId: string; configId: string; graphVersion: string }): Promise<EmbeddedSignupResult> {
+export async function launchEmbeddedSignup(opts: {
+  appId: string;
+  configId?: string;
+  graphVersion: string;
+}): Promise<EmbeddedSignupResult> {
   await loadFacebookSdk(opts.appId, opts.graphVersion);
   return new Promise((resolve, reject) => {
     let session: Record<string, string> = {};
@@ -81,27 +86,35 @@ export async function launchEmbeddedSignup(opts: { appId: string; configId: stri
       session = { ...session, ...parsed.data };
     };
     window.addEventListener('message', onMessage);
+    const loginOpts: Record<string, unknown> = opts.configId
+      ? {
+          config_id: opts.configId,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: { version: 'v4', sessionInfoVersion: '3', featureType: 'whatsapp_business_app_onboarding' },
+        }
+      : {
+          scope: 'business_management,whatsapp_business_management,whatsapp_business_messaging',
+          return_scopes: true,
+        };
     window.FB?.login(
       (response) => {
         window.removeEventListener('message', onMessage);
         const code = response.authResponse?.code;
-        if (!code) {
+        const accessToken = response.authResponse?.accessToken;
+        if (!code && !accessToken) {
           reject(new Error('Meta authorization was cancelled.'));
           return;
         }
         resolve({
-          code,
+          code: code || '',
+          accessToken,
           wabaId: session.waba_id || session.wabaId,
           phoneNumberId: session.phone_number_id || session.phoneNumberId,
           businessId: session.business_id || session.businessId,
         });
       },
-      {
-        config_id: opts.configId,
-        response_type: 'code',
-        override_default_response_type: true,
-        extras: { setup: {}, sessionInfoVersion: '3' },
-      }
+      loginOpts
     );
   });
 }

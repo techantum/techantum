@@ -101,16 +101,11 @@ function displayNameFromUser(user: User) {
   return (email || user.phone || 'Client').slice(0, 120);
 }
 
-export async function ensureClientWorkspace(user: User) {
-  const supabase = createAdminClient();
-  const { data: adminRow } = await supabase.from('admin_users').select('user_id').eq('user_id', user.id).maybeSingle();
-  if (adminRow) return { kind: 'admin' as const, clientId: null };
-  const { data: partnerRow } = await supabase.from('partner_users').select('user_id').eq('user_id', user.id).maybeSingle();
-  if (partnerRow) return { kind: 'partner' as const, clientId: null };
-
+async function createClientWorkspace(user: User, source: string) {
   const existing = await getSelfServeSession(user.id);
   if (existing) return { kind: 'client' as const, clientId: existing.clientId };
 
+  const supabase = createAdminClient();
   const meta = (user.user_metadata || {}) as Record<string, unknown>;
   const contactName = displayNameFromUser(user);
   const companyName = String(meta.company_name || meta.company || `${contactName}'s workspace`).slice(0, 120);
@@ -145,7 +140,11 @@ export async function ensureClientWorkspace(user: User) {
     role: 'CLIENT_ADMIN',
     status: 'ACTIVE',
   });
-  if (memberError) throw new Error(memberError.message);
+  if (memberError) {
+    const existingAfterInsert = await getSelfServeSession(user.id);
+    if (existingAfterInsert) return { kind: 'client' as const, clientId: existingAfterInsert.clientId };
+    throw new Error(memberError.message);
+  }
 
   await startOnboarding(client.id);
   await writeAuditLog({
@@ -154,20 +153,39 @@ export async function ensureClientWorkspace(user: User) {
     action: 'client.created',
     resourceType: 'wa_client',
     resourceId: client.id,
-    newValues: { source: 'site_login', name: companyName },
+    newValues: { source, name: companyName },
   });
-  await notify({ clientId: client.id, type: 'onboarding.started', title: `${companyName} signed in on the website` });
+  await notify({ clientId: client.id, type: 'onboarding.started', title: `${companyName} started WhatsApp onboarding` });
   return { kind: 'client' as const, clientId: client.id as string };
+}
+
+export async function ensureClientWorkspace(user: User) {
+  const supabase = createAdminClient();
+  const { data: adminRow } = await supabase.from('admin_users').select('user_id').eq('user_id', user.id).maybeSingle();
+  if (adminRow) {
+    const existing = await getSelfServeSession(user.id);
+    if (existing) return { kind: 'client' as const, clientId: existing.clientId };
+    return { kind: 'admin' as const, clientId: null };
+  }
+  const { data: partnerRow } = await supabase.from('partner_users').select('user_id').eq('user_id', user.id).maybeSingle();
+  if (partnerRow) return { kind: 'partner' as const, clientId: null };
+  return createClientWorkspace(user, 'site_login');
+}
+
+export async function ensurePortalWorkspace(user: User) {
+  return createClientWorkspace(user, 'portal_onboard');
 }
 
 export async function getSelfServeSession(userId: string) {
   const supabase = createAdminClient();
-  const { data: membership } = await supabase
+  const { data: memberships } = await supabase
     .from('wa_client_users')
     .select('client_id, role, email, name, status')
     .eq('user_id', userId)
     .eq('status', 'ACTIVE')
-    .maybeSingle();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const membership = memberships?.[0];
   if (!membership) return null;
   const { data: client } = await supabase
     .from('wa_clients')
@@ -185,5 +203,25 @@ export async function getSelfServeSession(userId: string) {
     clientStatus: client?.status || 'ONBOARDING',
     platformHealth: client?.platform_health || 'UNKNOWN',
     connected: client?.meta_connection_status === 'CONNECTED',
+  };
+}
+
+export async function getPortalWhatsAppAssets(clientId: string) {
+  const supabase = createAdminClient();
+  const [{ data: wabas }, { data: phones }, { count: templateCount }] = await Promise.all([
+    supabase
+      .from('wa_business_accounts')
+      .select('waba_id,name,verification_status,account_status,webhook_subscribed')
+      .eq('client_id', clientId),
+    supabase
+      .from('wa_phone_numbers')
+      .select('id,display_phone_number,verified_name,quality_rating,registration_status,messaging_status,status')
+      .eq('client_id', clientId),
+    supabase.from('wa_templates').select('id', { count: 'exact', head: true }).eq('client_id', clientId),
+  ]);
+  return {
+    wabas: wabas || [],
+    phones: phones || [],
+    templateCount: templateCount || 0,
   };
 }
