@@ -7,7 +7,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ('error' in auth && auth.error) return auth.error;
   try {
     const { id } = await params;
-    const body = (await request.json()) as { lead_stage?: string; status?: string };
+    const body = (await request.json()) as { lead_stage?: string; status?: string; assigned_user_id?: string | null };
     const data = await updateConversationStatus(id, body);
     await logAudit('update_conversation_status', 'conversation', id, auth.user.id, body);
     return NextResponse.json(data);

@@ -51,29 +51,37 @@ export async function PUT(request: Request) {
   const auth = await requireAdmin();
   if ('error' in auth && auth.error) return auth.error;
   const body = (await request.json()) as Record<string, unknown>;
+  const allowed = [
+    'ai_enabled',
+    'default_mode',
+    'auto_handoff',
+    'auto_lead_creation',
+    'auto_conversation_summary',
+    'knowledge_retrieval_limit',
+    'max_response_length',
+    'fallback_message',
+    'out_of_scope_message',
+    'business_hours',
+    'after_hours_message',
+    'handoff_mode',
+    'followup_enabled',
+    'followup_first_hours',
+    'followup_second_hours',
+    'followup_max',
+    'followup_start_hour',
+    'followup_end_hour',
+  ] as const;
+  const updates: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (body[key] !== undefined) updates[key] = body[key];
+  }
+  if (!Object.keys(updates).length) {
+    return NextResponse.json({ error: 'No settings fields to update' }, { status: 400 });
+  }
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('ai_settings')
-    .update({
-      ai_enabled: body.ai_enabled,
-      default_mode: body.default_mode,
-      auto_handoff: body.auto_handoff,
-      auto_lead_creation: body.auto_lead_creation,
-      auto_conversation_summary: body.auto_conversation_summary,
-      knowledge_retrieval_limit: body.knowledge_retrieval_limit,
-      max_response_length: body.max_response_length,
-      fallback_message: body.fallback_message,
-      out_of_scope_message: body.out_of_scope_message,
-      business_hours: body.business_hours,
-      after_hours_message: body.after_hours_message,
-      handoff_mode: body.handoff_mode,
-      followup_enabled: body.followup_enabled,
-      followup_first_hours: body.followup_first_hours,
-      followup_second_hours: body.followup_second_hours,
-      followup_max: body.followup_max,
-      followup_start_hour: body.followup_start_hour,
-      followup_end_hour: body.followup_end_hour,
-    })
+    .update(updates)
     .eq('id', 1)
     .select('*')
     .single();

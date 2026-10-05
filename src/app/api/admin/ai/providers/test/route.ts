@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const auth = await requireAdmin();
   if ('error' in auth && auth.error) return auth.error;
 
-  const body = (await request.json()) as { provider?: unknown; apiKey?: unknown; model?: unknown };
+  const body = (await request.json()) as { provider?: unknown; apiKey?: unknown; model?: unknown; organizationId?: unknown };
   if (!isProviderId(body.provider)) {
     return NextResponse.json({ error: 'Unknown provider.' }, { status: 400 });
   }
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     const result = await adapters[body.provider]({
       apiKey,
       model,
+      organizationId: typeof body.organizationId === 'string' ? body.organizationId.trim() : stored?.organizationId,
       timeoutMs: 25000,
       maxTokens: 256,
       temperature: 0,

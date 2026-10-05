@@ -29,8 +29,22 @@ export default function AdminLoginForm({ needsSetup }: { needsSetup?: boolean })
         if (!res.ok) throw new Error(data.error || 'Setup failed');
       }
 
+      const localRes = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (localRes.ok) {
+        router.push('/admin');
+        router.refresh();
+        return;
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
+      if (signInError) {
+        const localPayload = (await localRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(localPayload?.error || signInError.message);
+      }
 
       router.push('/admin');
       router.refresh();

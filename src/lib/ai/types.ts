@@ -37,6 +37,7 @@ export type ProviderCredentialPublic = {
   source: 'admin' | 'env' | 'none';
   keyHint: string | null;
   model: string;
+  organizationId: string | null;
   enabled: boolean;
   defaultModel: string;
   comingSoon?: boolean;
@@ -65,12 +66,14 @@ export type ResolvedProvider = {
   id: AIProviderId;
   apiKey: string;
   model: string;
+  organizationId?: string | null;
   source: 'admin' | 'env';
 };
 
 export type ProviderGenerateInput = {
   apiKey: string;
   model: string;
+  organizationId?: string | null;
   messages: ChatMessage[];
   temperature?: number;
   maxTokens?: number;

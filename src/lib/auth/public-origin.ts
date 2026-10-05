@@ -21,13 +21,15 @@ export function metaHostedEmbeddedSignupUrl(input: {
   url.searchParams.set('config_id', input.configId);
   url.searchParams.set('redirect_uri', facebookLoginRedirectUri());
   url.searchParams.set('state', input.state);
-  url.searchParams.set(
-    'extras',
-    JSON.stringify(
-      input.mode === 'new'
-        ? { version: 'v4', sessionInfoVersion: '3', featureType: 'whatsapp_business_app_onboarding' }
-        : { version: 'v4', sessionInfoVersion: '3' }
-    )
-  );
+  return url;
+}
+
+export function facebookWhatsAppOauthUrl(input: { appId: string; graphVersion: string; state: string }) {
+  const url = new URL(`https://www.facebook.com/${input.graphVersion || 'v21.0'}/dialog/oauth`);
+  url.searchParams.set('client_id', input.appId);
+  url.searchParams.set('redirect_uri', facebookLoginRedirectUri());
+  url.searchParams.set('state', input.state);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', 'business_management,whatsapp_business_management,whatsapp_business_messaging');
   return url;
 }

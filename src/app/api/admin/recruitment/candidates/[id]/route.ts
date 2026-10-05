@@ -44,19 +44,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { data: existing } = await supabase.from('recruitment_candidates').select('status').eq('id', id).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const update: Record<string, unknown> = {
-    name: body.name,
-    email: body.email,
-    phone: body.phone,
-    location: body.location,
-    current_ctc: body.current_ctc,
-    expected_ctc: body.expected_ctc,
-    notice_period: body.notice_period,
-    hr_comments: body.hr_comments,
-    manual_screening_score: body.manual_screening_score,
-    final_score: body.final_score,
-    updated_by: auth.user.id,
-  };
+  const allowed = [
+    'name',
+    'email',
+    'phone',
+    'location',
+    'current_company',
+    'current_job_title',
+    'total_experience',
+    'relevant_experience',
+    'current_ctc',
+    'expected_ctc',
+    'notice_period',
+    'hr_comments',
+    'manual_screening_score',
+    'final_score',
+  ] as const;
+  const update: Record<string, unknown> = { updated_by: auth.user.id };
+  for (const key of allowed) {
+    if (key in body) update[key] = body[key];
+  }
 
   if (body.status && body.status !== existing.status) {
     update.status = body.status;

@@ -46,6 +46,7 @@ export async function PUT(request: Request) {
         {
           apiKey?: string;
           model?: string;
+          organizationId?: string;
           enabled?: boolean;
           clearKey?: boolean;
         }
@@ -89,8 +90,10 @@ export async function PUT(request: Request) {
           ? normalizeGeminiModel((update.model || '').trim() || DEFAULT_MODELS.gemini)
           : (update.model || '').trim() || DEFAULT_MODELS[provider],
       enabled: update.enabled !== false,
+      organization_id: typeof update.organizationId === 'string' ? update.organizationId.trim() || null : undefined,
       updated_by: auth.user.id,
     };
+    if (row.organization_id === undefined) delete row.organization_id;
 
     const incomingKey = typeof update.apiKey === 'string' ? update.apiKey.trim() : '';
     if (update.clearKey) {

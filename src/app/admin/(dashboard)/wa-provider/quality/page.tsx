@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import { ProviderShell, ProviderTable, StatusPill, Td, when } from '@/components/admin/wa-provider/ProviderUi';
+import { resolveMetaPhoneState } from '@/lib/whatsapp-provider/phone-status';
 
 export default function QualityPage() {
   const [phones, setPhones] = useState<any[]>([]);
@@ -21,13 +22,13 @@ export default function QualityPage() {
       {groups.map((group) => (
         <AdminSection key={group} title={group} accent={group === 'GREEN' ? 'emerald' : group === 'YELLOW' ? 'amber' : group === 'RED' ? 'rose' : 'indigo'}>
           <ProviderTable
-            columns={['Client', 'Phone', 'Quality', 'Registration']}
+            columns={['Client', 'Phone', 'Quality', 'Meta status']}
             rows={phones.filter((p) => (p.quality_rating || 'UNKNOWN').toUpperCase() === group || (group === 'UNKNOWN' && !['GREEN', 'YELLOW', 'RED'].includes((p.quality_rating || '').toUpperCase()))).map((row) => (
               <tr key={row.id}>
                 <Td>{row.wa_clients?.name || '—'}</Td>
                 <Td>{row.display_phone_number}</Td>
                 <Td><StatusPill value={row.quality_rating} /></Td>
-                <Td><StatusPill value={row.registration_status} /></Td>
+                <Td><StatusPill value={resolveMetaPhoneState(row).label} /></Td>
               </tr>
             ))}
           />

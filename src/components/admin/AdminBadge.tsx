@@ -7,7 +7,7 @@ interface AdminBadgeProps {
 
 const variants: Record<BadgeVariant, string> = {
   default: 'bg-slate-100 text-slate-600 border border-slate-200',
-  indigo: 'bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 border border-indigo-100',
+  indigo: 'bg-orange-50 text-secondary border border-orange-100',
   amber: 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 border border-amber-100',
   green: 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-100',
   rose: 'bg-gradient-to-r from-rose-50 to-orange-50 text-rose-700 border border-rose-100',

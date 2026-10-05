@@ -2,6 +2,8 @@ function env(key: string, fallback = '') {
   return process.env[key]?.trim() || fallback;
 }
 
+export const DEFAULT_EMBEDDED_SIGNUP_CONFIG_ID = '1102324422268818';
+
 export function getMetaProviderConfig() {
   const graphVersion = env('META_GRAPH_API_VERSION') || env('WHATSAPP_API_VERSION');
   return {
@@ -10,7 +12,7 @@ export function getMetaProviderConfig() {
     appId: env('META_APP_ID') || env('NEXT_PUBLIC_META_APP_ID'),
     publicAppId: env('NEXT_PUBLIC_META_APP_ID') || env('META_APP_ID'),
     appSecret: env('META_APP_SECRET') || env('META_WHATSAPP_APP_SECRET') || env('WHATSAPP_APP_SECRET'),
-    embeddedSignupConfigId: env('META_EMBEDDED_SIGNUP_CONFIG_ID'),
+    embeddedSignupConfigId: env('META_EMBEDDED_SIGNUP_CONFIG_ID') || DEFAULT_EMBEDDED_SIGNUP_CONFIG_ID,
     systemUserAccessToken: env('META_SYSTEM_USER_ACCESS_TOKEN') || env('META_WHATSAPP_ACCESS_TOKEN') || env('WHATSAPP_ACCESS_TOKEN'),
     businessId: env('META_BUSINESS_ID'),
     wabaId: env('META_WHATSAPP_BUSINESS_ACCOUNT_ID') || env('WHATSAPP_BUSINESS_ACCOUNT_ID'),

@@ -20,8 +20,8 @@ export function OpsOverviewField({ label, children }: { label: string; children:
 
 export function OpsTimelineItem({ title, meta, body }: { title: string; meta: string; body?: string }) {
   return (
-    <div className="relative pl-4 pb-3 last:pb-0 border-l-2 border-indigo-100 last:border-transparent">
-      <span className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50" />
+    <div className="relative pl-4 pb-3 last:pb-0 border-l-2 border-orange-100 last:border-transparent">
+      <span className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-secondary ring-4 ring-orange-50" />
       <p className="text-sm font-medium text-foreground leading-snug">{title}</p>
       <p className="text-[11px] text-muted-foreground mt-0.5">{meta}</p>
       {body && <p className="text-[11px] text-muted-foreground mt-1 italic">{body}</p>}
@@ -73,7 +73,7 @@ export function OpsCompactTable({ children, empty }: { children: ReactNode; empt
 
 export function OpsTh({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <th className={`py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-gradient-to-r from-slate-50 to-indigo-50 border-b border-indigo-50 ${className}`}>
+    <th className={`py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 ${className}`}>
       {children}
     </th>
   );
@@ -98,7 +98,7 @@ export function OpsLinkedItem({
 }) {
   return (
     <div className="flex items-start justify-between gap-2 py-2 border-b border-border/50 last:border-0">
-      <Link href={href} className="text-sm text-indigo-600 hover:underline min-w-0">
+      <Link href={href} className="text-sm text-secondary hover:underline min-w-0">
         {code && <span className="font-mono text-[11px] text-muted-foreground mr-1.5">{code}</span>}
         <span className="font-medium">{title}</span>
       </Link>

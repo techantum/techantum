@@ -80,7 +80,7 @@ export function when(iso?: string | null) {
 
 export function ProviderLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="font-medium text-indigo-700 hover:underline">
+    <Link href={href} className="font-medium text-secondary hover:underline">
       {children}
     </Link>
   );

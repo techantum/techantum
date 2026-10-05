@@ -6,31 +6,35 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import { safeNextPath } from '@/lib/auth/safe-next';
+import type { SiteBranding } from '@/lib/cms/types';
 
 type AuthConfig = {
   googleClientId?: string;
-  facebookAppId?: string;
-  facebookSdkVersion?: string;
-  googleOrigin?: string;
-  googleRedirectUri?: string;
 };
 
-const inputClass =
-  'w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300';
+type PanelMode = 'signin' | 'signup' | 'forgot' | 'whatsapp';
 
-export default function SiteLoginPanel() {
+const inputClass =
+  'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15';
+
+export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
   const next = useMemo(() => safeNextPath(searchParams.get('next')), [searchParams]);
   const [csrfToken, setCsrfToken] = useState('');
   const [config, setConfig] = useState<AuthConfig>({});
-  const [busy, setBusy] = useState<'google' | 'otp-send' | 'otp-verify' | ''>('');
+  const [mode, setMode] = useState<PanelMode>('signin');
+  const [busy, setBusy] = useState('');
   const [error, setError] = useState(searchParams.get('error') || '');
+  const [notice, setNotice] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [signedInEmail, setSignedInEmail] = useState('');
 
   useEffect(() => {
@@ -48,16 +52,27 @@ export default function SiteLoginPanel() {
         router.replace(next);
       }
     });
-  }, [supabase]);
+  }, [next, router, supabase]);
 
-  const finishSession = async (tokenHash: string) => {
+  const finishAfterSession = async () => {
+    const res = await fetch('/api/public/auth/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ next }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Could not open your workspace.');
+    router.push(body.next || next);
+    router.refresh();
+  };
+
+  const finishOtpSession = async (tokenHash: string) => {
     const { error: verifyError } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: 'magiclink',
     });
     if (verifyError) throw new Error(verifyError.message || 'Could not start your session.');
-    router.push(next);
-    router.refresh();
+    await finishAfterSession();
   };
 
   const oauthGoogle = () => {
@@ -103,9 +118,76 @@ export default function SiteLoginPanel() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Could not verify the code.');
-      await finishSession(body.tokenHash);
+      await finishOtpSession(body.tokenHash);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not verify the code.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const signInWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setBusy('email');
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (signInError) throw new Error(signInError.message || 'Could not sign in.');
+      await finishAfterSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not sign in.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const signUpWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    setBusy('signup');
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { full_name: fullName.trim() },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
+      });
+      if (signUpError) throw new Error(signUpError.message || 'Could not create your account.');
+      if (data.session) {
+        await finishAfterSession();
+        return;
+      }
+      setNotice('Check your email to confirm your account, then sign in.');
+      setMode('signin');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create your account.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const sendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setBusy('reset');
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      });
+      if (resetError) throw new Error(resetError.message || 'Could not send the reset link.');
+      setNotice('If an account exists for that email, a reset link is on its way.');
+      setMode('signin');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send the reset link.');
     } finally {
       setBusy('');
     }
@@ -116,109 +198,331 @@ export default function SiteLoginPanel() {
     setSignedInEmail('');
   };
 
-  if (signedInEmail) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-center">
-        <p className="text-sm text-slate-600 mb-4">{signedInEmail}</p>
-        <Link href={next} className="block w-full rounded-xl bg-indigo-600 text-white py-3 text-sm font-semibold hover:bg-indigo-700">
-          Continue
-        </Link>
-        <button type="button" onClick={signOut} className="mt-3 text-sm text-slate-500 hover:text-slate-800">
-          Use a different account
-        </button>
-      </div>
-    );
-  }
+  const switchMode = (nextMode: PanelMode) => {
+    setError('');
+    setNotice('');
+    setMode(nextMode);
+    if (nextMode !== 'whatsapp') {
+      setOtpSent(false);
+      setCode('');
+    }
+  };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+    <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-8">
+      <div className="mb-6 text-center">
+        {branding?.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={branding.logo_url} alt={branding.company_name} className="mx-auto mb-3 h-12 w-auto object-contain" />
+        ) : (
+          <p className="font-bricolage text-2xl font-bold tracking-tight text-slate-900">
+            techantum
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">solutions</span>
+          </p>
+        )}
+        <p className="mt-1 text-sm font-medium text-slate-900">Welcome to {branding?.company_name || 'Techantum Solutions'}</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {mode === 'signup'
+            ? 'Create your WhatsApp Business API workspace in a few minutes.'
+            : mode === 'forgot'
+              ? 'Enter your email and we will send a reset link.'
+              : 'Log in to your WhatsApp Business API portal and continue managing your business.'}
+        </p>
+      </div>
+
       {error && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 flex gap-2">
-          <Icon name="ExclamationCircleIcon" size={18} className="shrink-0 mt-0.5" />
+        <div className="mb-4 flex gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <Icon name="ExclamationCircleIcon" size={18} className="mt-0.5 shrink-0" />
           {error}
         </div>
       )}
+      {notice && (
+        <div className="mb-4 flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <Icon name="CheckCircleIcon" size={18} className="mt-0.5 shrink-0" />
+          {notice}
+        </div>
+      )}
 
-      <div className="space-y-3">
-        <button
-          type="button"
-          disabled={Boolean(busy)}
-          onClick={oauthGoogle}
-          className="w-full inline-flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-        >
-          <GoogleMark />
-          Login with Google
-        </button>
-        <button
-          type="button"
-          disabled={Boolean(busy)}
-          onClick={() => {
-            setError('');
-            setWhatsappOpen(true);
-          }}
-          className="w-full inline-flex items-center justify-center gap-3 rounded-xl bg-[#25D366] py-3.5 text-sm font-semibold text-white hover:bg-[#1ebe5d] disabled:opacity-60"
-        >
-          <WhatsAppMark />
-          Login with WhatsApp
-        </button>
-      </div>
-
-      {whatsappOpen && (
-        <div className="mt-4">
-          {!otpSent ? (
-            <form onSubmit={sendOtp} className="space-y-3">
-              <input
-                className={inputClass}
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+91 98765 43210"
-                required
-                autoFocus
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
+      {signedInEmail ? (
+        <div className="text-center">
+          <p className="mb-4 text-sm text-slate-600">{signedInEmail}</p>
+          <Link
+            href={next}
+            className="flex w-full items-center justify-center rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90"
+          >
+            Continue to workspace
+          </Link>
+          <button type="button" onClick={signOut} className="mt-3 text-sm text-slate-500 hover:text-slate-800">
+            Use a different account
+          </button>
+        </div>
+      ) : (
+        <>
+          {mode !== 'forgot' && (
+            <div className="space-y-3">
               <button
-                type="submit"
-                disabled={busy === 'otp-send' || !csrfToken}
-                className="w-full rounded-xl bg-slate-900 text-white py-3 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                type="button"
+                disabled={Boolean(busy)}
+                onClick={oauthGoogle}
+                className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
               >
-                {busy === 'otp-send' ? 'Sending code…' : 'Send OTP'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={verifyOtp} className="space-y-3">
-              <input
-                className={`${inputClass} tracking-[0.4em] text-center font-semibold`}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                required
-                autoFocus
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              />
-              <button
-                type="submit"
-                disabled={busy === 'otp-verify' || code.length !== 6}
-                className="w-full rounded-xl bg-slate-900 text-white py-3 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
-              >
-                {busy === 'otp-verify' ? 'Verifying…' : 'Verify OTP'}
+                <span className="inline-flex items-center gap-3">
+                  <GoogleMark />
+                  Continue with Google
+                </span>
+                <Icon name="ArrowRightIcon" size={16} className="text-slate-400" />
               </button>
               <button
                 type="button"
-                className="w-full text-sm text-slate-500 hover:text-slate-800"
-                onClick={() => {
-                  setOtpSent(false);
-                  setCode('');
-                }}
+                disabled={Boolean(busy)}
+                onClick={() => switchMode(mode === 'whatsapp' ? 'signin' : 'whatsapp')}
+                className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
               >
-                Use a different number
+                <span className="inline-flex items-center gap-3">
+                  <span className="text-[#25D366]">
+                    <WhatsAppMark />
+                  </span>
+                  Continue with WhatsApp
+                </span>
+                <Icon name="ArrowRightIcon" size={16} className="text-slate-400" />
               </button>
-            </form>
+            </div>
           )}
-        </div>
+
+          {mode === 'whatsapp' && (
+            <div className="mt-4">
+              {!otpSent ? (
+                <form onSubmit={sendOtp} className="space-y-3">
+                  <label className="block text-sm font-medium text-slate-700">
+                    WhatsApp number
+                    <input
+                      className={`${inputClass} mt-1.5`}
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="+91 98765 43210"
+                      required
+                      autoFocus
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy === 'otp-send' || !csrfToken}
+                    className="w-full rounded-full bg-slate-900 py-3.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {busy === 'otp-send' ? 'Sending code…' : 'Send WhatsApp code'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={verifyOtp} className="space-y-3">
+                  <label className="block text-sm font-medium text-slate-700">
+                    6-digit code
+                    <input
+                      className={`${inputClass} mt-1.5 text-center font-semibold tracking-[0.4em]`}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      required
+                      autoFocus
+                      placeholder="000000"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy === 'otp-verify' || code.length !== 6}
+                    className="w-full rounded-full bg-secondary py-3.5 text-sm font-semibold text-white hover:bg-secondary/90 disabled:opacity-60"
+                  >
+                    {busy === 'otp-verify' ? 'Verifying…' : 'Verify and continue'}
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-sm text-slate-500 hover:text-slate-800"
+                    onClick={() => {
+                      setOtpSent(false);
+                      setCode('');
+                    }}
+                  >
+                    Use a different number
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {mode !== 'whatsapp' && (
+            <>
+              <div className="my-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">or</span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              {mode === 'forgot' ? (
+                <form onSubmit={sendReset} className="space-y-4">
+                  <Field label="Email address">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      autoComplete="email"
+                      required
+                      placeholder="you@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </Field>
+                  <button
+                    type="submit"
+                    disabled={busy === 'reset'}
+                    className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
+                  >
+                    {busy === 'reset' ? 'Sending…' : 'Send reset link'}
+                    <Icon name="ArrowRightIcon" size={16} />
+                  </button>
+                  <button type="button" onClick={() => switchMode('signin')} className="w-full text-sm text-slate-500 hover:text-slate-800">
+                    Back to sign in
+                  </button>
+                </form>
+              ) : mode === 'signup' ? (
+                <form onSubmit={signUpWithEmail} className="space-y-4">
+                  <Field label="Full name">
+                    <input
+                      className={inputClass}
+                      autoComplete="name"
+                      placeholder="Your name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Email address">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      autoComplete="email"
+                      required
+                      placeholder="you@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Password">
+                    <PasswordInput
+                      value={password}
+                      show={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      onChange={setPassword}
+                      autoComplete="new-password"
+                    />
+                  </Field>
+                  <button
+                    type="submit"
+                    disabled={busy === 'signup'}
+                    className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
+                  >
+                    {busy === 'signup' ? 'Creating account…' : 'Get started free'}
+                    <Icon name="ArrowRightIcon" size={16} />
+                  </button>
+                  <p className="text-center text-sm text-slate-500">
+                    Already have an account?{' '}
+                    <button type="button" onClick={() => switchMode('signin')} className="font-semibold text-secondary hover:underline">
+                      Sign in
+                    </button>
+                  </p>
+                </form>
+              ) : (
+                <form onSubmit={signInWithEmail} className="space-y-4">
+                  <Field label="Email address">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      autoComplete="email"
+                      required
+                      placeholder="you@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Password">
+                    <PasswordInput
+                      value={password}
+                      show={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      onChange={setPassword}
+                      autoComplete="current-password"
+                    />
+                  </Field>
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => switchMode('forgot')} className="text-sm font-medium text-secondary hover:underline">
+                      Forgot password?
+                    </button>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={busy === 'email'}
+                    className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
+                  >
+                    {busy === 'email' ? 'Signing in…' : 'Sign in'}
+                    <Icon name="ArrowRightIcon" size={16} />
+                  </button>
+                  <p className="text-center text-sm text-slate-500">
+                    Don&apos;t have an account?{' '}
+                    <button type="button" onClick={() => switchMode('signup')} className="font-semibold text-secondary hover:underline">
+                      Get started free
+                    </button>
+                  </p>
+                </form>
+              )}
+            </>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block text-sm font-medium text-slate-700">
+      {label}
+      <div className="mt-1.5">{children}</div>
+    </label>
+  );
+}
+
+function PasswordInput({
+  value,
+  show,
+  onToggle,
+  onChange,
+  autoComplete,
+}: {
+  value: string;
+  show: boolean;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+  autoComplete: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        className={`${inputClass} pr-12`}
+        type={show ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        required
+        placeholder="Enter your password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute inset-y-0 right-3 text-slate-400 hover:text-slate-700"
+        aria-label={show ? 'Hide password' : 'Show password'}
+      >
+        <Icon name={show ? 'EyeSlashIcon' : 'EyeIcon'} size={18} />
+      </button>
     </div>
   );
 }
@@ -226,7 +530,10 @@ export default function SiteLoginPanel() {
 function GoogleMark() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.3 12 2.3 6.9 2.3 2.8 6.4 2.8 11.5S6.9 20.7 12 20.7c6.9 0 9.1-4.8 9.1-7.3 0-.5 0-.8-.1-1.2H12z" />
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.3 12 2.3 6.9 2.3 2.8 6.4 2.8 11.5S6.9 20.7 12 20.7c6.9 0 9.1-4.8 9.1-7.3 0-.5 0-.8-.1-1.2H12z"
+      />
     </svg>
   );
 }

@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import { resolveMetaPhoneState } from '@/lib/whatsapp-provider/phone-status';
 
 type Waba = { waba_id?: string; name?: string; verification_status?: string; account_status?: string };
-type Phone = { display_phone_number?: string; verified_name?: string; quality_rating?: string; registration_status?: string };
+type Phone = { display_phone_number?: string; verified_name?: string; quality_rating?: string; registration_status?: string; status?: string; raw_json?: Record<string, unknown> };
 
 type Session = {
   authenticated?: boolean;
@@ -68,7 +69,7 @@ export default function ConnectWhatsAppPanel() {
           {(session.phones || []).map((phone) => (
             <div key={phone.display_phone_number} className="rounded-xl border border-slate-200 px-4 py-3 text-sm">
               <p className="font-semibold text-slate-900">{phone.display_phone_number || 'Phone number'}</p>
-              <p className="text-slate-500">{[phone.verified_name, phone.quality_rating, phone.registration_status].filter(Boolean).join(' · ')}</p>
+              <p className="text-slate-500">{[phone.verified_name, phone.quality_rating, resolveMetaPhoneState(phone).label].filter(Boolean).join(' · ')}</p>
             </div>
           ))}
           <p className="text-sm text-slate-600">{session.templateCount || 0} templates synced from Meta.</p>

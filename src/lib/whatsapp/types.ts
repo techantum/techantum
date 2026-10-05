@@ -6,13 +6,15 @@ export type KnowledgeStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export type LeadStage =
   | 'NEW'
+  | 'IN_DISCUSSION'
+  | 'QUALIFIED'
+  | 'APPOINTMENT_BOOKED'
+  | 'CONVERTED'
+  | 'LOST'
   | 'ENGAGED'
   | 'REQUIREMENT_IDENTIFIED'
-  | 'QUALIFIED'
   | 'PROPOSAL_REQUESTED'
-  | 'HUMAN_FOLLOWUP'
-  | 'CONVERTED'
-  | 'LOST';
+  | 'HUMAN_FOLLOWUP';
 
 export type WhatsAppIntent =
   | 'GREETING'
@@ -93,7 +95,10 @@ export interface WhatsAppConversation {
   last_followup_at?: string | null;
   qualification?: import('./qualification').QualificationState | Record<string, unknown> | null;
   whatsapp_contacts?: WhatsAppContact;
-  appointment?: { id: string; code: string; status: string } | null;
+  appointment?: { id: string; code: string; status: string; scheduled_at?: string | null } | null;
+  last_message_preview?: string | null;
+  last_message_at?: string | null;
+  unread_count?: number;
 }
 
 export interface WhatsAppConversationNote {

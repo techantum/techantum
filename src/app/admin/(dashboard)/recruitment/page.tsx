@@ -3,25 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminSection from '@/components/admin/AdminSection';
-import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
-import { OpsPageShell, OpsTd, OpsTh } from '@/components/admin/ops/OpsUi';
-import { ROLE_STATUS_LABELS } from '@/lib/recruitment/config';
-
-type DashboardRow = {
-  id: string;
-  title: string;
-  department: string;
-  status: string;
-  candidates_total: number;
-  shortlisted: number;
-  interviews: number;
-  selected: number;
-};
+import AdminStatCard from '@/components/admin/AdminStatCard';
+import RolePipelineCard, { type RolePipelineStats } from '@/components/admin/recruitment/RolePipelineCard';
+import { OpsPageShell } from '@/components/admin/ops/OpsUi';
 
 export default function RecruitmentDashboardPage() {
-  const [rows, setRows] = useState<DashboardRow[]>([]);
+  const [rows, setRows] = useState<RolePipelineStats[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -36,11 +24,22 @@ export default function RecruitmentDashboardPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'));
   }, []);
 
+  const totals = rows.reduce(
+    (acc, row) => ({
+      roles: acc.roles + 1,
+      candidates: acc.candidates + row.candidates_total,
+      shortlisted: acc.shortlisted + row.shortlisted,
+      interviewed: acc.interviewed + (row.interviewed ?? row.interviews ?? 0),
+      selected: acc.selected + row.selected,
+    }),
+    { roles: 0, candidates: 0, shortlisted: 0, interviewed: 0, selected: 0 },
+  );
+
   return (
     <OpsPageShell>
       <AdminPageHeader
         title="Recruitment"
-        description="AI candidate screening and role fit assessment for Techantum hiring."
+        description="AI candidate screening and role-fit assessment for Techantum hiring."
         action={
           <Link href="/admin/recruitment/roles/new">
             <AdminButton variant="primary">+ Create job role</AdminButton>
@@ -49,41 +48,29 @@ export default function RecruitmentDashboardPage() {
       />
       {error && <p className="text-sm text-rose-700">{error}</p>}
 
-      <AdminSection title="Job roles overview">
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <OpsTh>Role</OpsTh>
-                <OpsTh>Department</OpsTh>
-                <OpsTh>Candidates</OpsTh>
-                <OpsTh>Shortlisted</OpsTh>
-                <OpsTh>Interviews</OpsTh>
-                <OpsTh>Selected</OpsTh>
-                <OpsTh>Status</OpsTh>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-muted/20">
-                  <OpsTd>
-                    <Link className="text-indigo-600 font-medium hover:underline" href={`/admin/recruitment/roles/${row.id}/candidates`}>
-                      {row.title}
-                    </Link>
-                  </OpsTd>
-                  <OpsTd>{row.department}</OpsTd>
-                  <OpsTd>{row.candidates_total}</OpsTd>
-                  <OpsTd>{row.shortlisted}</OpsTd>
-                  <OpsTd>{row.interviews}</OpsTd>
-                  <OpsTd>{row.selected}</OpsTd>
-                  <OpsTd><AdminBadge>{ROLE_STATUS_LABELS[row.status] || row.status}</AdminBadge></OpsTd>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {rows.length === 0 && <p className="text-sm text-muted-foreground p-4 text-center">No job roles yet.</p>}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <AdminStatCard label="Job roles" value={totals.roles} icon="BriefcaseIcon" />
+        <AdminStatCard label="Candidates" value={totals.candidates} icon="UsersIcon" accent="blue" />
+        <AdminStatCard label="Shortlisted" value={totals.shortlisted} icon="StarIcon" accent="violet" />
+        <AdminStatCard label="Interviewed" value={totals.interviewed} icon="ChatBubbleLeftRightIcon" accent="amber" />
+        <AdminStatCard label="Selected" value={totals.selected} icon="CheckBadgeIcon" accent="green" />
+      </div>
+
+      {rows.length === 0 && !error ? (
+        <div className="rounded-3xl border border-dashed border-indigo-200 bg-white/70 px-6 py-12 text-center">
+          <p className="font-semibold text-slate-800">No job roles yet</p>
+          <p className="text-sm text-slate-500 mt-1">Create a role to start screening candidates.</p>
+          <Link href="/admin/recruitment/roles/new" className="inline-block mt-4">
+            <AdminButton variant="primary">Create job role</AdminButton>
+          </Link>
         </div>
-      </AdminSection>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {rows.map((row) => (
+            <RolePipelineCard key={row.id} role={row} />
+          ))}
+        </div>
+      )}
     </OpsPageShell>
   );
 }

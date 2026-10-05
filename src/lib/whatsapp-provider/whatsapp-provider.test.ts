@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { validateTemplateDraft, mapMetaTemplateStatus, extractTemplateVariables } from './template-validation.ts';
 import { normalizeWebhookPayload, shouldAdvanceMessageStatus, verifyMetaSignature, webhookEventKey } from './webhook-parser.ts';
 import { scorePlatformHealth } from './health.ts';
+import { persistMetaPhoneFields, resolveMetaPhoneState } from './phone-status.ts';
 import { assertTenant, clientHasPermission, providerHasPermission } from './permissions.ts';
 import { rate } from './date-range.ts';
 import { createHmac } from 'node:crypto';
@@ -107,6 +108,37 @@ describe('permissions and tenant isolation', () => {
   it('blocks Client A from Client B', () => {
     assert.throws(() => assertTenant('client-a', 'client-b'), /Tenant isolation/);
     assert.doesNotThrow(() => assertTenant('client-a', 'client-a'));
+  });
+});
+
+describe('Meta phone status', () => {
+  it('treats a live Cloud API number as connected even if the OTP status is EXPIRED', () => {
+    const state = resolveMetaPhoneState({
+      status: 'ACTIVE',
+      registration_status: 'EXPIRED',
+      quality_rating: 'GREEN',
+      raw_json: { status: 'CONNECTED', code_verification_status: 'EXPIRED', quality_rating: 'GREEN' },
+    });
+    assert.equal(state.key, 'CONNECTED');
+    assert.equal(state.label, 'Connected');
+  });
+
+  it('does not mark OTP expiry as an expired phone when Meta has not disconnected it', () => {
+    const state = resolveMetaPhoneState({ registration_status: 'EXPIRED', status: '' });
+    assert.equal(state.key, 'IN_REVIEW');
+    assert.notEqual(state.label, 'Expired');
+  });
+
+  it('persists CONNECTED Meta status as an active registered number', () => {
+    const saved = persistMetaPhoneFields({
+      status: 'CONNECTED',
+      code_verification_status: 'EXPIRED',
+      quality_rating: 'GREEN',
+      messaging_limit_tier: 'TIER_1K',
+    });
+    assert.equal(saved.status, 'ACTIVE');
+    assert.equal(saved.registration_status, 'CONNECTED');
+    assert.equal(saved.messaging_status, 'TIER_1K');
   });
 });
 

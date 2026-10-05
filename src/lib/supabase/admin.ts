@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { getLocalRestUrl, mintServiceRoleJwt } from '@/lib/supabase/local-jwt';
 
 function getSupabaseUrl() {
-  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  return getLocalRestUrl() || process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 }
 
 function getSecretKey() {
+  if (getLocalRestUrl() && process.env.POSTGREST_JWT_SECRET?.trim()) {
+    return mintServiceRoleJwt();
+  }
   return process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY!;
 }
 

@@ -8,11 +8,15 @@ export class MetaWhatsAppService {
     private readonly ctx: {
       clientId?: string | null;
       accessToken?: string;
+      requireUserToken?: boolean;
     } = {}
   ) {}
 
   private token(override?: string) {
-    return override || this.ctx.accessToken || getMetaProviderConfig().systemUserAccessToken;
+    if (override) return override;
+    if (this.ctx.accessToken) return this.ctx.accessToken;
+    if (this.ctx.requireUserToken) return '';
+    return getMetaProviderConfig().systemUserAccessToken;
   }
 
   private base(operation: string, path: string, extra: Record<string, unknown> = {}) {
@@ -25,21 +29,29 @@ export class MetaWhatsAppService {
     };
   }
 
-  async exchangeAuthorizationCode(code: string) {
+  async exchangeAuthorizationCode(code: string, options?: { redirectUri?: string | null }) {
     const cfg = getMetaProviderConfig();
-    const body = new URLSearchParams({
-      client_id: cfg.appId,
-      client_secret: cfg.appSecret,
-      redirect_uri: facebookLoginRedirectUri(),
-      code,
-    });
-    return metaRequest<{ access_token?: string; expires_in?: number }>({
-      operation: 'exchangeAuthorizationCode',
-      path: '/oauth/access_token',
-      method: 'POST',
-      body,
-      clientId: this.ctx.clientId,
-    });
+    const tryExchange = async (redirectUri?: string | null) => {
+      const body = new URLSearchParams({
+        client_id: cfg.appId,
+        client_secret: cfg.appSecret,
+        code,
+      });
+      if (redirectUri) body.set('redirect_uri', redirectUri);
+      return metaRequest<{ access_token?: string; expires_in?: number }>({
+        operation: 'exchangeAuthorizationCode',
+        path: '/oauth/access_token',
+        method: 'POST',
+        body,
+        clientId: this.ctx.clientId,
+      });
+    };
+
+    const preferred = options?.redirectUri === null ? null : options?.redirectUri || facebookLoginRedirectUri();
+    const first = await tryExchange(preferred);
+    if (first.ok && first.data?.access_token) return first;
+    const fallback = preferred ? await tryExchange(null) : await tryExchange(facebookLoginRedirectUri());
+    return fallback.ok ? fallback : first;
   }
 
   async persistClientToken(clientId: string, accessToken: string, expiresIn?: number) {
@@ -66,35 +78,157 @@ export class MetaWhatsAppService {
     );
   }
 
+  async getBusiness(businessId: string) {
+    return metaRequest(
+      this.base('getBusiness', `/${businessId}`, {
+        query: { fields: 'id,name,verification_status,created_time,profile_picture_uri,vertical' },
+      })
+    );
+  }
+
+  async listBusinesses() {
+    return metaRequest<{
+      data?: Array<{
+        id?: string;
+        name?: string;
+        verification_status?: string;
+        owned_whatsapp_business_accounts?: { data?: Array<Record<string, unknown>> };
+        client_whatsapp_business_accounts?: { data?: Array<Record<string, unknown>> };
+      }>;
+    }>(
+      this.base('listBusinesses', '/me/businesses', {
+        query: {
+          fields:
+            'id,name,verification_status,created_time,owned_whatsapp_business_accounts{id,name,currency,timezone,account_review_status,phone_numbers{id,display_phone_number,verified_name,quality_rating,code_verification_status,status,messaging_limit_tier,name_status}},client_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name,quality_rating,code_verification_status,status,messaging_limit_tier}}',
+        },
+      })
+    );
+  }
+
+  async listAssignedWabas() {
+    return metaRequest<{ data?: Array<Record<string, unknown>> }>(
+      this.base('listAssignedWabas', '/me/assigned_whatsapp_business_accounts', {
+        query: { fields: 'id,name,currency,timezone,account_review_status' },
+      })
+    );
+  }
+
+  async listWabasForBusiness(businessId: string) {
+    const [owned, shared] = await Promise.all([this.getBusinessAccounts(businessId), this.getClientWabas(businessId)]);
+    const ownedRows = ((owned.data as { data?: Array<Record<string, unknown>> } | null)?.data || []) as Array<Record<string, unknown>>;
+    const sharedRows = ((shared.data as { data?: Array<Record<string, unknown>> } | null)?.data || []) as Array<Record<string, unknown>>;
+    const seen = new Set<string>();
+    return [...ownedRows, ...sharedRows].filter((row) => {
+      const id = String(row.id || '');
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   async discoverSignupAssets(hints: { businessId?: string; wabaId?: string; phoneNumberId?: string }) {
     let businessId = hints.businessId || '';
     let wabaId = hints.wabaId || '';
     let phoneNumberId = hints.phoneNumberId || '';
+    const nestedPhones: Array<Record<string, unknown>> = [];
+    const businesses = await this.listBusinesses();
+    const businessRows = businesses.data?.data || [];
+    if (!businessId) businessId = businessRows[0]?.id || '';
 
-    if (!businessId) {
-      const businesses = await metaRequest<{ data?: { id?: string }[] }>(
-        this.base('discoverBusinesses', '/me/businesses', { query: { fields: 'id,name' } })
-      );
-      businessId = businesses.data?.data?.[0]?.id || '';
+    const wabas: Array<Record<string, unknown> & { business_id?: string }> = [];
+    const seen = new Set<string>();
+    const addWaba = (row: Record<string, unknown>, ownerBusinessId?: string) => {
+      const id = String(row.id || '');
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      wabas.push({ ...row, business_id: ownerBusinessId || String(row.business_id || '') });
+      const phones = ((row.phone_numbers as { data?: Array<Record<string, unknown>> } | undefined)?.data || []) as Array<Record<string, unknown>>;
+      for (const phone of phones) nestedPhones.push({ ...phone, waba_id: id });
+    };
+
+    for (const business of businessRows) {
+      const ownerId = String(business.id || '');
+      for (const row of business.owned_whatsapp_business_accounts?.data || []) addWaba(row, ownerId);
+      for (const row of business.client_whatsapp_business_accounts?.data || []) addWaba(row, ownerId);
     }
 
-    if (!wabaId && businessId) {
-      const owned = await this.getBusinessAccounts(businessId);
-      const ownedRows = ((owned.data as { data?: { id?: string }[] } | null)?.data || []) as { id?: string }[];
-      wabaId = ownedRows[0]?.id || '';
-      if (!wabaId) {
-        const shared = await this.getClientWabas(businessId);
-        const sharedRows = ((shared.data as { data?: { id?: string }[] } | null)?.data || []) as { id?: string }[];
-        wabaId = sharedRows[0]?.id || '';
-      }
+    const assigned = await this.listAssignedWabas();
+    for (const row of assigned.data?.data || []) addWaba(row);
+
+    const configured = getMetaProviderConfig();
+    if (configured.businessId) {
+      const rows = await this.listWabasForBusiness(configured.businessId);
+      for (const row of rows) addWaba(row, configured.businessId);
+    }
+    if (configured.wabaId) {
+      const direct = await this.getWaba(configured.wabaId);
+      if (direct.ok && direct.data) addWaba({ ...(direct.data as Record<string, unknown>), id: configured.wabaId }, configured.businessId);
     }
 
+    const businessIds = [...new Set([businessId, ...businessRows.map((row) => String(row.id || ''))].filter(Boolean))];
+    for (const id of businessIds) {
+      const rows = await this.listWabasForBusiness(id);
+      for (const row of rows) addWaba(row, id);
+    }
+
+    if (wabaId && !businessId) {
+      const match = wabas.find((row) => String(row.id) === wabaId);
+      businessId = String(match?.business_id || '');
+    }
+    if (!wabaId) wabaId = String(wabas[0]?.id || '');
+    if (wabaId && !businessId) businessId = String(wabas.find((row) => String(row.id) === wabaId)?.business_id || businessId);
+
+    const phones = wabaId ? await this.getPhoneNumbers(wabaId) : { ok: true, data: [] as Array<Record<string, unknown>> };
+    const phoneRows = [...((phones.data || []) as Array<Record<string, unknown>>), ...nestedPhones.filter((row) => !wabaId || String(row.waba_id) === wabaId)];
+    const uniquePhones: Array<Record<string, unknown>> = [];
+    const seenPhones = new Set<string>();
+    for (const phone of phoneRows) {
+      const id = String(phone.id || '');
+      if (!id || seenPhones.has(id)) continue;
+      seenPhones.add(id);
+      uniquePhones.push(phone);
+    }
     if (wabaId && !phoneNumberId) {
-      const phones = await this.getPhoneNumbers(wabaId);
-      phoneNumberId = String((phones.data?.[0] as { id?: string } | undefined)?.id || '');
+      phoneNumberId = String((uniquePhones[0] as { id?: string } | undefined)?.id || '');
     }
 
-    return { businessId, wabaId, phoneNumberId };
+    return {
+      businessId,
+      wabaId,
+      phoneNumberId,
+      businesses: businessRows,
+      wabas,
+      phones: uniquePhones,
+    };
+  }
+
+  async addPhoneNumber(wabaId: string, cc: string, phoneNumber: string, verifiedName?: string) {
+    const name = String(verifiedName || '').trim();
+    if (!name) throw Object.assign(new Error('A verified display name is required by Meta.'), { status: 400 });
+    return metaRequest(
+      this.base('addPhoneNumber', `/${wabaId}/phone_numbers`, {
+        method: 'POST',
+        body: { cc, phone_number: phoneNumber, verified_name: name, migrate_phone_number: false },
+      })
+    );
+  }
+
+  async requestVerificationCode(phoneNumberId: string, codeMethod: 'SMS' | 'VOICE' = 'SMS', language = 'en_US') {
+    return metaRequest(
+      this.base('requestVerificationCode', `/${phoneNumberId}/request_code`, {
+        method: 'POST',
+        body: { code_method: codeMethod, language },
+      })
+    );
+  }
+
+  async verifyCode(phoneNumberId: string, code: string) {
+    return metaRequest(
+      this.base('verifyCode', `/${phoneNumberId}/verify_code`, {
+        method: 'POST',
+        body: { code },
+      })
+    );
   }
 
   async getWaba(wabaId: string) {
@@ -119,17 +253,28 @@ export class MetaWhatsAppService {
   }
 
   async getPhoneNumbers(wabaId: string) {
-    return metaPaginate(
+    const listed = await metaPaginate<Record<string, unknown>>(
       this.base('getPhoneNumbers', `/${wabaId}/phone_numbers`, {
-        query: { fields: 'id,display_phone_number,verified_name,quality_rating,code_verification_status,is_official_business_account,status,throughput,platform_type,messaging_limit_tier' },
+        query: { fields: 'id,display_phone_number,verified_name,quality_rating,code_verification_status,is_official_business_account,status,throughput,platform_type,messaging_limit_tier,name_status,new_name_status,account_mode,is_pin_enabled' },
       })
     );
+    if (!listed.ok) return listed;
+    const rows = await Promise.all(
+      (listed.data || []).map(async (phone) => {
+        if (phone.status && (phone.messaging_limit_tier || phone.quality_rating)) return phone;
+        const id = String(phone.id || '');
+        if (!id) return phone;
+        const detail = await this.getPhoneNumber(id);
+        return detail.ok && detail.data ? { ...phone, ...(detail.data as Record<string, unknown>) } : phone;
+      }),
+    );
+    return { ...listed, data: rows };
   }
 
   async getPhoneNumber(phoneNumberId: string) {
     return metaRequest(
       this.base('getPhoneNumber', `/${phoneNumberId}`, {
-        query: { fields: 'id,display_phone_number,verified_name,quality_rating,code_verification_status,status,throughput,messaging_limit_tier,webhook_configuration' },
+        query: { fields: 'id,display_phone_number,verified_name,quality_rating,code_verification_status,status,throughput,messaging_limit_tier,name_status,new_name_status,account_mode,is_pin_enabled,webhook_configuration' },
       })
     );
   }

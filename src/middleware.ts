@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { normalizeRedirectPath } from '@/lib/seo/redirects';
+import { normalizeRedirectPath } from '@/lib/seo/redirect-path';
 import { fetchCanonicalHostPreference } from '@/lib/seo/site-settings-cache';
 
 type RedirectRow = {
@@ -15,18 +15,23 @@ async function fetchRedirects(): Promise<RedirectRow[]> {
   const now = Date.now();
   if (redirectCache.expires > now) return redirectCache.rows;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseKey) return [];
+  const restUrl = (process.env.LOCAL_REST_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+  const supabaseKey =
+    process.env.POSTGREST_JWT_SECRET && process.env.LOCAL_REST_URL
+      ? ''
+      : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!restUrl) return [];
 
   try {
+    const headers: Record<string, string> = {};
+    if (supabaseKey) {
+      headers.apikey = supabaseKey;
+      headers.Authorization = `Bearer ${supabaseKey}`;
+    }
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/site_redirects?enabled=eq.true&select=source_path,destination_path,is_permanent`,
+      `${restUrl}/rest/v1/site_redirects?enabled=eq.true&select=source_path,destination_path,is_permanent`,
       {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
+        headers,
         next: { revalidate: 300 },
       }
     );
@@ -112,7 +117,7 @@ export async function middleware(request: NextRequest) {
     "media-src 'self' https://*.supabase.co blob: data:",
     "font-src 'self' data: https://fonts.gstatic.com",
     // GA4 sends collect hits to analytics.google.com (not www.google-analytics.com).
-    "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com https://*.g.doubleclick.net https://www.facebook.com https://graph.facebook.com https://px.ads.linkedin.com",
+    "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com https://*.g.doubleclick.net https://www.facebook.com https://*.facebook.com https://graph.facebook.com https://*.facebook.net https://px.ads.linkedin.com",
     "frame-src 'self' https://www.google.com https://accounts.google.com https://www.recaptcha.net https://pagead2.googlesyndication.com https://www.googletagmanager.com https://www.facebook.com https://web.facebook.com https://business.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",

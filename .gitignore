@@ -3,6 +3,7 @@ node_modules/
 
 # next.js
 .next/
+.next-old/
 out/
 
 # production
@@ -33,6 +34,9 @@ next-env.d.ts
 
 # pm2
 .pm2/
+
+# local PostgREST binary used when Supabase HTTP is restricted
+bin/postgrest
 
 # VPS uploads (keep folder, ignore files)
 public/uploads/*

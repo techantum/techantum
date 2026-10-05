@@ -3,7 +3,7 @@ import { checkRateLimit, getRateLimitIdentifier } from '@/lib/security/rateLimit
 import { validateCSRFToken } from '@/lib/security/csrf';
 import { verifyRecaptchaToken } from '@/lib/security/captcha';
 import { sanitizeString, sanitizeEmail, sanitizePhone } from '@/lib/security/sanitize';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { sendContactConfirmation, sendContactNotification } from '@/lib/email/resend';
 
 export async function POST(request: NextRequest) {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid email format.' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { error: dbError } = await supabase.from('form_submissions').insert({
       name: sanitizedData.name,
       country: sanitizedData.country,

@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   try {
     const appId = await resolveFacebookAppId();
     const meta = getMetaProviderConfig();
-    const configId = meta.embeddedSignupConfigId || '1088312177523729';
+    const configId = meta.embeddedSignupConfigId;
     if (!appId) {
       return NextResponse.redirect(new URL(`/portal/wa/onboard?error=${encodeURIComponent('Meta app ID is not configured.')}`, origin));
     }

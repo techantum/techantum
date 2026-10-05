@@ -15,6 +15,7 @@ type CredentialRow = {
   encrypted_api_key: string | null;
   key_hint: string | null;
   model: string | null;
+  organization_id?: string | null;
   enabled: boolean | null;
 };
 
@@ -88,7 +89,7 @@ function envOnlyConfig(): GatewayRuntimeConfig {
   const providers: ProviderCredentialPublic[] = PROVIDERS.map((provider) => {
     const apiKey = envKey(provider);
     const model = envModel(provider);
-    if (apiKey) resolved[provider] = { id: provider, apiKey, model, source: 'env' };
+    if (apiKey) resolved[provider] = { id: provider, apiKey, model, organizationId: null, source: 'env' };
     return {
       provider,
       label: PROVIDER_LABELS[provider],
@@ -96,6 +97,7 @@ function envOnlyConfig(): GatewayRuntimeConfig {
       source: apiKey ? 'env' : 'none',
       keyHint: apiKey ? `${secretHint(apiKey)} (env)` : null,
       model,
+      organizationId: null,
       enabled: provider !== 'claude',
       defaultModel: DEFAULT_MODELS[provider],
       comingSoon: provider === 'claude' && !apiKey,
@@ -121,7 +123,7 @@ async function loadGatewayConfig(): Promise<GatewayRuntimeConfig> {
   const supabase = createAdminClient();
   const [{ data: settings, error: settingsError }, { data: credentials, error: credentialsError }] = await Promise.all([
     supabase.from('ai_gateway_settings').select('*').eq('id', 1).maybeSingle(),
-    supabase.from('ai_provider_credentials').select('provider, encrypted_api_key, key_hint, model, enabled'),
+    supabase.from('ai_provider_credentials').select('provider, encrypted_api_key, key_hint, model, organization_id, enabled'),
   ]);
 
   if (settingsError || credentialsError) {
@@ -157,8 +159,9 @@ async function loadGatewayConfig(): Promise<GatewayRuntimeConfig> {
     const apiKey = storedKey || fallbackEnvKey;
     const source: ProviderCredentialPublic['source'] = storedKey ? 'admin' : fallbackEnvKey ? 'env' : 'none';
 
+    const organizationId = row?.organization_id?.trim() || null;
     if (enabled && apiKey) {
-      resolved[provider] = { id: provider, apiKey, model, source: storedKey ? 'admin' : 'env' };
+      resolved[provider] = { id: provider, apiKey, model, organizationId, source: storedKey ? 'admin' : 'env' };
     }
 
     return {
@@ -168,6 +171,7 @@ async function loadGatewayConfig(): Promise<GatewayRuntimeConfig> {
       source,
       keyHint: storedKey ? row?.key_hint || secretHint(storedKey) : fallbackEnvKey ? `${secretHint(fallbackEnvKey)} (env)` : null,
       model,
+      organizationId,
       enabled,
       defaultModel: DEFAULT_MODELS[provider],
       comingSoon: provider === 'claude' && !apiKey,

@@ -10,25 +10,10 @@ import AdminButton from '@/components/admin/AdminButton';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 import { OpsOverviewField } from '@/components/admin/ops/OpsUi';
 import { ProviderShell, ProviderTable, StatusPill, Td, when } from '@/components/admin/wa-provider/ProviderUi';
+import { formatMessagingLimit } from '@/components/whatsapp/portal-ui';
+import { resolveMetaPhoneState } from '@/lib/whatsapp-provider/phone-status';
 
-const TABS = [
-  'Overview',
-  'WABAs',
-  'Phone Numbers',
-  'Templates',
-  'Messages',
-  'Inbox',
-  'Contacts',
-  'Campaigns',
-  'Automations',
-  'Analytics',
-  'Quality',
-  'Integrations',
-  'Billing',
-  'Support',
-  'Activity',
-  'Audit Logs',
-].map((label) => ({ id: label, label }));
+const TABS = ['Overview', 'Numbers', 'Templates'].map((label) => ({ id: label, label }));
 
 export default function WaClientProfilePage() {
   const params = useParams<{ id: string }>();
@@ -134,11 +119,13 @@ export default function WaClientProfilePage() {
         </AdminSection>
       )}
 
-      {tab === 'Phone Numbers' && (
+      {tab === 'Numbers' && (
         <AdminSection title="Phone numbers">
           <ProviderTable
-            columns={['Number', 'Verified name', 'Quality', 'Registration', 'Messaging']}
-            rows={(data?.phones || []).map((row: any) => (
+            columns={['Number', 'Verified name', 'Quality', 'Meta status', 'Messaging']}
+            rows={(data?.phones || []).map((row: any) => {
+              const state = resolveMetaPhoneState(row);
+              return (
               <tr key={row.id}>
                 <Td>{row.display_phone_number}</Td>
                 <Td>{row.verified_name}</Td>
@@ -146,11 +133,12 @@ export default function WaClientProfilePage() {
                   <StatusPill value={row.quality_rating} />
                 </Td>
                 <Td>
-                  <StatusPill value={row.registration_status} />
+                  <StatusPill value={state.label} />
                 </Td>
-                <Td>{row.messaging_status}</Td>
+                <Td>{formatMessagingLimit(row.messaging_status)}</Td>
               </tr>
-            ))}
+              );
+            })}
           />
         </AdminSection>
       )}
@@ -170,16 +158,6 @@ export default function WaClientProfilePage() {
         </AdminSection>
       )}
 
-      {['Messages', 'Inbox', 'Contacts', 'Campaigns', 'Automations', 'Analytics', 'Quality', 'Billing', 'Support', 'Audit Logs'].includes(tab) && (
-        <AdminSection title={tab}>
-          <p className="text-sm text-slate-600">
-            Open the dedicated {tab.toLowerCase()} workspace, already filtered for this client from the provider navigation.
-          </p>
-          <Link href={`/admin/wa-provider/${tab === 'Phone Numbers' ? 'phones' : tab.toLowerCase().replace(' ', '-')}${tab === 'Audit Logs' ? '' : ''}`}>
-            <AdminButton variant="primary">Open {tab}</AdminButton>
-          </Link>
-        </AdminSection>
-      )}
     </ProviderShell>
   );
 }

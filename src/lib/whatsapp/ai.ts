@@ -169,7 +169,7 @@ export async function generateWhatsAppReply(input: {
       parsed.knowledge_sufficient = false;
       parsed.handoff_required = true;
       parsed.handoff_reason = parsed.handoff_reason || 'OUT_OF_SCOPE';
-      parsed.lead_stage = 'HUMAN_FOLLOWUP';
+      parsed.lead_stage = 'IN_DISCUSSION';
     } else {
       parsed.reply_text = stripBrokenGeneric(stripUnconfirmedFallback(parsed.reply_text)) || fallbackText;
     }

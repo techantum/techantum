@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start",
     "type-check": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/lib/ops/working-days.test.ts src/lib/whatsapp/whatsapp.test.ts src/lib/whatsapp/ingest.test.ts src/lib/whatsapp/qualification.test.ts src/lib/whatsapp/followup.test.ts src/lib/whatsapp/appointment.test.ts src/lib/ai/gateway.test.ts src/lib/whatsapp-provider/whatsapp-provider.test.ts src/lib/whatsapp-provider/login-otp.test.ts src/lib/meta-ads/meta-ads.test.ts"
+    "test": "node --test --experimental-strip-types src/lib/ops/working-days.test.ts src/lib/whatsapp/whatsapp.test.ts src/lib/whatsapp/ingest.test.ts src/lib/whatsapp/qualification.test.ts src/lib/whatsapp/followup.test.ts src/lib/whatsapp/appointment.test.ts src/lib/ai/gateway.test.ts src/lib/whatsapp-provider/whatsapp-provider.test.ts src/lib/whatsapp-provider/onboarding-state.test.ts src/lib/whatsapp-provider/embedded-signup.test.ts src/lib/whatsapp-provider/login-otp.test.ts src/lib/meta-ads/meta-ads.test.ts"
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.14",
@@ -31,6 +31,7 @@
     "exceljs": "^4.4.0",
     "next": "15.1.11",
     "pdfkit": "^0.19.1",
+    "pg": "^8.23.0",
     "react": "19.0.3",
     "react-dom": "19.0.3",
     "react-hook-form": "^7.71.1",
@@ -46,6 +47,7 @@
     "@netlify/plugin-nextjs": "^5.11.1",
     "@types/node": "^20",
     "@types/pdfkit": "^0.17.6",
+    "@types/pg": "^8.23.1",
     "@types/react": "19.0.3",
     "@types/react-dom": "19.0.3",
     "@typescript-eslint/eslint-plugin": "^8.29.0",

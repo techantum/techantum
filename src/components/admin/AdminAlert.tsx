@@ -8,7 +8,7 @@ interface AdminAlertProps {
 const variants: Record<AlertVariant, string> = {
   success: 'text-emerald-900 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200',
   error: 'text-rose-900 bg-gradient-to-r from-rose-50 to-orange-50 border-rose-200',
-  info: 'text-sky-900 bg-gradient-to-r from-sky-50 to-cyan-50 border-sky-200',
+  info: 'text-slate-800 bg-orange-50 border-orange-100',
 };
 
 export default function AdminAlert({ children, variant = 'success' }: AdminAlertProps) {

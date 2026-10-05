@@ -66,7 +66,8 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
   );
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await fetch('/api/admin/logout', { method: 'POST' }).catch(() => undefined);
+    await supabase.auth.signOut().catch(() => undefined);
     router.push('/admin/login');
     router.refresh();
   };
@@ -76,46 +77,37 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
   };
 
   const sidebar = (
-    <div className="relative flex flex-col h-full overflow-hidden text-white">
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-indigo-950 to-cyan-950" />
-      <div className="pointer-events-none absolute -top-16 -right-10 h-48 w-48 rounded-full bg-fuchsia-500/25 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 -left-16 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-10 right-0 h-36 w-36 rounded-full bg-amber-400/15 blur-3xl" />
-
-      <div className="relative px-5 py-6 border-b border-white/10">
+    <div className="flex h-full flex-col overflow-hidden bg-white text-slate-800">
+      <div className="border-b border-slate-100 px-5 py-6">
         <Link href="/admin" className="flex items-center gap-3 group">
-          <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-indigo-500/40 group-hover:scale-105 transition-transform">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-white shadow-sm group-hover:scale-105 transition-transform">
             <Icon name="SparklesIcon" size={20} className="text-white" />
           </div>
           <div>
-            <p className="font-bricolage font-bold text-lg leading-tight">TechAntum CMS</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/70">Command center</p>
+            <p className="font-bricolage text-lg font-bold leading-tight text-slate-900">TechAntum CMS</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Command center</p>
           </div>
         </Link>
       </div>
 
-      <nav className="relative flex-1 overflow-y-auto px-3 py-4 space-y-1.5">
+      <nav className="relative flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
         {navGroups.map((group: AdminNavGroup) => {
           const isOpen = openGroups[group.id];
           const isGroupActive = activeGroupId === group.id;
 
           return (
-            <div key={group.id} className="rounded-2xl overflow-hidden">
+            <div key={group.id} className="overflow-hidden rounded-2xl">
               <button
                 type="button"
                 onClick={() => toggleGroup(group.id)}
-                className={`w-full flex items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-all ${
-                  isGroupActive
-                    ? 'bg-gradient-to-r from-white/15 via-cyan-400/10 to-fuchsia-400/10 text-white shadow-inner border border-white/10'
-                    : 'text-indigo-100/90 hover:bg-white/5 hover:text-white'
+                className={`flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                  isGroupActive ? 'bg-orange-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
                 }`}
               >
                 <span className="flex items-center gap-3">
                   <span
-                    className={`h-8 w-8 rounded-xl flex items-center justify-center ${
-                      isGroupActive
-                        ? 'bg-gradient-to-br from-cyan-400 to-indigo-500 text-white'
-                        : 'bg-white/5 text-indigo-200/80'
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+                      isGroupActive ? 'bg-secondary text-white' : 'bg-slate-100 text-slate-500'
                     }`}
                   >
                     <Icon name={group.icon} size={16} />
@@ -125,33 +117,33 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
                 <Icon
                   name="ChevronDownIcon"
                   size={16}
-                  className={`text-indigo-200/70 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                  className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                 />
               </button>
 
               <div
                 className={`grid transition-all duration-200 ${
-                  isOpen ? 'grid-rows-[1fr] opacity-100 mt-1' : 'grid-rows-[0fr] opacity-0'
+                  isOpen ? 'mt-1 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
                 }`}
               >
                 <div className="overflow-hidden">
-                  <div className="space-y-0.5 pl-2 pb-1">
+                  <div className="space-y-0.5 pb-1 pl-2">
                     {group.items.map((item) => {
                       const active = isNavActive(pathname, item.href, item.exact);
                       return (
                         <Link
                           key={item.href}
                           href={item.href}
-                          className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all border-l-2 ${
+                          className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-2 text-sm transition-colors ${
                             active
-                              ? 'border-cyan-300 bg-white/10 text-white font-medium shadow-sm'
-                              : 'border-transparent text-indigo-100/75 hover:bg-white/5 hover:text-white hover:border-cyan-300/50'
+                              ? 'border-secondary bg-secondary font-medium text-white shadow-sm'
+                              : 'border-transparent text-slate-600 hover:border-secondary/40 hover:bg-slate-50 hover:text-secondary'
                           }`}
                         >
-                          <Icon name={item.icon} size={16} className={active ? 'text-cyan-200' : 'text-indigo-300/60'} />
+                          <Icon name={item.icon} size={16} className={active ? 'text-white' : 'text-slate-400'} />
                           <span className="flex-1">{item.label}</span>
                           {item.href === '/admin/whatsapp/appointments' && appointmentCount > 0 ? (
-                            <span className="min-w-[1.25rem] rounded-full bg-gradient-to-r from-amber-300 to-orange-400 px-1.5 py-0.5 text-center text-[10px] font-bold text-slate-900">
+                            <span className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold ${active ? 'bg-white text-secondary' : 'bg-secondary text-white'}`}>
                               {appointmentCount}
                             </span>
                           ) : null}
@@ -166,11 +158,11 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
         })}
       </nav>
 
-      <div className="relative px-3 py-4 border-t border-white/10 space-y-1">
+      <div className="space-y-1 border-t border-slate-100 px-3 py-4">
         <Link
           href="/"
           target="_blank"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-indigo-100/80 hover:bg-white/10 hover:text-white transition-all"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-secondary"
         >
           <Icon name="ArrowTopRightOnSquareIcon" size={16} />
           View live site
@@ -178,7 +170,7 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
         <button
           type="button"
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-indigo-100/80 hover:bg-rose-500/20 hover:text-rose-100 transition-all"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-rose-50 hover:text-rose-600"
         >
           <Icon name="ArrowRightOnRectangleIcon" size={16} />
           Sign out
@@ -188,23 +180,15 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
   );
 
   return (
-    <div className="admin-shell min-h-screen relative">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-indigo-50 to-cyan-50" />
-        <div className="absolute -top-24 left-1/4 h-72 w-72 rounded-full bg-violet-300/30 blur-3xl" />
-        <div className="absolute top-1/3 right-0 h-80 w-80 rounded-full bg-cyan-300/25 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-amber-200/30 blur-3xl" />
-        <div className="absolute inset-0 admin-grid-bg opacity-40" />
-      </div>
-
-      <div className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-indigo-100/70 px-4 h-14 flex items-center justify-between">
-        <Link href="/admin" className="font-bricolage font-bold bg-gradient-to-r from-indigo-700 to-fuchsia-600 bg-clip-text text-transparent">
+    <div className="admin-shell min-h-screen bg-slate-50">
+      <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
+        <Link href="/admin" className="font-bricolage font-bold text-slate-900">
           TechAntum CMS
         </Link>
         <button
           type="button"
           onClick={() => setSidebarOpen((open) => !open)}
-          className="px-3 py-1.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/20"
+          className="rounded-full bg-secondary px-3 py-1.5 text-sm font-semibold text-white"
           aria-expanded={sidebarOpen}
         >
           {sidebarOpen ? 'Close' : 'Menu'}
@@ -214,22 +198,22 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
       {sidebarOpen && (
         <button
           type="button"
-          className="lg:hidden fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] lg:hidden"
           aria-label="Close menu"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <div className="lg:flex min-h-screen">
+      <div className="min-h-screen lg:flex">
         <aside
-          className={`fixed lg:sticky top-0 z-50 lg:z-auto h-full lg:h-screen w-72 shrink-0 shadow-2xl shadow-indigo-950/20 transform transition-transform duration-200 ${
+          className={`fixed top-0 z-50 h-full w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 lg:sticky lg:z-auto lg:h-screen ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
           {sidebar}
         </aside>
 
-        <main className="flex-1 min-w-0 w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="admin-content-width">{children}</div>
         </main>
       </div>

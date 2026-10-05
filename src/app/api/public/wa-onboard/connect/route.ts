@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requirePortalUser } from '@/lib/whatsapp-provider/portal-auth';
 import { ensurePortalWorkspace, getPortalWhatsAppAssets } from '@/lib/whatsapp-provider/services/self-onboard';
-import { completeEmbeddedSignup } from '@/lib/whatsapp-provider/services/onboarding';
+import { completeEmbeddedSignup, importConfiguredProviderWaba } from '@/lib/whatsapp-provider/services/onboarding';
+import { getPublicMetaSignupConfig } from '@/lib/whatsapp-provider/config';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/security/rateLimiter';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +28,18 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   try {
+    if (body.source === 'provider') {
+      const config = getPublicMetaSignupConfig();
+      const admin = createAdminClient();
+      const { data: adminRow } = await admin.from('admin_users').select('user_id').eq('user_id', auth.user.id).maybeSingle();
+      const email = String(auth.email || auth.user.email || '').toLowerCase();
+      if (!config.existingConfigured || (!adminRow && !email.endsWith('@techantum.com'))) {
+        return NextResponse.json({ error: 'This test import is only available for Techantum staff.' }, { status: 403 });
+      }
+      const result = await importConfiguredProviderWaba(auth.clientId, auth.user.id);
+      const assets = await getPortalWhatsAppAssets(auth.clientId);
+      return NextResponse.json({ ...result, ...assets });
+    }
     const result = await completeEmbeddedSignup({
       clientId: auth.clientId,
       code: body.code ? String(body.code) : undefined,
@@ -34,6 +48,8 @@ export async function POST(request: Request) {
       phoneNumberId: body.phoneNumberId ? String(body.phoneNumberId) : undefined,
       businessId: body.businessId ? String(body.businessId) : undefined,
       actorId: auth.user.id,
+      mode: body.mode === 'existing' ? 'existing' : 'new',
+      source: body.source === 'sdk' ? 'sdk' : 'redirect',
     });
     const assets = await getPortalWhatsAppAssets(auth.clientId);
     return NextResponse.json({ ...result, ...assets });

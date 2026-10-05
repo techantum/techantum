@@ -5,6 +5,26 @@ import { saveUploadedFile } from '@/lib/storage/local';
 import { extractResumeText } from '@/lib/recruitment/resume';
 import { assessCandidate } from '@/lib/recruitment/service';
 
+export async function GET(request: Request) {
+  const auth = await requireAdmin();
+  if ('error' in auth && auth.error) return auth.error;
+
+  const url = new URL(request.url);
+  const roleId = url.searchParams.get('job_role_id');
+  const supabase = createAdminClient();
+  let query = supabase
+    .from('recruitment_candidates')
+    .select(
+      'id, job_role_id, name, email, phone, status, overall_fit_percent, ai_recommendation, ai_classification, application_date, current_company, current_job_title, total_experience, resume_file_name, created_at, recruitment_job_roles(id, title, department)',
+    )
+    .order('created_at', { ascending: false });
+  if (roleId) query = query.eq('job_role_id', roleId);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data || []);
+}
+
 export async function POST(request: Request) {
   const auth = await requireAdmin();
   if ('error' in auth && auth.error) return auth.error;

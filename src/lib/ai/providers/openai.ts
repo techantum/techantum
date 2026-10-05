@@ -25,12 +25,14 @@ export async function generateWithOpenAI(input: ProviderGenerateInput): Promise<
 
   let res: Response;
   try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    };
+    if (input.organizationId) headers['OpenAI-Organization'] = input.organizationId;
     res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${input.apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(input.timeoutMs ?? 20000),
     });

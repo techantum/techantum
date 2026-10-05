@@ -111,6 +111,16 @@ export async function upsertChatAppointment(input: {
   };
 
   const finish = async (appointment: WhatsAppAppointment) => {
+    if (input.conversation.id) {
+      const { data: current } = await supabase
+        .from('whatsapp_conversations')
+        .select('lead_stage')
+        .eq('id', input.conversation.id)
+        .maybeSingle();
+      if (current && !['CONVERTED', 'LOST'].includes(String(current.lead_stage))) {
+        await supabase.from('whatsapp_conversations').update({ lead_stage: 'APPOINTMENT_BOOKED' }).eq('id', input.conversation.id);
+      }
+    }
     if (input.slot.scheduledAt) {
       await createCalendarEvent({
         summary: `Techantum call · ${appointment.contact_name || appointment.phone}`,

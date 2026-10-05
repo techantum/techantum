@@ -23,7 +23,7 @@ export default function AdminField({
 }: AdminFieldProps) {
   return (
     <div className={`space-y-1.5 ${spanClasses[span]} ${className}`}>
-      <label htmlFor={htmlFor} className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <label htmlFor={htmlFor} className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </label>
       {children}
@@ -33,7 +33,7 @@ export default function AdminField({
 }
 
 export const adminInputClass =
-  'w-full px-3 py-2.5 rounded-xl border border-indigo-100 bg-white/90 text-sm text-foreground shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 hover:border-indigo-200';
+  'w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary hover:border-slate-300';
 
 export const adminSelectClass = adminInputClass;
 

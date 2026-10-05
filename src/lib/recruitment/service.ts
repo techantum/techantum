@@ -22,8 +22,9 @@ export async function getRoleDashboard() {
       return {
         ...role,
         candidates_total: list.length,
-        shortlisted: count('SHORTLISTED') + count('INTERVIEW_SCHEDULED') + count('INTERVIEWED'),
+        shortlisted: count('SHORTLISTED'),
         interviews: count('INTERVIEW_SCHEDULED') + count('INTERVIEWED'),
+        interviewed: count('INTERVIEW_SCHEDULED') + count('INTERVIEWED'),
         selected: count('SELECTED'),
       };
     }),

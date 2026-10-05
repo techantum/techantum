@@ -13,7 +13,7 @@ async function attachAppointments(rows: WhatsAppConversation[]) {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from('whatsapp_appointments')
-    .select('id, code, status, conversation_id, created_at')
+    .select('id, code, status, conversation_id, created_at, scheduled_at')
     .in(
       'conversation_id',
       rows.map((row) => row.id)
@@ -21,7 +21,7 @@ async function attachAppointments(rows: WhatsAppConversation[]) {
     .neq('status', 'CANCELLED')
     .order('created_at', { ascending: false });
 
-  const latest = new Map<string, { id: string; code: string; status: string }>();
+  const latest = new Map<string, { id: string; code: string; status: string; scheduled_at?: string | null }>();
   for (const appointment of data || []) {
     const conversationId = String(appointment.conversation_id || '');
     if (!conversationId || latest.has(conversationId)) continue;
@@ -29,6 +29,7 @@ async function attachAppointments(rows: WhatsAppConversation[]) {
       id: String(appointment.id),
       code: String(appointment.code),
       status: String(appointment.status),
+      scheduled_at: appointment.scheduled_at ? String(appointment.scheduled_at) : null,
     });
   }
 
@@ -55,7 +56,45 @@ export async function listConversations(search = '') {
         .some((v) => String(v).toLowerCase().includes(q));
     });
   }
+  rows = await attachLastMessages(rows);
   return attachAppointments(rows);
+}
+
+async function attachLastMessages(rows: WhatsAppConversation[]) {
+  if (rows.length === 0) return rows;
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_messages')
+    .select('conversation_id, text_content, created_at, direction')
+    .in(
+      'conversation_id',
+      rows.map((row) => row.id),
+    )
+    .order('created_at', { ascending: false })
+    .limit(Math.min(rows.length * 8, 800));
+
+  const latest = new Map<string, { text_content: string | null; created_at: string }>();
+  const unread = new Map<string, number>();
+  for (const row of rows) {
+    const inbound = row.last_inbound_at ? new Date(row.last_inbound_at).getTime() : 0;
+    const outbound = row.last_outbound_at ? new Date(row.last_outbound_at).getTime() : 0;
+    unread.set(row.id, inbound > outbound ? 1 : 0);
+  }
+  for (const message of data || []) {
+    const conversationId = String(message.conversation_id || '');
+    if (!conversationId || latest.has(conversationId)) continue;
+    latest.set(conversationId, {
+      text_content: message.text_content ? String(message.text_content) : null,
+      created_at: String(message.created_at),
+    });
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    last_message_preview: latest.get(row.id)?.text_content || null,
+    last_message_at: latest.get(row.id)?.created_at || row.last_inbound_at || row.last_outbound_at,
+    unread_count: unread.get(row.id) || 0,
+  }));
 }
 
 export async function getConversationDetail(id: string) {
@@ -126,28 +165,33 @@ export async function addConversationNote(conversationId: string, body: string, 
 
 const LEAD_STAGES: LeadStage[] = [
   'NEW',
-  'ENGAGED',
-  'REQUIREMENT_IDENTIFIED',
+  'IN_DISCUSSION',
   'QUALIFIED',
-  'PROPOSAL_REQUESTED',
-  'HUMAN_FOLLOWUP',
+  'APPOINTMENT_BOOKED',
   'CONVERTED',
   'LOST',
+  'ENGAGED',
+  'REQUIREMENT_IDENTIFIED',
+  'PROPOSAL_REQUESTED',
+  'HUMAN_FOLLOWUP',
 ];
 
 const CONVERSATION_STATUSES: ConversationStatus[] = ['OPEN', 'CLOSED', 'ARCHIVED'];
 
 export async function updateConversationStatus(
   id: string,
-  input: { lead_stage?: string; status?: string }
+  input: { lead_stage?: string; status?: string; assigned_user_id?: string | null }
 ) {
   const supabase = createAdminClient();
-  const updates: Record<string, string> = {};
+  const updates: Record<string, string | null> = {};
   if (input.lead_stage && LEAD_STAGES.includes(input.lead_stage as LeadStage)) {
     updates.lead_stage = input.lead_stage;
   }
   if (input.status && CONVERSATION_STATUSES.includes(input.status as ConversationStatus)) {
     updates.status = input.status;
+  }
+  if ('assigned_user_id' in input) {
+    updates.assigned_user_id = input.assigned_user_id || null;
   }
   if (Object.keys(updates).length === 0) throw new Error('No valid status fields to update');
 
@@ -159,6 +203,99 @@ export async function updateConversationStatus(
     .single();
   if (error || !data) throw new Error(error?.message || 'Failed to update status');
   return data as WhatsAppConversation;
+}
+
+export async function createManualLead(input: {
+  name?: string;
+  phone: string;
+  email?: string;
+  company?: string;
+  service?: string;
+  note?: string;
+  userId?: string;
+}) {
+  const { findOrCreateContact, findOrCreateOpenConversation } = await import('./conversation');
+  const phone = input.phone.trim();
+  if (!phone) throw new Error('Phone number is required');
+
+  const contact = await findOrCreateContact({ phone, profileName: input.name });
+  const supabase = createAdminClient();
+  const contactUpdates: Record<string, string> = {};
+  if (input.name) contactUpdates.first_name = input.name;
+  if (input.email) contactUpdates.email = input.email;
+  if (input.company) contactUpdates.company_name = input.company;
+  if (Object.keys(contactUpdates).length) {
+    await supabase.from('whatsapp_contacts').update(contactUpdates).eq('id', contact.id);
+  }
+
+  const conversation = await findOrCreateOpenConversation(contact.id, 'HUMAN');
+  const qualification = input.service
+    ? {
+        step: 'purpose',
+        service: input.service,
+        prospect: 'UNKNOWN',
+        prospect_reason: 'Created manually from Leads',
+      }
+    : null;
+  await supabase
+    .from('whatsapp_conversations')
+    .update({
+      lead_stage: 'NEW',
+      mode: 'HUMAN',
+      qualification,
+    })
+    .eq('id', conversation.id);
+
+  if (input.note?.trim()) {
+    await addConversationNote(conversation.id, input.note.trim(), input.userId);
+  }
+
+  const { data: codeRow } = await supabase.rpc('whatsapp_next_lead_code');
+  if (!contact.lead_id) {
+    const { data: lead } = await supabase
+      .from('whatsapp_leads')
+      .insert({
+        lead_code: typeof codeRow === 'string' ? codeRow : `TL-${Date.now()}`,
+        contact_id: contact.id,
+        conversation_id: conversation.id,
+        phone: contact.phone_number,
+        name: input.name || contact.first_name || contact.profile_name,
+        company: input.company || contact.company_name,
+        email: input.email || contact.email,
+        service: input.service || null,
+        source: 'MANUAL',
+        lead_stage: 'NEW',
+        status: 'NEW',
+      })
+      .select('id')
+      .single();
+    if (lead?.id) await supabase.from('whatsapp_contacts').update({ lead_id: lead.id }).eq('id', contact.id);
+  }
+
+  return getConversationDetail(conversation.id);
+}
+
+export function exportLeadsCsv(rows: WhatsAppConversation[]) {
+  const header = ['Name', 'Phone', 'Email', 'Company', 'Last message', 'Service', 'Lead status', 'Appointment', 'Updated'];
+  const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const lines = rows.map((row) => {
+    const contact = row.whatsapp_contacts;
+    const q = row.qualification as { service?: string } | null;
+    return [
+      contact?.first_name || contact?.profile_name || '',
+      contact?.phone_number || '',
+      contact?.email || '',
+      contact?.company_name || '',
+      row.last_message_preview || '',
+      q?.service || '',
+      row.lead_stage,
+      row.appointment?.code || '',
+      row.last_inbound_at || row.created_at || '',
+    ]
+      .map(escape)
+      .join(',');
+  });
+  return [header.join(','), ...lines].join('\n');
 }
 
 export async function logAudit(action: string, entityType: string, entityId: string, userId?: string, metadata?: Record<string, unknown>) {

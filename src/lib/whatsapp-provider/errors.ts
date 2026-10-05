@@ -19,7 +19,8 @@ export function normalizeMetaError(operation: string, payload: unknown, httpStat
   const metaCode = String(err.code || httpStatus || '');
   const title = err.error_user_title || err.type || 'Meta request failed';
   const message = err.message || 'The Meta Graph API returned an error.';
-  const userMessage = err.error_user_msg || recommendedAction(operation, metaCode, message);
+  const rawUser = err.error_user_msg || message;
+  const userMessage = recommendedAction(operation, metaCode, rawUser);
   return {
     provider: 'META',
     operation,
@@ -34,6 +35,15 @@ export function normalizeMetaError(operation: string, payload: unknown, httpStat
 }
 
 export function recommendedAction(operation: string, metaCode: string, message: string) {
+  if (operation.includes('requestVerificationCode') || operation.includes('request_code')) {
+    if (metaCode === '136024' || /1 hour|temporarily unavailable/i.test(message)) {
+      return 'Meta locked verification for this number for about 1 hour. That happens when the number already has WhatsApp, or a code was requested too many times. Wait, or add the number with Meta instead of sending another SMS.';
+    }
+    if (/already verified|already registered|connected/i.test(message)) {
+      return 'This number is already verified on Meta. You do not need another SMS code.';
+    }
+    return message;
+  }
   if (operation.includes('register')) {
     return 'Phone number registration failed. Verify the number and PIN, then retry. Do not store the PIN.';
   }

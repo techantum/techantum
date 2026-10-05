@@ -3,16 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminSection from '@/components/admin/AdminSection';
-import AdminAlert from '@/components/admin/AdminAlert';
-import AdminButton from '@/components/admin/AdminButton';
 import RoleForm from '@/components/admin/recruitment/RoleForm';
-import { OpsPageShell } from '@/components/admin/ops/OpsUi';
 import type { RecruitmentAssessmentArea, RecruitmentJobRole } from '@/lib/recruitment/types';
 
 export default function EditRecruitmentRolePage() {
-  const id = String(useParams().id);
+  const id = String(useParams()?.id || '');
   const [role, setRole] = useState<RecruitmentJobRole | null>(null);
   const [areas, setAreas] = useState<RecruitmentAssessmentArea[]>([]);
   const [saving, setSaving] = useState(false);
@@ -20,6 +15,7 @@ export default function EditRecruitmentRolePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!id) return;
     fetch(`/api/admin/recruitment/roles/${id}`)
       .then(async (r) => {
         const body = await r.json();
@@ -51,24 +47,25 @@ export default function EditRecruitmentRolePage() {
     }
   };
 
-  if (!role) return <p className="text-sm text-muted-foreground p-4">{error || 'Loading…'}</p>;
+  if (!role) return <p className="p-4 text-sm text-slate-500">{error || 'Loading…'}</p>;
 
   return (
-    <OpsPageShell>
-      <AdminPageHeader
-        title={role.title}
-        description={role.role_code || 'Edit role assessment template'}
-        action={
-          <Link href={`/admin/recruitment/roles/${id}/candidates`}>
-            <AdminButton variant="primary">View candidates</AdminButton>
-          </Link>
-        }
-      />
-      {message && <AdminAlert>{message}</AdminAlert>}
-      {error && <AdminAlert variant="error">{error}</AdminAlert>}
-      <AdminSection title="Role configuration">
-        <RoleForm initialRole={role} initialAreas={areas} onSubmit={submit} saving={saving} />
-      </AdminSection>
-    </OpsPageShell>
+    <RoleForm
+      mode="edit"
+      initialRole={role}
+      initialAreas={areas}
+      onSubmit={submit}
+      saving={saving}
+      message={message}
+      error={error}
+      extraAction={
+        <Link
+          href={`/admin/recruitment/roles/${id}/candidates`}
+          className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          View candidates
+        </Link>
+      }
+    />
   );
 }

@@ -2,11 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminSection from '@/components/admin/AdminSection';
-import AdminAlert from '@/components/admin/AdminAlert';
 import RoleForm from '@/components/admin/recruitment/RoleForm';
-import { OpsPageShell } from '@/components/admin/ops/OpsUi';
 
 export default function NewRecruitmentRolePage() {
   const router = useRouter();
@@ -32,13 +28,5 @@ export default function NewRecruitmentRolePage() {
     }
   };
 
-  return (
-    <OpsPageShell>
-      <AdminPageHeader title="Create job role" description="Define role details and assessment criteria (100% weightage)." />
-      {error && <AdminAlert variant="error">{error}</AdminAlert>}
-      <AdminSection title="Role & assessment template">
-        <RoleForm onSubmit={submit} saving={saving} />
-      </AdminSection>
-    </OpsPageShell>
-  );
+  return <RoleForm mode="create" onSubmit={submit} saving={saving} error={error} />;
 }

@@ -15,6 +15,7 @@ export default function ResourcePage({
   columns,
   render,
   searchHint,
+  bare = false,
 }: {
   title: string;
   description: string;
@@ -22,6 +23,7 @@ export default function ResourcePage({
   columns: string[];
   render: (row: Row) => ReactNode[];
   searchHint?: string;
+  bare?: boolean;
 }) {
   const [q, setQ] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
@@ -44,10 +46,15 @@ export default function ResourcePage({
     return () => window.clearTimeout(timer);
   }, [endpoint, q]);
 
-  return (
-    <ProviderShell>
-      <AdminPageHeader title={title} description={description} />
-      <AdminSection title={title}>
+  const body = (
+    <div className="space-y-4">
+      {bare && (
+        <div>
+          <h1 className="font-bricolage text-2xl font-bold text-slate-900">{title}</h1>
+          <p className="text-sm text-slate-500">{description}</p>
+        </div>
+      )}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
         <AdminField label="Search">
           <input className={adminInputClass} value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchHint || 'Search'} />
         </AdminField>
@@ -64,7 +71,15 @@ export default function ResourcePage({
             </tr>
           ))}
         />
-      </AdminSection>
+      </div>
+    </div>
+  );
+
+  if (bare) return body;
+  return (
+    <ProviderShell>
+      <AdminPageHeader title={title} description={description} />
+      {body}
     </ProviderShell>
   );
 }

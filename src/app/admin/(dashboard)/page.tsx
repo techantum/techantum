@@ -65,14 +65,14 @@ export default function AdminDashboardPage() {
   if (!stats) return <p className="text-muted-foreground">Unable to load dashboard stats.</p>;
 
   const quickLinks = [
-    { href: '/admin/analytics', label: 'Website analytics', tone: 'from-indigo-500 to-violet-500' },
-    { href: '/admin/content', label: 'Edit site content', tone: 'from-sky-500 to-cyan-500' },
-    { href: '/admin/submissions', label: 'Manage leads', tone: 'from-amber-500 to-orange-500' },
-    { href: '/admin/lead-discovery', label: 'Lead discovery', tone: 'from-fuchsia-500 to-rose-500' },
-    { href: '/admin/branding', label: 'Update branding', tone: 'from-emerald-500 to-teal-500' },
-    { href: '/admin/seo', label: 'Global SEO', tone: 'from-violet-500 to-indigo-500' },
-    { href: '/admin/page-seo', label: 'Page indexing', tone: 'from-cyan-500 to-blue-500' },
-    { href: '/admin/partner-catalog', label: 'Wizard questions', tone: 'from-rose-500 to-pink-500' },
+    { href: '/admin/analytics', label: 'Website analytics' },
+    { href: '/admin/content', label: 'Edit site content' },
+    { href: '/admin/submissions', label: 'Manage leads' },
+    { href: '/admin/lead-discovery', label: 'Lead discovery' },
+    { href: '/admin/branding', label: 'Update branding' },
+    { href: '/admin/seo', label: 'Global SEO' },
+    { href: '/admin/page-seo', label: 'Page indexing' },
+    { href: '/admin/partner-catalog', label: 'Wizard questions' },
   ];
 
   return (
@@ -115,20 +115,19 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/80 shadow-lg shadow-indigo-500/5 overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
-          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/50 flex items-center justify-between">
-            <h2 className="font-bricolage font-semibold text-foreground">Recent leads</h2>
-            <Link href="/admin/submissions" className="text-sm text-indigo-600 hover:underline font-semibold">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <h2 className="font-bricolage font-semibold text-slate-900">Recent leads</h2>
+            <Link href="/admin/submissions" className="text-sm font-semibold text-secondary">
               View all
             </Link>
           </div>
           {stats.recentLeads.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-muted-foreground text-center">No leads yet.</p>
+            <p className="px-5 py-8 text-center text-sm text-slate-400">No leads yet.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {stats.recentLeads.map((lead) => (
-                <li key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-indigo-50/40">
+                <li key={lead.id} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50">
                   <div className="min-w-0">
                     <p className="font-medium text-sm text-foreground truncate">{lead.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
@@ -145,18 +144,17 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/80 shadow-lg shadow-cyan-500/5 overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500" />
-          <div className="p-5 space-y-4">
-            <h2 className="font-bricolage font-semibold text-foreground">Quick links</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="space-y-4">
+            <h2 className="font-bricolage font-semibold text-slate-900">Quick links</h2>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {quickLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white/80 text-sm font-semibold hover:-translate-y-0.5 hover:shadow-md transition-all"
+                  className="group flex items-center gap-3 rounded-2xl border border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 hover:border-secondary/30 hover:bg-orange-50/50"
                 >
-                  <span className={`h-8 w-8 rounded-xl bg-gradient-to-br ${link.tone} text-white flex items-center justify-center text-xs shadow-sm`}>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary text-xs text-white">
                     →
                   </span>
                   {link.label}

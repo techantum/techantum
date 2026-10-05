@@ -6,7 +6,6 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieCh
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminStatCard from '@/components/admin/AdminStatCard';
-import AdminButton from '@/components/admin/AdminButton';
 import AdminField, { adminSelectClass } from '@/components/admin/AdminField';
 import { ProviderLink, ProviderShell, ProviderTable, StatusPill, Td, when } from '@/components/admin/wa-provider/ProviderUi';
 
@@ -55,12 +54,7 @@ export default function WaProviderDashboardPage() {
     <ProviderShell>
       <AdminPageHeader
         title="WhatsApp Business Provider"
-        description="Manage client WhatsApp Business accounts, quality, templates and operational health."
-        action={
-          <Link href="/admin/wa-provider/onboard">
-            <AdminButton variant="primary">Onboard Client</AdminButton>
-          </Link>
-        }
+        description="Onboarded client accounts, quality, templates and operational health. Clients complete setup on the website."
       />
 
       <div className="flex flex-wrap items-end justify-between gap-3">

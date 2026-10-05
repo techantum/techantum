@@ -189,7 +189,7 @@ export async function getSelfServeSession(userId: string) {
   if (!membership) return null;
   const { data: client } = await supabase
     .from('wa_clients')
-    .select('id,name,onboarding_status,meta_connection_status,status,platform_health')
+    .select('id,name,legal_name,contact_name,email,phone,website,business_category,business_type,address,onboarding_status,meta_connection_status,status,platform_health,meta_business_id')
     .eq('id', membership.client_id)
     .maybeSingle();
   return {
@@ -198,12 +198,54 @@ export async function getSelfServeSession(userId: string) {
     email: membership.email,
     name: membership.name,
     companyName: client?.name || '',
+    legalName: client?.legal_name || '',
+    contactName: client?.contact_name || '',
+    phone: client?.phone || '',
+    website: client?.website || '',
+    businessCategory: client?.business_category || '',
+    businessType: client?.business_type || '',
+    address: client?.address || '',
     onboardingStatus: client?.onboarding_status || 'CLIENT_CREATED',
     metaConnectionStatus: client?.meta_connection_status || 'DISCONNECTED',
+    metaBusinessId: client?.meta_business_id || '',
     clientStatus: client?.status || 'ONBOARDING',
     platformHealth: client?.platform_health || 'UNKNOWN',
     connected: client?.meta_connection_status === 'CONNECTED',
   };
+}
+
+export async function updateBusinessProfile(userId: string, input: {
+  companyName?: string;
+  website?: string;
+  email?: string;
+  businessCategory?: string;
+  businessType?: string;
+  address?: string;
+  country?: string;
+  timezone?: string;
+  description?: string;
+}) {
+  const session = await getSelfServeSession(userId);
+  if (!session) throw Object.assign(new Error('WhatsApp workspace not found.'), { status: 404 });
+  const supabase = createAdminClient();
+  const country = sanitizeString(input.country || '').slice(0, 80);
+  const timezone = sanitizeString(input.timezone || '').slice(0, 80);
+  const { data, error } = await supabase
+    .from('wa_clients')
+    .update({
+      name: sanitizeString(input.companyName || session.companyName).slice(0, 120) || session.companyName,
+      legal_name: sanitizeString(input.companyName || session.legalName || session.companyName).slice(0, 160) || null,
+      email: sanitizeEmail(input.email || session.email || '') || session.email,
+      website: sanitizeString(input.website || '').slice(0, 240) || null,
+      business_category: sanitizeString(input.businessCategory || '').slice(0, 80) || null,
+      business_type: sanitizeString(input.businessType || [country, timezone].filter(Boolean).join('::') || session.businessType).slice(0, 120) || null,
+      address: sanitizeString(input.description || input.address || '').slice(0, 400) || null,
+    })
+    .eq('id', session.clientId)
+    .select('id')
+    .single();
+  if (error || !data) throw new Error(error?.message || 'Could not save business details.');
+  return getSelfServeSession(userId);
 }
 
 export async function getPortalWhatsAppAssets(clientId: string) {
@@ -215,7 +257,7 @@ export async function getPortalWhatsAppAssets(clientId: string) {
       .eq('client_id', clientId),
     supabase
       .from('wa_phone_numbers')
-      .select('id,display_phone_number,verified_name,quality_rating,registration_status,messaging_status,status')
+      .select('id,phone_number_id,display_phone_number,verified_name,quality_rating,registration_status,messaging_status,status,raw_json,last_synced_at')
       .eq('client_id', clientId),
     supabase.from('wa_templates').select('id', { count: 'exact', head: true }).eq('client_id', clientId),
   ]);

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeWhatsAppNumber } from '@/lib/ops/phone';
+import { normalizeLeadStage } from './pipeline';
 import type {
   AIReplyStructured,
   InboundWhatsAppMessage,
@@ -204,7 +205,7 @@ export async function applyExtractedData(contactId: string, conversationId: stri
   }
 
   if (extracted.requirement || extracted.service) {
-    await supabase.from('whatsapp_conversations').update({ lead_stage: 'REQUIREMENT_IDENTIFIED' }).eq('id', conversationId);
+    await supabase.from('whatsapp_conversations').update({ lead_stage: 'IN_DISCUSSION' }).eq('id', conversationId);
   }
 }
 
@@ -222,9 +223,7 @@ export async function upsertLeadFromConversation(input: {
     reply.handoff_required ||
     extracted.requirement ||
     extracted.service ||
-    ['QUALIFIED', 'PROPOSAL_REQUESTED', 'HUMAN_FOLLOWUP', 'REQUIREMENT_IDENTIFIED', 'ENGAGED'].includes(
-      String(reply.lead_stage)
-    );
+    ['QUALIFIED', 'APPOINTMENT_BOOKED', 'IN_DISCUSSION'].includes(String(reply.lead_stage));
 
   if (!meaningful) return null;
 
@@ -241,12 +240,14 @@ export async function upsertLeadFromConversation(input: {
         project_type: extracted.project_type,
         timeline: extracted.timeline,
         budget: extracted.budget,
-        lead_stage: reply.lead_stage,
+        lead_stage: normalizeLeadStage(reply.lead_stage),
         status: reply.handoff_required
-          ? 'HUMAN_FOLLOWUP'
+          ? 'IN_DISCUSSION'
           : reply.lead_stage === 'QUALIFIED'
             ? 'QUALIFIED'
-            : 'ENGAGED',
+            : reply.lead_stage === 'APPOINTMENT_BOOKED'
+              ? 'APPOINTMENT_BOOKED'
+              : 'IN_DISCUSSION',
         ai_summary: input.summary || undefined,
         conversation_id: conversation.id,
       })
@@ -273,8 +274,8 @@ export async function upsertLeadFromConversation(input: {
       project_type: extracted.project_type,
       timeline: extracted.timeline,
       budget: extracted.budget,
-      lead_stage: reply.lead_stage,
-      status: reply.handoff_required ? 'HUMAN_FOLLOWUP' : 'NEW',
+      lead_stage: normalizeLeadStage(reply.lead_stage),
+      status: reply.handoff_required ? 'IN_DISCUSSION' : 'NEW',
       ai_summary: input.summary || null,
       ops_client_id: contact.client_id,
     })
@@ -295,7 +296,7 @@ export async function applyHandoff(conversationId: string, reason: string | null
       handoff_reason: reason,
       mode: handoffMode,
       ai_enabled: handoffMode === 'HYBRID',
-      lead_stage: 'HUMAN_FOLLOWUP',
+      lead_stage: 'IN_DISCUSSION',
     })
     .eq('id', conversationId);
 }
@@ -312,7 +313,7 @@ export async function updateConversationAfterAI(
     .from('whatsapp_conversations')
     .update({
       intent: reply.intent,
-      lead_stage: reply.lead_stage,
+      lead_stage: normalizeLeadStage(reply.lead_stage),
       last_ai_response_id: responseId,
       conversation_summary: summary || undefined,
       handoff_required: reply.handoff_required,

@@ -1,5 +1,8 @@
 import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizeRedirectPath } from '@/lib/seo/redirect-path';
+
+export { normalizeRedirectPath } from '@/lib/seo/redirect-path';
 
 export interface SiteRedirect {
   id: string;
@@ -24,14 +27,6 @@ export const getActiveRedirects = cache(async (): Promise<SiteRedirect[]> => {
     return [];
   }
 });
-
-export function normalizeRedirectPath(path: string): string {
-  if (!path) return '/';
-  const withSlash = path.startsWith('/') ? path : `/${path}`;
-  return withSlash.length > 1 && withSlash.endsWith('/')
-    ? withSlash.slice(0, -1)
-    : withSlash;
-}
 
 export function findRedirect(
   pathname: string,

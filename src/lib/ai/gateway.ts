@@ -24,7 +24,7 @@ export async function generateAIChat(request: GenerateAIRequest): Promise<Genera
   const config = await getGatewayConfig();
   const chain = buildProviderChain(config);
   if (!chain.length) {
-    throw new Error('No AI provider is configured. Add an API key in Admin → AI Gateway.');
+    throw new Error('No AI provider is configured. Add an API key in Admin → WhatsApp AI → AI Settings.');
   }
 
   const attempts: ProviderAttempt[] = [];
@@ -37,6 +37,7 @@ export async function generateAIChat(request: GenerateAIRequest): Promise<Genera
       const result = await adapters[provider.id]({
         apiKey: provider.apiKey,
         model: provider.model,
+        organizationId: provider.organizationId,
         messages: request.messages,
         temperature: request.temperature,
         maxTokens: request.maxTokens,

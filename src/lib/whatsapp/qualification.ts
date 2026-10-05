@@ -231,7 +231,7 @@ export function scoreProspect(q: QualificationState): {
     return {
       prospect: 'NURTURE',
       prospect_reason: 'Just checking for now, no active requirement',
-      lead_stage: 'ENGAGED',
+      lead_stage: 'IN_DISCUSSION',
     };
   }
 
@@ -247,14 +247,14 @@ export function scoreProspect(q: QualificationState): {
     return {
       prospect: 'UNKNOWN',
       prospect_reason: 'Has a requirement; waiting for a short brief',
-      lead_stage: 'REQUIREMENT_IDENTIFIED',
+      lead_stage: 'IN_DISCUSSION',
     };
   }
 
   return {
     prospect: 'UNKNOWN',
     prospect_reason: 'Qualification in progress',
-    lead_stage: 'ENGAGED',
+    lead_stage: 'IN_DISCUSSION',
   };
 }
 

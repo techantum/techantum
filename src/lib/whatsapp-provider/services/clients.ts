@@ -3,6 +3,7 @@ import { writeAuditLog } from '../audit';
 import { scorePlatformHealth } from '../health';
 import { MetaWhatsAppService } from '../meta/service';
 import { readClientCredential } from '../credentials';
+import { persistMetaPhoneFields } from '../phone-status';
 import { mapMetaTemplateStatus } from '../template-validation';
 
 export async function listClients(filters: { q?: string; status?: string; page?: number; pageSize?: number }) {
@@ -12,8 +13,15 @@ export async function listClients(filters: { q?: string; status?: string; page?:
   const from = (page - 1) * pageSize;
   let query = supabase.from('wa_clients').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, from + pageSize - 1);
   if (filters.status && filters.status !== 'ALL') {
-    if (filters.status === 'ATTENTION') query = query.in('status', ['ATTENTION']).or('platform_health.in.(ATTENTION,CRITICAL)');
-    else query = query.eq('status', filters.status);
+    if (filters.status === 'ONBOARDED') {
+      query = query.or('meta_connection_status.eq.CONNECTED,onboarding_status.eq.COMPLETED');
+    } else if (filters.status === 'ATTENTION') {
+      query = query.in('status', ['ATTENTION']).or('platform_health.in.(ATTENTION,CRITICAL)');
+    } else {
+      query = query.eq('status', filters.status);
+    }
+  } else {
+    query = query.or('meta_connection_status.eq.CONNECTED,onboarding_status.eq.COMPLETED,status.eq.ACTIVE');
   }
   if (filters.q) {
     const q = filters.q.trim();
@@ -123,6 +131,10 @@ export async function updateClient(id: string, input: Record<string, unknown>, a
       email: input.email,
       phone: input.phone,
       logo_url: input.logo_url,
+      website: input.website,
+      business_category: input.business_category,
+      business_type: input.business_type,
+      address: input.address,
       assigned_manager_id: input.assigned_manager_id,
       status: input.status,
       notes: input.notes,
@@ -207,6 +219,7 @@ export async function upsertPhoneFromMeta(clientId: string, wabaAccountId: strin
   if (!phoneNumberId) throw new Error('Missing phone number ID');
   const { data: existing } = await supabase.from('wa_phone_numbers').select('*').eq('phone_number_id', phoneNumberId).maybeSingle();
   const quality = String(phone.quality_rating || 'UNKNOWN').toUpperCase();
+  const persisted = persistMetaPhoneFields(phone);
   const { data, error } = await supabase
     .from('wa_phone_numbers')
     .upsert(
@@ -217,9 +230,10 @@ export async function upsertPhoneFromMeta(clientId: string, wabaAccountId: strin
         phone_number_id: phoneNumberId,
         display_phone_number: phone.display_phone_number || null,
         verified_name: phone.verified_name || null,
-        registration_status: phone.code_verification_status || phone.status || null,
-        quality_rating: quality,
-        messaging_status: phone.messaging_limit_tier || phone.status || null,
+        registration_status: persisted.registration_status,
+        quality_rating: persisted.quality_rating || quality,
+        messaging_status: persisted.messaging_status,
+        status: persisted.status,
         last_synced_at: new Date().toISOString(),
         raw_json: phone,
       },

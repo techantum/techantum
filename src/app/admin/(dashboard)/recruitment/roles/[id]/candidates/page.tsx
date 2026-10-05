@@ -1,22 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
-import AdminBadge from '@/components/admin/AdminBadge';
 import AdminAlert from '@/components/admin/AdminAlert';
+import AdminTabs from '@/components/admin/AdminTabs';
 import { adminInputClass } from '@/components/admin/AdminField';
-import { OpsPageShell, OpsTd, OpsTh } from '@/components/admin/ops/OpsUi';
-import { CANDIDATE_STATUS_LABELS } from '@/lib/recruitment/config';
-import type { RecruitmentCandidate, RecruitmentJobRole } from '@/lib/recruitment/types';
+import CandidatesTable, { type CandidateListRow } from '@/components/admin/recruitment/CandidatesTable';
+import { OpsPageShell } from '@/components/admin/ops/OpsUi';
+import { CANDIDATE_PIPELINE_TABS, candidateMatchesTab } from '@/lib/recruitment/config';
+import type { RecruitmentJobRole } from '@/lib/recruitment/types';
 
 export default function RoleCandidatesPage() {
   const roleId = String(useParams().id);
   const [role, setRole] = useState<RecruitmentJobRole | null>(null);
-  const [rows, setRows] = useState<RecruitmentCandidate[]>([]);
+  const [rows, setRows] = useState<CandidateListRow[]>([]);
+  const [statusTab, setStatusTab] = useState('all');
   const [source, setSource] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -74,7 +76,7 @@ export default function RoleCandidatesPage() {
     setCompareIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 5)));
   };
 
-  const removeCandidate = async (row: RecruitmentCandidate) => {
+  const removeCandidate = async (row: CandidateListRow) => {
     const label = row.name || row.resume_file_name || 'this candidate';
     if (!window.confirm(`Delete ${label}? The profile, AI assessment and resume file will be removed. This cannot be undone.`)) {
       return;
@@ -96,12 +98,23 @@ export default function RoleCandidatesPage() {
     }
   };
 
+  const tabs = CANDIDATE_PIPELINE_TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    count: tab.id === 'all' ? rows.length : rows.filter((row) => candidateMatchesTab(row.status, tab.id)).length,
+  }));
+  const visible = useMemo(() => rows.filter((row) => candidateMatchesTab(row.status, statusTab)), [rows, statusTab]);
+
   return (
     <OpsPageShell>
       <AdminPageHeader
         title={role?.title || 'Candidates'}
-        description="Upload resumes and run AI role-fit assessment."
-        action={<Link href={`/admin/recruitment/roles/${roleId}`} className="text-sm text-indigo-600 hover:underline">Edit role</Link>}
+        description="Upload resumes and review candidates by hiring status."
+        action={
+          <Link href={`/admin/recruitment/roles/${roleId}`} className="text-sm text-indigo-600 hover:underline">
+            Edit role
+          </Link>
+        }
       />
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
@@ -109,8 +122,15 @@ export default function RoleCandidatesPage() {
       <AdminSection title="Upload candidate resume">
         <div className="flex flex-wrap gap-2 items-end">
           <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <input className={`${adminInputClass} max-w-xs`} placeholder="Source (LinkedIn, Referral…)" value={source} onChange={(e) => setSource(e.target.value)} />
-          <AdminButton variant="primary" disabled={!file || uploading} onClick={upload}>{uploading ? 'Processing…' : 'Upload & assess'}</AdminButton>
+          <input
+            className={`${adminInputClass} max-w-xs`}
+            placeholder="Source (LinkedIn, Referral…)"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          />
+          <AdminButton variant="primary" disabled={!file || uploading} onClick={upload}>
+            {uploading ? 'Processing…' : 'Upload & assess'}
+          </AdminButton>
         </div>
         <p className="text-xs text-muted-foreground mt-2">PDF recommended. AI uses resume evidence only — no invented details.</p>
       </AdminSection>
@@ -123,57 +143,17 @@ export default function RoleCandidatesPage() {
         </AdminSection>
       )}
 
-      <AdminSection title={`${rows.length} candidate(s)`}>
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <OpsTh>Compare</OpsTh>
-                <OpsTh>Name</OpsTh>
-                <OpsTh>Fit %</OpsTh>
-                <OpsTh>Recommendation</OpsTh>
-                <OpsTh>Status</OpsTh>
-                <OpsTh>Applied</OpsTh>
-                <OpsTh>Actions</OpsTh>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-6 px-3 text-sm text-muted-foreground text-center">
-                    No candidates yet.
-                  </td>
-                </tr>
-              )}
-              {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-muted/20">
-                  <OpsTd>
-                    <input type="checkbox" checked={compareIds.includes(row.id)} onChange={() => toggleCompare(row.id)} />
-                  </OpsTd>
-                  <OpsTd>
-                    <Link href={`/admin/recruitment/candidates/${row.id}`} className="text-indigo-600 font-medium hover:underline">
-                      {row.name || row.resume_file_name || 'Candidate'}
-                    </Link>
-                  </OpsTd>
-                  <OpsTd>{row.overall_fit_percent != null ? `${row.overall_fit_percent}%` : '—'}</OpsTd>
-                  <OpsTd className="max-w-[200px] truncate">{row.ai_recommendation || '—'}</OpsTd>
-                  <OpsTd><AdminBadge>{CANDIDATE_STATUS_LABELS[row.status] || row.status}</AdminBadge></OpsTd>
-                  <OpsTd>{row.application_date}</OpsTd>
-                  <OpsTd>
-                    <AdminButton
-                      size="sm"
-                      variant="danger"
-                      disabled={deletingId === row.id}
-                      onClick={() => removeCandidate(row)}
-                    >
-                      {deletingId === row.id ? 'Deleting…' : 'Delete'}
-                    </AdminButton>
-                  </OpsTd>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <AdminTabs tabs={tabs} active={statusTab} onChange={setStatusTab} />
+
+      <AdminSection title={`${tabs.find((tab) => tab.id === statusTab)?.label || 'Candidates'} · ${visible.length}`}>
+        <CandidatesTable
+          rows={visible}
+          compareIds={compareIds}
+          onToggleCompare={toggleCompare}
+          deletingId={deletingId}
+          onDelete={removeCandidate}
+          emptyLabel="No candidates in this status."
+        />
       </AdminSection>
     </OpsPageShell>
   );

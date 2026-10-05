@@ -14,7 +14,7 @@ interface AdminTabsProps {
 
 export default function AdminTabs({ tabs, active, onChange }: AdminTabsProps) {
   return (
-    <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-white/70 border border-indigo-100 shadow-sm">
+    <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
       {tabs.map((tab) => {
         const isActive = active === tab.id;
         return (
@@ -22,10 +22,8 @@ export default function AdminTabs({ tabs, active, onChange }: AdminTabsProps) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              isActive
-                ? 'text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/20'
-                : 'text-slate-500 hover:text-indigo-700 hover:bg-indigo-50'
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              isActive ? 'bg-secondary text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-secondary'
             }`}
           >
             {tab.label}

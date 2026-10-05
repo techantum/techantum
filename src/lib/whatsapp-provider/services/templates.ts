@@ -26,7 +26,20 @@ export async function listTemplates(filters: { tab?: string; q?: string; clientI
   if (tab !== 'ALL' && tabMap[tab]) query = query.in('internal_status', tabMap[tab]);
   const { data, count, error } = await query;
   if (error) throw new Error(error.message);
-  return { rows: data || [], total: count || 0, page, pageSize };
+  const counts = { all: 0, approved: 0, pending: 0, rejected: 0, drafts: 0 };
+  if (filters.clientId) {
+    const { data: statusRows } = await supabase.from('wa_templates').select('internal_status,meta_status').eq('client_id', filters.clientId);
+    for (const row of statusRows || []) {
+      counts.all += 1;
+      const internal = String(row.internal_status || '').toUpperCase();
+      const meta = String(row.meta_status || '').toUpperCase();
+      if (internal === 'DRAFT') counts.drafts += 1;
+      else if (internal === 'META_APPROVED' || meta === 'APPROVED') counts.approved += 1;
+      else if (internal === 'META_REJECTED' || meta === 'REJECTED') counts.rejected += 1;
+      else counts.pending += 1;
+    }
+  }
+  return { rows: data || [], total: count || 0, page, pageSize, counts };
 }
 
 export async function saveTemplate(input: TemplateDraft & { id?: string; clientId: string; wabaId?: string; actorId?: string }, asDraft = true) {
@@ -131,6 +144,21 @@ export async function submitTemplateToMeta(id: string, actorId?: string) {
   });
   if (!result.ok) throw new Error(result.error?.userMessage || 'Meta submission failed');
   return result;
+}
+
+export async function createAndSubmitPortalTemplate(input: TemplateDraft & { clientId: string; actorId?: string }) {
+  const supabase = createAdminClient();
+  const { data: waba } = await supabase
+    .from('wa_business_accounts')
+    .select('waba_id')
+    .eq('client_id', input.clientId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!waba?.waba_id) throw Object.assign(new Error('Connect a WhatsApp Business Account before submitting templates to Meta.'), { status: 409 });
+  const saved = await saveTemplate({ ...input, wabaId: waba.waba_id }, false);
+  await supabase.from('wa_templates').update({ internal_status: 'INTERNAL_APPROVED' }).eq('id', saved.id);
+  return submitTemplateToMeta(saved.id, input.actorId);
 }
 
 export async function cloneLibraryTemplate(libraryId: string, clientId: string, actorId?: string) {

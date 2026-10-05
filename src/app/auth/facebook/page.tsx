@@ -20,6 +20,9 @@ function facebookOAuthError(search: URLSearchParams, hash: URLSearchParams) {
   if (/invalid scopes/i.test(message) || code === '100') {
     return 'Meta rejected a Facebook Login permission. Go back and choose I already have a WABA, or I am new to WhatsApp Business API.';
   }
+  if (/updating additional details|currently unavailable for this app|feature unavailable/i.test(message)) {
+    return 'Meta blocked consumer Facebook Login for this app. Go back and use Import existing from Meta, which opens WhatsApp Embedded Signup instead.';
+  }
   return message || error || `Meta authorization failed (${code || 'unknown'}).`;
 }
 
@@ -52,17 +55,18 @@ function FacebookCallbackInner() {
       const { data: sessionData } = await supabase.auth.getUser();
       const isWhatsAppOnboard = state.startsWith('waonboard_') || (Boolean(sessionData.user) && !state.startsWith('site_'));
       if (isWhatsAppOnboard) {
+        const mode = state.includes('_existing_') ? 'existing' : 'new';
         const res = await fetch('/api/public/wa-onboard/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken, code, state, wabaId, phoneNumberId, businessId }),
+          body: JSON.stringify({ accessToken, code, state, wabaId, phoneNumberId, businessId, mode, source: 'redirect' }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
           setError(body.error || 'WhatsApp Business API connection failed.');
           return;
         }
-        router.replace('/portal/wa/onboard?connected=1');
+        router.replace('/portal/wa/onboard?meta=1');
         router.refresh();
         return;
       }
