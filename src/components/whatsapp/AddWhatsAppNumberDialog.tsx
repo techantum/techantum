@@ -62,7 +62,7 @@ export default function AddWhatsAppNumberDialog({
   };
 
   const addWithMeta = () => {
-    window.location.assign(embeddedSignupStartPath('new'));
+    window.location.assign(embeddedSignupStartPath('new', 'hosted'));
   };
 
   const addManual = () =>

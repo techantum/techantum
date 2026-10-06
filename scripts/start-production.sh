@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Drop completion functions some parent shells export; they break `set -e`.
+unset -f _parse_usage _services _xinetd_services 2>/dev/null || true
 set -euo pipefail
 cd /var/www/techantum
 

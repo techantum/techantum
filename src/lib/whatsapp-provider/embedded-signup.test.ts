@@ -14,8 +14,14 @@ describe('embedded signup login options', () => {
     assert.equal(opts.config_id, 'CFG1');
     assert.equal(opts.response_type, 'code');
     assert.equal(opts.override_default_response_type, true);
-    assert.deepEqual(opts.extras, { setup: {} });
-    assert.deepEqual(embeddedSignupExtras('existing'), { setup: {} });
+    assert.equal(opts.extras.featureType, 'whatsapp_business_app_onboarding');
+    assert.equal(opts.extras.version, 'v4');
+    assert.equal(opts.extras.sessionInfoVersion, '3');
+    assert.deepEqual(embeddedSignupExtras('existing'), {
+      version: 'v4',
+      sessionInfoVersion: '3',
+      featureType: 'whatsapp_business_app_onboarding',
+    });
     assert.equal('scope' in opts, false);
   });
 
@@ -26,8 +32,9 @@ describe('embedded signup login options', () => {
   });
 
   it('starts WhatsApp onboarding on Meta hosted Embedded Signup, not consumer Facebook Login', () => {
-    assert.equal(embeddedSignupStartPath('existing'), '/api/public/wa-onboard/meta/start?mode=existing');
-    assert.equal(embeddedSignupStartPath('new'), '/api/public/wa-onboard/meta/start?mode=new');
+    assert.equal(embeddedSignupStartPath('existing'), '/api/public/wa-onboard/meta/start?mode=existing&flow=hosted');
+    assert.equal(embeddedSignupStartPath('new'), '/api/public/wa-onboard/meta/start?mode=new&flow=hosted');
+    assert.equal(embeddedSignupStartPath('new', 'zero'), '/api/public/wa-onboard/meta/start?mode=new&flow=zero');
   });
 });
 

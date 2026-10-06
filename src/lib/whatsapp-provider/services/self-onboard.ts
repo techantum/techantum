@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
 import { sanitizeEmail, sanitizePhone, sanitizeString } from '@/lib/security/sanitize';
 import { writeAuditLog, notify } from '../audit';
 import { startOnboarding } from './onboarding';
@@ -31,12 +31,13 @@ export async function registerSelfServeClient(input: {
   if (passwordError) throw Object.assign(new Error(passwordError), { status: 400 });
 
   const supabase = createAdminClient();
+  const auth = createAuthAdminClient();
   const { data: existingMember } = await supabase.from('wa_client_users').select('id').eq('email', email).maybeSingle();
   if (existingMember) {
     throw Object.assign(new Error('An account with this email already exists. Please sign in.'), { status: 409 });
   }
 
-  const created = await supabase.auth.admin.createUser({
+  const created = await auth.auth.admin.createUser({
     email,
     password: input.password,
     email_confirm: true,
@@ -62,7 +63,7 @@ export async function registerSelfServeClient(input: {
     .single();
 
   if (clientError || !client) {
-    await supabase.auth.admin.deleteUser(created.data.user.id).catch(() => undefined);
+    await auth.auth.admin.deleteUser(created.data.user.id).catch(() => undefined);
     throw new Error(clientError?.message || 'Could not create the WhatsApp workspace.');
   }
 

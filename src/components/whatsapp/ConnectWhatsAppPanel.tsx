@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import { embeddedSignupStartPath } from '@/lib/whatsapp-provider/embedded-signup';
 import { resolveMetaPhoneState } from '@/lib/whatsapp-provider/phone-status';
 
 type Waba = { waba_id?: string; name?: string; verification_status?: string; account_status?: string };
@@ -37,12 +38,12 @@ export default function ConnectWhatsAppPanel() {
       .catch(() => setError('Could not load your workspace.'));
   }, []);
 
-  const startMeta = (mode: 'new' | 'existing') => {
+  const startMeta = (mode: 'new' | 'existing', flow: 'hosted' | 'zero' = 'hosted') => {
     if (!session?.authenticated) {
       window.location.assign('/login?next=/portal/wa/onboard');
       return;
     }
-    window.location.assign(`/api/public/wa-onboard/meta/start?mode=${mode}`);
+    window.location.assign(embeddedSignupStartPath(mode, flow));
   };
 
   if (!session) {
@@ -109,18 +110,26 @@ export default function ConnectWhatsAppPanel() {
           <p className="text-slate-500">{session.email}</p>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <button
           type="button"
-          onClick={() => startMeta('new')}
+          onClick={() => startMeta('new', 'hosted')}
           className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-left hover:bg-indigo-100"
         >
-          <p className="text-sm font-semibold text-indigo-950">I am new to WhatsApp Business API</p>
-          <p className="text-xs text-indigo-800 mt-1">Log in with Facebook, add a phone number, and TechAntum imports the new WABA and templates.</p>
+          <p className="text-sm font-semibold text-indigo-950">Meta-hosted Embedded Signup</p>
+          <p className="text-xs text-indigo-800 mt-1">Official Tech Provider flow. Meta onboards the WhatsApp Business app, then returns to Techantum to import the account.</p>
         </button>
         <button
           type="button"
-          onClick={() => startMeta('existing')}
+          onClick={() => startMeta('new', 'zero')}
+          className="rounded-2xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50"
+        >
+          <p className="text-sm font-semibold text-slate-900">Zero integration onboarding</p>
+          <p className="text-xs text-slate-600 mt-1">Finish WhatsApp setup on Meta. Come back afterwards to import the WABA.</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => startMeta('existing', 'hosted')}
           className="rounded-2xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50"
         >
           <p className="text-sm font-semibold text-slate-900">I already have a WABA</p>

@@ -79,8 +79,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
-  // CMS redirect manager
-  const redirects = await fetchRedirects();
+  // CMS redirect manager — never hijack admin, API, or auth routes.
+  const skipCmsRedirect =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/portal') ||
+    pathname.startsWith('/partner') ||
+    pathname.startsWith('/auth');
+  const redirects = skipCmsRedirect ? [] : await fetchRedirects();
   const match = redirects.find((r) => normalizeRedirectPath(r.source_path) === pathname);
   if (match) {
     const dest = match.destination_path.startsWith('http')

@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
 import { normalizeWhatsAppNumber, whatsappApiTo } from '@/lib/ops/phone';
 import { getWhatsAppAiConfig } from '@/lib/whatsapp/config';
 import { sendWhatsAppSessionText } from '@/lib/whatsapp/meta';
@@ -26,7 +26,7 @@ async function sendOtpWhatsApp(phone: string, code: string) {
   const templateName = process.env.WHATSAPP_LOGIN_OTP_TEMPLATE?.trim();
   const message = `Your TechAntum login code is ${code}. It expires in 10 minutes. Do not share this code.`;
 
-  if (cfg.configured && templateName) {
+  if (cfg.configured && cfg.phoneNumberId && cfg.accessToken && templateName) {
     const res = await fetch(`https://graph.facebook.com/${cfg.graphVersion}/${cfg.phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
@@ -103,13 +103,14 @@ export async function sendWhatsAppLoginOtp(rawPhone: string) {
 
 async function findOrCreatePhoneUser(phone: string) {
   const supabase = createAdminClient();
+  const auth = createAuthAdminClient();
   const email = phoneLoginEmail(phone);
   const { data: identity } = await supabase.from('wa_login_identities').select('user_id, email').eq('phone', phone).maybeSingle();
   if (identity?.user_id) {
     return { userId: identity.user_id as string, email: identity.email as string };
   }
 
-  const created = await supabase.auth.admin.createUser({
+  const created = await auth.auth.admin.createUser({
     email,
     email_confirm: true,
     phone,
@@ -119,21 +120,21 @@ async function findOrCreatePhoneUser(phone: string) {
 
   let userId = created.data.user?.id;
   if (!userId && created.error) {
-    const retry = await supabase.auth.admin.createUser({
+    const retry = await auth.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: { phone, login_method: 'whatsapp_otp', full_name: phone },
     });
     userId = retry.data.user?.id;
     if (!userId) {
-      const generated = await supabase.auth.admin.generateLink({ type: 'magiclink', email });
+      const generated = await auth.auth.admin.generateLink({ type: 'magiclink', email });
       userId = generated.data.user?.id;
       if (!userId) {
         throw new Error(created.error?.message || retry.error?.message || generated.error?.message || 'Could not create your account.');
       }
     }
   } else if (!userId) {
-    const generated = await supabase.auth.admin.generateLink({ type: 'magiclink', email });
+    const generated = await auth.auth.admin.generateLink({ type: 'magiclink', email });
     userId = generated.data.user?.id;
     if (!userId) {
       throw new Error(generated.error?.message || 'Could not create your account.');
@@ -175,12 +176,13 @@ export async function verifyWhatsAppLoginOtp(rawPhone: string, rawCode: string) 
   await supabase.from('wa_login_otps').update({ consumed_at: new Date().toISOString() }).eq('id', row.id);
 
   const account = await findOrCreatePhoneUser(phone);
-  const { data: userData } = await supabase.auth.admin.getUserById(account.userId);
+  const auth = createAuthAdminClient();
+  const { data: userData } = await auth.auth.admin.getUserById(account.userId);
   if (userData.user) {
     await ensureClientWorkspace(userData.user);
   }
 
-  const link = await supabase.auth.admin.generateLink({
+  const link = await auth.auth.admin.generateLink({
     type: 'magiclink',
     email: account.email,
   });

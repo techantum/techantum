@@ -103,8 +103,11 @@ function FacebookCallbackInner() {
         {error ? (
           <>
             <p className="text-sm text-rose-700 mb-4">{error}</p>
-            <a href="/portal/wa/onboard" className="inline-flex rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold">
-              Back to onboarding
+            <a
+              href={searchParams.get('state')?.startsWith('site_') ? '/login' : '/portal/wa/onboard'}
+              className="inline-flex rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold"
+            >
+              {searchParams.get('state')?.startsWith('site_') ? 'Back to sign in' : 'Back to onboarding'}
             </a>
           </>
         ) : (

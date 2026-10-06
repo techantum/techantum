@@ -4,6 +4,11 @@ Enterprise multi-tenant console for Techantum as a Meta WhatsApp Tech Provider. 
 
 ## Client self-onboarding
 
+Client self-onboarding uses Techantum’s Meta Tech Provider app (`27686807767646135`) and Embedded Signup config (`1102324422268818`).
+
+- Zero integration: `https://business.facebook.com/messaging/whatsapp/onboard/?app_id=27686807767646135&config_id=1102324422268818`
+- Meta-hosted Embedded Signup returns to `https://techantum.com/auth/facebook` with extras `version=v4`, `sessionInfoVersion=3`, `featureType=whatsapp_business_app_onboarding`.
+
 Public sign-in: `/login` (Google, Facebook, or WhatsApp OTP). `/connect-whatsapp` redirects there.
 
 Footer / header: **Sign in**
@@ -66,10 +71,10 @@ or set `WA_PROVIDER_SEED_DEMO=true` only in development.
 
 ```
 META_GRAPH_API_VERSION=v21.0
-META_APP_ID=
-NEXT_PUBLIC_META_APP_ID=
+META_APP_ID=27686807767646135
+NEXT_PUBLIC_META_APP_ID=27686807767646135
 META_APP_SECRET=
-META_EMBEDDED_SIGNUP_CONFIG_ID=
+META_EMBEDDED_SIGNUP_CONFIG_ID=1102324422268818
 META_SYSTEM_USER_ACCESS_TOKEN=
 META_BUSINESS_ID=
 META_WEBHOOK_VERIFY_TOKEN=

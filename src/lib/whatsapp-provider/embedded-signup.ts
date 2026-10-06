@@ -1,4 +1,5 @@
 export type EmbeddedSignupMode = 'new' | 'existing';
+export type MetaOnboardingFlow = 'hosted' | 'zero';
 
 export type FacebookLoginResponse = {
   status?: 'connected' | 'not_authorized' | 'unknown' | string;
@@ -20,11 +21,15 @@ export function facebookAuthFromResponse(response?: FacebookLoginResponse | null
 }
 
 export function embeddedSignupExtras(_mode: EmbeddedSignupMode = 'new') {
-  return { setup: {} };
+  return {
+    version: 'v4',
+    sessionInfoVersion: '3',
+    featureType: 'whatsapp_business_app_onboarding',
+  };
 }
 
-export function embeddedSignupStartPath(mode: EmbeddedSignupMode = 'existing') {
-  return `/api/public/wa-onboard/meta/start?mode=${mode}`;
+export function embeddedSignupStartPath(mode: EmbeddedSignupMode = 'existing', flow: MetaOnboardingFlow = 'hosted') {
+  return `/api/public/wa-onboard/meta/start?mode=${mode}&flow=${flow}`;
 }
 
 export function facebookEmbeddedSignupLoginOpts(input: { configId?: string; mode?: EmbeddedSignupMode }) {
