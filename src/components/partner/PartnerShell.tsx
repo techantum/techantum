@@ -9,6 +9,7 @@ import { PARTNER_TIER_LABELS, type Partner, type PartnerUser } from '@/lib/partn
 
 const PARTNER_NAV = [
   { href: '/partner/dashboard', label: 'Dashboard', icon: 'Squares2X2Icon' },
+  { href: '/partner/lead-discovery', label: 'Lead Discovery', icon: 'MagnifyingGlassCircleIcon', leadDiscovery: true },
   { href: '/partner/packages', label: 'Service Packages', icon: 'CubeIcon' },
   { href: '/partner/requirements/new', label: 'New Requirement', icon: 'PlusCircleIcon' },
   { href: '/partner/requirements', label: 'My Requirements', icon: 'ClipboardDocumentListIcon' },
@@ -62,9 +63,11 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {PARTNER_NAV.filter(
-          (item) => !('adminOnly' in item && item.adminOnly) || partnerUser.role === 'partner_admin'
-        ).map((item) => (
+        {PARTNER_NAV.filter((item) => {
+          if ('adminOnly' in item && item.adminOnly && partnerUser.role !== 'partner_admin') return false;
+          if ('leadDiscovery' in item && item.leadDiscovery && !partner.lead_discovery_enabled) return false;
+          return true;
+        }).map((item) => (
           <Link
             key={item.href}
             href={item.href}

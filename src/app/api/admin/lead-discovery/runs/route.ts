@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { listLeadDiscoveryRuns, runLeadSearch, saveLeadSearchRun } from '@/lib/places/service';
 import type { PhoneFilter, WebsiteFilter } from '@/lib/places/types';
 
 export async function GET() {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
-    return NextResponse.json(await listLeadDiscoveryRuns());
+    return NextResponse.json(
+      await listLeadDiscoveryRuns(50, auth.actor === 'partner' ? auth.user.id : undefined)
+    );
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to load runs' },
@@ -18,8 +20,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const body = await request.json();

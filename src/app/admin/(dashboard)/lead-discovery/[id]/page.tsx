@@ -9,6 +9,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import LeadExportMenu from '@/components/admin/lead-discovery/LeadExportMenu';
 import LeadResultsTable from '@/components/admin/lead-discovery/LeadResultsTable';
 import { displaySearchName } from '@/lib/places/sheet-data';
+import { useLeadDiscoveryPaths } from '@/components/lead-discovery/LeadDiscoveryPaths';
 import type { LeadDiscoveryResultRow, LeadDiscoveryRun } from '@/lib/places/types';
 
 function formatDate(iso: string) {
@@ -16,6 +17,7 @@ function formatDate(iso: string) {
 }
 
 export default function LeadDiscoveryDetailsPage() {
+  const { apiBase, pageBase } = useLeadDiscoveryPaths();
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const [run, setRun] = useState<LeadDiscoveryRun | null>(null);
@@ -27,7 +29,7 @@ export default function LeadDiscoveryDetailsPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`/api/admin/lead-discovery/runs/${id}`)
+    fetch(`${apiBase}/runs/${id}`)
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || 'Failed to load search');
@@ -36,12 +38,12 @@ export default function LeadDiscoveryDetailsPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load search'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, apiBase]);
 
   return (
     <div className="w-full space-y-6">
       <Link
-        href="/admin/lead-discovery"
+        href={pageBase}
         className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
       >
         ← All saved searches

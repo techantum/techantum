@@ -9,6 +9,7 @@ import {
   downloadTextFile,
   exportBaseName,
 } from '@/lib/places/sheet-data';
+import { useLeadDiscoveryPaths } from '@/components/lead-discovery/LeadDiscoveryPaths';
 import type { LeadDiscoveryResult, LeadDiscoveryResultRow, LeadDiscoveryRun, LeadSearchResponse } from '@/lib/places/types';
 
 interface LeadExportMenuProps {
@@ -32,6 +33,7 @@ export default function LeadExportMenu({
   onMessage,
   onError,
 }: LeadExportMenuProps) {
+  const { apiBase } = useLeadDiscoveryPaths();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<'excel' | 'sheets' | null>(null);
 
@@ -65,11 +67,11 @@ export default function LeadExportMenu({
     setOpen(false);
     try {
       if (runId) {
-        const res = await fetch(`/api/admin/lead-discovery/runs/${runId}/export?format=xlsx`);
+        const res = await fetch(`${apiBase}/runs/${runId}/export?format=xlsx`);
         if (!res.ok) throw new Error('Excel export failed');
         await downloadBlob(res, `${exportBaseName(fallbackRun)}.xlsx`);
       } else if (preview) {
-        const res = await fetch('/api/admin/lead-discovery/export', {
+        const res = await fetch(`${apiBase}/export`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ search: preview, name: searchName, format: 'xlsx' }),
@@ -93,7 +95,7 @@ export default function LeadExportMenu({
     try {
       const rows = results.length ? results : preview?.results ?? [];
       if (!rows.length && runId) {
-        const res = await fetch(`/api/admin/lead-discovery/runs/${runId}/export?format=csv`);
+        const res = await fetch(`${apiBase}/runs/${runId}/export?format=csv`);
         if (!res.ok) throw new Error('Google Sheets export failed');
         await downloadBlob(res, `${exportBaseName(fallbackRun)}.csv`);
       } else if (rows.length) {

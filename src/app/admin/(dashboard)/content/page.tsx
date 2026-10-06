@@ -1,114 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import ContentEditorModal from '@/components/admin/ContentEditorModal';
-import {
-  CMS_SITE_PAGES,
-  STATIC_LEGAL_PAGES,
-  getStaticServicePages,
-  type AdminSitePage,
-  type AdminSiteSection,
-} from '@/lib/cms/site-pages';
+import { CMS_SITE_PAGES, type AdminSitePage, type AdminSiteSection } from '@/lib/cms/site-pages';
 
 interface ContentRow {
   entry_key: string;
   updated_at?: string;
 }
 
-interface EditorState {
-  entryKey: string;
-  label: string;
-}
-
-function PageCard({
-  page,
-  updatedMap,
-  onEdit,
-}: {
-  page: AdminSitePage;
-  updatedMap: Record<string, string | undefined>;
-  onEdit: (section: AdminSiteSection) => void;
-}) {
-  const [expanded, setExpanded] = useState(page.editable && page.sections.length <= 4);
-
-  return (
-    <article className="bg-white rounded-xl border border-border overflow-hidden">
-      <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold text-foreground">{page.label}</h2>
-            {!page.editable && (
-              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                Code-managed
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">{page.description}</p>
-          <Link
-            href={page.route}
-            target="_blank"
-            className="text-xs text-primary hover:underline mt-1 inline-block"
-          >
-            {page.route} ↗
-          </Link>
-        </div>
-        {page.sections.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="shrink-0 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted"
-          >
-            {expanded ? 'Hide sections' : `${page.sections.length} sections`}
-          </button>
-        )}
-      </div>
-
-      {expanded && page.sections.length > 0 && (
-        <ul className="border-t border-border divide-y divide-border">
-          {page.sections.map((section) => (
-            <li
-              key={section.entryKey}
-              className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-muted/20"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-sm text-foreground">{section.label}</p>
-                <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                  <p className="text-xs text-muted-foreground font-mono">{section.entryKey}</p>
-                  {section.hasMedia && (
-                    <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                      Images / media
-                    </span>
-                  )}
-                  {updatedMap[section.entryKey] && (
-                    <span className="text-xs text-muted-foreground">
-                      Updated {new Date(updatedMap[section.entryKey]!).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {page.editable && (
-                <button
-                  type="button"
-                  onClick={() => onEdit(section)}
-                  className="shrink-0 text-sm font-medium text-primary hover:underline"
-                >
-                  Edit
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </article>
-  );
-}
-
 export default function ContentAdminPage() {
   const [entries, setEntries] = useState<ContentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [selectedId, setSelectedId] = useState(CMS_SITE_PAGES[0]?.id || '');
+  const [editor, setEditor] = useState<{ entryKey: string; label: string } | null>(null);
 
   const load = useCallback(() => {
     fetch('/api/admin/content')
@@ -121,71 +28,96 @@ export default function ContentAdminPage() {
     load();
   }, [load]);
 
-  const updatedMap = entries.reduce<Record<string, string | undefined>>((acc, row) => {
-    acc[row.entry_key] = row.updated_at;
-    return acc;
-  }, {});
+  const updatedMap = useMemo(
+    () =>
+      entries.reduce<Record<string, string | undefined>>((acc, row) => {
+        acc[row.entry_key] = row.updated_at;
+        return acc;
+      }, {}),
+    [entries]
+  );
 
-  const servicePages = getStaticServicePages();
-  const divisionPages = servicePages.filter((p) => p.id.startsWith('division-'));
-  const planPages = servicePages.filter((p) => p.id.startsWith('plan-'));
+  const selectedPage: AdminSitePage | undefined =
+    CMS_SITE_PAGES.find((page) => page.id === selectedId) || CMS_SITE_PAGES[0];
 
-  if (loading) return <p className="text-muted-foreground">Loading site content…</p>;
+  if (loading) return <p className="text-muted-foreground">Loading website content…</p>;
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6">
       <AdminPageHeader
-        title="Site Content"
-        description="Edit every page section to match your live website. Click Edit to open the section form in a popup — including image uploads."
+        title="Website Content"
+        description="Pick a page, then edit each section. Images and videos are uploaded as files — no image URLs."
       />
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Main pages</h2>
-        <div className="space-y-3">
-          {CMS_SITE_PAGES.map((page) => (
-            <PageCard
-              key={page.id}
-              page={page}
-              updatedMap={updatedMap}
-              onEdit={(section) => setEditor({ entryKey: section.entryKey, label: section.label })}
-            />
-          ))}
-        </div>
-      </section>
+      <div className="grid grid-cols-1 lg:grid-cols-[16rem_minmax(0,1fr)] gap-5">
+        <aside className="rounded-2xl border border-slate-200 bg-white p-3 h-fit">
+          <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Pages</p>
+          <nav className="space-y-1">
+            {CMS_SITE_PAGES.map((page) => {
+              const active = page.id === selectedPage?.id;
+              return (
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() => setSelectedId(page.id)}
+                  className={`flex w-full items-start rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+                    active ? 'bg-secondary text-white' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>
+                    <span className="block font-semibold">{page.label}</span>
+                    <span className={`mt-0.5 block text-xs ${active ? 'text-white/80' : 'text-slate-500'}`}>
+                      {page.sections.length} section{page.sections.length === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Service divisions
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Division and package pages are defined in code. Use Page Indexing for their SEO settings.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {divisionPages.map((page) => (
-            <PageCard key={page.id} page={page} updatedMap={updatedMap} onEdit={() => {}} />
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Service packages ({planPages.length})
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {planPages.map((page) => (
-            <PageCard key={page.id} page={page} updatedMap={updatedMap} onEdit={() => {}} />
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Legal pages</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {STATIC_LEGAL_PAGES.map((page) => (
-            <PageCard key={page.id} page={page} updatedMap={updatedMap} onEdit={() => {}} />
-          ))}
-        </div>
-      </section>
+        <section className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+          {selectedPage ? (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="font-bricolage text-xl font-bold text-slate-900">{selectedPage.label}</h2>
+                  <p className="text-sm text-slate-500 mt-1">{selectedPage.description}</p>
+                </div>
+                <Link
+                  href={selectedPage.route}
+                  target="_blank"
+                  className="shrink-0 text-sm font-semibold text-secondary hover:underline"
+                >
+                  View page ↗
+                </Link>
+              </div>
+              <ul className="divide-y divide-slate-100">
+                {selectedPage.sections.map((section: AdminSiteSection) => (
+                  <li key={section.entryKey} className="flex items-center justify-between gap-3 px-5 py-4">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900">{section.label}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {section.hasMedia ? 'Text + media upload' : 'Text'}
+                        {updatedMap[section.entryKey]
+                          ? ` · Updated ${new Date(updatedMap[section.entryKey]!).toLocaleDateString('en-IN')}`
+                          : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditor({ entryKey: section.entryKey, label: section.label })}
+                      className="shrink-0 rounded-full bg-secondary px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#d93b1e]"
+                    >
+                      Edit
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </section>
+      </div>
 
       {editor && (
         <ContentEditorModal

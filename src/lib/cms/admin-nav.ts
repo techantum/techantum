@@ -110,11 +110,9 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Site Content',
     icon: 'DocumentTextIcon',
     items: [
-      { href: '/admin/content-brief', label: 'Content Brief', icon: 'ClipboardDocumentListIcon' },
-      { href: '/admin/content', label: 'Pages & Sections', icon: 'PencilSquareIcon' },
+      { href: '/admin/content', label: 'Website Content', icon: 'PencilSquareIcon' },
       { href: '/admin/branding', label: 'Branding', icon: 'PaintBrushIcon' },
       { href: '/admin/submissions', label: 'Leads', icon: 'InboxIcon' },
-      { href: '/admin/marketing', label: 'Marketing Hub', icon: 'MegaphoneIcon' },
     ],
   },
   {

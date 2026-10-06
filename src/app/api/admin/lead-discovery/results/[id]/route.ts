@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { updateLeadResultStatus } from '@/lib/places/service';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const { id } = await context.params;

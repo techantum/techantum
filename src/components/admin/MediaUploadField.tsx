@@ -82,13 +82,15 @@ export default function MediaUploadField({
             disabled={uploading}
             className="block w-full text-sm"
           />
-          <input
-            type="url"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={`Or paste ${mediaType} URL`}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-          />
+          {value ? (
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="text-xs font-semibold text-rose-600 hover:underline"
+            >
+              Remove {mediaType}
+            </button>
+          ) : null}
           {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
           {error && <p className="text-xs text-secondary">{error}</p>}
           {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}

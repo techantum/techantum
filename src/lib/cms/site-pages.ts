@@ -105,8 +105,8 @@ export const CMS_SITE_PAGES: AdminSitePage[] = [
   },
   {
     id: 'company',
-    label: 'Website Goals & Marketing',
-    route: '/admin/content-brief',
+    label: 'Company details',
+    route: '/',
     description: 'Goals, SEO inputs, lead preferences, and collateral checklist.',
     sections: sectionsFromKeys([
       'company.website_goals',

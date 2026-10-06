@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { runLeadSearch } from '@/lib/places/service';
 import type { PhoneFilter, WebsiteFilter } from '@/lib/places/types';
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const body = await request.json();

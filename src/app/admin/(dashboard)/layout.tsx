@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getLocalRestUrl } from '@/lib/supabase/local-jwt';
 import AdminShell from '@/components/admin/AdminShell';
+import { getBranding } from '@/lib/cms';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const db = getLocalRestUrl() ? createAdminClient() : await createClient();
@@ -48,5 +49,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/admin');
   }
 
-  return <AdminShell role={role}>{children}</AdminShell>;
+  const branding = await getBranding();
+
+  return (
+    <AdminShell
+      role={role}
+      logoUrl={branding.logo_url}
+      logoLetter={branding.logo_letter}
+      companyName={branding.company_name}
+    >
+      {children}
+    </AdminShell>
+  );
 }

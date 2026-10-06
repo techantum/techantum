@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { getLeadDiscoveryRun } from '@/lib/places/service';
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const { id } = await context.params;
     const data = await getLeadDiscoveryRun(id);
     if (!data) return NextResponse.json({ error: 'Run not found' }, { status: 404 });
+    if (auth.actor === 'partner' && data.run.created_by !== auth.user.id) {
+      return NextResponse.json({ error: 'Run not found' }, { status: 404 });
+    }
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json(

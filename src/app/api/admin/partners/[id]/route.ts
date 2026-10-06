@@ -43,6 +43,9 @@ export async function PATCH(
   if (body.company_name) allowed.company_name = body.company_name;
   if (body.contact_name) allowed.contact_name = body.contact_name;
   if (body.country !== undefined) allowed.country = body.country;
+  if (typeof body.lead_discovery_enabled === 'boolean') {
+    allowed.lead_discovery_enabled = body.lead_discovery_enabled;
+  }
 
   const { data, error } = await supabase
     .from('partners')

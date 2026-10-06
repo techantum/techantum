@@ -28,6 +28,7 @@ export interface Partner {
   status: PartnerStatus;
   country: string | null;
   notes: string | null;
+  lead_discovery_enabled?: boolean;
   joined_at: string | null;
   created_at: string;
   updated_at: string;

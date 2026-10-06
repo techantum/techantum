@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { buildLeadDiscoveryWorkbook, exportFilename } from '@/lib/places/export';
 import { buildLeadDiscoveryCsv } from '@/lib/places/sheet-data';
 import type { LeadDiscoveryResult, LeadDiscoveryRun, LeadSearchResponse } from '@/lib/places/types';
@@ -23,8 +23,8 @@ function previewRun(search: LeadSearchResponse, name?: string): LeadDiscoveryRun
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const body = await request.json();

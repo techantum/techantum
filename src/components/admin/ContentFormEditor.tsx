@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import RichTextEditor from '@/components/admin/RichTextEditor';
 import MediaUploadField from '@/components/admin/MediaUploadField';
 import {
@@ -89,6 +88,18 @@ function FieldInput({
         onChange={(e) => onChange(e.target.value)}
         rows={field.type === 'lines' ? 4 : 3}
         placeholder={field.placeholder || (field.type === 'lines' ? 'One item per line' : undefined)}
+        className={inputClass}
+      />
+    );
+  }
+
+  if (field.type === 'url') {
+    return (
+      <input
+        type="url"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder || 'https://'}
         className={inputClass}
       />
     );
@@ -256,8 +267,6 @@ function StringListEditor({
 
 export default function ContentFormEditor({ entryKey, content, onChange }: ContentFormEditorProps) {
   const schema = getContentSchema(entryKey);
-  const [showJson, setShowJson] = useState(false);
-  const [jsonText, setJsonText] = useState('');
 
   if (!schema || schema.useJsonEditor) {
     return null;
@@ -320,34 +329,6 @@ export default function ContentFormEditor({ entryKey, content, onChange }: Conte
           />
         );
       })}
-
-      <div className="pt-4 border-t border-border">
-        <button
-          type="button"
-          onClick={() => {
-            setShowJson(!showJson);
-            if (!showJson) setJsonText(JSON.stringify(content, null, 2));
-          }}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          {showJson ? 'Hide' : 'Show'} advanced JSON
-        </button>
-        {showJson && (
-          <textarea
-            value={jsonText}
-            onChange={(e) => {
-              setJsonText(e.target.value);
-              try {
-                onChange(JSON.parse(e.target.value));
-              } catch {
-                /* ignore while typing */
-              }
-            }}
-            rows={12}
-            className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
-          />
-        )}
-      </div>
     </div>
   );
 }

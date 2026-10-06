@@ -99,6 +99,26 @@ export default function PartnersAdminPage() {
     setMessage(`Partner ${status === 'suspended' ? 'suspended' : 'updated'}.`);
   };
 
+  const toggleLeadDiscovery = async (partner: Partner) => {
+    const enabled = !partner.lead_discovery_enabled;
+    const res = await fetch(`/api/admin/partners/${partner.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_discovery_enabled: enabled }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage(data.error || 'Could not update Lead Discovery access');
+      return;
+    }
+    setPartners((prev) => prev.map((row) => (row.id === partner.id ? { ...row, ...data } : row)));
+    setMessage(
+      enabled
+        ? `Lead Discovery enabled for ${partner.company_name}.`
+        : `Lead Discovery removed for ${partner.company_name}.`
+    );
+  };
+
   const resendInvite = async (id: string) => {
     const res = await fetch(`/api/admin/partners/${id}/resend-invite`, { method: 'POST' });
     const data = await res.json();
@@ -253,6 +273,7 @@ export default function PartnersAdminPage() {
                   <th className="pb-3 pr-4 font-medium">Contact</th>
                   <th className="pb-3 pr-4 font-medium">Type</th>
                   <th className="pb-3 pr-4 font-medium">Status</th>
+                  <th className="pb-3 pr-4 font-medium">Lead Discovery</th>
                   <th className="pb-3 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -276,6 +297,19 @@ export default function PartnersAdminPage() {
                       >
                         {PARTNER_STATUS_LABELS[p.status]}
                       </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <button
+                        type="button"
+                        onClick={() => toggleLeadDiscovery(p)}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          p.lead_discovery_enabled
+                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {p.lead_discovery_enabled ? 'Enabled' : 'Give access'}
+                      </button>
                     </td>
                     <td className="py-3">
                       <div className="flex flex-wrap gap-2">

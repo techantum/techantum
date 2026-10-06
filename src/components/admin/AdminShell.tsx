@@ -21,7 +21,19 @@ function openGroupsForPath(pathname: string) {
   return Object.fromEntries(ADMIN_NAV_GROUPS.map((g) => [g.id, groupHasActiveItem(pathname, g.id)]));
 }
 
-export default function AdminShell({ children, role = 'ADMIN' }: { children: React.ReactNode; role?: AdminRole }) {
+export default function AdminShell({
+  children,
+  role = 'ADMIN',
+  logoUrl,
+  logoLetter = 'T',
+  companyName = 'TechAntum',
+}: {
+  children: React.ReactNode;
+  role?: AdminRole;
+  logoUrl?: string | null;
+  logoLetter?: string;
+  companyName?: string;
+}) {
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const supabase = createClient();
@@ -76,20 +88,17 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
     setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
+  const brandMark = logoUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={logoUrl} alt={companyName} className="h-12 w-auto object-contain" />
+  ) : (
+    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient shadow-sm">
+      <span className="font-bricolage text-lg font-bold text-primary-foreground">{logoLetter}</span>
+    </div>
+  );
+
   const sidebar = (
     <div className="flex h-full flex-col overflow-hidden bg-white text-slate-800">
-      <div className="border-b border-slate-100 px-5 py-6">
-        <Link href="/admin" className="flex items-center gap-3 group">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-white shadow-sm group-hover:scale-105 transition-transform">
-            <Icon name="SparklesIcon" size={20} className="text-white" />
-          </div>
-          <div>
-            <p className="font-bricolage text-lg font-bold leading-tight text-slate-900">TechAntum CMS</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Command center</p>
-          </div>
-        </Link>
-      </div>
-
       <nav className="relative flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
         {navGroups.map((group: AdminNavGroup) => {
           const isOpen = openGroups[group.id];
@@ -143,7 +152,11 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
                           <Icon name={item.icon} size={16} className={active ? 'text-white' : 'text-slate-400'} />
                           <span className="flex-1">{item.label}</span>
                           {item.href === '/admin/whatsapp/appointments' && appointmentCount > 0 ? (
-                            <span className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold ${active ? 'bg-white text-secondary' : 'bg-secondary text-white'}`}>
+                            <span
+                              className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold ${
+                                active ? 'bg-white text-secondary' : 'bg-secondary text-white'
+                              }`}
+                            >
                               {appointmentCount}
                             </span>
                           ) : null}
@@ -157,43 +170,44 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
           );
         })}
       </nav>
-
-      <div className="space-y-1 border-t border-slate-100 px-3 py-4">
-        <Link
-          href="/"
-          target="_blank"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-secondary"
-        >
-          <Icon name="ArrowTopRightOnSquareIcon" size={16} />
-          View live site
-        </Link>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-rose-50 hover:text-rose-600"
-        >
-          <Icon name="ArrowRightOnRectangleIcon" size={16} />
-          Sign out
-        </button>
-      </div>
     </div>
   );
 
   return (
     <div className="admin-shell min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
-        <Link href="/admin" className="font-bricolage font-bold text-slate-900">
-          TechAntum CMS
-        </Link>
-        <button
-          type="button"
-          onClick={() => setSidebarOpen((open) => !open)}
-          className="rounded-full bg-secondary px-3 py-1.5 text-sm font-semibold text-white"
-          aria-expanded={sidebarOpen}
-        >
-          {sidebarOpen ? 'Close' : 'Menu'}
-        </button>
-      </div>
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((open) => !open)}
+            className="rounded-full bg-secondary px-3 py-1.5 text-sm font-semibold text-white lg:hidden"
+            aria-expanded={sidebarOpen}
+          >
+            {sidebarOpen ? 'Close' : 'Menu'}
+          </button>
+          <Link href="/admin" className="flex items-center" aria-label={companyName}>
+            {brandMark}
+          </Link>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <Link
+            href="/"
+            target="_blank"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
+          >
+            <Icon name="ArrowTopRightOnSquareIcon" size={16} />
+            <span className="hidden sm:inline">View live site</span>
+          </Link>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+          >
+            <Icon name="ArrowRightOnRectangleIcon" size={16} />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
+        </div>
+      </header>
 
       {sidebarOpen && (
         <button
@@ -204,9 +218,9 @@ export default function AdminShell({ children, role = 'ADMIN' }: { children: Rea
         />
       )}
 
-      <div className="min-h-screen lg:flex">
+      <div className="min-h-[calc(100vh-4rem)] lg:flex">
         <aside
-          className={`fixed top-0 z-50 h-full w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 lg:sticky lg:z-auto lg:h-screen ${
+          className={`fixed bottom-0 top-16 z-50 w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >

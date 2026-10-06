@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { buildLeadDiscoveryWorkbook, exportFilename } from '@/lib/places/export';
 import { getLeadDiscoveryRun } from '@/lib/places/service';
 import { buildLeadDiscoveryCsv } from '@/lib/places/sheet-data';
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const { id } = await context.params;
     const data = await getLeadDiscoveryRun(id);
     if (!data) return NextResponse.json({ error: 'Run not found' }, { status: 404 });
+    if (auth.actor === 'partner' && data.run.created_by !== auth.user.id) {
+      return NextResponse.json({ error: 'Run not found' }, { status: 404 });
+    }
 
     const format = new URL(request.url).searchParams.get('format') || 'xlsx';
 

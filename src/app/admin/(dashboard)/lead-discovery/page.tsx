@@ -13,6 +13,7 @@ import { countryOptions } from '@/lib/places/countries';
 import { catalogAreas, catalogCities, catalogStates, mergePlaceOptions } from '@/lib/places/location-catalog';
 import { GOOGLE_PLACE_SEGMENTS } from '@/lib/places/place-types';
 import { defaultSearchName, displaySearchName } from '@/lib/places/sheet-data';
+import { useLeadDiscoveryPaths } from '@/components/lead-discovery/LeadDiscoveryPaths';
 import type {
   LeadDiscoveryRun,
   LeadSearchResponse,
@@ -40,8 +41,8 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-async function suggestPlaces(body: Record<string, unknown>): Promise<PlacesOption[]> {
-  const res = await fetch('/api/admin/lead-discovery/suggest', {
+async function suggestPlaces(apiBase: string, body: Record<string, unknown>): Promise<PlacesOption[]> {
+  const res = await fetch(`${apiBase}/suggest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -51,8 +52,8 @@ async function suggestPlaces(body: Record<string, unknown>): Promise<PlacesOptio
   return payload.suggestions ?? [];
 }
 
-async function loadPlaceDetails(placeId: string) {
-  const res = await fetch('/api/admin/lead-discovery/suggest', {
+async function loadPlaceDetails(apiBase: string, placeId: string) {
+  const res = await fetch(`${apiBase}/suggest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ placeId }),
@@ -78,6 +79,7 @@ function isoCodeFromOption(option: PlacesOption | null) {
 }
 
 export default function LeadDiscoveryPage() {
+  const { apiBase, pageBase } = useLeadDiscoveryPaths();
   const [country, setCountry] = useState<PlacesOption | null>(DEFAULT_COUNTRY);
   const [state, setState] = useState<PlacesOption | null>(null);
   const [city, setCity] = useState<PlacesOption | null>(null);
@@ -152,25 +154,25 @@ export default function LeadDiscoveryPage() {
 
   const fetchCountries = useCallback(async (query: string) => {
     try {
-      return mergePlaceOptions(await suggestPlaces({ kind: 'country', query }), countryOptions(query));
+      return mergePlaceOptions(await suggestPlaces(apiBase, { kind: 'country', query }), countryOptions(query));
     } catch {
       return countryOptions(query);
     }
-  }, []);
+  }, [apiBase]);
 
   const fetchStates = useCallback(
     async (query: string) => {
       const local = catalogStates(countryMeta.countryCode, query);
       try {
         return mergePlaceOptions(
-          await suggestPlaces({ kind: 'state', query, regionCode: countryMeta.countryCode }),
+          await suggestPlaces(apiBase, { kind: 'state', query, regionCode: countryMeta.countryCode }),
           local
         );
       } catch {
         return local;
       }
     },
-    [countryMeta.countryCode]
+    [apiBase, countryMeta.countryCode]
   );
 
   const fetchCities = useCallback(
@@ -178,14 +180,14 @@ export default function LeadDiscoveryPage() {
       const local = catalogCities(countryMeta.countryCode, state?.label, query);
       try {
         return mergePlaceOptions(
-          await suggestPlaces({ kind: 'city', query, regionCode: countryMeta.countryCode }),
+          await suggestPlaces(apiBase, { kind: 'city', query, regionCode: countryMeta.countryCode }),
           local
         );
       } catch {
         return local;
       }
     },
-    [countryMeta.countryCode, state?.label]
+    [apiBase, countryMeta.countryCode, state?.label]
   );
 
   const fetchAreas = useCallback(
@@ -193,17 +195,17 @@ export default function LeadDiscoveryPage() {
       const local = catalogAreas(city?.label, query);
       try {
         return mergePlaceOptions(
-          await suggestPlaces({ kind: 'area', query, regionCode: countryMeta.countryCode }),
+          await suggestPlaces(apiBase, { kind: 'area', query, regionCode: countryMeta.countryCode }),
           local
         );
       } catch {
         return local;
       }
     },
-    [city?.label, countryMeta.countryCode]
+    [apiBase, city?.label, countryMeta.countryCode]
   );
 
-  const fetchSegments = useCallback(async (query: string) => suggestPlaces({ kind: 'segment', query }), []);
+  const fetchSegments = useCallback(async (query: string) => suggestPlaces(apiBase, { kind: 'segment', query }), [apiBase]);
 
   const applyCountry = async (option: PlacesOption | null) => {
     setCountry(option);
@@ -221,7 +223,7 @@ export default function LeadDiscoveryPage() {
       return;
     }
     try {
-      const details = await loadPlaceDetails(option.placeId);
+      const details = await loadPlaceDetails(apiBase, option.placeId);
       setCountry({ ...option, label: details.country || details.name || option.label });
       setCountryMeta({
         countryCode: details.countryCode,
@@ -246,7 +248,7 @@ export default function LeadDiscoveryPage() {
       return;
     }
     try {
-      const details = await loadPlaceDetails(option.placeId);
+      const details = await loadPlaceDetails(apiBase, option.placeId);
       setState({ ...option, label: details.state || details.name || option.label });
       setStateMeta({
         countryCode: details.countryCode || countryMeta.countryCode,
@@ -263,7 +265,7 @@ export default function LeadDiscoveryPage() {
     setArea(null);
     if (!option || option.placeId.startsWith('custom:') || option.placeId.startsWith('iso:') || option.placeId.startsWith('city:')) return;
     try {
-      const details = await loadPlaceDetails(option.placeId);
+      const details = await loadPlaceDetails(apiBase, option.placeId);
       setCity({ ...option, label: details.city || details.name || option.label });
     } catch {
       // City label from autocomplete is already usable for Places text search.
@@ -271,10 +273,10 @@ export default function LeadDiscoveryPage() {
   };
 
   const loadHistory = useCallback(() => {
-    fetch('/api/admin/lead-discovery/runs')
+    fetch(`${apiBase}/runs`)
       .then((r) => r.json())
       .then((data) => Array.isArray(data) && setHistory(data));
-  }, []);
+  }, [apiBase]);
 
   useEffect(() => {
     loadHistory();
@@ -291,7 +293,7 @@ export default function LeadDiscoveryPage() {
     setPreview(null);
 
     try {
-      const url = save ? '/api/admin/lead-discovery/runs' : '/api/admin/lead-discovery/search';
+      const url = save ? `${apiBase}/runs` : `${apiBase}/search`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -319,7 +321,7 @@ export default function LeadDiscoveryPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/lead-discovery/runs', {
+      const res = await fetch(`${apiBase}/runs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ search: preview, name: payload.name }),
@@ -535,7 +537,7 @@ export default function LeadDiscoveryPage() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-3">
                         <Link
-                          href={`/admin/lead-discovery/${run.id}`}
+                          href={`${pageBase}/${run.id}`}
                           className="text-xs font-semibold text-indigo-600 hover:underline"
                         >
                           Details

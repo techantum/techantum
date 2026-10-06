@@ -147,12 +147,14 @@ export async function saveLeadSearchRun(
   return { run: run as LeadDiscoveryRun, results: (saved ?? []) as LeadDiscoveryResultRow[] };
 }
 
-export async function listLeadDiscoveryRuns(limit = 50) {
-  const { data, error } = await createAdminClient()
+export async function listLeadDiscoveryRuns(limit = 50, createdBy?: string) {
+  let query = createAdminClient()
     .from('lead_discovery_runs')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (createdBy) query = query.eq('created_by', createdBy);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as LeadDiscoveryRun[];
 }

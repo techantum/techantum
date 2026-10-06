@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
 import { getMapPlaceDetails, suggestMapPlaces, type PlaceSuggestKind } from '@/lib/places/autocomplete';
 import { filterGooglePlaceSegments } from '@/lib/places/place-types';
 
 const KINDS = new Set<PlaceSuggestKind>(['country', 'state', 'city', 'area']);
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth.error;
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
 
   try {
     const body = await request.json();

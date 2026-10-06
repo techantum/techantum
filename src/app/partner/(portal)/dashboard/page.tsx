@@ -112,6 +112,19 @@ export default function PartnerDashboardPage() {
         </Link>
       </div>
 
+      {partner?.lead_discovery_enabled ? (
+        <Link
+          href="/partner/lead-discovery"
+          className="flex items-center justify-between gap-4 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 hover:bg-indigo-100"
+        >
+          <div>
+            <p className="font-semibold text-indigo-950">Lead Discovery</p>
+            <p className="text-sm text-indigo-700 mt-0.5">Search Google Maps businesses and export lead lists.</p>
+          </div>
+          <Icon name="MagnifyingGlassCircleIcon" size={28} className="text-indigo-600 shrink-0" />
+        </Link>
+      ) : null}
+
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {STAT_CARDS.map((card) => (

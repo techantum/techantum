@@ -105,7 +105,7 @@ export default function ContentEditorModal({
             <h2 id="content-editor-title" className="font-semibold text-lg text-foreground truncate">
               {label}
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate">{entryKey}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Upload images and videos as files. Page links can stay as website paths.</p>
           </div>
           <button
             type="button"

@@ -42,7 +42,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
     fields: [
       { key: 'heroVideoUrl', label: 'Hero background video', type: 'video', placeholder: 'Upload MP4/WebM (max 50 MB)' },
       { key: 'heroPosterUrl', label: 'Hero video poster image', type: 'image', placeholder: 'Shown while video loads' },
-      { key: 'heroVideoFallbackUrl', label: 'Hero video fallback URL', type: 'url', placeholder: 'Optional backup video URL' },
+      { key: 'heroVideoFallbackUrl', label: 'Hero video fallback', type: 'video', placeholder: 'Upload a backup MP4/WebM' },
       { key: 'badge', label: 'Badge', type: 'text' },
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
       { key: 'titleLine1', label: headingLabel.h1('Title line 1'), type: 'text' },
