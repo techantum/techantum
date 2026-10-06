@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAuthAdminClient } from '@/lib/supabase/admin';
 import { ensureClientWorkspace } from '@/lib/whatsapp-provider/services/self-onboard';
 
 export async function issueSiteSessionForUser(input: {
@@ -9,7 +9,7 @@ export async function issueSiteSessionForUser(input: {
   method: string;
   metadata?: Record<string, unknown>;
 }) {
-  const supabase = createAdminClient();
+  const supabase = createAuthAdminClient();
   const email = input.email.trim().toLowerCase();
   if (!email.includes('@')) {
     throw Object.assign(new Error('A verified email is required to sign in.'), { status: 400 });

@@ -1,16 +1,20 @@
+import { metaHostedEmbeddedSignupUrl, zeroIntegrationOnboardingUrl } from '@/lib/auth/public-origin';
+
 function env(key: string, fallback = '') {
   return process.env[key]?.trim() || fallback;
 }
 
+export const DEFAULT_META_APP_ID = '27686807767646135';
 export const DEFAULT_EMBEDDED_SIGNUP_CONFIG_ID = '1102324422268818';
 
 export function getMetaProviderConfig() {
   const graphVersion = env('META_GRAPH_API_VERSION') || env('WHATSAPP_API_VERSION');
+  const appId = env('META_APP_ID') || env('NEXT_PUBLIC_META_APP_ID') || DEFAULT_META_APP_ID;
   return {
     graphVersion,
     graphBase: graphVersion ? `https://graph.facebook.com/${graphVersion}` : '',
-    appId: env('META_APP_ID') || env('NEXT_PUBLIC_META_APP_ID'),
-    publicAppId: env('NEXT_PUBLIC_META_APP_ID') || env('META_APP_ID'),
+    appId,
+    publicAppId: env('NEXT_PUBLIC_META_APP_ID') || env('META_APP_ID') || DEFAULT_META_APP_ID,
     appSecret: env('META_APP_SECRET') || env('META_WHATSAPP_APP_SECRET') || env('WHATSAPP_APP_SECRET'),
     embeddedSignupConfigId: env('META_EMBEDDED_SIGNUP_CONFIG_ID') || DEFAULT_EMBEDDED_SIGNUP_CONFIG_ID,
     systemUserAccessToken: env('META_SYSTEM_USER_ACCESS_TOKEN') || env('META_WHATSAPP_ACCESS_TOKEN') || env('WHATSAPP_ACCESS_TOKEN'),
@@ -27,12 +31,24 @@ export function getMetaProviderConfig() {
 
 export function getPublicMetaSignupConfig() {
   const cfg = getMetaProviderConfig();
+  const appId = cfg.publicAppId || cfg.appId;
+  const configId = cfg.embeddedSignupConfigId;
   return {
-    appId: cfg.publicAppId,
-    configId: cfg.embeddedSignupConfigId,
+    appId,
+    configId,
     graphVersion: cfg.graphVersion,
-    configured: Boolean(cfg.publicAppId && cfg.graphVersion),
+    configured: Boolean(appId && configId),
     existingConfigured: Boolean(cfg.systemUserAccessToken && cfg.wabaId && cfg.phoneNumberId),
+    techProvider: true,
+    urls: {
+      zeroIntegration: zeroIntegrationOnboardingUrl({ appId, configId }).toString(),
+      hostedEmbeddedSignup: metaHostedEmbeddedSignupUrl({ appId, configId }).toString(),
+    },
+    flows: {
+      zeroIntegration: `/api/public/wa-onboard/meta/start?mode=new&flow=zero`,
+      hostedEmbeddedSignup: `/api/public/wa-onboard/meta/start?mode=new&flow=hosted`,
+      existingWaba: `/api/public/wa-onboard/meta/start?mode=existing&flow=hosted`,
+    },
   };
 }
 

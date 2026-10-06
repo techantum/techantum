@@ -4,6 +4,10 @@ export function getLocalRestUrl() {
   return (process.env.LOCAL_REST_URL || '').trim();
 }
 
+export function getAuthSupabaseUrl() {
+  return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+}
+
 export function mintServiceRoleJwt() {
   const secret = process.env.POSTGREST_JWT_SECRET?.trim();
   if (!secret) {

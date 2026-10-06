@@ -150,14 +150,14 @@ export default function OnboardingWizard({ compact = false }: { compact?: boolea
     }
   };
 
-  const startMeta = (mode: PathMode) => {
+  const startMeta = (mode: PathMode, flow: 'hosted' | 'zero' = 'hosted') => {
     if (!session?.authenticated) {
       window.location.assign('/login?next=/portal/wa/onboard');
       return;
     }
     setPath(mode);
     window.sessionStorage.setItem(PATH_KEY, mode);
-    window.location.assign(embeddedSignupStartPath(mode));
+    window.location.assign(embeddedSignupStartPath(mode, flow));
   };
 
   const importConfigured = async () => {
@@ -220,14 +220,15 @@ export default function OnboardingWizard({ compact = false }: { compact?: boolea
         setStep(body.ready || body.phoneCount ? 5 : 3);
         return;
       }
-      window.location.assign(embeddedSignupStartPath('existing'));
+      window.location.assign(embeddedSignupStartPath('existing', 'hosted'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not import the existing WhatsApp Business API.');
       setBusy('');
     }
   };
 
-  const createNew = () => startMeta('new');
+  const createNew = () => startMeta('new', 'hosted');
+  const startZeroIntegration = () => startMeta('new', 'zero');
 
   const refreshMeta = async () => {
     setBusy('sync');
@@ -401,19 +402,30 @@ export default function OnboardingWizard({ compact = false }: { compact?: boolea
             {step === 2 && (
               <div className="mt-4 space-y-4">
                 <h2 className="font-bricolage text-2xl font-bold text-slate-900">Connect Meta</h2>
-                <p className="text-sm text-slate-500">Choose how your WhatsApp Business API already exists in Meta. Existing accounts are imported. New accounts are created in Meta’s official flow.</p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <button type="button" onClick={() => void importExisting()} className="rounded-2xl border border-secondary bg-orange-50 p-5 text-left">
+                <p className="text-sm text-slate-500">
+                  Techantum is a Meta Tech Provider. Clients can finish WhatsApp setup on Meta, then return here so we can import the Business account.
+                </p>
+                <div className="grid gap-3">
+                  <button type="button" onClick={() => void createNew()} className="rounded-2xl border border-secondary bg-orange-50 p-5 text-left">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">Recommended</p>
+                    <p className="mt-1 font-semibold text-slate-900">Meta-hosted Embedded Signup</p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Opens Meta’s official WhatsApp onboarding, then returns to Techantum at /auth/facebook so we can import the WABA and phone numbers.
+                    </p>
+                  </button>
+                  <button type="button" onClick={() => void startZeroIntegration()} className="rounded-2xl border border-slate-200 bg-white p-5 text-left hover:border-secondary/40">
+                    <p className="font-semibold text-slate-900">Zero integration onboarding</p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Complete WhatsApp Business app setup entirely on Meta. After you finish, come back and use Import existing from Meta.
+                    </p>
+                  </button>
+                  <button type="button" onClick={() => void importExisting()} className="rounded-2xl border border-slate-200 bg-white p-5 text-left hover:border-secondary/40">
                     <p className="font-semibold text-slate-900">I already have WhatsApp Business API</p>
                     <p className="mt-2 text-sm text-slate-500">Import the existing WABA and phone numbers from Meta. This does not ask you to create a new number.</p>
                   </button>
-                  <button type="button" onClick={() => void createNew()} className="rounded-2xl border border-slate-200 bg-white p-5 text-left hover:border-secondary/40">
-                    <p className="font-semibold text-slate-900">I am new to WhatsApp Business API</p>
-                    <p className="mt-2 text-sm text-slate-500">Create a Cloud API account with Meta, then add a number there.</p>
-                  </button>
                 </div>
                 <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Meta will not list a WhatsApp account that already belongs to this Tech Provider app. If you are testing with Techantum’s own Facebook login, do not create a new number. Import the account already configured on this server, or use a different client Business portfolio.
+                  Use the Facebook login that owns the client Business portfolio. If you are testing with Techantum’s own Facebook login, import the account already configured on this server instead of creating a new number.
                 </p>
                 {session.canImportConfigured && (
                   <button type="button" disabled={Boolean(busy)} onClick={() => void importConfigured()} className="rounded-full border border-secondary px-5 py-3 text-sm font-semibold text-secondary disabled:opacity-60">
@@ -421,7 +433,7 @@ export default function OnboardingWizard({ compact = false }: { compact?: boolea
                   </button>
                 )}
                 <button type="button" disabled={Boolean(busy)} onClick={() => void (path === 'new' ? createNew() : importExisting())} className="rounded-full bg-secondary px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
-                  {busy === 'meta' ? 'Opening Meta…' : path === 'new' ? 'Create with Meta' : 'Import existing from Meta'}
+                  {busy === 'meta' ? 'Opening Meta…' : path === 'new' ? 'Continue with Meta-hosted signup' : 'Import existing from Meta'}
                 </button>
                 {setup.hasWaba && <p className="text-sm font-medium text-emerald-700">Meta returned a WhatsApp Business Account. Continue to your numbers.</p>}
               </div>

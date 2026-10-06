@@ -1,10 +1,21 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 import { getLocalAdminUser } from '@/lib/auth/local-admin-session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getLocalRestUrl } from '@/lib/supabase/local-jwt';
 import { isSuperAdmin, SUPER_ADMIN_ONLY_API_PREFIXES, type AdminRole } from './roles';
+
+export type AdminAuth = {
+  user: User;
+  role: AdminRole;
+  email: string;
+};
+
+function adminDb() {
+  return getLocalRestUrl() ? createAdminClient() : null;
+}
 
 async function pathRequiresSuperAdmin(explicit?: boolean) {
   if (explicit) return true;
@@ -17,8 +28,7 @@ async function pathRequiresSuperAdmin(explicit?: boolean) {
   }
 }
 
-export async function requireAdmin(options?: { superAdmin?: boolean }) {
-  const db = getLocalRestUrl() ? createAdminClient() : await createClient();
+export async function resolveAdminAuth(): Promise<AdminAuth | null> {
   const local = await getLocalAdminUser();
   let user = local?.user ?? null;
   let role = local?.role;
@@ -36,11 +46,10 @@ export async function requireAdmin(options?: { superAdmin?: boolean }) {
     }
   }
 
-  if (!user) {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  }
+  if (!user) return null;
 
   if (!role) {
+    const db = adminDb() ?? (await createClient());
     let adminUser: { user_id: string; email?: string; role?: string } | null = null;
     const withRole = await db.from('admin_users').select('user_id, role, email').eq('user_id', user.id).maybeSingle();
     if (withRole.error && /role/i.test(withRole.error.message)) {
@@ -49,18 +58,26 @@ export async function requireAdmin(options?: { superAdmin?: boolean }) {
     } else {
       adminUser = withRole.data;
     }
-    if (!adminUser) {
-      return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
-    }
+    if (!adminUser) return null;
     role = (adminUser.role || 'ADMIN') as AdminRole;
     email = adminUser.email || user.email || '';
   }
 
-  if ((await pathRequiresSuperAdmin(options?.superAdmin)) && !isSuperAdmin(role)) {
+  return { user, role, email: email || user.email || '' };
+}
+
+export async function requireAdmin(options?: { superAdmin?: boolean }) {
+  const auth = await resolveAdminAuth();
+  if (!auth) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  if ((await pathRequiresSuperAdmin(options?.superAdmin)) && !isSuperAdmin(auth.role)) {
     return { error: NextResponse.json({ error: 'Super admin access required' }, { status: 403 }) };
   }
 
-  return { supabase: db, user, role, email: email || user.email || '' };
+  const supabase = adminDb() ?? (await createClient());
+  return { supabase, ...auth };
 }
 
 export async function requireSuperAdmin() {

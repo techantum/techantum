@@ -27,6 +27,8 @@ export default function WaClientsPage() {
   const [status, setStatus] = useState('ONBOARDED');
   const [rows, setRows] = useState<ClientRow[]>([]);
   const [error, setError] = useState('');
+  const [onboardUrls, setOnboardUrls] = useState<{ zeroIntegration?: string; hostedEmbeddedSignup?: string }>({});
+  const [copied, setCopied] = useState('');
 
   const load = () => {
     fetch(`/api/admin/wa-provider/clients?q=${encodeURIComponent(q)}&status=${status}`)
@@ -40,6 +42,20 @@ export default function WaClientsPage() {
   };
 
   useEffect(() => {
+    fetch('/api/public/wa-onboard/config', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((body) => setOnboardUrls(body.urls || {}))
+      .catch(() => undefined);
+  }, []);
+
+  const copy = async (label: string, value?: string) => {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopied(label);
+    window.setTimeout(() => setCopied(''), 2000);
+  };
+
+  useEffect(() => {
     const timer = window.setTimeout(load, 200);
     return () => window.clearTimeout(timer);
   }, [q, status]);
@@ -48,8 +64,40 @@ export default function WaClientsPage() {
     <ProviderShell>
       <AdminPageHeader
         title="Onboarded Clients"
-        description="Clients who completed WhatsApp setup on the Techantum website. New clients cannot be onboarded from admin."
+        description="Clients complete WhatsApp setup with Techantum’s Meta Tech Provider onboarding. Share the Meta links below, or send them to /portal/wa/onboard."
       />
+      <AdminSection title="Client onboarding links">
+        <p className="text-sm text-slate-600">
+          Official Meta Tech Provider URLs for app <span className="font-mono">27686807767646135</span>. Meta-hosted Embedded Signup returns to{' '}
+          <span className="font-mono">https://techantum.com/auth/facebook</span>.
+        </p>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <p className="text-sm font-semibold text-slate-900">Zero integration onboarding</p>
+            <p className="mt-1 text-xs text-slate-500">Client finishes WhatsApp Business app setup on Meta. No redirect back.</p>
+            <p className="mt-3 break-all font-mono text-[11px] text-slate-600">{onboardUrls.zeroIntegration || 'Loading…'}</p>
+            <button
+              type="button"
+              onClick={() => void copy('zero', onboardUrls.zeroIntegration)}
+              className="mt-3 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold"
+            >
+              {copied === 'zero' ? 'Copied' : 'Copy link'}
+            </button>
+          </div>
+          <div className="rounded-2xl border border-secondary/30 bg-orange-50/60 p-4">
+            <p className="text-sm font-semibold text-slate-900">Meta-hosted Embedded Signup</p>
+            <p className="mt-1 text-xs text-slate-500">Recommended. Client returns to Techantum so the WABA can be imported.</p>
+            <p className="mt-3 break-all font-mono text-[11px] text-slate-600">{onboardUrls.hostedEmbeddedSignup || 'Loading…'}</p>
+            <button
+              type="button"
+              onClick={() => void copy('hosted', onboardUrls.hostedEmbeddedSignup)}
+              className="mt-3 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              {copied === 'hosted' ? 'Copied' : 'Copy link'}
+            </button>
+          </div>
+        </div>
+      </AdminSection>
       <AdminSection title="Client directory">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <AdminField label="Search">

@@ -4,12 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import { exchangeGoogleLoginCode, siteGoogleRedirectUri } from '@/lib/gbp/oauth';
 import { issueSiteSessionForUser } from '@/lib/auth/site-session';
 import { safeNextPath } from '@/lib/auth/safe-next';
+import { publicSiteOrigin } from '@/lib/auth/public-origin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = url.origin;
+  const origin = publicSiteOrigin();
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const oauthError = url.searchParams.get('error_description') || url.searchParams.get('error');

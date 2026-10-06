@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { getGbpOAuthCredentials } from '@/lib/gbp/oauth';
 import { getMetaProviderConfig } from '@/lib/whatsapp-provider/config';
 import { resolveFacebookAppId } from '@/lib/auth/facebook-login';
+import { publicSiteOrigin } from '@/lib/auth/public-origin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  const origin = new URL(request.url).origin;
+export async function GET() {
+  const origin = publicSiteOrigin();
   const [gbp, facebookAppId] = await Promise.all([
     getGbpOAuthCredentials().catch(() => ({ clientId: '' })),
     resolveFacebookAppId().catch(() => ''),

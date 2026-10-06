@@ -48,7 +48,7 @@ export default function PortalSettingsPage() {
   };
 
   const requestAccess = () => {
-    window.location.assign(embeddedSignupStartPath('existing'));
+    window.location.assign(embeddedSignupStartPath('existing', 'hosted'));
   };
 
   const sync = async () => {
