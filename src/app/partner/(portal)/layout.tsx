@@ -1,8 +1,15 @@
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import PartnerShell from '@/components/partner/PartnerShell';
 import { isOtpVerificationRequired } from '@/lib/partner/otp';
+import {
+  firstAllowedPartnerHref,
+  isPartnerPathAlwaysAllowed,
+  partnerHasNavAccess,
+  partnerNavKeyForPath,
+} from '@/lib/partner/nav';
 import type { Partner, PartnerUser } from '@/lib/partner/types';
 
 export default async function PartnerPortalLayout({
@@ -42,6 +49,15 @@ export default async function PartnerPortalLayout({
 
   if (await isOtpVerificationRequired(partnerUser.id)) {
     redirect('/partner/verify-otp');
+  }
+
+  const headerStore = await headers();
+  const pathname = headerStore.get('x-url-path') || headerStore.get('x-pathname') || '';
+  if (pathname && !isPartnerPathAlwaysAllowed(pathname)) {
+    const navKey = partnerNavKeyForPath(pathname);
+    if (navKey && !partnerHasNavAccess(partnerUser as PartnerUser, navKey, partner as Partner)) {
+      redirect(firstAllowedPartnerHref(partnerUser as PartnerUser, partner as Partner));
+    }
   }
 
   return (

@@ -40,7 +40,7 @@ export default function PartnerNotificationsPage() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-bricolage text-2xl font-bold text-slate-900">Notifications</h1>

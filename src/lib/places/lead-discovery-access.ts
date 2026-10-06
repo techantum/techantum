@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { requirePartner } from '@/lib/partner/auth';
+import { partnerHasNavAccess } from '@/lib/partner/nav';
 
 export type LeadDiscoveryAccess =
   | {
@@ -26,7 +27,7 @@ export async function requireLeadDiscoveryAccess(): Promise<
     return admin.error.status === 401 ? admin : partner;
   }
 
-  if (!partner.partner.lead_discovery_enabled) {
+  if (!partner.partner.lead_discovery_enabled || !partnerHasNavAccess(partner.partnerUser, 'lead-discovery', partner.partner)) {
     return {
       error: NextResponse.json(
         { error: 'Lead Discovery is not enabled for this partner account.' },

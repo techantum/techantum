@@ -215,7 +215,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
   };
 
   return (
-    <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-8">
+    <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-8 lg:p-9">
       <div className="mb-6 text-center">
         {branding?.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element

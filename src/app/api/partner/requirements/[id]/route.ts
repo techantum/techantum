@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requirePartner } from '@/lib/partner/auth';
+import { requirePartnerNavAny } from '@/lib/partner/auth';
 import {
   getRequirement,
   getRequirementAnswers,
@@ -14,7 +14,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requirePartner();
+  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
   if ('error' in auth) return auth.error;
 
   const { id } = await params;
@@ -46,7 +46,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requirePartner();
+  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
   if ('error' in auth) return auth.error;
 
   const { id } = await params;

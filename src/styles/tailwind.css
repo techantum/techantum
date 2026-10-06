@@ -143,9 +143,8 @@
     }
 
     .admin-content-width {
-      width: min(80vw, 100%);
-      margin-left: auto;
-      margin-right: auto;
+      width: 100%;
+      max-width: none;
     }
 
   .page-hero.reveal {

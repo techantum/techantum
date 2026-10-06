@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requirePartner } from '@/lib/partner/auth';
+import { requirePartnerNavAny } from '@/lib/partner/auth';
 import {
   listPartnerRequirements,
   saveRequirementDraft,
@@ -7,7 +7,7 @@ import {
 } from '@/lib/partner/requirements';
 
 export async function GET() {
-  const auth = await requirePartner();
+  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
   if ('error' in auth) return auth.error;
 
   const data = await listPartnerRequirements(auth.partner.id);
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requirePartner();
+  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
   if ('error' in auth) return auth.error;
 
   try {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePartnerNavAny } from '@/lib/partner/auth';
 import {
   getQuestionTemplateByServiceType,
   getQuestionsForTemplate,
@@ -7,6 +8,9 @@ import { resolveWizardQuestions } from '@/lib/partner/wizard-config';
 import { getQuestionServiceType } from '@/lib/partner/service-catalog';
 
 export async function GET(request: Request) {
+  const auth = await requirePartnerNavAny(['new-requirement', 'requirements']);
+  if ('error' in auth) return auth.error;
+
   const url = new URL(request.url);
   const engagement = url.searchParams.get('engagement');
   const division = url.searchParams.get('division');

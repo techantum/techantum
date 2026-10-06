@@ -190,6 +190,9 @@ export default function AdminShell({
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 md:inline-flex">
+            {role === 'SUPER_ADMIN' ? 'Super admin' : 'Admin'}
+          </span>
           <Link
             href="/"
             target="_blank"
@@ -227,8 +230,8 @@ export default function AdminShell({
           {sidebar}
         </aside>
 
-        <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <div className="admin-content-width">{children}</div>
+        <main className="w-full min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <div className="w-full min-w-0">{children}</div>
         </main>
       </div>
     </div>

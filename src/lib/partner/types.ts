@@ -29,6 +29,7 @@ export interface Partner {
   country: string | null;
   notes: string | null;
   lead_discovery_enabled?: boolean;
+  logo_url?: string | null;
   joined_at: string | null;
   created_at: string;
   updated_at: string;
@@ -44,6 +45,7 @@ export interface PartnerUser {
   status: PartnerUserStatus;
   last_login_at: string | null;
   last_otp_verified_at: string | null;
+  nav_access?: Record<string, boolean> | null;
   created_at: string;
 }
 

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
+import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
 
 function OnboardForm() {
   const router = useRouter();
@@ -19,6 +20,7 @@ function OnboardForm() {
     companyName: string;
     partnerCode: string;
     email: string;
+    logoUrl: string | null;
   } | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -40,6 +42,7 @@ function OnboardForm() {
             companyName: data.companyName,
             partnerCode: data.partnerCode,
             email: data.email,
+            logoUrl: data.logoUrl ?? null,
           });
         } else {
           setError(data.error || 'Invalid invite link');
@@ -106,11 +109,16 @@ function OnboardForm() {
 
   return (
     <>
-      <div className="bg-indigo-50 rounded-xl p-4 mb-6">
-        <p className="text-xs uppercase tracking-wider text-indigo-600 mb-1">Welcome</p>
-        <p className="font-semibold text-slate-900">{inviteInfo?.contactName}</p>
-        <p className="text-sm text-slate-600">{inviteInfo?.companyName}</p>
-        <p className="font-mono text-xs text-indigo-700 mt-2">{inviteInfo?.partnerCode}</p>
+      <div className="bg-indigo-50 rounded-xl p-4 mb-6 flex items-center gap-4">
+        <span className="flex items-center justify-center rounded-xl bg-white px-3 py-2">
+          <PartnerBrandMark logoUrl={inviteInfo?.logoUrl} companyName={inviteInfo?.companyName} size="md" />
+        </span>
+        <div>
+          <p className="text-xs uppercase tracking-wider text-indigo-600 mb-1">Welcome</p>
+          <p className="font-semibold text-slate-900">{inviteInfo?.contactName}</p>
+          <p className="text-sm text-slate-600">{inviteInfo?.companyName}</p>
+          <p className="font-mono text-xs text-indigo-700 mt-2">{inviteInfo?.partnerCode}</p>
+        </div>
       </div>
 
       <h1 className="font-bricolage text-2xl font-bold text-slate-900 mb-1">Set Your Password</h1>
@@ -180,8 +188,8 @@ export default function PartnerOnboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#1e1b4b] via-indigo-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <p className="font-bricolage font-bold text-2xl text-white">TechAntum</p>
-          <p className="text-xs uppercase tracking-[0.25em] text-indigo-300 mt-1">Partner Onboarding</p>
+          <p className="font-bricolage font-bold text-2xl text-white">Partner Portal</p>
+          <p className="text-xs uppercase tracking-[0.25em] text-indigo-300 mt-1">Onboarding</p>
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <Suspense

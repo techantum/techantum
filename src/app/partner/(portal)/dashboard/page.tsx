@@ -10,6 +10,8 @@ import {
   type PartnerUser,
   type RequirementStatus,
 } from '@/lib/partner/types';
+import { partnerHasNavAccess } from '@/lib/partner/nav';
+import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
 
 interface Activity {
   id: string;
@@ -91,28 +93,43 @@ export default function PartnerDashboardPage() {
   }
 
   const firstName = partnerUser?.full_name?.split(' ')[0] ?? 'Partner';
+  const canCreateRequirement = partnerUser ? partnerHasNavAccess(partnerUser, 'new-requirement', partner) : false;
+  const canViewRequirements = partnerUser ? partnerHasNavAccess(partnerUser, 'requirements', partner) : false;
+  const canUseLeadDiscovery = partnerUser ? partnerHasNavAccess(partnerUser, 'lead-discovery', partner) : false;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-bricolage text-2xl font-bold text-slate-900">
-            Welcome back, {firstName}!
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Here&apos;s what&apos;s happening with your requirements and projects.
-          </p>
+        <div className="flex items-start gap-4 min-w-0">
+          {partner ? (
+            <span className="hidden sm:flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-3 shrink-0">
+              <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="lg" />
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            {partner ? (
+              <p className="text-sm font-medium text-indigo-600 mb-1 truncate">{partner.company_name}</p>
+            ) : null}
+            <h1 className="font-bricolage text-2xl font-bold text-slate-900">
+              Welcome back, {firstName}!
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Here&apos;s what&apos;s happening with your requirements and projects.
+            </p>
+          </div>
         </div>
-        <Link
-          href="/partner/requirements/new"
-          className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
-        >
-          <Icon name="PlusIcon" size={18} />
-          New Requirement
-        </Link>
+        {canCreateRequirement ? (
+          <Link
+            href="/partner/requirements/new"
+            className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            <Icon name="PlusIcon" size={18} />
+            New Requirement
+          </Link>
+        ) : null}
       </div>
 
-      {partner?.lead_discovery_enabled ? (
+      {canUseLeadDiscovery ? (
         <Link
           href="/partner/lead-discovery"
           className="flex items-center justify-between gap-4 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 hover:bg-indigo-100"
@@ -148,20 +165,24 @@ export default function PartnerDashboardPage() {
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <h2 className="font-semibold text-slate-900">Recent Requirements</h2>
-            <Link href="/partner/requirements" className="text-xs text-indigo-600 hover:underline">
-              View All
-            </Link>
+            {canViewRequirements ? (
+              <Link href="/partner/requirements" className="text-xs text-indigo-600 hover:underline">
+                View All
+              </Link>
+            ) : null}
           </div>
           {recentRequirements.length === 0 ? (
             <div className="p-8 text-center">
               <Icon name="ClipboardDocumentListIcon" size={40} className="text-slate-300 mx-auto mb-3" />
               <p className="text-sm text-slate-500 mb-4">No requirements yet.</p>
-              <Link
-                href="/partner/requirements/new"
-                className="text-sm text-indigo-600 hover:underline font-medium"
-              >
-                Create your first requirement →
-              </Link>
+              {canCreateRequirement ? (
+                <Link
+                  href="/partner/requirements/new"
+                  className="text-sm text-indigo-600 hover:underline font-medium"
+                >
+                  Create your first requirement →
+                </Link>
+              ) : null}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -233,6 +254,7 @@ export default function PartnerDashboardPage() {
       {/* Partner info footer */}
       {partner && (
         <div className="bg-indigo-50 rounded-xl p-4 flex flex-wrap items-center gap-4 text-sm">
+          <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
           <span className="font-mono font-semibold text-indigo-800">{partner.partner_code}</span>
           <span className="text-indigo-600">{partner.company_name}</span>
           {partner.joined_at && (

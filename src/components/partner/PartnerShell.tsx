@@ -2,26 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
+import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
+import { visiblePartnerNavItems } from '@/lib/partner/nav';
 import { PARTNER_TIER_LABELS, type Partner, type PartnerUser } from '@/lib/partner/types';
-
-const PARTNER_NAV = [
-  { href: '/partner/dashboard', label: 'Dashboard', icon: 'Squares2X2Icon' },
-  { href: '/partner/lead-discovery', label: 'Lead Discovery', icon: 'MagnifyingGlassCircleIcon', leadDiscovery: true },
-  { href: '/partner/packages', label: 'Service Packages', icon: 'CubeIcon' },
-  { href: '/partner/requirements/new', label: 'New Requirement', icon: 'PlusCircleIcon' },
-  { href: '/partner/requirements', label: 'My Requirements', icon: 'ClipboardDocumentListIcon' },
-  { href: '/partner/documents', label: 'Documents', icon: 'DocumentTextIcon' },
-  { href: '/partner/team', label: 'Team', icon: 'UsersIcon', adminOnly: true },
-  { href: '/partner/support', label: 'Partner Support', icon: 'LifebuoyIcon' },
-] as const;
 
 interface PartnerShellProps {
   partner: Partner;
   partnerUser: PartnerUser;
   children: React.ReactNode;
+}
+
+const PartnerAccessContext = createContext<{ partner: Partner; partnerUser: PartnerUser } | null>(null);
+
+export function usePartnerAccess() {
+  return useContext(PartnerAccessContext);
 }
 
 export default function PartnerShell({ partner, partnerUser, children }: PartnerShellProps) {
@@ -51,11 +48,22 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
   const isActive = (href: string) =>
     pathname === href || (href !== '/partner/dashboard' && (pathname?.startsWith(href) ?? false));
 
+  const pageLabel =
+    visiblePartnerNavItems(partnerUser, partner).find((item) => isActive(item.href))?.label ||
+    (pathname?.startsWith('/partner/profile')
+      ? 'Partner Profile'
+      : pathname?.startsWith('/partner/notifications')
+        ? 'Notifications'
+        : 'Dashboard');
+
   const sidebar = (
     <div className="flex flex-col h-full bg-[#1e1b4b] text-white">
       <div className="px-5 py-6 border-b border-white/10">
         <Link href="/partner/dashboard" className="block">
-          <p className="font-bricolage font-bold text-lg tracking-tight">TechAntum</p>
+          <span className="flex items-center justify-center rounded-xl bg-white px-3 py-3">
+            <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="md" />
+          </span>
+          <p className="font-bricolage font-semibold text-sm tracking-tight mt-3 truncate">{partner.company_name}</p>
           <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-300 mt-0.5">
             Partner Portal
           </p>
@@ -63,11 +71,7 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {PARTNER_NAV.filter((item) => {
-          if ('adminOnly' in item && item.adminOnly && partnerUser.role !== 'partner_admin') return false;
-          if ('leadDiscovery' in item && item.leadDiscovery && !partner.lead_discovery_enabled) return false;
-          return true;
-        }).map((item) => (
+        {visiblePartnerNavItems(partnerUser, partner).map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -98,11 +102,13 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <PartnerAccessContext.Provider value={{ partner, partnerUser }}>
+      <div className="min-h-screen bg-slate-50">
       {/* Mobile header */}
       <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between">
-        <Link href="/partner/dashboard" className="font-bricolage font-bold text-[#1e1b4b]">
-          Partner Portal
+        <Link href="/partner/dashboard" className="flex items-center gap-2 min-w-0">
+          <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
+          <span className="font-bricolage font-bold text-[#1e1b4b] truncate">{partner.company_name}</span>
         </Link>
         <button
           type="button"
@@ -134,8 +140,12 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Top bar */}
           <header className="hidden lg:flex items-center justify-between bg-white border-b border-slate-200 px-6 h-14 shrink-0">
-            <div>
-              <p className="text-xs text-slate-500">Dashboard</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">{pageLabel}</p>
+                <p className="text-xs text-slate-500 truncate">{partner.company_name}</p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/" target="_blank" className="text-sm text-slate-500 hover:text-indigo-600">
@@ -176,5 +186,6 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
         </div>
       </div>
     </div>
+    </PartnerAccessContext.Provider>
   );
 }

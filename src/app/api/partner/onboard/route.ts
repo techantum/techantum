@@ -24,6 +24,7 @@ export async function GET(request: Request) {
   const partner = invite.partners as {
     company_name: string;
     partner_code: string;
+    logo_url?: string | null;
   };
 
   return NextResponse.json({
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
     contactName: partnerUser.full_name,
     companyName: partner.company_name,
     partnerCode: partner.partner_code,
+    logoUrl: partner.logo_url ?? null,
     email: partnerUser.email,
   });
 }

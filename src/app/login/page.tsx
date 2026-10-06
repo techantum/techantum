@@ -40,11 +40,11 @@ export default async function LoginPage() {
   const branding = await getBranding();
 
   return (
-    <main className="page-main bg-white">
-      <section className="relative overflow-hidden bg-[#F6F3EE]">
+    <main className="page-main bg-[#F6F3EE]">
+      <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(255,255,255,0.85),transparent_45%)]" />
-        <div className="page-container relative py-10 sm:py-14 lg:py-16">
-          <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-8">
+        <div className="relative mx-auto w-full px-4 py-10 sm:px-8 sm:py-14 lg:px-12 xl:px-16">
+          <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12 xl:gap-16">
             <div className="lg:col-span-7">
               <div className="mb-5 inline-flex items-center gap-3">
                 <span className="font-inter text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -84,7 +84,7 @@ export default async function LoginPage() {
       </section>
 
       <section className="border-y border-slate-100 bg-white">
-        <div className="page-container py-8 sm:py-10">
+        <div className="mx-auto w-full px-4 py-8 sm:px-8 sm:py-10 lg:px-12 xl:px-16">
           <div className="grid grid-cols-2 gap-6 lg:grid-cols-4 lg:gap-8">
             {STATS.map((stat) => (
               <div key={stat.label} className="text-center">

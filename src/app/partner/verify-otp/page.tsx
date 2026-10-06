@@ -1,9 +1,10 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
 
 function VerifyOtpForm() {
   const router = useRouter();
@@ -12,6 +13,17 @@ function VerifyOtpForm() {
   const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [branding, setBranding] = useState<{ company_name: string; logo_url: string | null } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/partner/logo')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.company_name) setBranding({ company_name: data.company_name, logo_url: data.logo_url ?? null });
+      })
+      .catch(() => undefined);
+  }, []);
+  const [branding, setBranding] = useState<{ company_name: string; logo_url: string | null } | null>(null);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +65,11 @@ function VerifyOtpForm() {
     <div className="min-h-screen bg-gradient-to-br from-[#1e1b4b] via-indigo-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <p className="font-bricolage font-bold text-2xl text-white">TechAntum</p>
+          <Link href="/" className="inline-flex flex-col items-center">
+            <span className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 shadow-lg">
+              <PartnerBrandMark logoUrl={branding?.logo_url} companyName={branding?.company_name || 'Partner'} size="lg" />
+            </span>
+            <p className="font-bricolage font-bold text-xl text-white mt-4">{branding?.company_name || 'TechAntum'}</p>
             <p className="text-xs uppercase tracking-[0.25em] text-indigo-300 mt-1">Partner Portal</p>
           </Link>
         </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
-import { requirePartner } from '@/lib/partner/auth';
+import { requirePartnerNavAny } from '@/lib/partner/auth';
 import { getRequirementDocuments } from '@/lib/partner/requirements';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getUploadRoot } from '@/lib/storage/local';
@@ -11,7 +11,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requirePartner();
+  const auth = await requirePartnerNavAny(['requirements', 'documents']);
   if ('error' in auth) return auth.error;
 
   const { id: requirementId } = await params;

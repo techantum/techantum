@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import { REQUIREMENT_STATUS_LABELS, type RequirementRecord, type RequirementStatus } from '@/lib/partner/types';
+import { usePartnerAccess } from '@/components/partner/PartnerShell';
+import { partnerHasNavAccess } from '@/lib/partner/nav';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
@@ -18,6 +20,10 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function PartnerRequirementsPage() {
+  const access = usePartnerAccess();
+  const canCreateRequirement = access
+    ? partnerHasNavAccess(access.partnerUser, 'new-requirement', access.partner)
+    : false;
   const [requirements, setRequirements] = useState<RequirementRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -57,13 +63,15 @@ export default function PartnerRequirementsPage() {
           <h1 className="font-bricolage text-2xl font-bold text-slate-900">My Requirements</h1>
           <p className="text-sm text-slate-500">{requirements.length} total submissions</p>
         </div>
-        <Link
-          href="/partner/requirements/new"
-          className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700"
-        >
-          <Icon name="PlusIcon" size={16} />
-          New Requirement
-        </Link>
+        {canCreateRequirement ? (
+          <Link
+            href="/partner/requirements/new"
+            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700"
+          >
+            <Icon name="PlusIcon" size={16} />
+            New Requirement
+          </Link>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -126,14 +134,16 @@ export default function PartnerRequirementsPage() {
                       <Link href={`/partner/requirements/${req.id}`} className="text-indigo-600 hover:underline text-xs">
                         View
                       </Link>
-                      {req.status === 'draft' && (
+                      {canCreateRequirement && req.status === 'draft' && (
                         <Link href={`/partner/requirements/new?draft=${req.id}`} className="text-slate-500 hover:underline text-xs">
                           Edit
                         </Link>
                       )}
-                      <button type="button" onClick={() => duplicate(req.id)} className="text-slate-500 hover:underline text-xs">
-                        Duplicate
-                      </button>
+                      {canCreateRequirement ? (
+                        <button type="button" onClick={() => duplicate(req.id)} className="text-slate-500 hover:underline text-xs">
+                          Duplicate
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
