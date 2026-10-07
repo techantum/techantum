@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import { REQUIREMENT_STATUS_LABELS, type RequirementStatus } from '@/lib/partner/types';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface DocumentRow {
   requirementId: string;
@@ -32,16 +33,17 @@ export default function PartnerDocumentsPage() {
   }, []);
 
   return (
-    <div>
-      <h1 className="font-bricolage text-2xl font-bold text-slate-900 mb-2">Documents</h1>
-      <p className="text-sm text-slate-500 mb-6">
-        Download Scope of Work and proposal documents for submitted requirements.
-      </p>
+    <div className="w-full space-y-6">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="Documents"
+        description="Download Scope of Work and proposal documents for submitted requirements."
+      />
 
       {loading ? (
         <p className="text-slate-500 text-sm">Loading documents…</p>
       ) : documents.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
           <Icon name="DocumentTextIcon" size={48} className="text-slate-300 mx-auto mb-4" />
           <p className="text-slate-600">No documents yet.</p>
           <p className="text-sm text-slate-500 mt-1">
@@ -49,13 +51,13 @@ export default function PartnerDocumentsPage() {
           </p>
           <Link
             href="/partner/packages"
-            className="inline-block mt-4 text-sm font-medium text-indigo-600 hover:text-indigo-800"
+            className="inline-block mt-4 text-sm font-medium text-secondary hover:text-secondary"
           >
             Select a package & start →
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
@@ -76,7 +78,7 @@ export default function PartnerDocumentsPage() {
               {documents.map((doc) => (
                 <tr key={doc.requirementId} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-3">
-                    <p className="font-mono text-xs text-indigo-600">{doc.referenceId}</p>
+                    <p className="font-mono text-xs text-secondary">{doc.referenceId}</p>
                     <p className="text-xs text-slate-400 mt-0.5 sm:hidden">
                       {doc.projectName || 'Untitled'}
                     </p>
@@ -86,10 +88,10 @@ export default function PartnerDocumentsPage() {
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span className="inline-flex items-center gap-1 text-slate-600">
-                      <Icon name="DocumentTextIcon" size={14} className="text-indigo-400" />
+                      <Icon name="DocumentTextIcon" size={14} className="text-slate-400" />
                       Scope of Work
                       {doc.proposalSentAt && (
-                        <span className="text-xs text-indigo-600 ml-1">+ Proposal</span>
+                        <span className="text-xs text-secondary ml-1">+ Proposal</span>
                       )}
                     </span>
                     {doc.proposalAmount && (
@@ -97,7 +99,7 @@ export default function PartnerDocumentsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-secondary">
                       {REQUIREMENT_STATUS_LABELS[doc.status as RequirementStatus] ?? doc.status}
                     </span>
                     <p className="text-xs text-slate-400 mt-1">
@@ -111,7 +113,7 @@ export default function PartnerDocumentsPage() {
                           href={doc.pdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary text-white hover:bg-secondary/90"
                         >
                           <Icon name="ArrowDownTrayIcon" size={14} />
                           PDF
@@ -119,7 +121,7 @@ export default function PartnerDocumentsPage() {
                       ) : (
                         <Link
                           href={`/partner/requirements/${doc.requirementId}`}
-                          className="text-xs text-indigo-600 hover:underline"
+                          className="text-xs text-secondary hover:underline"
                         >
                           View
                         </Link>

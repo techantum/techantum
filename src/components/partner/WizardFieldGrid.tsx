@@ -59,7 +59,7 @@ function WizardField({
   onChange: (key: string, value: unknown) => void;
 }) {
   const baseClass =
-    'w-full px-3 py-2.5 rounded-lg border text-sm transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-transparent';
+    'w-full px-3 py-2.5 rounded-lg border text-sm transition-colors focus:ring-2 focus:ring-secondary/20 focus:border-transparent';
   const inputClass = `${baseClass} ${error ? 'border-red-300 bg-red-50/30' : 'border-slate-200'}`;
 
   const isYesNo =
@@ -83,8 +83,8 @@ function WizardField({
                 onClick={() => onChange(q.question_key, opt)}
                 className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
                   selected
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                    ? 'bg-secondary text-white border-secondary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-secondary/50'
                 }`}
               >
                 {opt}
@@ -107,8 +107,8 @@ function WizardField({
                 onClick={() => onChange(q.question_key, opt)}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   selected
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                    ? 'bg-secondary text-white border-secondary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-secondary/50'
                 }`}
               >
                 {opt}
@@ -165,8 +165,8 @@ function WizardField({
                   }}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     selected
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                      ? 'bg-secondary text-white border-secondary'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-secondary/50'
                   }`}
                 >
                   {opt}

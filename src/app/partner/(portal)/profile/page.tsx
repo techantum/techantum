@@ -9,6 +9,7 @@ import {
   type PartnerUser,
 } from '@/lib/partner/types';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 export default function PartnerProfilePage() {
   const router = useRouter();
@@ -77,16 +78,17 @@ export default function PartnerProfilePage() {
 
   return (
     <div className="w-full space-y-6">
-      <div>
-        <h1 className="font-bricolage text-2xl font-bold text-slate-900">Partner Profile</h1>
-        <p className="text-sm text-slate-500 mt-1">Company details and portal branding.</p>
-      </div>
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="Partner profile"
+        description="Company details and portal branding."
+      />
 
       <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <p className="text-sm font-semibold text-slate-900 mb-1">Partner logo</p>
-        <p className="text-xs text-slate-500 mb-4">
-          This logo is shown on Partner Portal login, the left menu, and the dashboard.
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="mb-1 text-sm font-semibold text-slate-900">Partner logo</p>
+        <p className="mb-4 text-xs text-slate-500">
+          This logo is shown in the header, footer, and partner login.
         </p>
         <div className="flex items-center gap-4 mb-4">
           <span className="flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-w-[96px] min-h-[72px]">
@@ -133,7 +135,7 @@ export default function PartnerProfilePage() {
         ) : null}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+      <div className="divide-y divide-slate-100 rounded-3xl border border-slate-200 bg-white shadow-sm">
         {[
           ['Partner ID', partner.partner_code],
           ['Company', partner.company_name],

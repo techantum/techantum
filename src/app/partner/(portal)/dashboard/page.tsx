@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatCard from '@/components/admin/AdminStatCard';
 import {
   REQUIREMENT_STATUS_LABELS,
   type Partner,
@@ -11,7 +13,6 @@ import {
   type RequirementStatus,
 } from '@/lib/partner/types';
 import { partnerHasNavAccess } from '@/lib/partner/nav';
-import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
 
 interface Activity {
   id: string;
@@ -36,18 +37,18 @@ const STATUS_COLORS: Record<string, string> = {
   submitted: 'bg-blue-100 text-blue-800',
   under_review: 'bg-purple-100 text-purple-800',
   need_clarification: 'bg-amber-100 text-amber-800',
-  proposal_sent: 'bg-indigo-100 text-indigo-800',
+  proposal_sent: 'bg-orange-50 text-secondary',
   approved: 'bg-green-100 text-green-800',
   won: 'bg-emerald-100 text-emerald-800',
 };
 
 const STAT_CARDS = [
-  { key: 'total', label: 'Total Requirements', icon: 'ClipboardDocumentListIcon', color: 'text-indigo-600' },
-  { key: 'draft', label: 'Draft Requirements', icon: 'PencilSquareIcon', color: 'text-slate-600' },
-  { key: 'submitted', label: 'Submitted', icon: 'PaperAirplaneIcon', color: 'text-blue-600' },
-  { key: 'under_review', label: 'Under Review', icon: 'MagnifyingGlassIcon', color: 'text-purple-600' },
-  { key: 'approved', label: 'Approved / Won', icon: 'CheckBadgeIcon', color: 'text-green-600' },
-  { key: 'converted', label: 'Converted Projects', icon: 'RocketLaunchIcon', color: 'text-emerald-600' },
+  { key: 'total', label: 'Total requirements', icon: 'ClipboardDocumentListIcon', accent: 'default' as const },
+  { key: 'draft', label: 'Draft requirements', icon: 'PencilSquareIcon', accent: 'violet' as const },
+  { key: 'submitted', label: 'Submitted', icon: 'PaperAirplaneIcon', accent: 'blue' as const },
+  { key: 'under_review', label: 'Under review', icon: 'MagnifyingGlassIcon', accent: 'amber' as const },
+  { key: 'approved', label: 'Approved / won', icon: 'CheckBadgeIcon', accent: 'green' as const },
+  { key: 'converted', label: 'Converted projects', icon: 'RocketLaunchIcon', accent: 'green' as const },
 ] as const;
 
 function formatAction(action: string): string {
@@ -81,11 +82,11 @@ export default function PartnerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-slate-200 rounded w-64" />
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="animate-pulse space-y-6">
+        <div className="h-8 w-64 rounded bg-slate-200" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-24 bg-slate-200 rounded-xl" />
+            <div key={i} className="h-24 rounded-2xl bg-slate-200" />
           ))}
         </div>
       </div>
@@ -98,87 +99,67 @@ export default function PartnerDashboardPage() {
   const canUseLeadDiscovery = partnerUser ? partnerHasNavAccess(partnerUser, 'lead-discovery', partner) : false;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-start gap-4 min-w-0">
-          {partner ? (
-            <span className="hidden sm:flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-3 shrink-0">
-              <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="lg" />
-            </span>
-          ) : null}
-          <div className="min-w-0">
-            {partner ? (
-              <p className="text-sm font-medium text-indigo-600 mb-1 truncate">{partner.company_name}</p>
-            ) : null}
-            <h1 className="font-bricolage text-2xl font-bold text-slate-900">
-              Welcome back, {firstName}!
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Here&apos;s what&apos;s happening with your requirements and projects.
-            </p>
-          </div>
-        </div>
-        {canCreateRequirement ? (
-          <Link
-            href="/partner/requirements/new"
-            className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
-          >
-            <Icon name="PlusIcon" size={18} />
-            New Requirement
-          </Link>
-        ) : null}
-      </div>
+    <div className="w-full space-y-8">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title={`Welcome back, ${firstName}`}
+        description="Here's what's happening with your requirements and projects."
+        action={
+          canCreateRequirement ? (
+            <Link
+              href="/partner/requirements/new"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
+            >
+              <Icon name="PlusIcon" size={18} />
+              New requirement
+            </Link>
+          ) : null
+        }
+      />
 
       {canUseLeadDiscovery ? (
         <Link
           href="/partner/lead-discovery"
-          className="flex items-center justify-between gap-4 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 hover:bg-indigo-100"
+          className="flex items-center justify-between gap-4 rounded-3xl border border-orange-200 bg-orange-50 px-5 py-4 hover:bg-orange-100"
         >
           <div>
-            <p className="font-semibold text-indigo-950">Lead Discovery</p>
-            <p className="text-sm text-indigo-700 mt-0.5">Search Google Maps businesses and export lead lists.</p>
+            <p className="font-semibold text-slate-900">Lead discovery</p>
+            <p className="mt-0.5 text-sm text-slate-600">Search Google Maps businesses and export lead lists.</p>
           </div>
-          <Icon name="MagnifyingGlassCircleIcon" size={28} className="text-indigo-600 shrink-0" />
+          <Icon name="MagnifyingGlassCircleIcon" size={28} className="shrink-0 text-secondary" />
         </Link>
       ) : null}
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
         {STAT_CARDS.map((card) => (
-          <div
+          <AdminStatCard
             key={card.key}
-            className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-sm transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Icon name={card.icon as any} size={18} className={card.color} />
-              <span className="text-xs text-slate-500 font-medium">{card.label}</span>
-            </div>
-            <p className="text-2xl font-bold text-slate-900">
-              {stats ? stats[card.key as keyof PartnerDashboardStats] : 0}
-            </p>
-          </div>
+            label={card.label}
+            value={stats ? stats[card.key as keyof PartnerDashboardStats] : 0}
+            icon={card.icon}
+            accent={card.accent}
+          />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent requirements */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">Recent Requirements</h2>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <h2 className="font-bricolage font-semibold text-slate-900">Recent requirements</h2>
             {canViewRequirements ? (
-              <Link href="/partner/requirements" className="text-xs text-indigo-600 hover:underline">
-                View All
+              <Link href="/partner/requirements" className="text-xs font-semibold text-secondary hover:underline">
+                View all
               </Link>
             ) : null}
           </div>
           {recentRequirements.length === 0 ? (
             <div className="p-8 text-center">
-              <Icon name="ClipboardDocumentListIcon" size={40} className="text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500 mb-4">No requirements yet.</p>
+              <Icon name="ClipboardDocumentListIcon" size={40} className="mx-auto mb-3 text-slate-300" />
+              <p className="mb-4 text-sm text-slate-500">No requirements yet.</p>
               {canCreateRequirement ? (
                 <Link
                   href="/partner/requirements/new"
-                  className="text-sm text-indigo-600 hover:underline font-medium"
+                  className="text-sm font-medium text-secondary hover:underline"
                 >
                   Create your first requirement →
                 </Link>
@@ -188,7 +169,7 @@ export default function PartnerDashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-slate-500 border-b border-slate-100">
+                  <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
                     <th className="px-5 py-3 font-medium">Reference</th>
                     <th className="px-5 py-3 font-medium">Project</th>
                     <th className="px-5 py-3 font-medium">Package</th>
@@ -199,16 +180,12 @@ export default function PartnerDashboardPage() {
                 <tbody>
                   {recentRequirements.map((req) => (
                     <tr key={req.id} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="px-5 py-3 font-mono text-xs text-indigo-600">
-                        {req.reference_id}
-                      </td>
+                      <td className="px-5 py-3 font-mono text-xs text-secondary">{req.reference_id}</td>
                       <td className="px-5 py-3">{req.project_name || '—'}</td>
-                      <td className="px-5 py-3 text-slate-500">
-                        {req.partner_packages?.name || '—'}
-                      </td>
+                      <td className="px-5 py-3 text-slate-500">{req.partner_packages?.name || '—'}</td>
                       <td className="px-5 py-3">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                             STATUS_COLORS[req.status] || 'bg-slate-100 text-slate-700'
                           }`}
                         >
@@ -226,23 +203,20 @@ export default function PartnerDashboardPage() {
           )}
         </div>
 
-        {/* Recent activity */}
-        <div className="bg-white rounded-xl border border-slate-200">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">Recent Activity</h2>
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-bricolage font-semibold text-slate-900">Recent activity</h2>
           </div>
-          <div className="p-4 space-y-4">
+          <div className="space-y-4 p-4">
             {activities.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">No activity yet.</p>
+              <p className="py-4 text-center text-sm text-slate-400">No activity yet.</p>
             ) : (
               activities.map((act) => (
                 <div key={act.id} className="flex gap-3">
-                  <div className="w-2 h-2 rounded-full bg-indigo-400 mt-2 shrink-0" />
+                  <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-secondary" />
                   <div>
                     <p className="text-sm text-slate-700">{formatAction(act.action)}</p>
-                    <p className="text-xs text-slate-400">
-                      {new Date(act.created_at).toLocaleString('en-IN')}
-                    </p>
+                    <p className="text-xs text-slate-400">{new Date(act.created_at).toLocaleString('en-IN')}</p>
                   </div>
                 </div>
               ))
@@ -250,20 +224,6 @@ export default function PartnerDashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Partner info footer */}
-      {partner && (
-        <div className="bg-indigo-50 rounded-xl p-4 flex flex-wrap items-center gap-4 text-sm">
-          <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
-          <span className="font-mono font-semibold text-indigo-800">{partner.partner_code}</span>
-          <span className="text-indigo-600">{partner.company_name}</span>
-          {partner.joined_at && (
-            <span className="text-indigo-500 text-xs">
-              Joined {new Date(partner.joined_at).toLocaleDateString('en-IN')}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }

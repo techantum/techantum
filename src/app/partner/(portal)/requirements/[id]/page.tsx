@@ -54,18 +54,18 @@ function RequirementDetailContent() {
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-sm text-indigo-600">{String(req.reference_id)}</p>
+          <p className="font-mono text-sm text-secondary">{String(req.reference_id)}</p>
           <h1 className="font-bricolage text-2xl font-bold text-slate-900 mt-1">
             {String(req.project_name || 'Untitled Project')}
           </h1>
-          <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+          <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-secondary">
             {REQUIREMENT_STATUS_LABELS[status]}
           </span>
         </div>
         {status === 'draft' && (
           <Link
             href={`/partner/requirements/new?draft=${id}`}
-            className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 hover:bg-slate-50"
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50"
           >
             Continue Editing
           </Link>
@@ -109,22 +109,22 @@ function RequirementDetailContent() {
       )}
 
       {Boolean(req.proposal_sent_at) && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5">
-          <h2 className="font-semibold text-indigo-900 mb-3">Project Proposal</h2>
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
+          <h2 className="font-semibold text-slate-900 mb-3">Project Proposal</h2>
           <div className="grid grid-cols-2 gap-4 text-sm mb-3">
             <div>
-              <p className="text-indigo-600 text-xs">Estimated Investment</p>
-              <p className="font-medium text-indigo-950">{String(req.proposal_amount || '—')}</p>
+              <p className="text-secondary text-xs">Estimated Investment</p>
+              <p className="font-medium text-slate-900">{String(req.proposal_amount || '—')}</p>
             </div>
             <div>
-              <p className="text-indigo-600 text-xs">Timeline</p>
-              <p className="font-medium text-indigo-950">{String(req.proposal_timeline || '—')}</p>
+              <p className="text-secondary text-xs">Timeline</p>
+              <p className="font-medium text-slate-900">{String(req.proposal_timeline || '—')}</p>
             </div>
           </div>
           {req.proposal_summary ? (
-            <p className="text-sm text-indigo-900 whitespace-pre-wrap">{String(req.proposal_summary)}</p>
+            <p className="text-sm text-slate-900 whitespace-pre-wrap">{String(req.proposal_summary)}</p>
           ) : null}
-          <p className="text-xs text-indigo-600 mt-3">
+          <p className="text-xs text-secondary mt-3">
             Sent {new Date(String(req.proposal_sent_at)).toLocaleDateString('en-IN')}
           </p>
         </div>
@@ -164,7 +164,7 @@ function RequirementDetailContent() {
         </details>
       )}
 
-      <Link href="/partner/requirements" className="text-sm text-slate-500 hover:text-indigo-600">
+      <Link href="/partner/requirements" className="text-sm text-slate-500 hover:text-secondary">
         ← Back to requirements
       </Link>
     </div>

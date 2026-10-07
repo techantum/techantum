@@ -48,54 +48,43 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
   const isActive = (href: string) =>
     pathname === href || (href !== '/partner/dashboard' && (pathname?.startsWith(href) ?? false));
 
-  const pageLabel =
-    visiblePartnerNavItems(partnerUser, partner).find((item) => isActive(item.href))?.label ||
-    (pathname?.startsWith('/partner/profile')
-      ? 'Partner Profile'
-      : pathname?.startsWith('/partner/notifications')
-        ? 'Notifications'
-        : 'Dashboard');
-
   const sidebar = (
-    <div className="flex flex-col h-full bg-[#1e1b4b] text-white">
-      <div className="px-5 py-6 border-b border-white/10">
-        <Link href="/partner/dashboard" className="block">
-          <span className="flex items-center justify-center rounded-xl bg-white px-3 py-3">
-            <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="md" />
-          </span>
-          <p className="font-bricolage font-semibold text-sm tracking-tight mt-3 truncate">{partner.company_name}</p>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-300 mt-0.5">
-            Partner Portal
-          </p>
-        </Link>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {visiblePartnerNavItems(partnerUser, partner).map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-              isActive(item.href)
-                ? 'bg-indigo-500/30 text-white'
-                : 'text-indigo-200 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <Icon name={item.icon as any} size={20} className="shrink-0 opacity-80" />
-            {item.label}
-          </Link>
-        ))}
+    <div className="flex h-full flex-col overflow-hidden bg-white text-slate-800">
+      <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        {visiblePartnerNavItems(partnerUser, partner).map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                active
+                  ? 'bg-secondary font-medium text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+              }`}
+            >
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                  active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                <Icon name={item.icon as any} size={16} />
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
-      <div className="px-4 py-4 border-t border-white/10 mx-3 mb-3 rounded-xl bg-white/5">
-        <p className="text-[10px] uppercase tracking-wider text-indigo-300 mb-1">Partner ID</p>
-        <p className="font-mono text-xs font-semibold text-white mb-2">{partner.partner_code}</p>
-        <p className="text-xs text-indigo-200">{PARTNER_TIER_LABELS[partner.tier]}</p>
+      <div className="mx-3 mb-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Partner ID</p>
+        <p className="mt-1 font-mono text-xs font-semibold text-slate-900">{partner.partner_code}</p>
+        <p className="mt-1 text-xs text-slate-500">{PARTNER_TIER_LABELS[partner.tier]}</p>
         <Link
           href="/partner/profile"
-          className="mt-3 block text-center text-xs font-medium text-indigo-300 hover:text-white transition-colors py-1.5 rounded-lg border border-white/10 hover:border-white/20"
+          className="mt-3 block rounded-full border border-slate-200 bg-white py-1.5 text-center text-xs font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
         >
-          View Partner Profile
+          View partner profile
         </Link>
       </div>
     </div>
@@ -103,89 +92,100 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
 
   return (
     <PartnerAccessContext.Provider value={{ partner, partnerUser }}>
-      <div className="min-h-screen bg-slate-50">
-      {/* Mobile header */}
-      <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between">
-        <Link href="/partner/dashboard" className="flex items-center gap-2 min-w-0">
-          <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
-          <span className="font-bricolage font-bold text-[#1e1b4b] truncate">{partner.company_name}</span>
-        </Link>
-        <button
-          type="button"
-          onClick={() => setSidebarOpen((o) => !o)}
-          className="p-2 rounded-lg border border-slate-200"
-        >
-          <Icon name="Bars3Icon" size={20} />
-        </button>
-      </div>
+      <div className="admin-shell min-h-screen bg-slate-50">
+        <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((open) => !open)}
+              className="rounded-full bg-secondary px-3 py-1.5 text-sm font-semibold text-white lg:hidden"
+              aria-expanded={sidebarOpen}
+            >
+              {sidebarOpen ? 'Close' : 'Menu'}
+            </button>
+            <Link href="/partner/dashboard" className="flex min-w-0 items-center" aria-label={partner.company_name}>
+              <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="md" />
+            </Link>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 md:inline-flex">
+              {PARTNER_TIER_LABELS[partner.tier]}
+            </span>
+            <Link
+              href="/partner/notifications"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:border-secondary/40 hover:text-secondary"
+              aria-label="Notifications"
+            >
+              <Icon name="BellIcon" size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/"
+              target="_blank"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
+            >
+              <Icon name="ArrowTopRightOnSquareIcon" size={16} />
+              <span className="hidden sm:inline">View live site</span>
+            </Link>
+            <div className="hidden items-center gap-2 pl-1 sm:flex">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-white">
+                {partnerUser.full_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden text-right lg:block">
+                <p className="text-sm font-medium text-slate-900">{partnerUser.full_name}</p>
+                <p className="text-xs text-slate-500">{partnerUser.email}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+            >
+              <Icon name="ArrowRightOnRectangleIcon" size={16} />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
+        </header>
 
-      {sidebarOpen && (
-        <button
-          type="button"
-          className="lg:hidden fixed inset-0 z-40 bg-black/50"
-          aria-label="Close menu"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] lg:hidden"
+            aria-label="Close menu"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-      <div className="lg:flex min-h-screen">
-        <aside
-          className={`fixed lg:sticky top-0 z-50 lg:z-auto h-full lg:h-screen w-64 shrink-0 transform transition-transform duration-200 ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          }`}
-        >
-          {sidebar}
-        </aside>
+        <div className="min-h-[calc(100vh-4rem)] lg:flex">
+          <aside
+            className={`fixed bottom-0 top-16 z-50 w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] ${
+              sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            }`}
+          >
+            {sidebar}
+          </aside>
 
-        <div className="flex-1 min-w-0 flex flex-col">
-          {/* Top bar */}
-          <header className="hidden lg:flex items-center justify-between bg-white border-b border-slate-200 px-6 h-14 shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <main className="w-full min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
+              <div className="w-full min-w-0">{children}</div>
+            </main>
+            <footer className="mt-auto flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm sm:px-6 lg:px-8">
               <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">{pageLabel}</p>
-                <p className="text-xs text-slate-500 truncate">{partner.company_name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/" target="_blank" className="text-sm text-slate-500 hover:text-indigo-600">
-                techantum.com ↗
-              </Link>
-              <Link
-                href="/partner/notifications"
-                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600"
-                aria-label="Notifications"
-              >
-                <Icon name="BellIcon" size={20} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Link>
-              <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm">
-                  {partnerUser.full_name.charAt(0).toUpperCase()}
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-slate-900">{partnerUser.full_name}</p>
-                  <p className="text-xs text-slate-500">{PARTNER_TIER_LABELS[partner.tier]}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="ml-2 text-xs text-slate-500 hover:text-red-600"
-                >
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+              <span className="font-mono text-xs font-semibold text-slate-800">{partner.partner_code}</span>
+              <span className="text-slate-500">{partner.company_name}</span>
+              {partner.joined_at ? (
+                <span className="text-xs text-slate-400">
+                  Joined {new Date(partner.joined_at).toLocaleDateString('en-IN')}
+                </span>
+              ) : null}
+            </footer>
+          </div>
         </div>
       </div>
-    </div>
     </PartnerAccessContext.Provider>
   );
 }

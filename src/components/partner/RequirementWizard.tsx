@@ -415,7 +415,7 @@ export default function RequirementWizard({
                 }}
                 disabled={skipped || s.step > step}
                 className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${
-                  step === s.step ? 'bg-indigo-50' : ''
+                  step === s.step ? 'bg-orange-50' : ''
                 } ${skipped ? 'opacity-40 cursor-not-allowed' : s.step <= step ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
               >
                 <span
@@ -423,9 +423,9 @@ export default function RequirementWizard({
                     skipped
                       ? 'bg-slate-100 text-slate-300 line-through'
                       : step === s.step
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-secondary text-white'
                       : step > s.step
-                        ? 'bg-indigo-100 text-indigo-700'
+                        ? 'bg-orange-50 text-secondary'
                         : 'bg-slate-100 text-slate-400'
                   }`}
                 >
@@ -516,10 +516,10 @@ export default function RequirementWizard({
               </p>
 
               {selectedPackage && selectedCategory && (
-                <div className="mb-6 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50/60 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
                         Selected Plan
                       </p>
                       <p className="font-semibold text-slate-900 mt-0.5">
@@ -530,7 +530,7 @@ export default function RequirementWizard({
                       )}
                     </div>
                     {serviceInfo && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-white border border-indigo-200 text-indigo-700">
+                      <span className="text-xs px-2 py-1 rounded-full bg-white border border-orange-200 text-secondary">
                         {serviceInfo.description.slice(0, 60)}…
                       </span>
                     )}
@@ -569,24 +569,24 @@ export default function RequirementWizard({
                       onClick={() => toggleModule(mod.key)}
                       className={`relative text-left p-4 rounded-xl border-2 transition-all ${
                         selected
-                          ? 'border-indigo-600 bg-indigo-50/50'
-                          : 'border-slate-200 hover:border-indigo-200'
+                          ? 'border-secondary bg-orange-50/70'
+                          : 'border-slate-200 hover:border-secondary/40'
                       }`}
                     >
                       {selected && (
-                        <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                        <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-secondary text-white flex items-center justify-center">
                           <Icon name="CheckIcon" size={12} />
                         </span>
                       )}
                       {inPlan && !selected && (
-                        <span className="absolute top-3 right-3 text-[10px] font-medium text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">
+                        <span className="absolute top-3 right-3 text-[10px] font-medium text-secondary bg-orange-50 px-1.5 py-0.5 rounded">
                           In plan
                         </span>
                       )}
                       <Icon
                         name={mod.icon as 'DocumentTextIcon'}
                         size={22}
-                        className={selected ? 'text-indigo-600' : 'text-slate-400'}
+                        className={selected ? 'text-secondary' : 'text-slate-400'}
                       />
                       <p className="font-semibold text-slate-900 mt-2 text-sm">{mod.label}</p>
                       <p className="text-xs text-slate-500 mt-1 leading-relaxed">{mod.description}</p>
@@ -606,7 +606,7 @@ export default function RequirementWizard({
                   onChange={(e) => setCustomRequirements(e.target.value)}
                   placeholder="e.g. Client needs WhatsApp lead routing, multilingual support, or has concerns about migration downtime…"
                   rows={3}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-secondary/20"
                 />
               </div>
             </>
@@ -622,7 +622,7 @@ export default function RequirementWizard({
                     onClick={() => setFunctionalGroup(group)}
                     className={`whitespace-nowrap text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       functionalGroup === group
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-secondary text-white'
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -632,7 +632,7 @@ export default function RequirementWizard({
               </nav>
               <div className="flex-1 min-w-0">
                 {engagementType && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-secondary mb-1">
                     {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name}
                   </p>
                 )}
@@ -665,13 +665,13 @@ export default function RequirementWizard({
                 <div key={section.title} className="border border-slate-200 rounded-xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
                     <div className="flex items-center gap-2">
-                      <Icon name="ClipboardDocumentListIcon" size={18} className="text-indigo-600" />
+                      <Icon name="ClipboardDocumentListIcon" size={18} className="text-secondary" />
                       <span className="font-medium text-slate-900">{section.title}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setStep(section.step)}
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                      className="text-xs font-medium text-secondary hover:text-secondary"
                     >
                       Edit
                     </button>
@@ -700,7 +700,7 @@ export default function RequirementWizard({
                       });
                     }
                   }}
-                  className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="mt-0.5 rounded border-slate-300 text-secondary focus:ring-secondary/20"
                 />
                 <span className="text-sm text-slate-700">
                   I confirm that the information provided is accurate and complete to the best of my knowledge.
@@ -730,7 +730,7 @@ export default function RequirementWizard({
               <button
                 type="button"
                 onClick={goNext}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                className="rounded-full px-6 py-2.5 text-sm font-semibold bg-secondary text-white hover:bg-secondary/90"
               >
                 Save & Next
               </button>
@@ -739,7 +739,7 @@ export default function RequirementWizard({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold bg-secondary text-white hover:bg-secondary/90 disabled:opacity-50"
               >
                 {submitting ? (
                   <>
@@ -767,11 +767,11 @@ export default function RequirementWizard({
           {selectedPackage && selectedCategory ? (
             <>
               <p className="font-semibold text-slate-900">{selectedCategory.name}</p>
-              <p className="text-sm text-indigo-600 font-medium mt-0.5">{selectedPackage.name}</p>
+              <p className="text-sm text-secondary font-medium mt-0.5">{selectedPackage.name}</p>
               <p className="text-xs text-slate-500 mt-2 leading-relaxed">{selectedPackage.tagline}</p>
               <Link
                 href={`/partner/packages?division=${divisionSlug}`}
-                className="inline-block mt-3 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                className="inline-block mt-3 text-xs font-medium text-secondary hover:text-secondary"
               >
                 Change Plan
               </Link>
@@ -783,8 +783,8 @@ export default function RequirementWizard({
         </div>
 
         {engagementType && (
-          <div className="bg-white rounded-xl border border-indigo-200 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-2">
+          <div className="bg-white rounded-xl border border-orange-200 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
               Requirement Type
             </p>
             <p className="font-semibold text-slate-900">
@@ -796,11 +796,11 @@ export default function RequirementWizard({
           </div>
         )}
 
-        <div className="bg-indigo-50 rounded-xl border border-indigo-100 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-2">
+        <div className="bg-orange-50 rounded-xl border border-orange-100 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             Why we need this
           </p>
-          <p className="text-sm text-indigo-900 leading-relaxed">
+          <p className="text-sm text-slate-900 leading-relaxed">
             Our goal is to understand your client&apos;s pain points clearly so we can propose the right solution — answer only what you know; you can clarify details later via Quick Chat.
           </p>
         </div>
@@ -821,7 +821,7 @@ export default function RequirementWizard({
                       : step > s.step
                       ? 'bg-green-100 text-green-700'
                       : step === s.step
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-secondary text-white'
                         : 'bg-slate-100 text-slate-400'
                   }`}
                 >

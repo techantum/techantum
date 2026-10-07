@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import type { PartnerCatalogCategory, PartnerCatalogPackage } from '@/lib/partner/service-catalog';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 function CellValue({ value }: { value: string }) {
   if (value === '✓') {
@@ -74,15 +75,12 @@ export default function PackageComparison() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-bricolage text-2xl font-bold text-slate-900 mb-1">
-          Select the Right Plan for Your Client
-        </h1>
-        <p className="text-sm text-slate-500">
-          Compare Website, Web App, and Mobile packages — same plans as on techantum.com/services.
-        </p>
-      </div>
+    <div className="w-full space-y-6">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="Select the right plan for your client"
+        description="Compare Website, Web App, and Mobile packages — same plans as on techantum.com/services."
+      />
 
       <div className="flex flex-wrap gap-2">
         {catalog.map((cat) => (
@@ -95,14 +93,14 @@ export default function PackageComparison() {
             }}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border-2 ${
               activeDivision === cat.slug
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+                ? 'border-secondary bg-orange-50 text-slate-900'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-secondary/40'
             }`}
           >
             <Icon
               name={(DIVISION_ICONS[cat.slug] ?? 'CubeIcon') as 'CubeIcon'}
               size={18}
-              className={activeDivision === cat.slug ? 'text-indigo-600' : 'text-slate-400'}
+              className={activeDivision === cat.slug ? 'text-secondary' : 'text-slate-400'}
             />
             {cat.name}
           </button>
@@ -113,7 +111,7 @@ export default function PackageComparison() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p className="text-sm text-slate-500">{activeCategory.description}</p>
           {activeCategory.packagesHeadline && (
-            <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full shrink-0">
+            <span className="text-xs font-semibold uppercase tracking-wide text-secondary bg-orange-50 px-3 py-1 rounded-full shrink-0">
               {activeCategory.packagesHeadline}
             </span>
           )}
@@ -132,7 +130,7 @@ export default function PackageComparison() {
                   <th
                     key={pkg.id}
                     className={`text-center px-4 py-4 border-b min-w-[160px] ${
-                      pkg.is_highlighted ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-800'
+                      pkg.is_highlighted ? 'bg-secondary text-white' : 'bg-slate-50 text-slate-800'
                     }`}
                   >
                     <div className="space-y-2">
@@ -142,11 +140,11 @@ export default function PackageComparison() {
                         </span>
                       )}
                       <p className="font-bricolage text-lg font-bold">{pkg.name}</p>
-                      <p className={`text-xs font-normal ${pkg.is_highlighted ? 'text-indigo-100' : 'text-slate-500'}`}>
+                      <p className={`text-xs font-normal ${pkg.is_highlighted ? 'text-white/80' : 'text-slate-500'}`}>
                         {pkg.best_for}
                       </p>
                       {pkg.scope && (
-                        <p className={`text-[10px] ${pkg.is_highlighted ? 'text-indigo-100' : 'text-slate-400'}`}>
+                        <p className={`text-[10px] ${pkg.is_highlighted ? 'text-white/80' : 'text-slate-400'}`}>
                           {pkg.scope}
                         </p>
                       )}
@@ -156,11 +154,11 @@ export default function PackageComparison() {
                         className={`w-full mt-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
                           selectedPackageId === pkg.id
                             ? pkg.is_highlighted
-                              ? 'bg-white text-indigo-700'
-                              : 'bg-indigo-600 text-white'
+                              ? 'bg-white text-secondary'
+                              : 'bg-secondary text-white'
                             : pkg.is_highlighted
-                              ? 'bg-indigo-500 text-white hover:bg-indigo-400 border border-white/30'
-                              : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50'
+                              ? 'bg-white/20 text-white hover:bg-white/30 border border-white/30'
+                              : 'bg-white text-secondary border border-orange-200 hover:bg-orange-50'
                         }`}
                       >
                         {selectedPackageId === pkg.id ? '✓ Selected' : 'Select Plan'}
@@ -180,7 +178,7 @@ export default function PackageComparison() {
                     <td
                       key={pkg.id}
                       className={`text-center px-4 py-3 border-b border-slate-100 ${
-                        pkg.is_highlighted ? 'bg-indigo-50/40' : ''
+                        pkg.is_highlighted ? 'bg-orange-50/60' : ''
                       }`}
                     >
                       <CellValue value={row.values[pkg.slug] ?? '—'} />
@@ -226,7 +224,7 @@ export default function PackageComparison() {
           {selectedPackageId && activeDivision ? (
             <Link
               href={`/partner/requirements/new?division=${activeDivision}&plan=${selectedPackage?.slug ?? ''}`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold bg-secondary text-white hover:bg-secondary/90"
             >
               Continue to Requirements
               <Icon name="ArrowRightIcon" size={16} />

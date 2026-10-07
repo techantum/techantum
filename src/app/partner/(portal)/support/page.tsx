@@ -1,16 +1,22 @@
 import Icon from '@/components/ui/AppIcon';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 export default function PartnerSupportPage() {
   return (
-    <div className="w-full">
-      <h1 className="font-bricolage text-2xl font-bold text-slate-900 mb-2">Partner Support</h1>
-      <p className="text-slate-500 mb-6">Get help with the Partner Portal and requirement submissions.</p>
+    <div className="w-full space-y-6">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="Partner support"
+        description="Get help with the partner portal and requirement submissions."
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <a
           href="mailto:info@techantum.com"
-          className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-secondary/40"
         >
-          <Icon name="EnvelopeIcon" size={24} className="text-indigo-600" />
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-white">
+            <Icon name="EnvelopeIcon" size={20} />
+          </span>
           <div>
             <p className="font-medium text-slate-900">Email Support</p>
             <p className="text-sm text-slate-500">info@techantum.com</p>
@@ -18,9 +24,11 @@ export default function PartnerSupportPage() {
         </a>
         <a
           href="mailto:sales@techantum.com"
-          className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-secondary/40"
         >
-          <Icon name="PhoneIcon" size={24} className="text-indigo-600" />
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-white">
+            <Icon name="PhoneIcon" size={20} />
+          </span>
           <div>
             <p className="font-medium text-slate-900">Sales Team</p>
             <p className="text-sm text-slate-500">sales@techantum.com</p>

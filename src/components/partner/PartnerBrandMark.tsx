@@ -33,7 +33,7 @@ export default function PartnerBrandMark({
 
   return (
     <div
-      className={`${FALLBACK_SIZE[size]} rounded-xl bg-indigo-100 text-indigo-700 font-bricolage font-bold flex items-center justify-center ${className}`}
+      className={`${FALLBACK_SIZE[size]} flex items-center justify-center rounded-xl bg-brand-gradient font-bricolage font-bold text-white ${className}`}
       aria-label={name}
     >
       {name.charAt(0).toUpperCase()}

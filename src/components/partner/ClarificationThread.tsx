@@ -184,7 +184,7 @@ export default function ClarificationThread({
                           className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                             isAdmin
                               ? 'bg-white border border-amber-200 rounded-tl-sm'
-                              : 'bg-indigo-600 text-white rounded-tr-sm'
+                              : 'bg-secondary text-white rounded-tr-sm'
                           }`}
                         >
                           <p className={`whitespace-pre-wrap leading-relaxed ${isAdmin ? 'text-slate-800' : ''}`}>
@@ -198,7 +198,7 @@ export default function ClarificationThread({
                         </p>
                       </div>
                       {!isAdmin && (
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-orange-50 text-secondary flex items-center justify-center text-xs font-bold shrink-0">
                           {msg.author_name.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -218,14 +218,14 @@ export default function ClarificationThread({
             onChange={(e) => setReply(e.target.value)}
             rows={compact ? 2 : 3}
             placeholder={placeholder}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-secondary/20 resize-none"
           />
           <div className="flex items-center justify-between">
             <p className="text-[10px] text-slate-400">Messages are saved in this requirement thread</p>
             <button
               type="submit"
               disabled={sending || !reply.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-secondary text-white hover:bg-secondary/90 disabled:opacity-50"
             >
               {sending ? 'Sending…' : replyLabel}
             </button>

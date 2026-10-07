@@ -32,7 +32,7 @@ export default function RequirementQuickChat({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-colors"
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full bg-secondary text-white shadow-lg hover:bg-secondary/90 transition-colors"
           aria-label="Open quick chat"
         >
           <Icon name="ChatBubbleLeftRightIcon" size={20} />
@@ -85,8 +85,8 @@ export default function RequirementQuickChat({
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
-            <Icon name="ChatBubbleLeftRightIcon" size={18} className="text-indigo-600" />
+          <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center">
+            <Icon name="ChatBubbleLeftRightIcon" size={18} className="text-secondary" />
           </div>
           <div className="text-left">
             <p className="font-semibold text-slate-900">Quick Chat</p>

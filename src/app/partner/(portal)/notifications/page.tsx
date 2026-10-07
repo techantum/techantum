@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import type { PartnerNotification } from '@/lib/partner/notifications';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 export default function PartnerNotificationsPage() {
   const [notifications, setNotifications] = useState<PartnerNotification[]>([]);
@@ -40,27 +41,28 @@ export default function PartnerNotificationsPage() {
   };
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-bricolage text-2xl font-bold text-slate-900">Notifications</h1>
-          <p className="text-sm text-slate-500 mt-1">Updates on your requirements and proposals.</p>
-        </div>
-        {notifications.some((n) => !n.read_at) && (
-          <button
-            type="button"
-            onClick={markAllRead}
-            className="text-sm text-indigo-600 hover:underline"
-          >
-            Mark all read
-          </button>
-        )}
-      </div>
+    <div className="w-full space-y-6">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="Notifications"
+        description="Updates on your requirements and proposals."
+        action={
+          notifications.some((n) => !n.read_at) ? (
+            <button
+              type="button"
+              onClick={markAllRead}
+              className="text-sm font-semibold text-secondary hover:underline"
+            >
+              Mark all read
+            </button>
+          ) : null
+        }
+      />
 
       {loading ? (
         <p className="text-slate-500 text-sm">Loading…</p>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
           <Icon name="BellIcon" size={40} className="text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600">No notifications yet.</p>
         </div>
@@ -69,8 +71,8 @@ export default function PartnerNotificationsPage() {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`bg-white rounded-xl border p-4 ${
-                n.read_at ? 'border-slate-200' : 'border-indigo-300 bg-indigo-50/30'
+              className={`rounded-3xl border bg-white p-4 shadow-sm ${
+                n.read_at ? 'border-slate-200' : 'border-orange-200 bg-orange-50/50'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -85,7 +87,7 @@ export default function PartnerNotificationsPage() {
                   <button
                     type="button"
                     onClick={() => markRead(n.id)}
-                    className="text-xs text-indigo-600 hover:underline shrink-0"
+                    className="text-xs text-secondary hover:underline shrink-0"
                   >
                     Mark read
                   </button>
@@ -94,7 +96,7 @@ export default function PartnerNotificationsPage() {
               {n.link && (
                 <Link
                   href={n.link}
-                  className="inline-block mt-3 text-sm text-indigo-600 hover:underline"
+                  className="inline-block mt-3 text-sm text-secondary hover:underline"
                   onClick={() => !n.read_at && markRead(n.id)}
                 >
                   View details →

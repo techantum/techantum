@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
+import AuthSplitShell from '@/components/auth/AuthSplitShell';
 
 export default function PartnerForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -46,65 +47,73 @@ export default function PartnerForgotPasswordPage() {
     setLoading(false);
   };
 
+  const displayName = branding?.company_name || 'Partner portal';
+  const logo = (
+    <span className="inline-flex items-center rounded-2xl bg-white px-4 py-2 shadow-sm ring-1 ring-black/5">
+      <PartnerBrandMark logoUrl={branding?.logo_url} companyName={displayName} size="md" />
+    </span>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1e1b4b] via-indigo-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/partner/login" className="inline-flex flex-col items-center">
-            <span className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 shadow-lg">
-              <PartnerBrandMark logoUrl={branding?.logo_url} companyName={branding?.company_name || 'Partner'} size="lg" />
-            </span>
-            <p className="font-bricolage font-bold text-xl text-white mt-4">{branding?.company_name || 'Partner Portal'}</p>
-            <p className="text-xs uppercase tracking-[0.25em] text-indigo-300 mt-1">Reset Password</p>
-          </Link>
-        </div>
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        <h1 className="font-bricolage text-2xl font-bold text-slate-900 mb-1">Reset Password</h1>
-        <p className="text-sm text-slate-500 mb-6">
-          Enter your partner email and we&apos;ll send a reset link.
-        </p>
+    <AuthSplitShell
+      homeHref="/partner/login"
+      logo={logo}
+      kicker="Partner portal"
+      title={
+        <>
+          Reset access to <span className="text-secondary">{displayName}</span>
+        </>
+      }
+      subtitle="Enter your partner email and we’ll send a reset link if an account exists."
+      highlights={[
+        { icon: 'EnvelopeIcon', title: 'Email link', description: 'A reset link is sent only to a registered partner inbox.' },
+        { icon: 'LockClosedIcon', title: 'Choose a new password', description: 'Set a new password and sign back in to the workspace.' },
+        { icon: 'ShieldCheckIcon', title: 'Account stays private', description: 'We never reveal whether an email is registered.' },
+        { icon: 'LifebuoyIcon', title: 'Need help?', description: 'Contact info@techantum.com if the link does not arrive.' },
+      ]}
+    >
+      <div className="mb-8 lg:hidden">{logo}</div>
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+        <h2 className="font-bricolage text-2xl font-bold text-slate-900">Reset password</h2>
+        <p className="mt-1 text-sm text-slate-500">Enter your partner email and we’ll send a reset link.</p>
 
         {sent ? (
-          <div className="text-center py-4">
-            <Icon name="CheckCircleIcon" size={48} className="text-green-500 mx-auto mb-4" variant="solid" />
-            <p className="text-slate-700 mb-4">
-              If an account exists for that email, a reset link has been sent.
-            </p>
-            <Link href="/partner/login" className="text-indigo-600 hover:underline text-sm">
-              Back to Sign In
+          <div className="py-6 text-center">
+            <Icon name="CheckCircleIcon" size={48} className="mx-auto mb-4 text-emerald-500" variant="solid" />
+            <p className="mb-4 text-slate-700">If an account exists for that email, a reset link has been sent.</p>
+            <Link href="/partner/login" className="text-sm font-medium text-secondary hover:underline">
+              Back to sign in
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                {error}
-              </div>
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
             )}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Email
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500"
+                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
               />
-            </div>
+            </label>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold text-sm hover:bg-indigo-700 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white hover:bg-secondary/90 disabled:opacity-60"
             >
-              {loading ? 'Sending…' : 'Send Reset Link'}
+              {loading ? 'Sending…' : 'Send reset link'}
+              <Icon name="ArrowRightIcon" size={16} />
             </button>
-            <Link href="/partner/login" className="block text-center text-sm text-indigo-600 hover:underline">
-              Back to Sign In
+            <Link href="/partner/login" className="block text-center text-sm font-medium text-secondary hover:underline">
+              Back to sign in
             </Link>
           </form>
         )}
       </div>
-      </div>
-    </div>
+    </AuthSplitShell>
   );
 }

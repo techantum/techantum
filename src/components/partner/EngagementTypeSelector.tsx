@@ -27,7 +27,7 @@ export default function EngagementTypeSelector({
           </p>
         </div>
         {loading && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-indigo-600 shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-xs text-secondary shrink-0">
             <Icon name="ArrowPathIcon" size={14} className="animate-spin" />
             Updating fields…
           </span>
@@ -40,14 +40,14 @@ export default function EngagementTypeSelector({
           onClick={() => onChange('')}
           className={`text-left p-4 rounded-xl border-2 transition-all ${
             !value
-              ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-100'
-              : 'border-slate-200 hover:border-indigo-200 bg-white'
+              ? 'border-secondary bg-orange-50/80 ring-1 ring-secondary/20'
+              : 'border-slate-200 hover:border-secondary/40 bg-white'
           }`}
         >
           <Icon
             name="CubeIcon"
             size={22}
-            className={!value ? 'text-indigo-600' : 'text-slate-400'}
+            className={!value ? 'text-secondary' : 'text-slate-400'}
           />
           <p className="font-semibold text-slate-900 mt-2 text-sm">Standard Package</p>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
@@ -64,19 +64,19 @@ export default function EngagementTypeSelector({
               onClick={() => onChange(eng.slug)}
               className={`relative text-left p-4 rounded-xl border-2 transition-all ${
                 selected
-                  ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-100'
-                  : 'border-slate-200 hover:border-indigo-200 bg-white'
+                  ? 'border-secondary bg-orange-50/80 ring-1 ring-secondary/20'
+                  : 'border-slate-200 hover:border-secondary/40 bg-white'
               }`}
             >
               {selected && (
-                <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-secondary text-white flex items-center justify-center">
                   <Icon name="CheckIcon" size={12} />
                 </span>
               )}
               <Icon
                 name={eng.icon as 'RocketLaunchIcon'}
                 size={22}
-                className={selected ? 'text-indigo-600' : 'text-slate-400'}
+                className={selected ? 'text-secondary' : 'text-slate-400'}
               />
               <p className="font-semibold text-slate-900 mt-2 text-sm pr-6">{eng.name}</p>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">{eng.description}</p>
@@ -86,9 +86,9 @@ export default function EngagementTypeSelector({
       </div>
 
       {selectedEngagement && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
-          <Icon name="InformationCircleIcon" size={18} className="text-indigo-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-indigo-900">
+        <div className="mt-4 flex items-start gap-2 rounded-lg bg-orange-50 border border-orange-100 px-4 py-3">
+          <Icon name="InformationCircleIcon" size={18} className="text-secondary shrink-0 mt-0.5" />
+          <p className="text-sm text-slate-900">
             Showing fields tailored for <strong>{selectedEngagement.name}</strong>. Business, project,
             and functional questions below reflect this requirement type.
           </p>

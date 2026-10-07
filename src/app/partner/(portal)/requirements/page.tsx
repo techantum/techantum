@@ -6,13 +6,14 @@ import Icon from '@/components/ui/AppIcon';
 import { REQUIREMENT_STATUS_LABELS, type RequirementRecord, type RequirementStatus } from '@/lib/partner/types';
 import { usePartnerAccess } from '@/components/partner/PartnerShell';
 import { partnerHasNavAccess } from '@/lib/partner/nav';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
   submitted: 'bg-blue-100 text-blue-800',
   under_review: 'bg-purple-100 text-purple-800',
   need_clarification: 'bg-amber-100 text-amber-800',
-  proposal_sent: 'bg-indigo-100 text-indigo-800',
+  proposal_sent: 'bg-orange-50 text-secondary',
   approved: 'bg-green-100 text-green-800',
   won: 'bg-emerald-100 text-emerald-800',
   rejected: 'bg-red-100 text-red-800',
@@ -57,22 +58,23 @@ export default function PartnerRequirementsPage() {
   };
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-bricolage text-2xl font-bold text-slate-900">My Requirements</h1>
-          <p className="text-sm text-slate-500">{requirements.length} total submissions</p>
-        </div>
-        {canCreateRequirement ? (
-          <Link
-            href="/partner/requirements/new"
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700"
-          >
-            <Icon name="PlusIcon" size={16} />
-            New Requirement
-          </Link>
-        ) : null}
-      </div>
+    <div className="w-full space-y-6">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="My requirements"
+        description={`${requirements.length} total submissions`}
+        action={
+          canCreateRequirement ? (
+            <Link
+              href="/partner/requirements/new"
+              className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
+            >
+              <Icon name="PlusIcon" size={16} />
+              New requirement
+            </Link>
+          ) : null
+        }
+      />
 
       <div className="flex flex-wrap gap-2 mb-4">
         {['all', 'draft', 'submitted', 'under_review', 'approved', 'won'].map((s) => (
@@ -81,7 +83,7 @@ export default function PartnerRequirementsPage() {
             type="button"
             onClick={() => setFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              filter === s ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
+              filter === s ? 'bg-secondary text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
             {s === 'all' ? 'All' : REQUIREMENT_STATUS_LABELS[s as RequirementStatus]}
@@ -92,14 +94,14 @@ export default function PartnerRequirementsPage() {
       {loading ? (
         <p className="text-slate-500 text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
           <p className="text-slate-600 mb-4">No requirements found.</p>
-          <Link href="/partner/requirements/new" className="text-indigo-600 hover:underline text-sm font-medium">
+          <Link href="/partner/requirements/new" className="text-secondary hover:underline text-sm font-medium">
             Create your first requirement →
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
@@ -115,7 +117,7 @@ export default function PartnerRequirementsPage() {
             <tbody>
               {filtered.map((req) => (
                 <tr key={req.id} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="px-5 py-3 font-mono text-xs text-indigo-600">
+                  <td className="px-5 py-3 font-mono text-xs text-secondary">
                     <Link href={`/partner/requirements/${req.id}`} className="hover:underline">
                       {req.reference_id}
                     </Link>
@@ -131,7 +133,7 @@ export default function PartnerRequirementsPage() {
                   <td className="px-5 py-3 text-slate-500">{req.budget_range ?? '—'}</td>
                   <td className="px-5 py-3">
                     <div className="flex gap-2">
-                      <Link href={`/partner/requirements/${req.id}`} className="text-indigo-600 hover:underline text-xs">
+                      <Link href={`/partner/requirements/${req.id}`} className="text-secondary hover:underline text-xs">
                         View
                       </Link>
                       {canCreateRequirement && req.status === 'draft' && (

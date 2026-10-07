@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
+import AuthSplitShell from '@/components/auth/AuthSplitShell';
 
 function VerifyOtpForm() {
   const router = useRouter();
@@ -23,7 +24,6 @@ function VerifyOtpForm() {
       })
       .catch(() => undefined);
   }, []);
-  const [branding, setBranding] = useState<{ company_name: string; logo_url: string | null } | null>(null);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,77 +61,89 @@ function VerifyOtpForm() {
     setMessage('A new code has been sent to your email.');
   };
 
+  const displayName = branding?.company_name || 'TechAntum';
+  const logo = (
+    <span className="inline-flex items-center rounded-2xl bg-white px-4 py-2 shadow-sm ring-1 ring-black/5">
+      <PartnerBrandMark logoUrl={branding?.logo_url} companyName={displayName} size="md" />
+    </span>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1e1b4b] via-indigo-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex flex-col items-center">
-            <span className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 shadow-lg">
-              <PartnerBrandMark logoUrl={branding?.logo_url} companyName={branding?.company_name || 'Partner'} size="lg" />
-            </span>
-            <p className="font-bricolage font-bold text-xl text-white mt-4">{branding?.company_name || 'TechAntum'}</p>
-            <p className="text-xs uppercase tracking-[0.25em] text-indigo-300 mt-1">Partner Portal</p>
-          </Link>
-        </div>
+    <AuthSplitShell
+      homeHref="/partner/login"
+      logo={logo}
+      kicker="Partner portal"
+      title={
+        <>
+          Confirm it&apos;s you to enter <span className="text-secondary">{displayName}</span>
+        </>
+      }
+      subtitle="Enter the 6-digit code sent to your email to finish signing in."
+      highlights={[
+        { icon: 'ShieldCheckIcon', title: 'Secure access', description: 'A one-time code keeps your partner workspace private.' },
+        { icon: 'EnvelopeIcon', title: 'Sent to email', description: 'Check your inbox and spam folder for the latest code.' },
+        { icon: 'ClockIcon', title: 'Expires quickly', description: 'Request a new code if the previous one has timed out.' },
+        { icon: 'Squares2X2Icon', title: 'Then dashboard', description: 'Continue to requirements, documents, and team tools.' },
+      ]}
+    >
+      <div className="mb-8 lg:hidden">{logo}</div>
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+        <h2 className="font-bricolage text-2xl font-bold text-slate-900">Verify your email</h2>
+        <p className="mt-1 text-sm text-slate-500">Enter the 6-digit code sent to your email to complete sign-in.</p>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="font-bricolage text-2xl font-bold text-slate-900 mb-1">Verify Your Email</h1>
-          <p className="text-sm text-slate-500 mb-6">
-            Enter the 6-digit code sent to your email to complete sign-in.
+        {error && (
+          <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+        )}
+        {message && (
+          <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {message}
           </p>
+        )}
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          {message && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-              {message}
-            </div>
-          )}
-
-          <form onSubmit={handleVerify} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Verification Code</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                className="w-full px-4 py-3 rounded-lg border border-slate-200 text-center text-2xl tracking-[0.5em] font-mono focus:ring-2 focus:ring-indigo-500"
-                placeholder="000000"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading || code.length !== 6}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold text-sm hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {loading ? 'Verifying…' : 'Verify & Continue'}
-            </button>
-          </form>
-
+        <form onSubmit={handleVerify} className="mt-6 space-y-4">
+          <label className="block text-sm font-medium text-slate-700">
+            Verification code
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-center font-mono text-2xl tracking-[0.5em] outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
+              placeholder="000000"
+            />
+          </label>
           <button
-            type="button"
-            onClick={handleResend}
-            disabled={resending}
-            className="w-full mt-4 text-sm text-indigo-600 hover:underline disabled:opacity-50"
+            type="submit"
+            disabled={loading || code.length !== 6}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white hover:bg-secondary/90 disabled:opacity-60"
           >
-            {resending ? 'Sending…' : 'Resend code'}
+            {loading ? 'Verifying…' : 'Verify & continue'}
+            <Icon name="ArrowRightIcon" size={16} />
           </button>
-        </div>
+        </form>
+
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={resending}
+          className="mt-4 w-full text-sm font-medium text-secondary hover:underline disabled:opacity-50"
+        >
+          {resending ? 'Sending…' : 'Resend code'}
+        </button>
+        <Link href="/partner/login" className="mt-4 block text-center text-sm text-slate-500 hover:text-secondary">
+          Back to sign in
+        </Link>
       </div>
-    </div>
+    </AuthSplitShell>
   );
 }
 
 export default function VerifyOtpPage() {
   return (
-    <Suspense fallback={<p className="text-white text-center p-8">Loading…</p>}>
+    <Suspense fallback={<p className="p-8 text-center text-slate-500">Loading…</p>}>
       <VerifyOtpForm />
     </Suspense>
   );

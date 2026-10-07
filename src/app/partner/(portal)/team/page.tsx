@@ -10,6 +10,7 @@ import {
   type PartnerNavKey,
 } from '@/lib/partner/nav';
 import type { PartnerUserRole, PartnerUserStatus } from '@/lib/partner/types';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface TeamMember {
   id: string;
@@ -177,23 +178,22 @@ export default function PartnerTeamPage() {
   );
 
   return (
-    <div className="w-full">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-bricolage text-2xl font-bold text-slate-900">Team Members</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Invite colleagues and choose which left-menu pages each person can access.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
-        >
-          <Icon name="PlusIcon" size={16} />
-          Invite Member
-        </button>
-      </div>
+    <div className="w-full space-y-6">
+      <AdminPageHeader
+        kicker="Partner portal"
+        title="Team members"
+        description="Invite colleagues and choose which left-menu pages each person can access."
+        action={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
+          >
+            <Icon name="PlusIcon" size={16} />
+            Invite member
+          </button>
+        }
+      />
 
       {message && (
         <p className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
@@ -268,7 +268,7 @@ export default function PartnerTeamPage() {
                       checked={item.locked ? false : form.navAccess[item.key]}
                       disabled={item.locked}
                       onChange={(e) => setNav(item.key, e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                      className="h-4 w-4 rounded border-slate-300 text-secondary"
                     />
                   </label>
                 ))}
@@ -285,7 +285,7 @@ export default function PartnerTeamPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
+              className="px-4 py-2 rounded-full bg-secondary text-white text-sm font-medium disabled:opacity-50"
             >
               {saving ? (editingId ? 'Saving…' : 'Sending…') : editingId ? 'Save changes' : 'Send Invite'}
             </button>
