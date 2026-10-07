@@ -175,7 +175,7 @@ export default function AdminShell({
 
   return (
     <div className="admin-shell min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-5">
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-5 print:hidden">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -215,7 +215,7 @@ export default function AdminShell({
       {sidebarOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] print:hidden lg:hidden"
           aria-label="Close menu"
           onClick={() => setSidebarOpen(false)}
         />
@@ -223,14 +223,14 @@ export default function AdminShell({
 
       <div className="min-h-[calc(100vh-4rem)] lg:flex">
         <aside
-          className={`fixed bottom-0 top-16 z-50 w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] ${
+          className={`fixed bottom-0 top-16 z-50 w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 print:hidden lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
           {sidebar}
         </aside>
 
-        <main className="w-full min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
+        <main className="w-full min-w-0 flex-1 px-4 py-5 print:px-0 print:py-0 sm:px-6 lg:px-8">
           <div className="w-full min-w-0">{children}</div>
         </main>
       </div>

@@ -10,6 +10,16 @@ export interface OpsClient {
   email: string | null;
   website_domain: string | null;
   hosting_provider: string | null;
+  contact_person?: string | null;
+  billing_address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  state_code?: string | null;
+  country?: string | null;
+  pincode?: string | null;
+  gstin?: string | null;
+  pan?: string | null;
+  status?: string | null;
   created_at: string;
   updated_at: string;
 }

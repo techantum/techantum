@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminStatCard from '@/components/admin/AdminStatCard';
+import MyPayslips from '@/components/admin/finance/MyPayslips';
 
 interface RecentLead {
   id: string;
@@ -113,6 +114,8 @@ export default function AdminDashboardPage() {
         <AdminStatCard label="Closed" value={stats.closedLeads} accent="green" hint="Converted / resolved" icon="CheckCircleIcon" />
         <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} icon="GlobeAltIcon" accent="violet" />
       </div>
+
+      <MyPayslips />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">

@@ -41,3 +41,7 @@ bin/postgrest
 # VPS uploads (keep folder, ignore files)
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Private finance documents (authenticated download only)
+storage/finance/**
+!storage/finance/.gitkeep
