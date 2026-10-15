@@ -29,6 +29,7 @@ export async function POST(request: Request) {
   const { error: adminError } = await supabase.from('admin_users').insert({
     user_id: authData.user.id,
     email,
+    role: 'SUPER_ADMIN',
   });
 
   if (adminError) {

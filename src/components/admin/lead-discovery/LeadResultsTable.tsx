@@ -27,7 +27,7 @@ export default function LeadResultsTable({ results }: { results: LeadDiscoveryRe
         </thead>
         <tbody>
           {results.map((row) => (
-            <tr key={row.place_id} className="border-t border-slate-100 align-top hover:bg-indigo-50/40">
+            <tr key={row.place_id} className="border-t border-slate-100 align-top hover:bg-orange-50/40">
               <td className="px-4 py-3">
                 <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_BADGE[row.priority]}`}>
                   {PRIORITY_LABELS[row.priority as keyof typeof PRIORITY_LABELS]}
@@ -40,7 +40,7 @@ export default function LeadResultsTable({ results }: { results: LeadDiscoveryRe
               <td className="px-4 py-3 text-xs">{row.phone || '—'}</td>
               <td className="px-4 py-3 text-xs max-w-[180px] truncate">
                 {row.website_uri ? (
-                  <a href={row.website_uri} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
+                  <a href={row.website_uri} target="_blank" rel="noreferrer" className="text-secondary hover:underline">
                     {row.website_uri.replace(/^https?:\/\//, '')}
                   </a>
                 ) : (

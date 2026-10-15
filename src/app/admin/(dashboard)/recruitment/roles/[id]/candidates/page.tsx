@@ -111,7 +111,7 @@ export default function RoleCandidatesPage() {
         title={role?.title || 'Candidates'}
         description="Upload resumes and review candidates by hiring status."
         action={
-          <Link href={`/admin/recruitment/roles/${roleId}`} className="text-sm text-indigo-600 hover:underline">
+          <Link href={`/admin/recruitment/roles/${roleId}`} className="text-sm text-secondary hover:underline">
             Edit role
           </Link>
         }
@@ -137,7 +137,7 @@ export default function RoleCandidatesPage() {
 
       {compareIds.length >= 2 && (
         <AdminSection title="Compare selected">
-          <Link className="text-sm text-indigo-600 hover:underline" href={`/admin/recruitment/compare?ids=${compareIds.join(',')}`}>
+          <Link className="text-sm text-secondary hover:underline" href={`/admin/recruitment/compare?ids=${compareIds.join(',')}`}>
             Open comparison ({compareIds.length} candidates)
           </Link>
         </AdminSection>

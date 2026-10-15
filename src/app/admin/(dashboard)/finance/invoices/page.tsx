@@ -5,20 +5,26 @@ import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
-import { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
-import { FinanceLink, FinanceShell, FinanceTd, FinanceTh, Pager, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
+import { EmptyRecords, FilterBar, FilterSearch, FilterSelect, financialYearChoices, useListFilters } from '@/components/admin/ListFilters';
+import DeleteInvoiceButton from '@/components/admin/finance/DeleteInvoiceButton';
+import { FinanceShell, FinanceTd, FinanceTh, Pager, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
+import Icon from '@/components/ui/AppIcon';
 import { currentFinancialYear } from '@/lib/finance/fy';
 
+const initialFilters = {
+  q: '',
+  fy: currentFinancialYear().label,
+  paymentStatus: '',
+};
+
 export default function InvoicesPage() {
+  const filters = useListFilters(initialFilters);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState('');
-  const [fy, setFy] = useState(currentFinancialYear().label);
-  const [paymentStatus, setPaymentStatus] = useState('');
   const [error, setError] = useState('');
 
-  const load = () => {
+  useEffect(() => {
+    const { q, fy, paymentStatus, page } = filters.applied;
     const params = new URLSearchParams({ page: String(page), pageSize: '25', fy });
     if (q) params.set('q', q);
     if (paymentStatus) params.set('paymentStatus', paymentStatus);
@@ -31,94 +37,89 @@ export default function InvoicesPage() {
         setError('');
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'));
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, fy, paymentStatus]);
+  }, [filters.applied]);
 
   return (
     <FinanceShell>
       <AdminPageHeader
         title="Invoices"
-        description="Finalized invoices are immutable. Use View, Save As PDF, Print or Record Payment."
+        description="View, download, print, record a payment, or delete an invoice after typing its number."
         action={
           <Link href="/admin/finance/invoices/new">
             <AdminButton variant="primary">New invoice</AdminButton>
           </Link>
         }
       />
-      <AdminSection title="Filters">
-        <div className="flex flex-wrap gap-2">
-          <input className={`${adminInputClass} max-w-xs`} placeholder="Search invoice, client, PO" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} />
-          <input className={`${adminInputClass} w-32`} value={fy} onChange={(e) => setFy(e.target.value)} placeholder="2026-27" />
-          <select className={`${adminSelectClass} w-44`} value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
-            <option value="">All payment statuses</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partially_paid">Partially paid</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-          </select>
-          <AdminButton onClick={load}>Search</AdminButton>
-        </div>
-      </AdminSection>
+      <FilterBar onSearch={filters.search} onClear={filters.clear}>
+        <FilterSearch
+          value={filters.draft.q}
+          onChange={(value) => filters.set('q', value)}
+          placeholder="Search invoice, client, PO..."
+        />
+        <FilterSelect icon="CalendarDaysIcon" value={filters.draft.fy} onChange={(value) => filters.set('fy', value)} className="w-40">
+          {financialYearChoices(filters.draft.fy).map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </FilterSelect>
+        <FilterSelect value={filters.draft.paymentStatus} onChange={(value) => filters.set('paymentStatus', value)} className="w-56">
+          <option value="">All payment statuses</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partially_paid">Partially paid</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </FilterSelect>
+      </FilterBar>
       {error && <p className="text-sm text-rose-700">{error}</p>}
       <AdminSection title="Invoices">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+          <table className="w-full min-w-[760px]">
             <thead>
               <tr>
-                <FinanceTh>Invoice Number</FinanceTh>
-                <FinanceTh>Invoice Date</FinanceTh>
+                <FinanceTh>Invoice</FinanceTh>
+                <FinanceTh>Date</FinanceTh>
                 <FinanceTh>Client</FinanceTh>
-                <FinanceTh>Project</FinanceTh>
-                <FinanceTh>Currency</FinanceTh>
-                <FinanceTh>Taxable</FinanceTh>
-                <FinanceTh>Tax</FinanceTh>
-                <FinanceTh>Invoice Total</FinanceTh>
-                <FinanceTh>Received</FinanceTh>
-                <FinanceTh>Outstanding</FinanceTh>
-                <FinanceTh>Due Date</FinanceTh>
-                <FinanceTh>Payment Status</FinanceTh>
+                <FinanceTh>Total</FinanceTh>
+                <FinanceTh>Status</FinanceTh>
                 <FinanceTh>Actions</FinanceTh>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <FinanceTd>
-                    <FinanceLink href={`/admin/finance/invoices/${row.id}`}>{row.invoice_number || '—'}</FinanceLink>
-                  </FinanceTd>
-                  <FinanceTd>{row.invoice_date}</FinanceTd>
-                  <FinanceTd>{row.client_name || row.client_live_name}</FinanceTd>
-                  <FinanceTd>{row.project_name || '—'}</FinanceTd>
-                  <FinanceTd>{row.currency || 'INR'}</FinanceTd>
-                  <FinanceTd>{money(row.taxable_amount)}</FinanceTd>
-                  <FinanceTd>{money(row.tax_amount)}</FinanceTd>
-                  <FinanceTd>{money(row.total_amount)}</FinanceTd>
-                  <FinanceTd>{money(row.amount_received)}</FinanceTd>
-                  <FinanceTd>{money(row.outstanding_amount)}</FinanceTd>
-                  <FinanceTd>{row.due_date || '—'}</FinanceTd>
-                  <FinanceTd>
-                    <StatusBadge value={row.payment_status} />
-                  </FinanceTd>
-                  <FinanceTd>
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                      <FinanceLink href={`/admin/finance/invoices/${row.id}`}>View</FinanceLink>
-                      <a className="text-secondary hover:underline" href={`/api/admin/finance/invoices/${row.id}/pdf?download=1`}>Save As PDF</a>
-                      <FinanceLink href={`/admin/finance/invoices/${row.id}/print`}>Print</FinanceLink>
-                      {row.invoice_status !== 'cancelled' && Number(row.outstanding_amount) > 0 && (
-                        <FinanceLink href={`/admin/finance/invoices/${row.id}#payment`}>Record Payment</FinanceLink>
-                      )}
-                    </div>
-                  </FinanceTd>
-                </tr>
-              ))}
-            </tbody>
+            {rows.length > 0 && (
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <FinanceTd><span className="font-semibold text-slate-900">{row.invoice_number || '—'}</span></FinanceTd>
+                    <FinanceTd>{String(row.invoice_date || '').slice(0, 10)}</FinanceTd>
+                    <FinanceTd>{row.client_name || row.client_live_name}</FinanceTd>
+                    <FinanceTd>{money(row.total_amount)}</FinanceTd>
+                    <FinanceTd><StatusBadge value={row.payment_status} /></FinanceTd>
+                    <FinanceTd>
+                      <div className="flex items-center gap-1">
+                        <Link href={`/admin/finance/invoices/${row.id}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="View invoice"><Icon name="EyeIcon" size={16} /></Link>
+                        <a className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" href={`/api/admin/finance/invoices/${row.id}/pdf?download=1`} aria-label="Download PDF"><Icon name="ArrowDownTrayIcon" size={16} /></a>
+                        <Link href={`/admin/finance/invoices/${row.id}/print`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Print invoice"><Icon name="PrinterIcon" size={16} /></Link>
+                        <DeleteInvoiceButton id={row.id} invoiceNumber={row.invoice_number} onDeleted={filters.reload} label="" />
+                      </div>
+                    </FinanceTd>
+                  </tr>
+                ))}
+              </tbody>
+            )}
           </table>
         </div>
-        <Pager page={page} pageSize={25} total={total} onPage={setPage} />
+        {rows.length === 0 && !error && (
+          <EmptyRecords
+            title="No invoices found"
+            description="Try adjusting your filters or create a new invoice."
+            action={
+              <Link href="/admin/finance/invoices/new">
+                <AdminButton variant="primary">New invoice</AdminButton>
+              </Link>
+            }
+          />
+        )}
+        <Pager page={filters.applied.page} pageSize={25} total={total} onPage={filters.setPage} />
       </AdminSection>
     </FinanceShell>
   );

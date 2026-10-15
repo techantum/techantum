@@ -65,7 +65,7 @@ export default function FinanceSettingsPage() {
       <AdminPageHeader title="Finance settings" description="Company identity, invoice numbering, PDF sections and reusable services." />
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
       {message && <AdminAlert>{message}</AdminAlert>}
-      <AdminSection title="Company">
+      <AdminSection title="Company" icon="BuildingOffice2Icon">
         <AdminFormGrid>
           <AdminField label="Company name"><input className={adminInputClass} value={String(form.company_name || '')} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></AdminField>
           <AdminField label="GSTIN"><input className={adminInputClass} value={String(form.gstin || '')} onChange={(e) => setForm({ ...form, gstin: e.target.value })} /></AdminField>
@@ -87,7 +87,7 @@ export default function FinanceSettingsPage() {
           <AdminField label="Billing address" span={3}><textarea className={adminTextareaClass} value={String(form.billing_address || '')} onChange={(e) => setForm({ ...form, billing_address: e.target.value })} /></AdminField>
         </AdminFormGrid>
       </AdminSection>
-      <AdminSection title="Bank / UPI">
+      <AdminSection title="Bank / UPI" icon="BanknotesIcon">
         <AdminFormGrid>
           <AdminField label="Bank"><input className={adminInputClass} value={String(form.bank_name || '')} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} /></AdminField>
           <AdminField label="Account name"><input className={adminInputClass} value={String(form.account_name || '')} onChange={(e) => setForm({ ...form, account_name: e.target.value })} /></AdminField>
@@ -97,7 +97,7 @@ export default function FinanceSettingsPage() {
           <AdminField label="UPI ID"><input className={adminInputClass} value={String(form.upi_id || '')} onChange={(e) => setForm({ ...form, upi_id: e.target.value })} /></AdminField>
         </AdminFormGrid>
       </AdminSection>
-      <AdminSection title="Invoice numbering">
+      <AdminSection title="Invoice numbering" icon="HashtagIcon">
         <AdminFormGrid>
           <AdminField label="Prefix"><input className={adminInputClass} value={String(form.invoice_number_prefix || '')} onChange={(e) => setForm({ ...form, invoice_number_prefix: e.target.value })} /></AdminField>
           <AdminField label="Separator"><input className={adminInputClass} value={String(form.invoice_number_separator || '')} onChange={(e) => setForm({ ...form, invoice_number_separator: e.target.value })} /></AdminField>
@@ -111,7 +111,7 @@ export default function FinanceSettingsPage() {
         </AdminFormGrid>
         <p className="text-xs text-slate-500">Example: {String(form.invoice_number_prefix || 'TS')}{String(form.invoice_number_separator || '/')}{form.invoice_number_fy_style === 'full' ? '2026-27' : '26-27'}{String(form.invoice_number_separator || '/')}{'1'.padStart(Number(form.invoice_number_sequence_length || 3), '0')}</p>
       </AdminSection>
-      <AdminSection title="PDF sections">
+      <AdminSection title="PDF sections" icon="DocumentTextIcon">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {FLAGS.map(([key, label]) => (
             <label key={key} className="flex items-center gap-2 text-sm">
@@ -121,11 +121,11 @@ export default function FinanceSettingsPage() {
           ))}
         </div>
       </AdminSection>
-      <AdminSection title="Defaults">
+      <AdminSection title="Defaults" icon="Cog6ToothIcon">
         <AdminField label="Terms"><textarea className={adminTextareaClass} value={String(form.default_terms || '')} onChange={(e) => setForm({ ...form, default_terms: e.target.value })} /></AdminField>
         <AdminField label="Notes"><textarea className={adminTextareaClass} value={String(form.default_notes || '')} onChange={(e) => setForm({ ...form, default_notes: e.target.value })} /></AdminField>
       </AdminSection>
-      <AdminSection title="Logo, QR, signature, seal">
+      <AdminSection title="Logo, QR, signature, seal" icon="PhotoIcon">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm">
           {[['logo_path', 'Company logo'], ['payment_qr_path', 'Payment QR'], ['signature_path', 'Signature'], ['seal_path', 'Seal']].map(([field, label]) => (
             <div key={field}>
@@ -136,7 +136,7 @@ export default function FinanceSettingsPage() {
         </div>
       </AdminSection>
       <AdminButton variant="primary" onClick={save}>Save settings</AdminButton>
-      <AdminSection title="Service master" description="Selecting a service on an invoice fills defaults. Invoice lines can still be edited.">
+      <AdminSection title="Service master" icon="RectangleStackIcon" description="Selecting a service on an invoice fills defaults. Invoice lines can still be edited.">
         <table className="w-full text-sm">
           <thead><tr><th className="text-left">Name</th><th>SAC</th><th>Rate</th><th>GST</th></tr></thead>
           <tbody>

@@ -1,22 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminField, { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
+import AdminStatCard from '@/components/admin/AdminStatCard';
+import { AdminBackLink } from '@/components/admin/DetailFacts';
+import DeleteInvoiceButton from '@/components/admin/finance/DeleteInvoiceButton';
 import InvoiceDocument from '@/components/admin/finance/InvoiceDocument';
-import { FinanceLink, FinanceShell, FinanceTd, FinanceTh, PAYMENT_MODES, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
+import { FinanceShell, FinanceTd, FinanceTh, PAYMENT_MODES, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
+import { useMasterItems } from '@/components/admin/useMasterItems';
+import Icon from '@/components/ui/AppIcon';
 import { todayISO } from '@/lib/finance/fy';
 
 export default function InvoiceDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params?.id || '';
   const [detail, setDetail] = useState<{ invoice: Record<string, string>; items: Record<string, string>[]; payments: Record<string, string>[] } | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const paymentModes = useMasterItems('payment_mode', PAYMENT_MODES.map((mode) => ({ value: mode, label: mode })));
   const [pay, setPay] = useState({
     payment_date: todayISO(),
     amount_received: '',
@@ -64,7 +71,7 @@ export default function InvoiceDetailPage() {
 
   return (
     <FinanceShell>
-      <FinanceLink href="/admin/finance/invoices">Back to invoices</FinanceLink>
+      <AdminBackLink href="/admin/finance/invoices">Back to invoices</AdminBackLink>
       <AdminPageHeader
         title={invoice?.invoice_number || 'Invoice'}
         description={invoice ? `${invoice.client_name} · ${invoice.financial_year}` : 'Loading…'}
@@ -72,11 +79,17 @@ export default function InvoiceDetailPage() {
           invoice && (
             <div className="flex flex-wrap gap-2 print:hidden">
               <a href={`/api/admin/finance/invoices/${id}/pdf?download=1`}>
-                <AdminButton variant="primary">Save As PDF</AdminButton>
+                <AdminButton variant="primary"><Icon name="ArrowDownTrayIcon" size={16} />Save as PDF</AdminButton>
               </a>
               <a href={`/admin/finance/invoices/${id}/print`}>
-                <AdminButton>Print</AdminButton>
+                <AdminButton><Icon name="PrinterIcon" size={16} />Print</AdminButton>
               </a>
+              <DeleteInvoiceButton
+                id={id}
+                invoiceNumber={invoice.invoice_number}
+                label="Delete invoice"
+                onDeleted={() => router.push('/admin/finance/invoices')}
+              />
             </div>
           )
         }
@@ -84,16 +97,17 @@ export default function InvoiceDetailPage() {
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
       {message && <AdminAlert>{message}</AdminAlert>}
       {invoice && (
-        <div className="flex flex-wrap gap-2 print:hidden">
-          <StatusBadge value={invoice.invoice_status} />
-          <StatusBadge value={invoice.payment_status} />
-          <span className="text-sm text-slate-500">Outstanding {money(invoice.outstanding_amount)}</span>
+        <div className="grid grid-cols-2 gap-3 print:hidden xl:grid-cols-4">
+          <AdminStatCard label="Total" value={money(invoice.total_amount)} accent="blue" icon="DocumentTextIcon" />
+          <AdminStatCard label="Received" value={money(invoice.amount_received || invoice.total_received || 0)} accent="green" icon="CurrencyRupeeIcon" />
+          <AdminStatCard label="Outstanding" value={money(invoice.outstanding_amount)} accent="amber" icon="ClockIcon" />
+          <AdminStatCard label="Status" value={<span className="inline-flex flex-wrap gap-1"><StatusBadge value={invoice.invoice_status} /><StatusBadge value={invoice.payment_status} /></span>} icon="CheckCircleIcon" />
         </div>
       )}
       {invoice && <InvoiceDocument invoice={invoice} items={detail?.items || []} />}
       {canPay && (
-        <AdminSection title="Record payment">
-          <div id="payment" className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <AdminSection title="Record payment" icon="CreditCardIcon">
+          <div id="payment" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <AdminField label="Date">
               <input type="date" className={adminInputClass} value={pay.payment_date} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} />
             </AdminField>
@@ -111,8 +125,8 @@ export default function InvoiceDetailPage() {
             </AdminField>
             <AdminField label="Mode">
               <select className={adminSelectClass} value={pay.payment_mode} onChange={(e) => setPay({ ...pay, payment_mode: e.target.value })}>
-                {PAYMENT_MODES.map((m) => (
-                  <option key={m}>{m}</option>
+                {paymentModes.map((mode) => (
+                  <option key={mode.value}>{mode.label}</option>
                 ))}
               </select>
             </AdminField>

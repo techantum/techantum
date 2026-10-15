@@ -51,7 +51,7 @@ export default function AdminShell({
   }, [pathname]);
 
   useEffect(() => {
-    if (role !== 'SUPER_ADMIN') return;
+    if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') return;
     let cancelled = false;
     const loadAppointments = async () => {
       try {
@@ -191,8 +191,17 @@ export default function AdminShell({
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 md:inline-flex">
-            {role === 'SUPER_ADMIN' ? 'Super admin' : 'Admin'}
+            {role === 'SUPER_ADMIN' ? 'Super admin' : 'Developer admin'}
           </span>
+          {role === 'SUPER_ADMIN' ? (
+            <Link
+              href="/admin/profile"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
+            >
+              <Icon name="UserCircleIcon" size={16} />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
+          ) : null}
           <Link
             href="/"
             target="_blank"

@@ -171,7 +171,7 @@ export default function PlacesSearchSelect({
           tabIndex={-1}
           disabled={disabled}
           onClick={toggleOpen}
-          className="absolute right-2 top-2 rounded-lg p-1 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-40"
+          className="absolute right-2 top-2 rounded-lg p-1 text-slate-400 hover:bg-orange-50 hover:text-secondary disabled:opacity-40"
           aria-label={open ? 'Close options' : 'Show options'}
         >
           <Icon name="ChevronDownIcon" size={16} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
@@ -192,7 +192,7 @@ export default function PlacesSearchSelect({
                 onClick={() => selectOption(option)}
                 className={`flex w-full flex-col px-3 py-2 text-left ${
                   index === activeIndex || value?.label === option.label
-                    ? 'bg-indigo-50 text-indigo-900'
+                    ? 'bg-orange-50 text-indigo-900'
                     : 'text-slate-800 hover:bg-slate-50'
                 }`}
               >

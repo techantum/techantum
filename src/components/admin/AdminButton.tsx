@@ -1,4 +1,4 @@
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline-danger' | 'success';
 
 interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -10,6 +10,7 @@ const variants: Record<ButtonVariant, string> = {
   secondary: 'bg-white text-slate-800 border border-slate-200 hover:border-secondary/40 hover:text-secondary',
   ghost: 'text-slate-500 hover:text-secondary hover:bg-orange-50 border-transparent',
   danger: 'bg-rose-600 text-white border-transparent hover:bg-rose-700',
+  'outline-danger': 'bg-white text-rose-600 border border-rose-200 hover:bg-rose-50',
   success: 'bg-emerald-600 text-white border-transparent hover:bg-emerald-700',
 };
 

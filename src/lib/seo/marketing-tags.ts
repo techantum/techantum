@@ -3,6 +3,7 @@ import type { SiteSeo } from '@/lib/cms/types';
 export interface MarketingTagIds {
   gtmId: string;
   ga4Id: string;
+  googleAdsId: string;
   facebookPixelId: string;
   linkedinPartnerId: string;
 }
@@ -12,6 +13,7 @@ export function getMarketingTagIds(seo: SiteSeo): MarketingTagIds {
   return {
     gtmId: sanitizeTagId(seo.gtm_id),
     ga4Id: sanitizeTagId(seo.ga4_id),
+    googleAdsId: sanitizeTagId(seo.google_ads_id),
     facebookPixelId: sanitizeTagId(seo.facebook_pixel_id),
     linkedinPartnerId: sanitizeTagId(seo.linkedin_partner_id),
   };
@@ -42,10 +44,11 @@ export function sanitizeTagId(value?: string | null): string {
 /** Normalize admin input — trims whitespace and extracts IDs from pasted snippets. */
 export function normalizeMarketingTagId(
   value?: string | null,
-  kind: 'any' | 'gtm' | 'ga4' | 'numeric' = 'any',
+  kind: 'any' | 'gtm' | 'ga4' | 'numeric' | 'aw' = 'any',
 ): string {
   if (!value?.trim()) return '';
   const trimmed = value.trim();
+  if (/^aw-\d+$/i.test(trimmed)) return trimmed.toUpperCase();
   if (/^[A-Za-z0-9_-]+$/.test(trimmed)) return trimmed;
 
   if (kind === 'gtm' || kind === 'any') {
@@ -56,6 +59,11 @@ export function normalizeMarketingTagId(
   if (kind === 'ga4' || kind === 'any') {
     const gaMatch = trimmed.match(/G-[A-Z0-9]+/i);
     if (gaMatch) return gaMatch[0].toUpperCase();
+  }
+
+  if (kind === 'aw' || kind === 'any') {
+    const adsMatch = trimmed.match(/AW-\d+/i);
+    if (adsMatch) return adsMatch[0].toUpperCase();
   }
 
   if (kind === 'numeric' || kind === 'any') {

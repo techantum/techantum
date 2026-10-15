@@ -1,20 +1,21 @@
+import type { ReactNode } from 'react';
 import Icon from '@/components/ui/AppIcon';
 
 interface AdminStatCardProps {
   label: string;
-  value: string | number;
+  value: ReactNode;
   hint?: string;
   accent?: 'default' | 'amber' | 'blue' | 'green' | 'violet' | 'rose';
   icon?: string;
 }
 
 const accentStyles = {
-  default: { value: 'text-slate-900', bg: 'bg-white', icon: 'bg-secondary text-white' },
-  amber: { value: 'text-slate-900', bg: 'bg-amber-50/70', icon: 'bg-amber-500 text-white' },
-  blue: { value: 'text-slate-900', bg: 'bg-sky-50/70', icon: 'bg-sky-500 text-white' },
-  green: { value: 'text-slate-900', bg: 'bg-emerald-50/70', icon: 'bg-emerald-500 text-white' },
-  violet: { value: 'text-slate-900', bg: 'bg-white', icon: 'bg-slate-900 text-white' },
-  rose: { value: 'text-slate-900', bg: 'bg-rose-50/70', icon: 'bg-rose-500 text-white' },
+  default: { bg: 'bg-white', icon: 'bg-slate-100 text-slate-500' },
+  amber: { bg: 'bg-amber-50/80', icon: 'bg-amber-100 text-amber-600' },
+  blue: { bg: 'bg-sky-50/80', icon: 'bg-sky-100 text-sky-600' },
+  green: { bg: 'bg-emerald-50/80', icon: 'bg-emerald-100 text-emerald-600' },
+  violet: { bg: 'bg-white', icon: 'bg-slate-100 text-slate-600' },
+  rose: { bg: 'bg-rose-50/80', icon: 'bg-rose-100 text-rose-600' },
 };
 
 export default function AdminStatCard({
@@ -27,19 +28,17 @@ export default function AdminStatCard({
   const styles = accentStyles[accent];
 
   return (
-    <div className={`rounded-2xl border border-slate-200 ${styles.bg} p-4 shadow-sm`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className={`mt-1 font-bricolage text-2xl font-bold sm:text-3xl ${styles.value}`}>{value}</p>
-          {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
-        </div>
-        {icon && (
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${styles.icon}`}>
-            <Icon name={icon} size={20} />
-          </div>
-        )}
+    <div className={`flex h-full items-center justify-between gap-3 rounded-2xl border border-slate-200 ${styles.bg} px-4 py-3.5 shadow-sm`}>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+        <div className="mt-1 font-bricolage text-xl font-bold text-slate-900">{value}</div>
+        {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
       </div>
+      {icon && (
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${styles.icon}`}>
+          <Icon name={icon} size={18} />
+        </div>
+      )}
     </div>
   );
 }

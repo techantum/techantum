@@ -54,7 +54,7 @@ export default function CandidatesTable({
             </tr>
           )}
           {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-indigo-50/40">
+            <tr key={row.id} className="hover:bg-orange-50/40">
               {onToggleCompare && (
                 <OpsTd>
                   <input
@@ -65,7 +65,7 @@ export default function CandidatesTable({
                 </OpsTd>
               )}
               <OpsTd>
-                <Link href={`/admin/recruitment/candidates/${row.id}`} className="text-indigo-600 font-medium hover:underline">
+                <Link href={`/admin/recruitment/candidates/${row.id}`} className="text-secondary font-medium hover:underline">
                   {row.name || row.resume_file_name || 'Candidate'}
                 </Link>
                 {(row.email || row.current_company) && (

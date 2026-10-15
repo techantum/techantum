@@ -48,7 +48,7 @@ export default function OpsDashboardPage() {
     <OpsPageShell>
       <AdminPageHeader
         title="Projects & Tickets"
-        description="Client onboarding, delivery schedules, tickets, and WhatsApp updates."
+        description="Delivery schedules, tickets, and WhatsApp updates. Billing clients stay in Finance."
         action={
           <Link href="/admin/ops/create">
             <AdminButton variant="primary">+ Create Ticket</AdminButton>
@@ -69,10 +69,9 @@ export default function OpsDashboardPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Link href="/admin/ops/clients" className="text-xs font-medium text-indigo-600 hover:underline px-2.5 py-1 rounded-md bg-indigo-50">Clients</Link>
-        <Link href="/admin/ops/projects" className="text-xs font-medium text-indigo-600 hover:underline px-2.5 py-1 rounded-md bg-indigo-50">Projects</Link>
-        <Link href="/admin/ops/tickets" className="text-xs font-medium text-indigo-600 hover:underline px-2.5 py-1 rounded-md bg-indigo-50">Tickets</Link>
-        <Link href="/admin/ops/create" className="text-xs font-medium text-indigo-600 hover:underline px-2.5 py-1 rounded-md bg-indigo-50">Create</Link>
+        <Link href="/admin/ops/projects"><AdminButton size="sm">Projects</AdminButton></Link>
+        <Link href="/admin/ops/tickets"><AdminButton size="sm">Tickets</AdminButton></Link>
+        <Link href="/admin/finance/clients"><AdminButton size="sm">Finance clients</AdminButton></Link>
       </div>
 
       <AdminSection title="Upcoming deliveries" description="Next 7 days">
@@ -95,7 +94,7 @@ export default function OpsDashboardPage() {
                     <OpsTd>{row.client}</OpsTd>
                     <OpsTd>
                       <Link
-                        className="text-indigo-600 hover:underline font-medium"
+                        className="text-secondary hover:underline font-medium"
                         href={row.kind === 'project' ? `/admin/ops/projects/${row.id}` : `/admin/ops/tickets/${row.id}`}
                       >
                         <span className="font-mono text-[11px] text-muted-foreground mr-1">{row.code}</span>

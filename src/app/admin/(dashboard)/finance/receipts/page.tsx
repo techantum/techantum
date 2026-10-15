@@ -5,29 +5,26 @@ import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
-import { adminInputClass } from '@/components/admin/AdminField';
-import { FinanceLink, FinanceShell, FinanceTd, FinanceTh, Pager, money } from '@/components/admin/finance/FinanceUi';
+import { EmptyRecords, FilterBar, FilterSearch, useListFilters } from '@/components/admin/ListFilters';
+import { FinanceShell, FinanceTd, FinanceTh, Pager, TypePill, money } from '@/components/admin/finance/FinanceUi';
+import Icon from '@/components/ui/AppIcon';
+
+const receiptFilters = { q: '' };
 
 export default function ReceiptsPage() {
+  const filters = useListFilters(receiptFilters);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState('');
 
-  const load = () => {
-    const params = new URLSearchParams({ page: String(page), q });
+  useEffect(() => {
+    const params = new URLSearchParams({ page: String(filters.applied.page), q: filters.applied.q });
     fetch(`/api/admin/finance/receipts?${params}`)
       .then((r) => r.json())
       .then((body) => {
         setRows(body.rows || []);
         setTotal(body.total || 0);
       });
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [filters.applied]);
 
   const hasDoc = (r: Record<string, string>) => String(r.has_document) === 't' || String(r.has_document) === 'true';
 
@@ -42,59 +39,49 @@ export default function ReceiptsPage() {
           </Link>
         }
       />
+      <FilterBar onSearch={filters.search} onClear={filters.clear}>
+        <FilterSearch value={filters.draft.q} onChange={(value) => filters.set('q', value)} placeholder="Search vendor, description, bill no, receipt ID..." />
+      </FilterBar>
       <AdminSection title="Receipts List">
-        <div className="mb-3 flex gap-2">
-          <input className={`${adminInputClass} max-w-sm`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search vendor, description, bill no, receipt ID" onKeyDown={(e) => e.key === 'Enter' && load()} />
-          <AdminButton onClick={load}>Search</AdminButton>
-        </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[760px]">
             <thead>
               <tr>
-                <FinanceTh>Receipt ID</FinanceTh>
-                <FinanceTh>Receipt Date</FinanceTh>
+                <FinanceTh>Receipt</FinanceTh>
+                <FinanceTh>Date</FinanceTh>
                 <FinanceTh>Vendor</FinanceTh>
                 <FinanceTh>Category</FinanceTh>
-                <FinanceTh>Description</FinanceTh>
-                <FinanceTh>Vendor Invoice / Bill Number</FinanceTh>
-                <FinanceTh>Taxable</FinanceTh>
-                <FinanceTh>GST / Tax</FinanceTh>
                 <FinanceTh>Total</FinanceTh>
-                <FinanceTh>Payment Mode</FinanceTh>
-                <FinanceTh>Transaction Reference</FinanceTh>
                 <FinanceTh>Document</FinanceTh>
-                <FinanceTh>Created By</FinanceTh>
                 <FinanceTh>Actions</FinanceTh>
               </tr>
             </thead>
+            {rows.length > 0 && (
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <FinanceTd><FinanceLink href={`/admin/finance/receipts/${r.id}`}>{r.receipt_number || r.id.slice(0, 8)}</FinanceLink></FinanceTd>
-                  <FinanceTd>{r.expense_date}</FinanceTd>
+                  <FinanceTd><span className="font-semibold text-slate-900">{r.receipt_number || r.id.slice(0, 8)}</span></FinanceTd>
+                  <FinanceTd>{String(r.expense_date || '').slice(0, 10)}</FinanceTd>
                   <FinanceTd>{r.vendor_name || '—'}</FinanceTd>
-                  <FinanceTd>{r.category_name || '—'}</FinanceTd>
-                  <FinanceTd>{r.description}</FinanceTd>
-                  <FinanceTd>{r.vendor_invoice_number || '—'}</FinanceTd>
-                  <FinanceTd>{money(r.taxable_amount)}</FinanceTd>
-                  <FinanceTd>{money(r.tax_amount)}</FinanceTd>
+                  <FinanceTd><TypePill>{r.category_name || '—'}</TypePill></FinanceTd>
                   <FinanceTd>{money(r.total_amount)}</FinanceTd>
-                  <FinanceTd>{r.last_payment_mode || r.payment_mode || '—'}</FinanceTd>
-                  <FinanceTd>{r.last_transaction_reference || r.transaction_reference || '—'}</FinanceTd>
-                  <FinanceTd>{hasDoc(r) ? 'Attached' : 'Missing'}</FinanceTd>
-                  <FinanceTd>{r.created_by_email || '—'}</FinanceTd>
+                  <FinanceTd><span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${hasDoc(r) ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-700'}`}>{hasDoc(r) ? 'Attached' : 'Missing'}</span></FinanceTd>
                   <FinanceTd>
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                      <FinanceLink href={`/admin/finance/receipts/${r.id}`}>View</FinanceLink>
-                      <FinanceLink href={`/admin/finance/receipts/${r.id}/print`}>Print</FinanceLink>
+                    <div className="flex items-center gap-1">
+                      <Link href={`/admin/finance/receipts/${r.id}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="View receipt"><Icon name="EyeIcon" size={16} /></Link>
+                      <Link href={`/admin/finance/receipts/${r.id}/print`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Print receipt"><Icon name="PrinterIcon" size={16} /></Link>
                     </div>
                   </FinanceTd>
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
         </div>
-        <Pager page={page} pageSize={25} total={total} onPage={setPage} />
+        {rows.length === 0 && (
+          <EmptyRecords title="No receipts found" description="Try adjusting your filters or add a receipt." action={<Link href="/admin/finance/receipts/new"><AdminButton variant="primary">Add Receipt</AdminButton></Link>} />
+        )}
+        <Pager page={filters.applied.page} pageSize={25} total={total} onPage={filters.setPage} />
       </AdminSection>
     </FinanceShell>
   );

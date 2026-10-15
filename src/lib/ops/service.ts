@@ -168,10 +168,22 @@ export async function updateClient(id: string, input: Record<string, unknown>, u
   return data as OpsClient;
 }
 
-function projectFields(input: Record<string, unknown>) {
+async function allowedPackages(projectType: string) {
+  const builtin = packagesForProjectType(projectType);
+  try {
+    const { listMasterItems } = await import('@/lib/admin/master-data');
+    const items = await listMasterItems('project_package', true);
+    const extra = items.filter((item) => item.parent_key === projectType).map((item) => item.label);
+    return [...new Set([...builtin, ...extra])];
+  } catch {
+    return builtin;
+  }
+}
+
+async function projectFields(input: Record<string, unknown>) {
   const project_type = requireText(input.project_type, 'Project type');
   const package_name = requireText(input.package_name, 'Package');
-  const allowed = packagesForProjectType(project_type);
+  const allowed = await allowedPackages(project_type);
   if (allowed.length && !allowed.includes(package_name)) {
     throw new Error(`Package must match the selected project type (${project_type}).`);
   }
@@ -227,7 +239,7 @@ export async function createOnboarding(input: Record<string, unknown>, userId: s
     clientId = client!.id;
   }
 
-  const fields = projectFields(input);
+  const fields = await projectFields(input);
   const project_code = await nextCode('project');
   const { data: project, error: projectError } = await db()
     .from('ops_projects')

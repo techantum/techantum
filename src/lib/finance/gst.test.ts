@@ -8,6 +8,8 @@ describe('GST split', () => {
     assert.equal(isIntraState('36', 'Telangana'), true);
     assert.equal(isIntraState('36', '27'), false);
     assert.equal(resolveTaxSplit('auto', '36', '36'), 'cgst_sgst');
+    assert.equal(resolveTaxSplit('auto', '', '36'), 'cgst_sgst');
+    assert.equal(resolveTaxSplit('auto', '36', ''), 'cgst_sgst');
     assert.equal(resolveTaxSplit('auto', '36', '27'), 'igst');
     assert.equal(resolveTaxSplit('igst', '36', '36'), 'igst');
   });

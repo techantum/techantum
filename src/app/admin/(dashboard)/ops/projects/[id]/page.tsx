@@ -156,7 +156,7 @@ export default function OpsProjectDetailPage() {
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
-      <AdminSection title="Project overview" description="Client-facing scope and timeline." accent={overdue ? 'rose' : 'indigo'}>
+      <AdminSection icon="RectangleStackIcon" title="Project overview" description="Client-facing scope and timeline." accent={overdue ? 'rose' : 'indigo'}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
           <AdminStatCard
             label="Status"
@@ -175,7 +175,7 @@ export default function OpsProjectDetailPage() {
             <span className="font-mono text-xs">{p.project_code}</span>
           </OpsOverviewField>
           <OpsOverviewField label="Client">
-            <Link className="text-indigo-600 hover:underline inline-flex items-center gap-1" href={`/admin/ops/clients/${p.client_id}`}>
+            <Link className="text-secondary hover:underline inline-flex items-center gap-1" href={`/admin/ops/clients/${p.client_id}`}>
               {p.ops_clients?.name}
               <Icon name="ArrowTopRightOnSquareIcon" size={14} />
             </Link>
@@ -190,13 +190,13 @@ export default function OpsProjectDetailPage() {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Scope</p>
             <div className="flex flex-wrap gap-3 text-sm">
               {p.scope_document_url && (
-                <a className="text-indigo-600 hover:underline inline-flex items-center gap-1" href={p.scope_document_url} target="_blank" rel="noreferrer">
+                <a className="text-secondary hover:underline inline-flex items-center gap-1" href={p.scope_document_url} target="_blank" rel="noreferrer">
                   <Icon name="DocumentIcon" size={14} />
                   Open PDF
                 </a>
               )}
               {p.scope_url && (
-                <a className="text-indigo-600 hover:underline truncate max-w-full" href={p.scope_url} target="_blank" rel="noreferrer">
+                <a className="text-secondary hover:underline truncate max-w-full" href={p.scope_url} target="_blank" rel="noreferrer">
                   {p.scope_url}
                 </a>
               )}
@@ -206,7 +206,7 @@ export default function OpsProjectDetailPage() {
       </AdminSection>
 
       <OpsGrid>
-        <AdminSection title="Internal estimation" description="Not shared with the client." accent="amber">
+        <AdminSection icon="CalculatorIcon" title="Internal estimation" description="Not shared with the client." accent="amber">
           <InternalEstimationGrid
             hours={p.estimated_hours}
             rate={p.cost_per_hour}
@@ -215,7 +215,7 @@ export default function OpsProjectDetailPage() {
           />
         </AdminSection>
 
-        <AdminSection title="Update status" accent="sky">
+        <AdminSection icon="ArrowPathIcon" title="Update status" accent="sky">
           <div className="space-y-2">
             <select className={adminSelectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
               {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
@@ -229,7 +229,7 @@ export default function OpsProjectDetailPage() {
           </div>
         </AdminSection>
 
-        <AdminSection title="Extend delivery date" accent="violet">
+        <AdminSection icon="CalendarDaysIcon" title="Extend delivery date" accent="violet">
           <p className="text-sm text-muted-foreground mb-2">
             Current: <strong className="text-foreground">{p.current_end_date}</strong>
           </p>
@@ -240,7 +240,7 @@ export default function OpsProjectDetailPage() {
           </div>
         </AdminSection>
 
-        <AdminSection title="Tickets" description={`${detail.tickets.length} linked`}>
+        <AdminSection icon="TicketIcon" title="Tickets" description={`${detail.tickets.length} linked`}>
           {detail.tickets.length === 0 ? (
             <p className="text-sm text-muted-foreground">None.</p>
           ) : (
@@ -261,7 +261,7 @@ export default function OpsProjectDetailPage() {
           )}
         </AdminSection>
 
-        <AdminSection title="Status history" description={`${detail.statusHistory.length} change(s)`}>
+        <AdminSection icon="ClockIcon" title="Status history" description={`${detail.statusHistory.length} change(s)`}>
           {detail.statusHistory.length === 0 ? (
             <p className="text-sm text-muted-foreground">No status changes yet.</p>
           ) : (
@@ -278,7 +278,7 @@ export default function OpsProjectDetailPage() {
           )}
         </AdminSection>
 
-        <AdminSection title="Delivery extensions" description={`${detail.extensions.length} extension(s)`} accent="emerald">
+        <AdminSection icon="CalendarDaysIcon" title="Delivery extensions" description={`${detail.extensions.length} extension(s)`} accent="emerald">
           {detail.extensions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No extensions yet.</p>
           ) : (
@@ -296,7 +296,7 @@ export default function OpsProjectDetailPage() {
         </AdminSection>
 
         <OpsGridSpan>
-          <AdminSection title="Communication history" description={`${detail.communications.length} message(s)`} accent="indigo">
+          <AdminSection icon="ChatBubbleLeftRightIcon" title="Communication history" description={`${detail.communications.length} message(s)`} accent="indigo">
             <CommunicationAccordion items={detail.communications} emptyMessage="No messages for this project yet." />
           </AdminSection>
         </OpsGridSpan>

@@ -46,7 +46,7 @@ export default function EditFinanceClientPage() {
       <AdminPageHeader title={client ? `Edit ${String(client.name || 'client')}` : 'Edit client'} description="Update billing details. Existing invoices keep the snapshot taken when they were created." />
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
       {client ? (
-        <ClientForm initial={client} onSubmit={save} saving={saving} submitLabel="Save changes" />
+        <ClientForm initial={client} onSubmit={save} saving={saving} submitLabel="Save changes" cancelHref={`/admin/finance/clients/${id}`} />
       ) : !error ? (
         <p className="text-sm text-slate-500">Loading client…</p>
       ) : null}

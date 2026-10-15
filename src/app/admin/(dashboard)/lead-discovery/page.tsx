@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
-import AdminStatCard from '@/components/admin/AdminStatCard';
 import AdminAlert from '@/components/admin/AdminAlert';
+import Icon from '@/components/ui/AppIcon';
 import LeadExportMenu from '@/components/admin/lead-discovery/LeadExportMenu';
 import LeadResultsTable from '@/components/admin/lead-discovery/LeadResultsTable';
 import PlacesSearchSelect, { type PlacesOption } from '@/components/admin/lead-discovery/PlacesSearchSelect';
@@ -38,7 +38,14 @@ interface PlaceMeta {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 async function suggestPlaces(apiBase: string, body: Record<string, unknown>): Promise<PlacesOption[]> {
@@ -339,207 +346,276 @@ export default function LeadDiscoveryPage() {
   };
 
   const canSearch = Boolean(cityName && segmentName);
+  const queryText = segmentName && cityName
+    ? `${segmentName} in ${[areaName, cityName, stateName, countryName].filter(Boolean).join(', ')}`
+    : '';
+  const noWebsiteCount = preview?.results.filter((row) => row.priority === 'high').length ?? 0;
+
+  const clearSearch = () => {
+    setCountry(DEFAULT_COUNTRY);
+    setState(null);
+    setCity(null);
+    setArea(null);
+    setSegment(null);
+    setMinRating('');
+    setHasWebsite('any');
+    setHasPhone('any');
+    setNameTouched(false);
+    setSearchName('');
+    setPreview(null);
+    setMessage('');
+    setError('');
+    setCountryMeta({ countryCode: 'IN', latitude: 20.5937, longitude: 78.9629 });
+    setStateMeta({ countryCode: 'IN', latitude: null, longitude: null });
+  };
 
   return (
-    <div className="w-full space-y-6">
-      <AdminPageHeader title="Places Search" />
+    <div className="w-full space-y-5">
+      <AdminPageHeader
+        title="Places Search"
+        description="Find and save businesses using Google Places. Filter by location, segment and more."
+      />
 
       {message && <AdminAlert variant="success">{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <AdminStatCard label="Saved searches" value={history.length} icon="BookmarkIcon" accent="violet" />
-        <AdminStatCard label="Preview results" value={preview?.result_count ?? 0} icon="MagnifyingGlassIcon" accent="blue" />
-        <AdminStatCard
-          label="No website (high priority)"
-          value={preview?.results.filter((r) => r.priority === 'high').length ?? 0}
-          accent="rose"
-          icon="ExclamationTriangleIcon"
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+            <Icon name="BookmarkIcon" size={22} />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Saved searches</p>
+            <p className="font-bricolage text-3xl font-bold text-slate-900">{history.length}</p>
+            <p className="text-xs text-slate-400">Your saved Places searches</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+              <Icon name="MagnifyingGlassIcon" size={22} />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700/80">Preview results</p>
+              <p className="font-bricolage text-3xl font-bold text-slate-900">{preview?.result_count ?? 0}</p>
+              <p className="text-xs text-slate-500">Results from current filters</p>
+            </div>
+          </div>
+          <Icon name="ChartBarIcon" size={28} className="text-emerald-300" />
+        </div>
+        <div className="flex items-center gap-4 rounded-2xl border border-rose-100 bg-rose-50/80 p-4 shadow-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500 text-white">
+            <Icon name="ExclamationTriangleIcon" size={22} />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-500">No website (high priority)</p>
+            <p className="font-bricolage text-3xl font-bold text-slate-900">{noWebsiteCount}</p>
+            <p className="text-xs text-slate-500">Businesses without a website</p>
+          </div>
+        </div>
       </div>
 
-      <AdminSection title="New search" description="Select country, state, city, and segment. Type in any box to filter the list." accent="sky">
-        <div className="space-y-4">
-          <label className="text-sm font-medium block">
-            Search name
-            <input
-              value={searchName}
-              onChange={(e) => {
-                setNameTouched(true);
-                setSearchName(e.target.value);
-              }}
-              className={`mt-1 ${INPUT}`}
-              placeholder="e.g. Clinics in Hyderabad — April outreach"
-            />
-          </label>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <PlacesSearchSelect
-              label="Country"
-              placeholder="Select country"
-              value={country}
-              onChange={applyCountry}
-              fetcher={fetchCountries}
-              localOptions={countryList}
-              hint="Click to see the full country list, or type to filter."
-            />
-            <PlacesSearchSelect
-              label="State / region"
-              placeholder={country ? 'Select state' : 'Select a country first'}
-              value={state}
-              onChange={applyState}
-              fetcher={fetchStates}
-              localOptions={stateList}
-              disabled={!country}
-              hint={stateList.length ? 'Click to see all states, or type to filter.' : 'Type to search states in Google Maps.'}
-            />
-            <PlacesSearchSelect
-              label="City"
-              placeholder={state || country ? 'Select city' : 'Select a country first'}
-              value={city}
-              onChange={applyCity}
-              fetcher={fetchCities}
-              localOptions={cityList}
-              disabled={!country}
-              hint={cityList.length ? 'Click to see cities, or type to filter / search more.' : 'Type to search cities in Google Maps.'}
-            />
-            <PlacesSearchSelect
-              label="Area / pincode"
-              placeholder={city ? 'Select area or type PIN' : 'Select a city first'}
-              value={area}
-              onChange={setArea}
-              fetcher={fetchAreas}
-              localOptions={areaList}
-              disabled={!city}
-              allowCustom
-              hint="Click for local areas, or type a locality / PIN code (e.g. 500081)."
-            />
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+            <Icon name="MagnifyingGlassIcon" size={18} />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <PlacesSearchSelect
-              label="Segment"
-              placeholder="Select segment"
-              value={segment}
-              onChange={setSegment}
-              fetcher={fetchSegments}
-              localOptions={segmentList}
-              allowCustom
-              hint="Click to see Google Maps business types, or type to filter."
-            />
-            <label className="text-sm font-medium">
-              Minimum rating
-              <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`mt-1 ${INPUT}`}>
-                <option value="">Any</option>
-                <option value="3">3.0+</option>
-                <option value="3.5">3.5+</option>
-                <option value="4">4.0+</option>
-                <option value="4.5">4.5+</option>
-              </select>
-            </label>
-            <label className="text-sm font-medium">
-              Has website
-              <select value={hasWebsite} onChange={(e) => setHasWebsite(e.target.value as WebsiteFilter)} className={`mt-1 ${INPUT}`}>
-                <option value="any">Any</option>
-                <option value="yes">Yes</option>
-                <option value="no">No — best website prospects</option>
-              </select>
-            </label>
-            <label className="text-sm font-medium">
-              Has phone
-              <select value={hasPhone} onChange={(e) => setHasPhone(e.target.value as PhoneFilter)} className={`mt-1 ${INPUT}`}>
-                <option value="any">Any</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </label>
+          <div>
+            <h2 className="font-bricolage text-lg font-semibold text-slate-900">Create New Search</h2>
+            <p className="text-sm text-slate-500">Set your search criteria below to find businesses. You can preview results before saving.</p>
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground mt-4">
-          Query preview:{' '}
-          <span className="font-mono">
-            {segmentName && cityName
-              ? `${segmentName} in ${[areaName, cityName, stateName, countryName].filter(Boolean).join(', ')}`
-              : '—'}
-          </span>
-        </p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="text-sm font-medium text-slate-700">
+            Search Name
+            <input
+              value={searchName}
+              onChange={(event) => {
+                setNameTouched(true);
+                setSearchName(event.target.value);
+              }}
+              className={`mt-1 ${INPUT}`}
+              placeholder="e.g. Leads - India"
+            />
+            <span className="mt-1 block text-xs font-normal text-slate-400">Give this search a name to save it later.</span>
+          </label>
+          <PlacesSearchSelect
+            label="Country"
+            placeholder="Select country"
+            value={country}
+            onChange={applyCountry}
+            fetcher={fetchCountries}
+            localOptions={countryList}
+            hint="Select a country to see available states."
+          />
+          <PlacesSearchSelect
+            label="State / Region"
+            placeholder={country ? 'Select state' : 'Select a country first'}
+            value={state}
+            onChange={applyState}
+            fetcher={fetchStates}
+            localOptions={stateList}
+            disabled={!country}
+            hint="Choose a state or type to filter."
+          />
+          <PlacesSearchSelect
+            label="City"
+            placeholder={country ? 'Select city' : 'Select a country first'}
+            value={city}
+            onChange={applyCity}
+            fetcher={fetchCities}
+            localOptions={cityList}
+            disabled={!country}
+            hint="Choose a city or type to search more."
+          />
+          <PlacesSearchSelect
+            label="Area / Pincode"
+            placeholder={city ? 'Select area or type PIN' : 'Select a city first'}
+            value={area}
+            onChange={setArea}
+            fetcher={fetchAreas}
+            localOptions={areaList}
+            disabled={!city}
+            allowCustom
+            hint="Enter a local area or PIN code (e.g. 500081)."
+          />
+          <PlacesSearchSelect
+            label="Segment"
+            placeholder="Select segment"
+            value={segment}
+            onChange={setSegment}
+            fetcher={fetchSegments}
+            localOptions={segmentList}
+            allowCustom
+            hint="Choose a Google Maps business type."
+          />
+          <label className="text-sm font-medium text-slate-700">
+            Minimum Rating
+            <select value={minRating} onChange={(event) => setMinRating(event.target.value)} className={`mt-1 ${INPUT}`}>
+              <option value="">Any</option>
+              <option value="3">3.0+</option>
+              <option value="3.5">3.5+</option>
+              <option value="4">4.0+</option>
+              <option value="4.5">4.5+</option>
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-400">Filter by minimum Google rating.</span>
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Has Website
+            <select value={hasWebsite} onChange={(event) => setHasWebsite(event.target.value as WebsiteFilter)} className={`mt-1 ${INPUT}`}>
+              <option value="any">Any</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-400">Filter businesses with or without a website.</span>
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Has Phone
+            <select value={hasPhone} onChange={(event) => setHasPhone(event.target.value as PhoneFilter)} className={`mt-1 ${INPUT}`}>
+              <option value="any">Any</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-400">Filter businesses with or without a phone number.</span>
+          </label>
+        </div>
 
-        <div className="flex flex-wrap gap-3 mt-5">
-          <button
-            type="button"
-            disabled={loading || !canSearch}
-            onClick={() => runSearch(false)}
-            className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
-          >
-            {loading ? 'Searching…' : 'Preview search'}
-          </button>
+        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          <Icon name="EyeIcon" size={18} className="text-violet-500" />
+          <span className="font-semibold text-slate-700">Query preview</span>
+          <span>{queryText || 'Your search query will appear here based on the selected filters.'}</span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
             disabled={loading || !canSearch || !payload.name}
             onClick={() => runSearch(true)}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 shadow-md shadow-indigo-500/25 hover:brightness-110 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
           >
-            {loading ? 'Working…' : 'Search & save'}
+            <Icon name="MagnifyingGlassIcon" size={16} />
+            {loading ? 'Working…' : 'Search & Save'}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !canSearch}
+            onClick={() => runSearch(false)}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Icon name="EyeIcon" size={16} />
+            {loading ? 'Searching…' : 'Preview Search'}
+          </button>
+          <button type="button" onClick={clearSearch} className="inline-flex items-center gap-2 px-2 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800">
+            <Icon name="ArrowPathIcon" size={16} />
+            Clear
           </button>
           {preview && (
-            <>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={savePreview}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 shadow-md shadow-emerald-500/20 hover:brightness-110 disabled:opacity-50"
-              >
-                Save preview
-              </button>
-              <LeadExportMenu
-                preview={preview}
-                results={preview.results}
-                searchName={payload.name}
-                onMessage={setMessage}
-                onError={setError}
-              />
-            </>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={savePreview}
+              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              Save preview
+            </button>
           )}
         </div>
-      </AdminSection>
+      </section>
 
       {preview && (
-        <AdminSection title="Preview results" description={preview.text_query} accent="violet">
+        <AdminSection title="Preview results" description={preview.text_query}>
+          <div className="mb-3">
+            <LeadExportMenu preview={preview} results={preview.results} searchName={payload.name} onMessage={setMessage} onError={setError} />
+          </div>
           <LeadResultsTable results={preview.results} />
         </AdminSection>
       )}
 
-      <AdminSection title="Saved searches" description="Every saved Places search. Open details to see only that list." accent="emerald">
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="font-bricolage text-lg font-semibold text-slate-900">Saved Searches</h2>
+          <p className="text-sm text-slate-500">Your saved Places searches. Open details to see only that list.</p>
+        </div>
         {history.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No saved searches yet.</p>
+          <p className="py-8 text-center text-sm text-slate-500">No saved searches yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-emerald-100/80">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gradient-to-r from-emerald-50 via-white to-cyan-50 text-left text-slate-500">
-                  <th className="px-4 py-3 font-semibold">Name</th>
-                  <th className="px-4 py-3 font-semibold">When</th>
-                  <th className="px-4 py-3 font-semibold">Query</th>
-                  <th className="px-4 py-3 font-semibold">Results</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
+                <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3">Name</th>
+                  <th className="px-3 py-3">Location / Query</th>
+                  <th className="px-3 py-3">Saved On</th>
+                  <th className="px-3 py-3">Results</th>
+                  <th className="px-3 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((run) => (
-                  <tr key={run.id} className="border-t border-slate-100 hover:bg-emerald-50/40">
-                    <td className="px-4 py-3 font-semibold text-slate-900">{displaySearchName(run)}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(run.created_at)}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-xs text-muted-foreground font-mono">{run.text_query}</p>
+                  <tr key={run.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-3 py-3">
+                      <span className="inline-flex items-center gap-2 font-semibold text-slate-900">
+                        <Icon
+                          name={run.has_website_filter === 'no' ? 'ExclamationTriangleIcon' : 'BookmarkIcon'}
+                          size={16}
+                          className={run.has_website_filter === 'no' ? 'text-rose-500' : 'text-sky-500'}
+                        />
+                        {displaySearchName(run)}
+                      </span>
                     </td>
-                    <td className="px-4 py-3">{run.result_count}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 text-slate-600">
+                      <span className="inline-flex items-center gap-2">
+                        <Icon name="MapPinIcon" size={14} className="text-slate-400" />
+                        {run.text_query}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-slate-500">{formatDate(run.created_at)}</td>
+                    <td className="px-3 py-3 font-semibold text-slate-900">{run.result_count}</td>
+                    <td className="px-3 py-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <Link
-                          href={`${pageBase}/${run.id}`}
-                          className="text-xs font-semibold text-indigo-600 hover:underline"
-                        >
+                        <Link href={`${pageBase}/${run.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-violet-600 hover:underline">
+                          <Icon name="DocumentTextIcon" size={14} />
                           Details
                         </Link>
                         <LeadExportMenu size="sm" runId={run.id} run={run} onMessage={setMessage} onError={setError} />
@@ -551,7 +627,7 @@ export default function LeadDiscoveryPage() {
             </table>
           </div>
         )}
-      </AdminSection>
+      </section>
     </div>
   );
 }

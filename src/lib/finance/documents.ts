@@ -1,8 +1,9 @@
+import { unlink } from 'fs/promises';
 import { writeFinanceAudit } from './audit';
 import { q, type DbClient } from './db';
 import { FinanceNotFoundError } from './errors';
-import { financialYearFromDate, todayISO } from './fy';
-import { saveFinanceFile, sanitizeFilename } from './storage';
+import { financialYearAliases, financialYearFromDate, todayISO } from './fy';
+import { absoluteFinancePath, saveFinanceFile, sanitizeFilename } from './storage';
 
 export type DocumentType =
   | 'client_invoice'
@@ -132,8 +133,14 @@ export async function listDocuments(params: {
     where.push(`reference_id = $${values.length}`);
   }
   if (params.fy) {
-    values.push(params.fy);
-    where.push(`financial_year = $${values.length}`);
+    let keys = [params.fy];
+    try {
+      keys = financialYearAliases(params.fy);
+    } catch {
+      keys = [params.fy];
+    }
+    values.push(keys);
+    where.push(`financial_year = ANY($${values.length}::text[])`);
   }
   if (params.from) {
     values.push(params.from);
@@ -145,20 +152,33 @@ export async function listDocuments(params: {
   }
   if (params.q) {
     values.push(`%${params.q}%`);
-    where.push(`(original_filename ILIKE $${values.length} OR notes ILIKE $${values.length})`);
+    where.push(`(original_filename ILIKE $${values.length} OR notes ILIKE $${values.length} OR COALESCE(reference_type, '') ILIKE $${values.length})`);
   }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const { rows } = await q(
     undefined,
-    `SELECT id, document_type, reference_type, reference_id, document_date, financial_year,
-            original_filename, mime_type, file_size, notes, uploaded_by, uploaded_at
-     FROM finance_documents ${clause}
-     ORDER BY uploaded_at DESC
+    `SELECT finance_documents.id, finance_documents.document_type, finance_documents.reference_type, finance_documents.reference_id,
+            finance_documents.document_date, finance_documents.financial_year, finance_documents.original_filename,
+            finance_documents.mime_type, finance_documents.file_size, finance_documents.notes, finance_documents.uploaded_by,
+            finance_documents.uploaded_at, au.email AS uploaded_by_email
+     FROM finance_documents
+     LEFT JOIN admin_users au ON au.user_id = finance_documents.uploaded_by
+     ${clause}
+     ORDER BY finance_documents.uploaded_at DESC
      LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
     values
   );
   const count = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM finance_documents ${clause}`, values);
   return { rows, total: Number(count.rows[0]?.count || 0), page, pageSize };
+}
+
+export async function deleteDocument(id: string) {
+  const doc = await getDocument(id);
+  await q(undefined, 'DELETE FROM finance_documents WHERE id = $1', [id]);
+  if (doc.storage_path) {
+    await unlink(absoluteFinancePath(String(doc.storage_path))).catch(() => undefined);
+  }
+  return { ok: true };
 }
 
 export async function getDocument(id: string) {

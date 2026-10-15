@@ -41,6 +41,7 @@ export async function PATCH(
   if (body.notes !== undefined) allowed.notes = body.notes;
   if (body.phone !== undefined) allowed.phone = body.phone;
   if (body.company_name) allowed.company_name = body.company_name;
+  if (body.partner_type) allowed.partner_type = body.partner_type;
   if (body.contact_name) allowed.contact_name = body.contact_name;
   if (body.country !== undefined) allowed.country = body.country;
   if (typeof body.lead_discovery_enabled === 'boolean') {

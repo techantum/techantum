@@ -44,7 +44,7 @@ export default function LeadDiscoveryDetailsPage() {
     <div className="w-full space-y-6">
       <Link
         href={pageBase}
-        className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
+        className="inline-flex items-center text-sm font-medium text-secondary hover:text-secondary"
       >
         ← All saved searches
       </Link>

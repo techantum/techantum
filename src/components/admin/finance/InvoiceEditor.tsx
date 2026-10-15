@@ -10,6 +10,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import { calculateInvoice } from '@/lib/finance/calculate';
 import { GST_RATES, INDIAN_STATES } from '@/lib/finance/gst';
 import { todayISO } from '@/lib/finance/fy';
+import { useMasterItems } from '@/components/admin/useMasterItems';
 import { money } from '@/components/admin/finance/FinanceUi';
 
 type Item = {
@@ -45,6 +46,7 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
     invoice_date: todayISO(),
     due_date: '',
     project_id: '',
+    project_kind: '',
     purchase_order_number: '',
     work_order_number: '',
     currency: 'INR',
@@ -66,6 +68,21 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
     client_country: 'India',
   });
   const [items, setItems] = useState<Item[]>([emptyItem()]);
+  const projectTypes = useMasterItems('project_type', [
+    { value: 'Website', label: 'Website' },
+    { value: 'Web Application', label: 'Web Application' },
+    { value: 'Mobile Application', label: 'Mobile Application' },
+    { value: 'CMS Website', label: 'CMS Website' },
+    { value: 'UI/UX Design', label: 'UI/UX Design' },
+    { value: 'Digital Marketing', label: 'Digital Marketing' },
+    { value: 'Branding', label: 'Branding' },
+  ]);
+  const taxTreatments = useMasterItems('tax_treatment', [
+    { value: 'auto', label: 'Auto (CGST+SGST if same state, else IGST)' },
+    { value: 'cgst_sgst', label: 'Force CGST + SGST' },
+    { value: 'igst', label: 'Force IGST' },
+    { value: 'none', label: 'No GST' },
+  ]);
   const [status, setStatus] = useState('draft');
 
   useEffect(() => {
@@ -94,6 +111,7 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
           invoice_date: inv.invoice_date,
           due_date: inv.due_date || '',
           project_id: inv.project_id || '',
+          project_kind: inv.project_id ? '' : inv.project_kind || '',
           purchase_order_number: inv.purchase_order_number || '',
           work_order_number: inv.work_order_number || '',
           currency: inv.currency || 'INR',
@@ -130,11 +148,10 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
   }, [invoiceId]);
 
   useEffect(() => {
-    if (!form.client_id) return;
-    fetch(`/api/admin/finance/projects?clientId=${form.client_id}`)
+    fetch('/api/admin/finance/projects')
       .then((r) => r.json())
       .then((rows) => setProjects(Array.isArray(rows) ? rows : []));
-  }, [form.client_id]);
+  }, []);
 
   const applyClient = (id: string) => {
     const client = clients.find((c) => c.id === id);
@@ -205,7 +222,7 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
     <div className="space-y-5">
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
       {locked && <AdminAlert variant="info">This invoice is {status}. Drafts can be edited; finalized invoices are locked.</AdminAlert>}
-      <AdminSection title="Client">
+      <AdminSection title="Client" icon="UserIcon">
         <AdminFormGrid>
           <AdminField label="Client" span={2}>
             <select className={adminSelectClass} disabled={locked} value={form.client_id} onChange={(e) => applyClient(e.target.value)}>
@@ -255,7 +272,7 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
           </AdminField>
         </AdminFormGrid>
       </AdminSection>
-      <AdminSection title="Invoice details">
+      <AdminSection title="Invoice details" icon="DocumentTextIcon">
         <AdminFormGrid>
           <AdminField label="Invoice date">
             <input type="date" className={adminInputClass} disabled={locked} value={form.invoice_date} onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} />
@@ -264,13 +281,35 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
             <input type="date" className={adminInputClass} disabled={locked} value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
           </AdminField>
           <AdminField label="Project">
-            <select className={adminSelectClass} disabled={locked} value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })}>
+            <select
+              className={adminSelectClass}
+              disabled={locked}
+              value={form.project_id || (form.project_kind ? `kind:${form.project_kind}` : '')}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.startsWith('kind:')) {
+                  setForm({ ...form, project_id: '', project_kind: value.slice(5) });
+                  return;
+                }
+                const project = projects.find((row) => String(row.id) === value);
+                setForm({ ...form, project_id: value, project_kind: project ? String(project.project_type || '') : '' });
+              }}
+            >
               <option value="">None</option>
-              {projects.map((p) => (
-                <option key={String(p.id)} value={String(p.id)}>
-                  {String(p.project_name)}
-                </option>
-              ))}
+              <optgroup label="Project types">
+                {projectTypes.map((type) => (
+                  <option key={type.value} value={`kind:${type.value}`}>{type.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Existing projects">
+                {[...projects]
+                  .sort((a, b) => Number(String(b.client_id) === form.client_id) - Number(String(a.client_id) === form.client_id))
+                  .map((p) => (
+                    <option key={String(p.id)} value={String(p.id)}>
+                      {[p.project_type, p.project_name, p.client_name].filter(Boolean).join(' — ')}
+                    </option>
+                  ))}
+              </optgroup>
             </select>
           </AdminField>
           <AdminField label="PO number">
@@ -299,10 +338,9 @@ export default function InvoiceEditor({ invoiceId }: { invoiceId?: string }) {
           </AdminField>
           <AdminField label="Tax treatment">
             <select className={adminSelectClass} disabled={locked} value={form.tax_treatment} onChange={(e) => setForm({ ...form, tax_treatment: e.target.value })}>
-              <option value="auto">Auto (CGST+SGST if same state, else IGST)</option>
-              <option value="cgst_sgst">Force CGST + SGST</option>
-              <option value="igst">Force IGST</option>
-              <option value="none">No GST</option>
+              {taxTreatments.map((treatment) => (
+                <option key={treatment.value} value={treatment.value}>{treatment.label}</option>
+              ))}
             </select>
           </AdminField>
           <AdminField label="Notes" span={3}>

@@ -73,6 +73,12 @@ export function currentFinancialYear(now = new Date()) {
   return financialYearFromDate(todayISO(now));
 }
 
+/** Full and short labels for the same year, so `2026-27` matches rows stored as `26-27`. */
+export function financialYearAliases(label: string): string[] {
+  const fy = parseFinancialYear(label);
+  return [...new Set([fy.label, fy.shortLabel])];
+}
+
 export function monthRange(year: number, month: number): DateRange {
   if (month < 1 || month > 12) throw new FinanceValidationError('Month must be 1–12');
   const start = `${year}-${String(month).padStart(2, '0')}-01`;

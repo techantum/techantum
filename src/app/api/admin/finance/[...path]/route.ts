@@ -11,7 +11,7 @@ import {
   updateFinanceClient,
 } from '@/lib/finance/clients';
 import { getFinanceDashboard } from '@/lib/finance/dashboard';
-import { downloadName, getDocument, listDocuments, uploadAndRegister, type DocumentType } from '@/lib/finance/documents';
+import { deleteDocument, downloadName, getDocument, listDocuments, uploadAndRegister, type DocumentType } from '@/lib/finance/documents';
 import {
   addReceiptDocument,
   cancelReceipt,
@@ -23,6 +23,7 @@ import {
 import {
   cancelInvoice,
   createInvoice,
+  deleteInvoice,
   finalizeInvoice,
   getInvoice,
   invoicePdfFilename,
@@ -56,6 +57,8 @@ import {
   vendorExpenseReport,
 } from '@/lib/finance/reports';
 import {
+  deletePayslip,
+  generatePayslip,
   getPayslip,
   listEmployees,
   listPayslips,
@@ -66,7 +69,7 @@ import {
 import { getFinanceSettings, updateFinanceSettings } from '@/lib/finance/settings';
 import { absoluteFinancePath, saveFinanceFile } from '@/lib/finance/storage';
 import { listTransactions } from '@/lib/finance/transactions';
-import { getVendor, listVendors, upsertVendor } from '@/lib/finance/vendors';
+import { deleteVendor, getVendor, listVendors, upsertVendor } from '@/lib/finance/vendors';
 import { currentFinancialYear, resolvePeriod, todayISO, type PeriodFilter } from '@/lib/finance/fy';
 
 function isReceiptsPath(seg: string) {
@@ -111,7 +114,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
     if (path[0] === 'dashboard') return NextResponse.json(await getFinanceDashboard(periodFromUrl(url)));
     if (path[0] === 'settings' && path[1] === 'file' && path[2]) {
       const settings = await getFinanceSettings();
-      const key = path[2] as 'logo_path' | 'payment_qr_path' | 'signature_path' | 'seal_path';
+      const key = path[2] as 'logo_path' | 'payment_qr_path' | 'signature_path' | 'seal_path' | 'payslip_logo_path';
       const stored = settings[key];
       if (!stored) return NextResponse.json({ error: 'File not found' }, { status: 404 });
       return streamFileResponse(absoluteFinancePath(stored), path[2], 'application/octet-stream');
@@ -126,6 +129,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
             q: url.searchParams.get('q') || undefined,
             status: url.searchParams.get('status') || undefined,
             clientType: url.searchParams.get('clientType') || undefined,
+            country: url.searchParams.get('country') || undefined,
             page,
             pageSize,
           })
@@ -180,7 +184,13 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
     if (path[0] === 'vendors' && path[1]) return NextResponse.json(await getVendor(path[1]));
     if (path[0] === 'vendors') {
       return NextResponse.json(
-        await listVendors({ q: url.searchParams.get('q') || undefined, status: url.searchParams.get('status') || undefined, page, pageSize })
+        await listVendors({
+          q: url.searchParams.get('q') || undefined,
+          status: url.searchParams.get('status') || undefined,
+          city: url.searchParams.get('city') || undefined,
+          page,
+          pageSize,
+        })
       );
     }
     if (isReceiptsPath(path[0]) && path[1]) return NextResponse.json(await getReceipt(path[1]));
@@ -222,6 +232,8 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
           year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
           month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
           employeeId: url.searchParams.get('employeeId') || undefined,
+          department: url.searchParams.get('department') || undefined,
+          fy: url.searchParams.get('fy') || undefined,
           page,
           pageSize,
         })
@@ -248,6 +260,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
         await listDocuments({
           q: url.searchParams.get('q') || undefined,
           documentType: url.searchParams.get('documentType') || undefined,
+          referenceType: url.searchParams.get('referenceType') || undefined,
           fy: url.searchParams.get('fy') || undefined,
           from: url.searchParams.get('from') || undefined,
           to: url.searchParams.get('to') || undefined,
@@ -318,8 +331,11 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
       const file = form.get('file');
       const field = String(form.get('field') || '');
       if (!(file instanceof File)) return NextResponse.json({ error: 'File is required' }, { status: 400 });
-      const allowed = ['logo_path', 'payment_qr_path', 'signature_path', 'seal_path'];
+      const allowed = ['logo_path', 'payment_qr_path', 'signature_path', 'seal_path', 'payslip_logo_path'];
       if (!allowed.includes(field)) return NextResponse.json({ error: 'Invalid settings file field' }, { status: 400 });
+      if (field === 'payslip_logo_path' && !/\.(png|jpe?g)$/i.test(file.name || '')) {
+        return NextResponse.json({ error: 'Payslip logo must be a PNG or JPG' }, { status: 400 });
+      }
       const stored = await saveFinanceFile(file, 'settings');
       const settings = await updateFinanceSettings({ [field]: stored.storage_path }, userId, meta);
       return NextResponse.json(settings);
@@ -336,6 +352,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
       const body = await parseJson(request);
       return NextResponse.json(await upsertCategory('finance_expense_categories', body, body.id));
     }
+    if (path[0] === 'employees' && path[1]) return NextResponse.json(await upsertEmployee(await parseJson(request), userId, path[1]));
     if (path[0] === 'employees') return NextResponse.json(await upsertEmployee(await parseJson(request), userId));
     if (path[0] === 'invoices' && path[1] && path[2] === 'finalize') return NextResponse.json(await finalizeInvoice(path[1], userId, meta));
     if (path[0] === 'invoices' && path[1] && path[2] === 'cancel') {
@@ -389,6 +406,9 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
     if (path[0] === 'receipt-payments' || path[0] === 'expense-payments') {
       return NextResponse.json(await recordReceiptPayment(await parseJson(request), userId));
     }
+    if (path[0] === 'payslips' && path[1] === 'generate' && !path[2]) {
+      return NextResponse.json(await generatePayslip(await parseJson(request), userId));
+    }
     if (path[0] === 'payslips' && path[1] && path[2] === 'replace') {
       const form = await request.formData();
       const file = form.get('file');
@@ -432,6 +452,26 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
   }
 }
 
+export async function DELETE(request: Request, ctx: { params: Promise<{ path: string[] }> }) {
+  const gated = await auth('write');
+  if ('error' in gated && gated.error) return gated.error;
+  const path = (await ctx.params).path || [];
+  const userId = gated.user.id;
+  const meta = requestMeta(request);
+  try {
+    if (path[0] === 'invoices' && path[1] && !path[2]) {
+      const body = await parseJson(request);
+      return NextResponse.json(await deleteInvoice(path[1], String(body.confirm || ''), userId, meta));
+    }
+    if (path[0] === 'vendors' && path[1] && !path[2]) return NextResponse.json(await deleteVendor(path[1]));
+    if (path[0] === 'documents' && path[1] && !path[2]) return NextResponse.json(await deleteDocument(path[1]));
+    if (path[0] === 'payslips' && path[1] && !path[2]) return NextResponse.json(await deletePayslip(path[1]));
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  } catch (err) {
+    return financeErrorResponse(err);
+  }
+}
+
 export async function PATCH(request: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const gated = await auth('write');
   if ('error' in gated && gated.error) return gated.error;
@@ -439,6 +479,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ path: str
   const userId = gated.user.id;
   try {
     if (path[0] === 'invoices' && path[1]) return NextResponse.json(await updateDraftInvoice(path[1], await parseJson(request), userId));
+    if (path[0] === 'employees' && path[1]) return NextResponse.json(await upsertEmployee(await parseJson(request), userId, path[1]));
     if (path[0] === 'vendors' && path[1]) return NextResponse.json(await upsertVendor(await parseJson(request), userId, path[1]));
     if (path[0] === 'services' && path[1]) return NextResponse.json(await upsertService(await parseJson(request), userId, path[1]));
     return NextResponse.json({ error: 'Not found' }, { status: 404 });

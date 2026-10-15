@@ -88,11 +88,11 @@ export default function SubmittedRequirementDetailPage() {
       </div>
       <AdminSection title="Review Actions" description="Update status or request edits to selected sections.">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20">
             {Object.entries(REQUIREMENT_STATUS_LABELS).filter(([key]) => key !== 'draft').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" className="rounded-lg border border-border px-3 py-2 text-sm" />
-          <button onClick={updateStatus} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">Update Status</button>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20" />
+          <button type="button" onClick={updateStatus} className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-[#d93b1e]">Update Status</button>
         </div>
         <div className="border-t border-border pt-4 space-y-3">
           <p className="text-sm font-medium">Clarification Workflow</p>
@@ -104,7 +104,7 @@ export default function SubmittedRequirementDetailPage() {
               </label>
             ))}
           </div>
-          <textarea value={clarificationComment} onChange={(e) => setClarificationComment(e.target.value)} rows={2} placeholder="Example: Please upload a higher resolution logo." className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
+          <textarea value={clarificationComment} onChange={(e) => setClarificationComment(e.target.value)} rows={2} placeholder="Example: Please upload a higher resolution logo." className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20" />
           <button onClick={requestChanges} disabled={!clarificationComment.trim()} className="rounded-lg bg-amber-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">Request Changes</button>
         </div>
       </AdminSection>

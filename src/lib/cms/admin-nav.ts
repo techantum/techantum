@@ -15,6 +15,14 @@ export interface AdminNavGroup {
 
 export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
+    id: 'master',
+    label: 'Master Data',
+    icon: 'CircleStackIcon',
+    items: [
+      { href: '/admin/master-data', label: 'Dropdown Values', icon: 'QueueListIcon' },
+    ],
+  },
+  {
     id: 'dashboard',
     label: 'Dashboard',
     icon: 'HomeIcon',
@@ -41,7 +49,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: '/admin/ops', label: 'Dashboard', icon: 'ChartBarSquareIcon', exact: true },
       { href: '/admin/ops/create', label: 'Create Ticket', icon: 'PlusCircleIcon' },
-      { href: '/admin/ops/clients', label: 'Clients', icon: 'UserGroupIcon' },
       { href: '/admin/ops/projects', label: 'Projects', icon: 'FolderIcon' },
       { href: '/admin/ops/tickets', label: 'Tickets', icon: 'TicketIcon' },
     ],
@@ -97,12 +104,27 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/admin/finance/invoices', label: 'Invoices', icon: 'DocumentTextIcon' },
       { href: '/admin/finance/vendors', label: 'Vendors', icon: 'BuildingStorefrontIcon' },
       { href: '/admin/finance/receipts', label: 'Receipts', icon: 'ReceiptRefundIcon' },
-      { href: '/admin/finance/payslips', label: 'Payslips', icon: 'DocumentDuplicateIcon' },
       { href: '/admin/finance/transactions', label: 'Transactions', icon: 'ArrowsRightLeftIcon' },
       { href: '/admin/finance/documents', label: 'Documents', icon: 'FolderIcon' },
       { href: '/admin/finance/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
       { href: '/admin/finance/ca-export', label: 'CA Export', icon: 'ArchiveBoxArrowDownIcon' },
       { href: '/admin/finance/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+    ],
+  },
+  {
+    id: 'hr',
+    label: 'HR',
+    icon: 'IdentificationIcon',
+    items: [
+      { href: '/admin/hr', label: 'Dashboard', icon: 'ChartBarSquareIcon', exact: true },
+      { href: '/admin/hr/employees', label: 'Employees', icon: 'UsersIcon' },
+      { href: '/admin/hr/attendance', label: 'Daily Attendance', icon: 'CalendarDaysIcon' },
+      { href: '/admin/hr/leave', label: 'Leave Management', icon: 'ClipboardDocumentCheckIcon' },
+      { href: '/admin/hr/payroll', label: 'Monthly Payroll', icon: 'BanknotesIcon' },
+      { href: '/admin/hr/payslips', label: 'Payslips', icon: 'DocumentDuplicateIcon' },
+      { href: '/admin/hr/holidays', label: 'Holiday Management', icon: 'GiftIcon' },
+      { href: '/admin/hr/settings', label: 'Payroll Settings', icon: 'Cog6ToothIcon' },
+      { href: '/admin/hr/annual', label: 'Annual Payroll Summary', icon: 'DocumentChartBarIcon' },
     ],
   },
   {
@@ -152,6 +174,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/admin/projects/create', label: 'Create Project', icon: 'PlusCircleIcon' },
       { href: '/admin/requirement-forms', label: 'Requirement Forms', icon: 'DocumentDuplicateIcon' },
       { href: '/admin/submitted-requirements', label: 'Submitted Requirements', icon: 'ClipboardDocumentCheckIcon' },
+    ],
+  },
+  {
+    id: 'account',
+    label: 'Account',
+    icon: 'UserCircleIcon',
+    items: [
+      { href: '/admin/profile', label: 'Profile', icon: 'IdentificationIcon' },
     ],
   },
   {

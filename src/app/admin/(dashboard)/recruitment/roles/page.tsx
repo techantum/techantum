@@ -114,7 +114,7 @@ export default function RecruitmentRolesPage() {
             </p>
           </div>
           {selectedRole && (
-            <Link href={`/admin/recruitment/roles/${selectedRole.id}/candidates`} className="text-sm font-semibold text-indigo-600 hover:underline">
+            <Link href={`/admin/recruitment/roles/${selectedRole.id}/candidates`} className="text-sm font-semibold text-secondary hover:underline">
               Open role workspace →
             </Link>
           )}

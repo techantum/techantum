@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminStatCard from '@/components/admin/AdminStatCard';
+import { FilterBar, FilterSelect } from '@/components/admin/ListFilters';
+import { FinanceTd, FinanceTh } from '@/components/admin/finance/FinanceUi';
 
 interface Submission {
   id: string;
@@ -96,34 +98,21 @@ export default function SubmissionsAdminPage() {
         <AdminStatCard label="Closed" value={counts.closed} accent="green" hint="Converted / done" />
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-indigo-100 px-3 py-2 text-sm bg-white/90 shadow-sm"
-        >
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="contacted">Contacted</option>
-          <option value="closed">Closed</option>
-        </select>
-        <select
-          value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value)}
-          className="rounded-xl border border-indigo-100 px-3 py-2 text-sm bg-white/90 shadow-sm"
-        >
-          <option value="all">All sources</option>
-          <option value="homepage_hero">Homepage hero</option>
-          <option value="contact_page">Contact page</option>
-        </select>
-        <button
-          type="button"
-          onClick={load}
-          className="rounded-xl border border-indigo-100 px-3 py-2 text-sm hover:bg-indigo-50 bg-white/90 font-semibold text-indigo-700"
-        >
-          Refresh
-        </button>
-      </div>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <FilterBar plain onSearch={load} onClear={() => { setStatusFilter('all'); setSourceFilter('all'); }} searchLabel="Refresh">
+          <FilterSelect value={statusFilter} onChange={setStatusFilter} className="w-44">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="contacted">Contacted</option>
+            <option value="closed">Closed</option>
+          </FilterSelect>
+          <FilterSelect icon="MegaphoneIcon" value={sourceFilter} onChange={setSourceFilter} className="w-48">
+            <option value="all">All sources</option>
+            <option value="homepage_hero">Homepage hero</option>
+            <option value="contact_page">Contact page</option>
+          </FilterSelect>
+        </FilterBar>
+      </section>
 
       {loading ? (
         <p className="text-muted-foreground">Loading leads…</p>
@@ -132,55 +121,52 @@ export default function SubmissionsAdminPage() {
           No leads match your filters.
         </p>
       ) : (
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/80 overflow-hidden shadow-lg shadow-indigo-500/5">
-          <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-indigo-50 bg-gradient-to-r from-indigo-50 via-white to-fuchsia-50 text-left">
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Service</th>
-                  <th className="px-4 py-3 font-medium">Source</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium"></th>
+                <tr>
+                  <FinanceTh>Date</FinanceTh>
+                  <FinanceTh>Name</FinanceTh>
+                  <FinanceTh>Phone</FinanceTh>
+                  <FinanceTh>Service</FinanceTh>
+                  <FinanceTh>Source</FinanceTh>
+                  <FinanceTh>Status</FinanceTh>
+                  <FinanceTh>Actions</FinanceTh>
                 </tr>
               </thead>
               <tbody>
                 {submissions.map((row) => {
                   const statusMeta = STATUS_OPTIONS.find((s) => s.value === row.status);
                   return (
-                    <tr key={row.id} className="border-b border-slate-100 hover:bg-indigo-50/40">
-                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {formatDate(row.created_at)}
-                      </td>
-                      <td className="px-4 py-3 font-medium">{row.name}</td>
-                      <td className="px-4 py-3">
+                    <tr key={row.id}>
+                      <FinanceTd>{formatDate(row.created_at)}</FinanceTd>
+                      <FinanceTd><span className="font-semibold text-slate-900">{row.name}</span></FinanceTd>
+                      <FinanceTd>
                         <a href={`tel:${row.phone}`} className="text-primary hover:underline">
                           {row.phone}
                         </a>
-                      </td>
-                      <td className="px-4 py-3 max-w-[180px] truncate">{row.product_category}</td>
-                      <td className="px-4 py-3">
+                      </FinanceTd>
+                      <FinanceTd>{row.product_category}</FinanceTd>
+                      <FinanceTd>
                         {SOURCE_LABELS[row.source || 'contact_page'] || row.source || '—'}
-                      </td>
-                      <td className="px-4 py-3">
+                      </FinanceTd>
+                      <FinanceTd>
                         <span
                           className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusMeta?.className || 'bg-muted'}`}
                         >
                           {statusMeta?.label || row.status}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
+                      </FinanceTd>
+                      <FinanceTd>
                         <button
                           type="button"
                           onClick={() => setSelected(row)}
-                          className="text-primary text-sm font-medium hover:underline"
+                          className="text-sm font-semibold text-secondary hover:underline"
                         >
                           Details
                         </button>
-                      </td>
+                      </FinanceTd>
                     </tr>
                   );
                 })}
@@ -229,7 +215,7 @@ export default function SubmissionsAdminPage() {
                   value={selected.status}
                   disabled={updating}
                   onChange={(e) => updateStatus(selected.id, e.target.value)}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                 >
                   {STATUS_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>

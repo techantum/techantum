@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { financialYearFromDate, formatFinancialYear, parseFinancialYear, resolvePeriod } from './fy.ts';
+import { financialYearAliases, financialYearFromDate, formatFinancialYear, parseFinancialYear, resolvePeriod } from './fy.ts';
 
 describe('Indian financial year', () => {
   it('maps 1 Apr 2026 – 31 Mar 2027 to 2026-27', () => {
@@ -23,6 +23,11 @@ describe('Indian financial year', () => {
     assert.equal(fy.from, '2026-04-01');
     assert.equal(fy.to, '2027-03-31');
     assert.throws(() => parseFinancialYear('2026-28'));
+  });
+
+  it('treats full and short labels as the same year', () => {
+    assert.deepEqual(financialYearAliases('2026-27'), ['2026-27', '26-27']);
+    assert.deepEqual(financialYearAliases('26-27'), ['2026-27', '26-27']);
   });
 
   it('resolves current month and FY filters', () => {

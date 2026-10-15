@@ -175,13 +175,13 @@ export default function OpsTicketDetailPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           <OpsOverviewField label="Client">
-            <Link className="text-indigo-600 hover:underline inline-flex items-center gap-1" href={`/admin/ops/clients/${t.client_id}`}>
+            <Link className="text-secondary hover:underline inline-flex items-center gap-1" href={`/admin/ops/clients/${t.client_id}`}>
               {t.ops_clients?.name}
               <Icon name="ArrowTopRightOnSquareIcon" size={14} />
             </Link>
           </OpsOverviewField>
           <OpsOverviewField label="Project">
-            <Link className="text-indigo-600 hover:underline inline-flex items-center gap-1" href={`/admin/ops/projects/${t.project_id}`}>
+            <Link className="text-secondary hover:underline inline-flex items-center gap-1" href={`/admin/ops/projects/${t.project_id}`}>
               {t.ops_projects?.project_name}
               <Icon name="ArrowTopRightOnSquareIcon" size={14} />
             </Link>
@@ -200,7 +200,7 @@ export default function OpsTicketDetailPage() {
       </AdminSection>
 
       <OpsGrid>
-        <AdminSection title="Internal estimation" description="Not shared with the client." accent="amber">
+        <AdminSection icon="CalculatorIcon" title="Internal estimation" description="Not shared with the client." accent="amber">
           <InternalEstimationGrid
             hours={t.estimated_hours}
             rate={t.cost_per_hour}
@@ -209,7 +209,7 @@ export default function OpsTicketDetailPage() {
           />
         </AdminSection>
 
-        <AdminSection title="Update status" accent="sky">
+        <AdminSection icon="ArrowPathIcon" title="Update status" accent="sky">
           <div className="space-y-2">
             <select className={adminSelectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
               {Object.entries(TICKET_STATUS_LABELS).map(([value, label]) => (
@@ -223,7 +223,7 @@ export default function OpsTicketDetailPage() {
           </div>
         </AdminSection>
 
-        <AdminSection title="Extend delivery date" accent="violet">
+        <AdminSection icon="CalendarDaysIcon" title="Extend delivery date" accent="violet">
           <p className="text-sm text-muted-foreground mb-2">
             Current: <strong className="text-foreground">{t.current_end_date}</strong>
           </p>
@@ -234,7 +234,7 @@ export default function OpsTicketDetailPage() {
           </div>
         </AdminSection>
 
-        <AdminSection title="Status history" description={`${detail.statusHistory.length} change(s)`}>
+        <AdminSection icon="ClockIcon" title="Status history" description={`${detail.statusHistory.length} change(s)`}>
           {detail.statusHistory.length === 0 ? (
             <p className="text-sm text-muted-foreground">No status changes yet.</p>
           ) : (
@@ -251,7 +251,7 @@ export default function OpsTicketDetailPage() {
           )}
         </AdminSection>
 
-        <AdminSection title="Delivery extensions" description={`${detail.extensions.length} extension(s)`} accent="emerald">
+        <AdminSection icon="CalendarDaysIcon" title="Delivery extensions" description={`${detail.extensions.length} extension(s)`} accent="emerald">
           {detail.extensions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No extensions yet.</p>
           ) : (
@@ -269,7 +269,7 @@ export default function OpsTicketDetailPage() {
         </AdminSection>
 
         <OpsGridSpan>
-          <AdminSection title="Communication history" description={`${detail.communications.length} message(s)`} accent="indigo">
+          <AdminSection icon="ChatBubbleLeftRightIcon" title="Communication history" description={`${detail.communications.length} message(s)`} accent="indigo">
             <CommunicationAccordion items={detail.communications} />
           </AdminSection>
         </OpsGridSpan>

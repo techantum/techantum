@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requirePartner, logPartnerActivity } from '@/lib/partner/auth';
+import { requirePartnerNav, logPartnerActivity } from '@/lib/partner/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { PartnerDashboardStats } from '@/lib/partner/types';
 
 export async function GET() {
-  const auth = await requirePartner();
+  const auth = await requirePartnerNav('dashboard');
   if ('error' in auth) return auth.error;
 
   const supabase = createAdminClient();

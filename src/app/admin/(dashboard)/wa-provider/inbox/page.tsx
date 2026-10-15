@@ -38,7 +38,7 @@ export default function InboxPage() {
                   setActive(row);
                   load(row.id);
                 }}
-                className={`w-full text-left rounded-lg border px-3 py-2 ${active?.id === row.id ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200'}`}
+                className={`w-full text-left rounded-lg border px-3 py-2 ${active?.id === row.id ? 'border-indigo-300 bg-orange-50' : 'border-slate-200'}`}
               >
                 <p className="text-sm font-medium">{row.wa_contacts?.name || row.wa_contacts?.phone || 'Unknown'}</p>
                 <p className="text-[11px] text-slate-500 truncate">{row.last_message_preview}</p>

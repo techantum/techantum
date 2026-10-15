@@ -155,12 +155,12 @@ export default function CandidateProfileView({
     <div className="w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
         <nav className="flex flex-wrap items-center gap-1.5">
-          <Link href="/admin/recruitment" className="hover:text-indigo-600">
+          <Link href="/admin/recruitment" className="hover:text-secondary">
             Recruitment
           </Link>
           <span>/</span>
           {role ? (
-            <Link href={`/admin/recruitment/roles/${candidate.job_role_id}/candidates`} className="hover:text-indigo-600">
+            <Link href={`/admin/recruitment/roles/${candidate.job_role_id}/candidates`} className="hover:text-secondary">
               Candidates
             </Link>
           ) : (
@@ -334,7 +334,7 @@ export default function CandidateProfileView({
                   href={candidate.resume_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-secondary hover:underline"
                 >
                   <Icon name="EyeIcon" size={15} />
                   View Resume
@@ -481,7 +481,7 @@ export default function CandidateProfileView({
           {questions.length > 6 && (
             <button
               type="button"
-              className="text-sm font-semibold text-indigo-600 hover:underline"
+              className="text-sm font-semibold text-secondary hover:underline"
               onClick={() => setShowAllQuestions((open) => !open)}
             >
               {showAllQuestions ? 'Show fewer' : 'View All Questions'}

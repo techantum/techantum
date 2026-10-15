@@ -12,7 +12,7 @@ import { LEAD_PIPELINE, leadStageLabel, leadStageTone, pipelineStage } from '@/l
 
 type TabId = 'all' | LeadStage;
 
-const AVATAR_TONES = ['bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-indigo-500', 'bg-teal-500'];
+const AVATAR_TONES = ['bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-orange-500', 'bg-teal-500'];
 
 function contactLabel(contact?: WhatsAppContact | null) {
   if (!contact) return 'Unknown';

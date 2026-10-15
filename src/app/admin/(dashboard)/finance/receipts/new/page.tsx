@@ -10,10 +10,14 @@ import AdminSection from '@/components/admin/AdminSection';
 import AdminAlert from '@/components/admin/AdminAlert';
 import { FinanceLink, FinanceShell, PAYMENT_MODES } from '@/components/admin/finance/FinanceUi';
 import { BILLING_CURRENCIES, GST_RATES } from '@/lib/finance/gst';
+import { useMasterItems } from '@/components/admin/useMasterItems';
 import { todayISO } from '@/lib/finance/fy';
 
 export default function NewReceiptPage() {
   const router = useRouter();
+  const paymentModes = useMasterItems('payment_mode', PAYMENT_MODES.map((mode) => ({ value: mode, label: mode })));
+  const gstRates = useMasterItems('gst_rate', GST_RATES.map((rate) => ({ value: String(rate), label: String(rate) })));
+  const currencies = useMasterItems('currency', BILLING_CURRENCIES.map((currency) => ({ value: currency, label: currency })));
   const [vendors, setVendors] = useState<Record<string, string>[]>([]);
   const [categories, setCategories] = useState<Record<string, string>[]>([]);
   const [clients, setClients] = useState<Record<string, string>[]>([]);
@@ -108,13 +112,13 @@ export default function NewReceiptPage() {
           <AdminField label="Vendor Invoice Date"><input type="date" className={adminInputClass} value={form.vendor_invoice_date} onChange={(e) => setForm({ ...form, vendor_invoice_date: e.target.value })} /></AdminField>
           <AdminField label="Currency">
             <select className={adminSelectClass} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
-              {BILLING_CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+              {currencies.map((currency) => <option key={currency.value}>{currency.label}</option>)}
             </select>
           </AdminField>
           <AdminField label="Taxable Amount"><input className={adminInputClass} value={form.taxable_amount} onChange={(e) => applyGst(e.target.value, form.gst_rate, form.split)} /></AdminField>
           <AdminField label="GST %">
             <select className={adminSelectClass} value={form.gst_rate} onChange={(e) => applyGst(form.taxable_amount, e.target.value, form.split)}>
-              {GST_RATES.map((r) => <option key={r} value={r}>{r}%</option>)}
+              {gstRates.map((rate) => <option key={rate.value} value={rate.value}>{rate.label}%</option>)}
             </select>
           </AdminField>
           <AdminField label="Tax split">
@@ -134,7 +138,7 @@ export default function NewReceiptPage() {
           <AdminField label="Payment Date"><input type="date" className={adminInputClass} value={form.payment_date} onChange={(e) => setForm({ ...form, payment_date: e.target.value })} /></AdminField>
           <AdminField label="Payment Mode">
             <select className={adminSelectClass} value={form.payment_mode} onChange={(e) => setForm({ ...form, payment_mode: e.target.value })}>
-              {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
+              {paymentModes.map((mode) => <option key={mode.value}>{mode.label}</option>)}
             </select>
           </AdminField>
           <AdminField label="Bank / Card"><input className={adminInputClass} value={form.bank_account} onChange={(e) => setForm({ ...form, bank_account: e.target.value })} /></AdminField>
@@ -142,7 +146,7 @@ export default function NewReceiptPage() {
           <AdminField label="Project Reference">
             <select className={adminSelectClass} value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })}>
               <option value="">None</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.project_name}</option>)}
+              {projects.map((p) => <option key={p.id} value={p.id}>{[p.project_type, p.project_name, p.client_name].filter(Boolean).join(' — ')}</option>)}
             </select>
           </AdminField>
           <AdminField label="Client Reference">

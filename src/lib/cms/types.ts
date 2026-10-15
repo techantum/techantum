@@ -29,12 +29,18 @@ export interface SiteSeo {
   canonical_host?: 'non-www' | 'www';
   index_site?: boolean;
   follow_site?: boolean;
+  /** When false, /sitemap.xml is empty and robots.txt omits the sitemap URL. */
+  sitemap_enabled?: boolean;
+  /** Extra Allow/Disallow lines appended to robots.txt. */
+  robots_extra?: string;
   header_scripts?: string;
   footer_scripts?: string;
   /** Google Tag Manager container ID (GTM-XXXX) */
   gtm_id?: string;
   /** Google Analytics 4 measurement ID (G-XXXX) */
   ga4_id?: string;
+  /** Google Ads conversion ID (AW-XXXX) */
+  google_ads_id?: string;
   /** Bing Webmaster Tools verification meta content */
   bing_verification?: string;
   /** Meta (Facebook) Pixel ID */

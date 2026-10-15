@@ -11,11 +11,16 @@ import {
 } from './nav.ts';
 
 describe('partner nav access', () => {
-  it('gives partner admins every menu, including Team', () => {
+  it('limits partner admins to lead discovery, user management, and profile', () => {
     const access = defaultPartnerNavAccess('partner_admin');
     assert.equal(access.team, true);
-    assert.equal(access.dashboard, true);
+    assert.equal(access.profile, true);
     assert.equal(access['lead-discovery'], true);
+    assert.equal(access.dashboard, false);
+    assert.equal(access.packages, false);
+    assert.equal(access.requirements, false);
+    assert.equal(access.documents, false);
+    assert.equal(access.support, false);
   });
 
   it('defaults partner users to all menus except Team', () => {
@@ -25,10 +30,13 @@ describe('partner nav access', () => {
     assert.equal(access.requirements, true);
   });
 
-  it('keeps partner admin access even if stored nav_access tries to disable menus', () => {
-    const access = sanitizePartnerNavAccess({ dashboard: false, team: false }, 'partner_admin');
-    assert.equal(access.dashboard, true);
+  it('keeps partner admin access even if stored nav_access tries to open other menus', () => {
+    const access = sanitizePartnerNavAccess({ dashboard: true, team: false, support: true }, 'partner_admin');
+    assert.equal(access.dashboard, false);
+    assert.equal(access.support, false);
     assert.equal(access.team, true);
+    assert.equal(access.profile, true);
+    assert.equal(access['lead-discovery'], true);
   });
 
   it('applies stored toggles for partner users', () => {
@@ -48,7 +56,7 @@ describe('partner nav access', () => {
     assert.equal(partnerNavKeyForPath('/partner/requirements/abc'), 'requirements');
     assert.equal(partnerNavKeyForPath('/partner/lead-discovery/run-1'), 'lead-discovery');
     assert.equal(partnerNavKeyForPath('/partner/dashboard'), 'dashboard');
-    assert.equal(partnerNavKeyForPath('/partner/profile'), null);
+    assert.equal(partnerNavKeyForPath('/partner/profile'), 'profile');
   });
 
   it('allows profile and notifications without a nav grant', () => {

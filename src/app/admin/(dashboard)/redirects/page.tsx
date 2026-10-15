@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
+import AdminButton from '@/components/admin/AdminButton';
 
 interface Redirect {
   id: string;
@@ -88,7 +89,7 @@ export default function RedirectsAdminPage() {
                 placeholder="/old-page"
                 value={form.source_path}
                 onChange={(e) => setForm({ ...form, source_path: e.target.value })}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 font-mono"
                 required
               />
             </div>
@@ -98,7 +99,7 @@ export default function RedirectsAdminPage() {
                 placeholder="/new-page or https://..."
                 value={form.destination_path}
                 onChange={(e) => setForm({ ...form, destination_path: e.target.value })}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 font-mono"
                 required
               />
             </div>
@@ -108,7 +109,7 @@ export default function RedirectsAdminPage() {
             <input
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -119,9 +120,7 @@ export default function RedirectsAdminPage() {
             />
             Permanent redirect (301)
           </label>
-          <button type="submit" className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium">
-            Add redirect
-          </button>
+          <AdminButton variant="primary" type="submit">Add redirect</AdminButton>
         </form>
         {message && (
           <p className={`text-sm mt-2 ${message.includes('Failed') ? 'text-red-600' : 'text-green-700'}`}>{message}</p>

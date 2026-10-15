@@ -170,7 +170,7 @@ export default function PartnerTeamPage() {
 
   const navItems = useMemo(
     () =>
-      PARTNER_NAV_ITEMS.map((item) => ({
+      PARTNER_NAV_ITEMS.filter((item) => item.key !== 'profile').map((item) => ({
         ...item,
         locked: 'requiresLeadDiscovery' in item && item.requiresLeadDiscovery && !leadDiscoveryEnabled,
       })),
@@ -181,8 +181,8 @@ export default function PartnerTeamPage() {
     <div className="w-full space-y-6">
       <AdminPageHeader
         kicker="Partner portal"
-        title="Team members"
-        description="Invite colleagues and choose which left-menu pages each person can access."
+        title="User management"
+        description="Invite colleagues and choose which left-menu pages each partner user can access."
         action={
           <button
             type="button"
@@ -251,7 +251,7 @@ export default function PartnerTeamPage() {
             </p>
             {form.role === 'partner_admin' ? (
               <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                Partner admins can access every menu, including Team.
+                Partner admins can use Lead Discovery, User management, and Profile.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

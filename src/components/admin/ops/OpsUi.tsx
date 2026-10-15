@@ -11,9 +11,9 @@ export function formatOpsWhen(iso: string) {
 
 export function OpsOverviewField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
-      <div className="text-sm font-medium text-foreground">{children}</div>
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      <div className="mt-0.5 text-sm font-medium text-slate-800">{children}</div>
     </div>
   );
 }
@@ -112,7 +112,7 @@ export function OpsLinkedItem({
 
 export function OpsBackLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+    <Link href={href} className="inline-flex items-center gap-1.5 text-sm font-medium text-secondary hover:underline">
       <Icon name="ArrowLeftIcon" size={14} />
       {label}
     </Link>
@@ -134,7 +134,7 @@ export function OpsGridSpan({ children }: { children: ReactNode }) {
 export function OpsStatusBadge({ label, overdue }: { label: string; overdue?: boolean }) {
   return (
     <>
-      <AdminBadge variant={overdue ? 'rose' : 'indigo'}>{label}</AdminBadge>
+      <AdminBadge variant={overdue ? 'rose' : 'green'}>{label}</AdminBadge>
       {overdue && <span className="text-[10px] font-semibold text-rose-700 ml-1">Overdue</span>}
     </>
   );

@@ -88,10 +88,13 @@ export const defaultSeo: SiteSeo = {
   canonical_host: 'non-www',
   index_site: true,
   follow_site: true,
+  sitemap_enabled: true,
+  robots_extra: '',
   header_scripts: '',
   footer_scripts: '',
   gtm_id: '',
   ga4_id: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '',
+  google_ads_id: '',
   bing_verification: '',
   facebook_pixel_id: '',
   linkedin_partner_id: '',
@@ -111,10 +114,12 @@ const SEO_TEXT_KEYS: (keyof SiteSeo)[] = [
   'og_image_url',
   'twitter_handle',
   'google_verification',
+  'robots_extra',
   'header_scripts',
   'footer_scripts',
   'gtm_id',
   'ga4_id',
+  'google_ads_id',
   'bing_verification',
   'facebook_pixel_id',
   'linkedin_partner_id',
@@ -141,6 +146,7 @@ export function normalizeSiteSeo(data?: Partial<SiteSeo> | null): SiteSeo {
   if (merged.canonical_host == null) merged.canonical_host = defaultSeo.canonical_host;
   if (merged.index_site == null) merged.index_site = defaultSeo.index_site;
   if (merged.follow_site == null) merged.follow_site = defaultSeo.follow_site;
+  if (merged.sitemap_enabled == null) merged.sitemap_enabled = defaultSeo.sitemap_enabled;
   return merged;
 }
 

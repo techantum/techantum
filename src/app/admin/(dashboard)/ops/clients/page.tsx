@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
-import { adminInputClass } from '@/components/admin/AdminField';
+import { FilterBar, FilterSearch } from '@/components/admin/ListFilters';
 import { OpsPageShell, OpsTd, OpsTh } from '@/components/admin/ops/OpsUi';
 import type { OpsClient } from '@/lib/ops/types';
 
@@ -14,8 +14,8 @@ export default function OpsClientsPage() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
 
-  const load = () => {
-    fetch(`/api/admin/ops/clients?search=${encodeURIComponent(search)}`)
+  const load = (next = search) => {
+    fetch(`/api/admin/ops/clients?search=${encodeURIComponent(next)}`)
       .then(async (r) => {
         const body = await r.json();
         if (!r.ok) throw new Error(body.error || 'Failed to load clients');
@@ -42,17 +42,10 @@ export default function OpsClientsPage() {
       />
       {error && <p className="text-sm text-rose-700">{error}</p>}
 
+      <FilterBar onSearch={() => load()} onClear={() => { setSearch(''); load(''); }}>
+        <FilterSearch value={search} onChange={setSearch} placeholder="Search name, email, phone..." />
+      </FilterBar>
       <AdminSection title={`${clients.length} client(s)`}>
-        <div className="flex gap-2 mb-3">
-          <input
-            className={`${adminInputClass} max-w-sm`}
-            placeholder="Search name, email, phone…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && load()}
-          />
-          <AdminButton onClick={load}>Search</AdminButton>
-        </div>
         {clients.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">No clients yet.</p>
         ) : (
@@ -72,7 +65,7 @@ export default function OpsClientsPage() {
                   <tr key={client.id} className="hover:bg-muted/20">
                     <OpsTd className="font-mono text-[11px]">{client.client_code}</OpsTd>
                     <OpsTd>
-                      <Link className="text-indigo-600 hover:underline font-medium" href={`/admin/ops/clients/${client.id}`}>
+                      <Link className="text-secondary hover:underline font-medium" href={`/admin/ops/clients/${client.id}`}>
                         {client.name}
                       </Link>
                     </OpsTd>

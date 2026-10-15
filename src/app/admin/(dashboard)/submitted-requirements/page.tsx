@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
+import { FilterBar, FilterSearch, FilterSelect } from '@/components/admin/ListFilters';
 import { REQUIREMENT_STATUS_LABELS } from '@/lib/client-requirements/types';
 
 interface Row {
@@ -52,14 +53,14 @@ export default function SubmittedRequirementsPage() {
   return (
     <div className="w-full space-y-6">
       <AdminPageHeader title="Submitted Requirements" description="Review client submissions, request clarification, and export requirement packs." />
+      <FilterBar onSearch={load} onClear={() => { setSearch(''); setStatus('all'); }}>
+        <FilterSearch value={search} onChange={setSearch} placeholder="Search company, project, client..." />
+        <FilterSelect value={status} onChange={setStatus}>
+          <option value="all">All statuses</option>
+          {Object.entries(REQUIREMENT_STATUS_LABELS).filter(([key]) => key !== 'draft').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </FilterSelect>
+      </FilterBar>
       <AdminSection title="Review Queue" description={`${rows.length} requirement(s)`}>
-        <div className="flex flex-wrap gap-3">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, project, client..." className="w-72 max-w-full rounded-lg border border-border px-3 py-2 text-sm" />
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm">
-            <option value="all">All statuses</option>
-            {Object.entries(REQUIREMENT_STATUS_LABELS).filter(([key]) => key !== 'draft').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
-        </div>
         {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

@@ -31,7 +31,7 @@ export default function NewFinanceClientPage() {
       <FinanceLink href="/admin/finance/clients">Back to clients</FinanceLink>
       <AdminPageHeader title="Add Client" description="Indian GST fields stay optional unless GST Registered is Yes. International clients do not require GSTIN or PAN." />
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
-      <ClientForm onSubmit={save} saving={saving} submitLabel="Save client" />
+      <ClientForm onSubmit={save} saving={saving} submitLabel="Save client" cancelHref="/admin/finance/clients" />
     </FinanceShell>
   );
 }

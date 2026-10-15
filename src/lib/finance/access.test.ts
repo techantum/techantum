@@ -25,4 +25,29 @@ describe('finance access', () => {
     const groups = filterNavGroups([{ id: 'finance' }, { id: 'ops' }], 'ADMIN');
     assert.deepEqual(groups.map((g) => g.id), ['ops']);
   });
+
+  it('keeps finance, recruitment, lead discovery, and HR with the super admin', () => {
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/lead-discovery'), false);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/recruitment'), false);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/hr/payslips'), false);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/whatsapp/inbox'), true);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/partners'), true);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/meta-ads'), true);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/master-data'), true);
+    assert.equal(canAccessAdminPath('SUPER_ADMIN', '/admin/lead-discovery'), true);
+    assert.equal(canAccessAdminPath('SUPER_ADMIN', '/admin/hr/employees'), true);
+    const groups = filterNavGroups(
+      [
+        { id: 'finance' },
+        { id: 'hr' },
+        { id: 'recruitment' },
+        { id: 'sales' },
+        { id: 'whatsapp-provider' },
+        { id: 'partners' },
+        { id: 'ops' },
+      ],
+      'ADMIN'
+    );
+    assert.deepEqual(groups.map((g) => g.id), ['whatsapp-provider', 'partners', 'ops']);
+  });
 });

@@ -100,7 +100,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   n INTEGER;
-  prefix TEXT := COALESCE(NULLIF(BTRIM(p_prefix), ''), 'RCP');
+  v_prefix TEXT := COALESCE(NULLIF(BTRIM(p_prefix), ''), 'RCP');
   sep TEXT := COALESCE(p_separator, '-');
   fy TEXT := BTRIM(COALESCE(p_financial_year, ''));
   pad INTEGER := GREATEST(COALESCE(p_pad, 3), 1);
@@ -109,14 +109,14 @@ BEGIN
     RAISE EXCEPTION 'Financial year is required';
   END IF;
   INSERT INTO public.finance_receipt_sequences (prefix, financial_year, last_value)
-  VALUES (prefix, fy, 1)
+  VALUES (v_prefix, fy, 1)
   ON CONFLICT (prefix, financial_year)
   DO UPDATE SET last_value = public.finance_receipt_sequences.last_value + 1
   RETURNING last_value INTO n;
   IF COALESCE(p_include_fy, TRUE) THEN
-    RETURN prefix || sep || fy || sep || lpad(n::text, pad, '0');
+    RETURN v_prefix || sep || fy || sep || lpad(n::text, pad, '0');
   END IF;
-  RETURN prefix || sep || lpad(n::text, pad, '0');
+  RETURN v_prefix || sep || lpad(n::text, pad, '0');
 END;
 $$;
 

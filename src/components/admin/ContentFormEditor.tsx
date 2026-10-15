@@ -51,7 +51,7 @@ function FieldInput({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const inputClass = 'w-full rounded-lg border border-border px-3 py-2 text-sm';
+  const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20';
 
   if (field.type === 'richtext') {
     return <RichTextEditor value={value} onChange={onChange} placeholder={field.placeholder} />;
@@ -249,7 +249,7 @@ function StringListEditor({
               next[index] = e.target.value;
               onChange(next);
             }}
-            className="flex-1 rounded-lg border border-border px-3 py-2 text-sm"
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             placeholder={`${itemLabel || 'Item'} ${index + 1}`}
           />
           <button

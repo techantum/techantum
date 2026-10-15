@@ -32,6 +32,7 @@ export async function listFinanceClientsDetailed(params: {
   q?: string;
   status?: string;
   clientType?: string;
+  country?: string;
   page?: number;
   pageSize?: number;
 }) {
@@ -47,10 +48,14 @@ export async function listFinanceClientsDetailed(params: {
     values.push(params.clientType);
     where.push(`c.client_type = $${values.length}`);
   }
+  if (params.country) {
+    values.push(params.country);
+    where.push(`c.country = $${values.length}`);
+  }
   if (params.q) {
     values.push(`%${params.q}%`);
     where.push(
-      `(c.name ILIKE $${values.length} OR c.client_code ILIKE $${values.length} OR c.email ILIKE $${values.length} OR c.gstin ILIKE $${values.length} OR c.contact_person ILIKE $${values.length})`
+      `(c.name ILIKE $${values.length} OR c.client_code ILIKE $${values.length} OR c.email ILIKE $${values.length} OR c.gstin ILIKE $${values.length} OR c.contact_person ILIKE $${values.length} OR c.contact_number ILIKE $${values.length})`
     );
   }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -76,7 +81,11 @@ export async function listFinanceClientsDetailed(params: {
     values
   );
   const count = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM ops_clients c ${clause}`, values);
-  return { rows, total: Number(count.rows[0]?.count || 0), page, pageSize };
+  const countries = await q<{ country: string }>(
+    undefined,
+    `SELECT DISTINCT country FROM ops_clients WHERE country IS NOT NULL AND btrim(country) <> '' ORDER BY country`
+  );
+  return { rows, total: Number(count.rows[0]?.count || 0), page, pageSize, countries: countries.rows.map((row) => row.country) };
 }
 
 export async function getFinanceClientDetail(id: string) {

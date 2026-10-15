@@ -110,7 +110,7 @@ export default function OpsClientDetailPage() {
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
-      <AdminSection title="Client overview" accent="indigo">
+      <AdminSection title="Client overview" icon="UserIcon">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
           <AdminStatCard label="Projects" value={detail.projects.length} icon="FolderIcon" accent="blue" />
           <AdminStatCard label="Open tickets" value={openTickets.length} icon="TicketIcon" />
@@ -124,8 +124,8 @@ export default function OpsClientDetailPage() {
         </div>
       </AdminSection>
 
-      <AdminSection title="Client information">
-        <AdminFormGrid cols={2}>
+      <AdminSection title="Client information" icon="IdentificationIcon">
+        <AdminFormGrid>
           <AdminField label="Name *">
             <input className={adminInputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </AdminField>
@@ -154,7 +154,7 @@ export default function OpsClientDetailPage() {
       </AdminSection>
 
       <OpsGrid>
-        <AdminSection title="Projects" description={`${detail.projects.length} total`}>
+        <AdminSection title="Projects" icon="RectangleStackIcon" description={`${detail.projects.length} total`}>
           {detail.projects.length === 0 ? (
             <p className="text-sm text-muted-foreground">No projects yet.</p>
           ) : (
@@ -172,7 +172,7 @@ export default function OpsClientDetailPage() {
           )}
         </AdminSection>
 
-        <AdminSection title="Active tickets" description={`${openTickets.length} open`}>
+        <AdminSection title="Active tickets" icon="TicketIcon" description={`${openTickets.length} open`}>
           {openTickets.length === 0 ? (
             <p className="text-sm text-muted-foreground">None.</p>
           ) : (
@@ -190,7 +190,7 @@ export default function OpsClientDetailPage() {
           )}
         </AdminSection>
 
-        <AdminSection title="Completed tickets" description={`${closedTickets.length} closed`}>
+        <AdminSection title="Completed tickets" icon="CheckCircleIcon" description={`${closedTickets.length} closed`}>
           {closedTickets.length === 0 ? (
             <p className="text-sm text-muted-foreground">None.</p>
           ) : (
@@ -203,7 +203,7 @@ export default function OpsClientDetailPage() {
         </AdminSection>
 
         <OpsGridSpan>
-          <AdminSection title="Communication history" description={`${detail.communications.length} message(s)`} accent="indigo">
+          <AdminSection title="Communication history" icon="ChatBubbleLeftRightIcon" description={`${detail.communications.length} message(s)`}>
             <CommunicationAccordion items={detail.communications} emptyMessage="No messages for this client yet." />
           </AdminSection>
         </OpsGridSpan>

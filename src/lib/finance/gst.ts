@@ -81,7 +81,10 @@ export function resolveTaxSplit(
   placeOfSupplyStateCode: string
 ): 'cgst_sgst' | 'igst' | 'none' {
   if (treatment === 'none' || treatment === 'cgst_sgst' || treatment === 'igst') return treatment;
-  return isIntraState(supplierStateCode, placeOfSupplyStateCode) ? 'cgst_sgst' : 'igst';
+  const supplier = normalizeStateCode(supplierStateCode);
+  const place = normalizeStateCode(placeOfSupplyStateCode);
+  if (!supplier || !place || supplier === place) return 'cgst_sgst';
+  return 'igst';
 }
 
 export function taxOn(taxableCents: number, gstRate: number, split: 'cgst_sgst' | 'igst' | 'none') {

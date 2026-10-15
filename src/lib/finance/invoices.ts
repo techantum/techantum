@@ -1,13 +1,14 @@
+import { unlink } from 'fs/promises';
 import { writeFinanceAudit } from './audit';
 import { calculateInvoice, invoiceOutstandingCents, paymentStatusFor, type InvoiceItemInput } from './calculate';
 import { q, withFinanceTx, type DbClient } from './db';
 import { registerDocument } from './documents';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from './errors';
-import { assertISODate, formatFinancialYear, todayISO } from './fy';
+import { assertISODate, financialYearAliases, formatFinancialYear, todayISO } from './fy';
 import { fromCents, toCents } from './money';
 import { generateInvoicePdf } from './pdf';
 import { getFinanceSettings } from './settings';
-import { saveFinanceBuffer, sanitizeFilename } from './storage';
+import { absoluteFinancePath, saveFinanceBuffer, sanitizeFilename } from './storage';
 import type { TaxTreatment } from './gst';
 
 function snapshotFromClient(client: Record<string, unknown>, body: Record<string, unknown>) {
@@ -160,8 +161,14 @@ export async function listInvoices(params: {
     where.push(`i.invoice_status = $${values.length}`);
   }
   if (params.fy) {
-    values.push(params.fy);
-    where.push(`i.financial_year = $${values.length}`);
+    let keys = [params.fy];
+    try {
+      keys = financialYearAliases(params.fy);
+    } catch {
+      keys = [params.fy];
+    }
+    values.push(keys);
+    where.push(`i.financial_year = ANY($${values.length}::text[])`);
   }
   if (params.q) {
     values.push(`%${params.q}%`);
@@ -172,7 +179,7 @@ export async function listInvoices(params: {
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const { rows } = await q(
     undefined,
-    `SELECT i.*, c.name AS client_live_name, p.project_name,
+    `SELECT i.*, c.name AS client_live_name, COALESCE(p.project_name, i.project_kind) AS project_name,
             (i.cgst + i.sgst + i.igst)::text AS tax_amount
      FROM finance_invoices i
      LEFT JOIN ops_clients c ON c.id = i.client_id
@@ -189,7 +196,10 @@ export async function listInvoices(params: {
 export async function getInvoice(id: string) {
   const { rows } = await q(
     undefined,
-    `SELECT i.*, c.name AS client_live_name, p.project_name
+    `SELECT i.*, c.name AS client_live_name, c.default_payment_terms, COALESCE(p.project_name, i.project_kind) AS project_name,
+            (SELECT pay.payment_mode FROM finance_invoice_payments pay
+             WHERE pay.invoice_id = i.id AND pay.status = 'active'
+             ORDER BY pay.payment_date DESC, pay.created_at DESC LIMIT 1) AS payment_mode
      FROM finance_invoices i
      LEFT JOIN ops_clients c ON c.id = i.client_id
      LEFT JOIN ops_projects p ON p.id = i.project_id
@@ -235,10 +245,10 @@ export async function createInvoice(body: Record<string, unknown>, userId: strin
          client_name, client_address, client_city, client_state, client_state_code, client_country, client_pincode,
          client_gstin, client_pan, client_email, client_phone, company_snapshot,
          subtotal, discount, taxable_amount, cgst, sgst, igst, round_off, total_amount, outstanding_amount,
-         invoice_status, payment_status, created_by, updated_by
+         invoice_status, payment_status, created_by, updated_by, project_kind
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,
-         $26,$27,$28,$29,$30,$31,$32,$33,$33,'draft','unpaid',$34,$34
+         $26,$27,$28,$29,$30,$31,$32,$33,$33,'draft','unpaid',$34,$34,$35
        ) RETURNING *`,
       [
         invoiceDate,
@@ -282,6 +292,7 @@ export async function createInvoice(body: Record<string, unknown>, userId: strin
         calc.round_off,
         calc.total_amount,
         userId,
+        body.project_kind || null,
       ]
     );
     await replaceItems(db, rows[0].id, calc);
@@ -313,7 +324,7 @@ export async function updateDraftInvoice(id: string, body: Record<string, unknow
          notes=$13, terms=$14, client_name=$15, client_address=$16, client_city=$17, client_state=$18,
          client_state_code=$19, client_country=$20, client_pincode=$21, client_gstin=$22, client_pan=$23,
          client_email=$24, client_phone=$25, subtotal=$26, discount=$27, taxable_amount=$28, cgst=$29, sgst=$30,
-         igst=$31, round_off=$32, total_amount=$33, outstanding_amount=$33, updated_by=$34
+         igst=$31, round_off=$32, total_amount=$33, outstanding_amount=$33, updated_by=$34, project_kind=$35
        WHERE id=$1 RETURNING *`,
       [
         id,
@@ -321,7 +332,7 @@ export async function updateDraftInvoice(id: string, body: Record<string, unknow
         dueDate,
         fy,
         client.id,
-        body.project_id ?? invoice.project_id,
+        body.project_id === undefined ? invoice.project_id : body.project_id || null,
         body.purchase_order_number ?? invoice.purchase_order_number,
         body.work_order_number ?? invoice.work_order_number,
         body.currency || invoice.currency,
@@ -350,6 +361,7 @@ export async function updateDraftInvoice(id: string, body: Record<string, unknow
         calc.round_off,
         calc.total_amount,
         userId,
+        body.project_kind === undefined ? invoice.project_kind : body.project_kind || null,
       ]
     );
     await replaceItems(db, id, calc);
@@ -511,6 +523,93 @@ export async function cancelInvoice(id: string, reason: string, userId: string, 
   });
 }
 
+async function rewindInvoiceSequence(db: DbClient, invoice: Record<string, unknown>) {
+  const fy = String(invoice.financial_year || '').trim();
+  if (!fy) return;
+  const settings = await getFinanceSettings(db);
+  const prefix = String(settings.invoice_number_prefix || 'TS');
+  const { rows } = await q<{ invoice_number: string }>(
+    db,
+    `SELECT invoice_number FROM finance_invoices
+     WHERE financial_year = $1 AND invoice_number IS NOT NULL`,
+    [fy]
+  );
+  let max = 0;
+  for (const row of rows) {
+    const num = String(row.invoice_number || '');
+    if (!num.startsWith(prefix)) continue;
+    const tail = num.split(/[^0-9]+/).filter(Boolean).pop();
+    const n = Number(tail);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  await q(
+    db,
+    `UPDATE finance_invoice_sequences SET last_value = $3 WHERE prefix = $1 AND financial_year = $2`,
+    [prefix, fy, max]
+  );
+}
+
+export async function deleteInvoice(
+  id: string,
+  confirm: string,
+  userId: string,
+  meta?: { ip?: string | null; userAgent?: string | null }
+) {
+  const removed = await withFinanceTx(async (db) => {
+    const { rows } = await q(db, 'SELECT * FROM finance_invoices WHERE id = $1 FOR UPDATE', [id]);
+    const invoice = rows[0];
+    if (!invoice) throw new FinanceNotFoundError('Invoice not found');
+    const expected = String(invoice.invoice_number || 'DELETE');
+    if (String(confirm || '').trim() !== expected) {
+      throw new FinanceValidationError(`Type ${expected} to confirm deletion`);
+    }
+    const { rows: payments } = await q<{ id: string }>(db, 'SELECT id FROM finance_invoice_payments WHERE invoice_id = $1', [id]);
+    const paymentIds = payments.map((row) => row.id);
+    const { rows: docs } = await q<{ storage_path: string }>(
+      db,
+      `SELECT storage_path FROM finance_documents WHERE reference_type = 'invoice' AND reference_id = $1`,
+      [id]
+    );
+    if (paymentIds.length) {
+      await q(db, 'DELETE FROM finance_income WHERE invoice_id = $1 OR payment_id = ANY($2::uuid[])', [id, paymentIds]);
+      await q(
+        db,
+        `DELETE FROM finance_transactions WHERE reference_type = 'invoice_payment' AND reference_id = ANY($1::uuid[])`,
+        [paymentIds]
+      );
+    } else {
+      await q(db, 'DELETE FROM finance_income WHERE invoice_id = $1', [id]);
+    }
+    await q(db, `DELETE FROM finance_documents WHERE reference_type = 'invoice' AND reference_id = $1`, [id]);
+    await q(db, 'DELETE FROM finance_invoice_payments WHERE invoice_id = $1', [id]);
+    await q(db, 'DELETE FROM finance_invoices WHERE id = $1', [id]);
+    await rewindInvoiceSequence(db, invoice);
+    await writeFinanceAudit(db, {
+      userId,
+      action: 'Invoice Deleted',
+      entityType: 'invoice',
+      entityId: id,
+      previous: invoice,
+      next: null,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+    return {
+      invoice,
+      files: [invoice.pdf_path, ...docs.map((doc) => doc.storage_path)].filter(Boolean) as string[],
+    };
+  });
+
+  for (const storagePath of removed.files) {
+    try {
+      await unlink(absoluteFinancePath(storagePath));
+    } catch {
+      /* file may already be gone */
+    }
+  }
+  return { ok: true, id };
+}
+
 export async function markInvoiceSent(id: string, userId: string) {
   const { rows } = await q(
     undefined,
@@ -530,6 +629,7 @@ export async function duplicateInvoice(id: string, userId: string) {
       due_date: detail.invoice.due_date,
       client_id: detail.invoice.client_id,
       project_id: detail.invoice.project_id,
+      project_kind: detail.invoice.project_kind,
       purchase_order_number: detail.invoice.purchase_order_number,
       work_order_number: detail.invoice.work_order_number,
       currency: detail.invoice.currency,

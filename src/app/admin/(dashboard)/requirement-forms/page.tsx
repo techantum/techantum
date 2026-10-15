@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
+import AdminButton from '@/components/admin/AdminButton';
+import { adminInputClass, adminSelectClass, adminTextareaClass } from '@/components/admin/AdminField';
 import { PROJECT_TYPES, type RequirementTemplate } from '@/lib/client-requirements/types';
+import { useMasterItems } from '@/components/admin/useMasterItems';
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 export default function RequirementFormsPage() {
+  const projectTypes = useMasterItems('project_type', PROJECT_TYPES.map((type) => ({ value: type, label: type })));
   const [templates, setTemplates] = useState<RequirementTemplate[]>([]);
   const [form, setForm] = useState({
     name: '',
@@ -59,14 +63,14 @@ export default function RequirementFormsPage() {
       {message && <p className="text-sm bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg">{message}</p>}
       <AdminSection title="Create Template" description="Sections and questions are stored dynamically in the database. The seeded CMS template includes the full 12-section questionnaire.">
         <form onSubmit={save} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="text-sm font-medium">Template Name<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugify(e.target.value) })} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" /></label>
-          <label className="text-sm font-medium">Slug<input required value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" /></label>
-          <label className="text-sm font-medium">Project Type<select value={form.project_type} onChange={(e) => setForm({ ...form, project_type: e.target.value })} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">{PROJECT_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
-          <label className="text-sm font-medium">Package<input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" /></label>
-          <label className="md:col-span-2 text-sm font-medium">Description<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" /></label>
-          <label className="md:col-span-2 text-sm font-medium">Welcome Message<textarea value={form.welcome_message} onChange={(e) => setForm({ ...form, welcome_message: e.target.value })} rows={2} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" /></label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>
-          <div className="md:col-span-2"><button className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-semibold">Save Template</button></div>
+          <label className="text-sm font-medium">Template Name<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugify(e.target.value) })} className={`mt-1 ${adminInputClass}`} /></label>
+          <label className="text-sm font-medium">Slug<input required value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className={`mt-1 ${adminInputClass}`} /></label>
+          <label className="text-sm font-medium">Project Type<select value={form.project_type} onChange={(e) => setForm({ ...form, project_type: e.target.value })} className={`mt-1 ${adminSelectClass}`}>{projectTypes.map((type) => <option key={type.value}>{type.label}</option>)}</select></label>
+          <label className="text-sm font-medium">Package<input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} className={`mt-1 ${adminInputClass}`} /></label>
+          <label className="md:col-span-2 text-sm font-medium">Description<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className={`mt-1 ${adminTextareaClass}`} /></label>
+          <label className="md:col-span-2 text-sm font-medium">Welcome Message<textarea value={form.welcome_message} onChange={(e) => setForm({ ...form, welcome_message: e.target.value })} rows={2} className={`mt-1 ${adminTextareaClass}`} /></label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-secondary" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>
+          <div className="md:col-span-2"><AdminButton variant="primary" type="submit">Save Template</AdminButton></div>
         </form>
       </AdminSection>
       <AdminSection title="Available Templates" description={`${templates.length} template(s)`}>

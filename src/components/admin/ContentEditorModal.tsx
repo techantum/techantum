@@ -128,7 +128,7 @@ export default function ContentEditorModal({
                   value={jsonText}
                   onChange={(e) => setJsonText(e.target.value)}
                   rows={20}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 font-mono"
                 />
               </div>
             ) : (
@@ -155,7 +155,7 @@ export default function ContentEditorModal({
               <button
                 type="submit"
                 disabled={saving || loading}
-                className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Save section'}
               </button>

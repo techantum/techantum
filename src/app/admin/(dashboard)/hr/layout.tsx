@@ -1,5 +1,5 @@
 import SuperAdminGate from '@/components/admin/SuperAdminGate';
 
-export default function PartnerRequirementsLayout({ children }: { children: React.ReactNode }) {
+export default function HrLayout({ children }: { children: React.ReactNode }) {
   return <SuperAdminGate>{children}</SuperAdminGate>;
 }

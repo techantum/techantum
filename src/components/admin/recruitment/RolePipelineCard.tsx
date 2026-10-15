@@ -21,7 +21,7 @@ export type RolePipelineStats = {
 
 const STATS = [
   { key: 'candidates_total' as const, label: 'Candidates', accent: 'text-slate-900 bg-slate-50 border-slate-100' },
-  { key: 'shortlisted' as const, label: 'Shortlisted', accent: 'text-indigo-700 bg-indigo-50 border-indigo-100' },
+  { key: 'shortlisted' as const, label: 'Shortlisted', accent: 'text-indigo-700 bg-orange-50 border-indigo-100' },
   { key: 'interviewed' as const, label: 'Interviewed', accent: 'text-sky-700 bg-sky-50 border-sky-100' },
   { key: 'selected' as const, label: 'Selected', accent: 'text-emerald-700 bg-emerald-50 border-emerald-100' },
 ];
@@ -74,11 +74,11 @@ export default function RolePipelineCard({ role }: { role: RolePipelineStats }) 
         <div className="flex items-center justify-between gap-3 pt-1">
           <Link
             href={`/admin/recruitment/roles/${role.id}/candidates`}
-            className="text-sm font-semibold text-indigo-600 hover:underline"
+            className="text-sm font-semibold text-secondary hover:underline"
           >
             View candidates →
           </Link>
-          <Link href={`/admin/recruitment/roles/${role.id}`} className="text-sm text-slate-500 hover:text-indigo-600">
+          <Link href={`/admin/recruitment/roles/${role.id}`} className="text-sm text-slate-500 hover:text-secondary">
             Edit role
           </Link>
         </div>

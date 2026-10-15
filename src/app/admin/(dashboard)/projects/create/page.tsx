@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import { PROJECT_PACKAGES, PROJECT_TYPES, type RequirementTemplate } from '@/lib/client-requirements/types';
+import { useMasterItems } from '@/components/admin/useMasterItems';
 
 const initialForm = {
   project_name: '',
@@ -29,7 +30,16 @@ export default function CreateProjectPage() {
   const [saving, setSaving] = useState(false);
   const [createdUrl, setCreatedUrl] = useState('');
   const [message, setMessage] = useState('');
-  const packages = PROJECT_PACKAGES[form.project_type] ?? [];
+  const projectTypes = useMasterItems('project_type', PROJECT_TYPES.map((type) => ({ value: type, label: type })));
+  const packageItems = useMasterItems(
+    'project_package',
+    Object.entries(PROJECT_PACKAGES).flatMap(([parent, names]) => names.map((name) => ({ value: name, label: name, parent })))
+  );
+  const packagesFor = (type: string) => {
+    const matched = packageItems.filter((item) => item.parent === type).map((item) => item.label);
+    return matched.length ? matched : PROJECT_PACKAGES[type] ?? [];
+  };
+  const packages = packagesFor(form.project_type);
   const matchingTemplates = useMemo(
     () => templates.filter((template) => template.project_type === form.project_type),
     [templates, form.project_type]
@@ -96,8 +106,8 @@ export default function CreateProjectPage() {
       {createdUrl && (
         <AdminSection title="Public Link" accent="emerald" description="Share this with the client. They can open it without login.">
           <div className="flex flex-col sm:flex-row gap-2">
-            <input readOnly value={createdUrl} className="flex-1 rounded-lg border border-border px-3 py-2 text-sm" />
-            <button type="button" onClick={() => navigator.clipboard.writeText(createdUrl)} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">Copy Link</button>
+            <input readOnly value={createdUrl} className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20" />
+            <button type="button" onClick={() => navigator.clipboard.writeText(createdUrl)} className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-[#d93b1e]">Copy Link</button>
           </div>
         </AdminSection>
       )}
@@ -113,24 +123,24 @@ export default function CreateProjectPage() {
           ].map(([key, label]) => (
             <label key={key} className="text-sm font-medium">
               {label}
-              <input required={label.includes('*')} type={key === 'email' ? 'email' : 'text'} value={String(form[key as keyof typeof form])} onChange={(e) => setField(key as keyof typeof form, e.target.value)} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" />
+              <input required={label.includes('*')} type={key === 'email' ? 'email' : 'text'} value={String(form[key as keyof typeof form])} onChange={(e) => setField(key as keyof typeof form, e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20" />
             </label>
           ))}
           <label className="text-sm font-medium">
             Project Type
-            <select value={form.project_type} onChange={(e) => setForm((prev) => ({ ...prev, project_type: e.target.value, package_name: PROJECT_PACKAGES[e.target.value]?.[0] || '', template_id: templates.find((t) => t.project_type === e.target.value)?.id || '' }))} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
-              {PROJECT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            <select value={form.project_type} onChange={(e) => setForm((prev) => ({ ...prev, project_type: e.target.value, package_name: packagesFor(e.target.value)[0] || '', template_id: templates.find((t) => t.project_type === e.target.value)?.id || '' }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20">
+              {projectTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
           </label>
           <label className="text-sm font-medium">
             Package
-            <select value={form.package_name} onChange={(e) => setField('package_name', e.target.value)} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
+            <select value={form.package_name} onChange={(e) => setField('package_name', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20">
               {packages.map((pkg) => <option key={pkg} value={pkg}>{pkg}</option>)}
             </select>
           </label>
           <label className="text-sm font-medium">
             Status
-            <select value={form.status} onChange={(e) => setField('status', e.target.value)} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
+            <select value={form.status} onChange={(e) => setField('status', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20">
               <option value="draft">Draft (link hidden until activated)</option>
               <option value="active">Active (client can open link)</option>
               <option value="closed">Closed (link disabled)</option>
@@ -138,23 +148,23 @@ export default function CreateProjectPage() {
           </label>
           <label className="text-sm font-medium">
             Requirement Form Template
-            <select value={form.template_id} onChange={(e) => setField('template_id', e.target.value)} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
+            <select value={form.template_id} onChange={(e) => setField('template_id', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20">
               <option value="">Select template</option>
               {matchingTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
             </select>
           </label>
           <label className="text-sm font-medium">
             Expiry Date
-            <input type="date" value={form.expiry_date} onChange={(e) => setField('expiry_date', e.target.value)} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" />
+            <input type="date" value={form.expiry_date} onChange={(e) => setField('expiry_date', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20" />
           </label>
           <label className="text-sm font-medium">
             Optional Password
-            <input value={form.optional_password} onChange={(e) => setField('optional_password', e.target.value)} className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm" />
+            <input value={form.optional_password} onChange={(e) => setField('optional_password', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20" />
           </label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.allow_multiple_submissions} onChange={(e) => setField('allow_multiple_submissions', e.target.checked)} /> Allow multiple submissions</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.allow_save_draft} onChange={(e) => setField('allow_save_draft', e.target.checked)} /> Allow save draft</label>
           <div className="md:col-span-2">
-            <button disabled={saving} className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60">{saving ? 'Creating...' : 'Generate Public Link'}</button>
+            <button disabled={saving} className="inline-flex items-center justify-center rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50">{saving ? 'Creating...' : 'Generate Public Link'}</button>
           </div>
         </form>
       </AdminSection>

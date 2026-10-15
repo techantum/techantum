@@ -297,7 +297,7 @@ export default function KnowledgeBasePanel() {
                   <OpsTd className="font-medium">
                     <div>{entry.title}</div>
                     {entry.source_url && (
-                      <a className="text-xs text-indigo-600 break-all" href={entry.source_url} target="_blank" rel="noreferrer">
+                      <a className="text-xs text-secondary break-all" href={entry.source_url} target="_blank" rel="noreferrer">
                         {entry.source_url}
                       </a>
                     )}

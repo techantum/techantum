@@ -39,7 +39,7 @@ export default function CommunicationAccordion({
           <div
             key={item.id}
             className={`rounded-lg border transition-colors overflow-hidden ${
-              open ? 'border-indigo-200 bg-indigo-50/30' : 'border-border bg-card hover:border-indigo-100'
+              open ? 'border-indigo-200 bg-orange-50/30' : 'border-border bg-card hover:border-indigo-100'
             }`}
           >
             <button

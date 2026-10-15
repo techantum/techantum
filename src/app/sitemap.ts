@@ -7,6 +7,7 @@ export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [seo, paths] = await Promise.all([getSeo(), getSitemapPaths()]);
+  if (seo.sitemap_enabled === false) return [];
   const baseUrl = resolveSiteUrl(seo.site_url).replace(/\/$/, '');
   const entries = buildSitemapEntries(paths);
 

@@ -8,7 +8,8 @@ interface MarketingTagsProps {
 
 /** Google Tag Manager + GA4 + ad pixels — rendered with next/script so tags actually execute. */
 export function MarketingHeadTags({ seo }: MarketingTagsProps) {
-  const { gtmId, ga4Id, facebookPixelId, linkedinPartnerId } = getMarketingTagIds(seo);
+  const { gtmId, ga4Id, googleAdsId, facebookPixelId, linkedinPartnerId } = getMarketingTagIds(seo);
+  const gtagId = ga4Id || googleAdsId;
 
   return (
     <>
@@ -22,18 +23,19 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         `}</Script>
       ) : null}
 
-      {ga4Id && !gtmId ? (
+      {gtagId && !gtmId ? (
         <>
           <Script
             id="ga4-loader"
-            src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${gtagId}`}
             strategy="beforeInteractive"
           />
           <Script id="ga4-config" strategy="beforeInteractive">{`
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${ga4Id}');
+${ga4Id ? `gtag('config', '${ga4Id}');` : ''}
+${googleAdsId ? `gtag('config', '${googleAdsId}');` : ''}
           `}</Script>
         </>
       ) : null}

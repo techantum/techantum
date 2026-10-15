@@ -13,7 +13,8 @@ export const PARTNER_NAV_ITEMS = [
   { key: 'new-requirement', href: '/partner/requirements/new', label: 'New Requirement', icon: 'PlusCircleIcon' },
   { key: 'requirements', href: '/partner/requirements', label: 'My Requirements', icon: 'ClipboardDocumentListIcon' },
   { key: 'documents', href: '/partner/documents', label: 'Documents', icon: 'DocumentTextIcon' },
-  { key: 'team', href: '/partner/team', label: 'Team', icon: 'UsersIcon' },
+  { key: 'team', href: '/partner/team', label: 'User management', icon: 'UsersIcon' },
+  { key: 'profile', href: '/partner/profile', label: 'Profile', icon: 'UserCircleIcon' },
   { key: 'support', href: '/partner/support', label: 'Partner Support', icon: 'LifebuoyIcon' },
 ] as const;
 
@@ -25,7 +26,15 @@ const ALWAYS_ALLOWED_PREFIXES = ['/partner/profile', '/partner/notifications', '
 export function defaultPartnerNavAccess(role: PartnerUserRole): PartnerNavAccess {
   const access = {} as PartnerNavAccess;
   for (const item of PARTNER_NAV_ITEMS) {
-    access[item.key] = role === 'partner_admin' ? true : item.key !== 'team';
+    if (item.key === 'profile') {
+      access[item.key] = true;
+      continue;
+    }
+    if (role === 'partner_admin') {
+      access[item.key] = item.key === 'lead-discovery' || item.key === 'team';
+      continue;
+    }
+    access[item.key] = item.key !== 'team';
   }
   return access;
 }
@@ -38,10 +47,12 @@ export function sanitizePartnerNavAccess(input: unknown, role: PartnerUserRole):
   const raw = input as Record<string, unknown>;
   const result = { ...defaults };
   for (const item of PARTNER_NAV_ITEMS) {
+    if (item.key === 'profile') continue;
     if (typeof raw[item.key] === 'boolean') {
       result[item.key] = raw[item.key];
     }
   }
+  result.profile = true;
   return result;
 }
 

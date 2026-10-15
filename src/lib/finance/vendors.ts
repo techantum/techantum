@@ -2,7 +2,7 @@ import { q } from './db';
 import { FinanceNotFoundError, FinanceValidationError } from './errors';
 import { toCents } from './money';
 
-export async function listVendors(params: { q?: string; status?: string; page?: number; pageSize?: number }) {
+export async function listVendors(params: { q?: string; status?: string; city?: string; page?: number; pageSize?: number }) {
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(100, Math.max(1, params.pageSize || 25));
   const where: string[] = [];
@@ -11,9 +11,13 @@ export async function listVendors(params: { q?: string; status?: string; page?: 
     values.push(params.status);
     where.push(`status = $${values.length}`);
   }
+  if (params.city) {
+    values.push(params.city);
+    where.push(`city = $${values.length}`);
+  }
   if (params.q) {
     values.push(`%${params.q}%`);
-    where.push(`(vendor_name ILIKE $${values.length} OR gstin ILIKE $${values.length} OR email ILIKE $${values.length})`);
+    where.push(`(vendor_name ILIKE $${values.length} OR gstin ILIKE $${values.length} OR pan ILIKE $${values.length} OR email ILIKE $${values.length} OR phone ILIKE $${values.length})`);
   }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const { rows } = await q(
@@ -39,7 +43,17 @@ export async function listVendors(params: { q?: string; status?: string; page?: 
     values
   );
   const count = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM finance_vendors ${clause}`, values);
-  return { rows, total: Number(count.rows[0]?.count || 0), page, pageSize };
+  const cities = await q<{ city: string }>(
+    undefined,
+    `SELECT DISTINCT city FROM finance_vendors WHERE NULLIF(BTRIM(city), '') IS NOT NULL ORDER BY city`
+  );
+  return { rows, total: Number(count.rows[0]?.count || 0), page, pageSize, cities: cities.rows.map((row) => row.city) };
+}
+
+export async function deleteVendor(id: string) {
+  const { rows } = await q(undefined, 'DELETE FROM finance_vendors WHERE id = $1 RETURNING id', [id]);
+  if (!rows[0]) throw new FinanceNotFoundError('Vendor not found');
+  return { ok: true };
 }
 
 export async function getVendor(id: string) {

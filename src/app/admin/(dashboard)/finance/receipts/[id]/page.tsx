@@ -6,7 +6,10 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminAlert from '@/components/admin/AdminAlert';
-import { FinanceLink, FinanceShell, FinanceTd, FinanceTh, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
+import AdminStatCard from '@/components/admin/AdminStatCard';
+import { AdminBackLink, Fact, FactGrid, SectionEmpty } from '@/components/admin/DetailFacts';
+import { FinanceShell, FinanceTd, FinanceTh, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
+import Icon from '@/components/ui/AppIcon';
 
 export default function ReceiptDetailPage() {
   const params = useParams<{ id: string }>();
@@ -29,36 +32,41 @@ export default function ReceiptDetailPage() {
 
   return (
     <FinanceShell>
-      <FinanceLink href="/admin/finance/receipts">Back to receipts</FinanceLink>
+      <AdminBackLink href="/admin/finance/receipts">Back to receipts</AdminBackLink>
       <AdminPageHeader
         title={receipt?.receipt_number || 'Receipt'}
-        description={receipt ? `${receipt.vendor_name} · ${receipt.description}` : ''}
+        description={receipt ? `${receipt.vendor_name} • ${receipt.description}` : ''}
         action={
           <div className="flex gap-2 print:hidden">
-            <a href={`/admin/finance/receipts/${id}/print`}><AdminButton>Print Receipt Summary</AdminButton></a>
+            <a href={`/admin/finance/receipts/${id}/print`}><AdminButton><Icon name="PrinterIcon" size={16} />Print</AdminButton></a>
           </div>
         }
       />
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
       {receipt && (
-        <AdminSection title="Receipt details">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 text-sm">
-            <div>Date {receipt.expense_date}</div>
-            <div>Vendor {receipt.vendor_name}</div>
-            <div>Category {receipt.category_name || '—'}</div>
-            <div><StatusBadge value={receipt.payment_status} /></div>
-            <div>Vendor bill {receipt.vendor_invoice_number || '—'}</div>
-            <div>Taxable {money(receipt.taxable_amount)}</div>
-            <div>GST / Tax {money(tax)}</div>
-            <div>Total {money(receipt.total_amount)}</div>
-            <div>Paid {money(receipt.amount_paid)}</div>
-            <div>Mode {receipt.payment_mode || '—'}</div>
-            <div>Reference {receipt.transaction_reference || '—'}</div>
-            <div>Created by {receipt.created_by_email || '—'}</div>
+        <>
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <AdminStatCard label="Total" value={money(receipt.total_amount)} accent="blue" icon="DocumentTextIcon" />
+            <AdminStatCard label="Tax" value={money(tax)} icon="ReceiptPercentIcon" />
+            <AdminStatCard label="Paid" value={money(receipt.amount_paid)} accent="green" icon="CurrencyRupeeIcon" />
+            <AdminStatCard label="Status" value={<StatusBadge value={receipt.payment_status} />} accent={receipt.payment_status === 'paid' ? 'green' : 'amber'} icon="CheckCircleIcon" />
           </div>
-        </AdminSection>
+          <AdminSection title="Receipt details" icon="DocumentTextIcon">
+            <FactGrid cols={4}>
+              <Fact icon="CalendarDaysIcon" label="Date">{receipt.expense_date}</Fact>
+              <Fact icon="BuildingStorefrontIcon" label="Vendor">{receipt.vendor_name}</Fact>
+              <Fact icon="TagIcon" label="Category">{receipt.category_name || '—'}</Fact>
+              <Fact icon="DocumentTextIcon" label="Vendor bill">{receipt.vendor_invoice_number || '—'}</Fact>
+              <Fact icon="BanknotesIcon" label="Taxable">{money(receipt.taxable_amount)}</Fact>
+              <Fact icon="ReceiptPercentIcon" label="GST / Tax">{money(tax)}</Fact>
+              <Fact icon="CreditCardIcon" label="Mode">{receipt.payment_mode || '—'}</Fact>
+              <Fact icon="HashtagIcon" label="Reference">{receipt.transaction_reference || '—'}</Fact>
+              <Fact icon="UserIcon" label="Created by">{receipt.created_by_email || '—'}</Fact>
+            </FactGrid>
+          </AdminSection>
+        </>
       )}
-      <AdminSection title="Supporting documents">
+      <AdminSection title="Supporting documents" icon="PaperClipIcon">
         <ul className="space-y-1 text-sm">
           {documents.map((d) => (
             <li key={d.id}>
@@ -68,9 +76,9 @@ export default function ReceiptDetailPage() {
             </li>
           ))}
         </ul>
-        {!documents.length && <p className="text-sm text-slate-500">No supporting document attached.</p>}
+        {!documents.length && <SectionEmpty icon="PaperClipIcon" title="No documents yet" description="Supporting files attached to this receipt will appear here." />}
       </AdminSection>
-      <AdminSection title="Payments">
+      <AdminSection title="Payments" icon="CreditCardIcon">
         <table className="w-full">
           <thead><tr><FinanceTh>Date</FinanceTh><FinanceTh>Paid</FinanceTh><FinanceTh>TDS</FinanceTh><FinanceTh>Mode</FinanceTh><FinanceTh>Reference</FinanceTh><FinanceTh>Status</FinanceTh></tr></thead>
           <tbody>

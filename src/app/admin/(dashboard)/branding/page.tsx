@@ -141,7 +141,7 @@ export default function BrandingAdminPage() {
             value={form.logo_letter}
             onChange={(e) => update('logo_letter', e.target.value)}
             maxLength={2}
-            className="w-24 rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
           />
           <p className="text-xs text-muted-foreground mt-1">Shown when no logo image is set.</p>
         </div>
@@ -154,7 +154,7 @@ export default function BrandingAdminPage() {
             <input
               value={form.company_name}
               onChange={(e) => update('company_name', e.target.value)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
           <div>
@@ -162,7 +162,7 @@ export default function BrandingAdminPage() {
             <input
               value={form.tagline}
               onChange={(e) => update('tagline', e.target.value)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
         </div>
@@ -176,7 +176,7 @@ export default function BrandingAdminPage() {
               value={form.email}
               onChange={(e) => update('email', e.target.value)}
               type="email"
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
           <div>
@@ -184,7 +184,7 @@ export default function BrandingAdminPage() {
             <input
               value={form.phone}
               onChange={(e) => update('phone', e.target.value)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
           <div>
@@ -193,7 +193,7 @@ export default function BrandingAdminPage() {
               value={form.phone_href}
               onChange={(e) => update('phone_href', e.target.value)}
               placeholder="914040268570"
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
         </div>
@@ -203,7 +203,7 @@ export default function BrandingAdminPage() {
             value={form.address}
             onChange={(e) => update('address', e.target.value)}
             rows={3}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
           />
         </div>
       </AdminSection>
@@ -215,7 +215,7 @@ export default function BrandingAdminPage() {
             <input
               value={form.whatsapp}
               onChange={(e) => update('whatsapp', e.target.value)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
           <div>
@@ -224,7 +224,7 @@ export default function BrandingAdminPage() {
               value={form.whatsapp_href}
               onChange={(e) => update('whatsapp_href', e.target.value)}
               placeholder="917032923474"
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function BrandingAdminPage() {
             value={form.whatsapp_widget_message ?? ''}
             onChange={(e) => update('whatsapp_widget_message', e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             placeholder="Shown only to first-time visitors. Returning visitors open the existing WhatsApp chat with no pre-filled text."
           />
         </div>
@@ -247,7 +247,7 @@ export default function BrandingAdminPage() {
             value={form.footer_description}
             onChange={(e) => update('footer_description', e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
           />
         </div>
         <div>
@@ -255,7 +255,7 @@ export default function BrandingAdminPage() {
           <input
             value={form.copyright_text}
             onChange={(e) => update('copyright_text', e.target.value)}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
           />
         </div>
       </AdminSection>
@@ -267,7 +267,7 @@ export default function BrandingAdminPage() {
       <button
         type="submit"
         disabled={saving}
-        className="bg-primary text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60"
+        className="inline-flex items-center justify-center rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50"
       >
         {saving ? 'Saving…' : 'Save branding'}
       </button>

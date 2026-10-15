@@ -16,6 +16,10 @@ export type FinanceSettings = {
   email: string | null;
   website: string | null;
   logo_path: string | null;
+  payslip_logo_path: string | null;
+  payslip_header_right: string | null;
+  payslip_signatory_name: string | null;
+  payslip_signatory_title: string | null;
   bank_name: string | null;
   account_name: string | null;
   account_number: string | null;
@@ -90,6 +94,10 @@ export async function updateFinanceSettings(
     'email',
     'website',
     'logo_path',
+    'payslip_logo_path',
+    'payslip_header_right',
+    'payslip_signatory_name',
+    'payslip_signatory_title',
     'bank_name',
     'account_name',
     'account_number',
@@ -104,15 +112,16 @@ export async function updateFinanceSettings(
     'invoice_number_prefix',
     'invoice_number_separator',
     'invoice_number_sequence_length',
-    'invoice_number_include_fy',
     'invoice_number_fy_style',
     'currency',
     ...BOOL_KEYS,
   ];
   const sets: string[] = [];
   const values: unknown[] = [];
+  const seen = new Set<string>();
   for (const key of allowed) {
-    if (!(key in patch)) continue;
+    if (seen.has(key) || !(key in patch)) continue;
+    seen.add(key);
     values.push(patch[key]);
     sets.push(`${key} = $${values.length}`);
   }

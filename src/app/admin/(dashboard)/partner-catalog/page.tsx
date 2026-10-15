@@ -299,7 +299,7 @@ export default function PartnerCatalogAdminPage() {
                       </thead>
                       <tbody>
                         {featureRows.map((row) => (
-                          <tr key={row.key} className="border-t border-border/60 hover:bg-indigo-50/30 transition-colors">
+                          <tr key={row.key} className="border-t border-border/60 hover:bg-orange-50/30 transition-colors">
                             <td className="px-4 py-3 font-medium text-foreground">{row.label}</td>
                             {activeCategory.partner_packages.map((pkg) => (
                               <td key={pkg.id} className="px-4 py-3">
@@ -365,9 +365,9 @@ export default function PartnerCatalogAdminPage() {
               }
             >
               {showQuestionForm && (
-                <div className="rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-5 space-y-4">
+                <div className="rounded-xl border-2 border-dashed border-indigo-200 bg-orange-50/30 p-5 space-y-4">
                   <h3 className="font-semibold text-foreground flex items-center gap-2">
-                    <Icon name="PlusCircleIcon" size={18} className="text-indigo-600" />
+                    <Icon name="PlusCircleIcon" size={18} className="text-secondary" />
                     New Question
                   </h3>
                   <AdminFormGrid cols={3}>
@@ -447,7 +447,7 @@ export default function PartnerCatalogAdminPage() {
                       type="checkbox"
                       checked={newQuestion.isRequired}
                       onChange={(e) => setNewQuestion({ ...newQuestion, isRequired: e.target.checked })}
-                      className="rounded border-border text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-border text-secondary focus:ring-indigo-500"
                     />
                     Required field
                   </label>
@@ -554,7 +554,7 @@ function PackageEditor({
           type="checkbox"
           checked={highlighted}
           onChange={(e) => setHighlighted(e.target.checked)}
-          className="rounded border-border text-indigo-600 focus:ring-indigo-500"
+          className="rounded border-border text-secondary focus:ring-indigo-500"
         />
         Highlight as recommended package
       </label>
@@ -728,7 +728,7 @@ function QuestionEditor({
           type="checkbox"
           checked={draft.is_required}
           onChange={(e) => setDraft({ ...draft, is_required: e.target.checked })}
-          className="rounded border-border text-indigo-600 focus:ring-indigo-500"
+          className="rounded border-border text-secondary focus:ring-indigo-500"
         />
         Required field
       </label>

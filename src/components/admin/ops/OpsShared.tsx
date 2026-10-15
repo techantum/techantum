@@ -50,7 +50,7 @@ export function ScopeFields({
         {error && <p className="text-xs text-rose-700 mt-1">{error}</p>}
         {documentUrl && (
           <p className="text-xs mt-1">
-            <a href={documentUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
+            <a href={documentUrl} target="_blank" rel="noreferrer" className="text-secondary hover:underline">
               View uploaded PDF
             </a>
             <button type="button" className="ml-2 text-rose-600" onClick={() => onDocumentUrl('')}>
@@ -80,7 +80,7 @@ export function ScheduleSummary({
   const capacity = developers * 8;
   const days = hours > 0 && developers >= 1 ? Math.ceil(hours / capacity) : 0;
   return (
-    <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-sm space-y-1">
+    <div className="rounded-xl border border-indigo-100 bg-orange-50/50 px-4 py-3 text-sm space-y-1">
       <p>Estimated effort: <strong>{hours || 0} hours</strong></p>
       <p>Team capacity: <strong>{capacity} hours/day</strong></p>
       <p>Estimated working days: <strong>{days} days</strong> (Mon–Fri, start date is day 1)</p>

@@ -4,13 +4,14 @@ interface AdminFieldProps {
   htmlFor?: string;
   children: React.ReactNode;
   className?: string;
-  span?: 1 | 2 | 3;
+  span?: 1 | 2 | 3 | 4;
 }
 
 const spanClasses = {
   1: '',
-  2: 'md:col-span-2',
-  3: 'md:col-span-2 lg:col-span-3',
+  2: 'sm:col-span-2',
+  3: 'sm:col-span-2 xl:col-span-3',
+  4: 'sm:col-span-2 xl:col-span-4',
 };
 
 export default function AdminField({

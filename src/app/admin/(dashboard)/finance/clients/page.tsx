@@ -3,30 +3,28 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
-import { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
-import { FinanceShell, FinanceTd, FinanceTh, Pager, StatusBadge, money } from '@/components/admin/finance/FinanceUi';
-import { clientTypeLabel } from '@/lib/finance/client-types';
+import { EmptyRecords, FilterBar, FilterSearch, FilterSelect, useListFilters } from '@/components/admin/ListFilters';
+import { FinanceShell, FinanceTd, FinanceTh, Pager, StatusBadge, TypePill } from '@/components/admin/finance/FinanceUi';
+import { CLIENT_TYPES, clientTypeLabel } from '@/lib/finance/client-types';
+import { useMasterItems } from '@/components/admin/useMasterItems';
+import Icon from '@/components/ui/AppIcon';
+
+const clientFilters = { q: '', clientType: '', country: '', status: '' };
 
 export default function FinanceClientsPage() {
+  const filters = useListFilters(clientFilters);
+  const clientTypes = useMasterItems('client_type', CLIENT_TYPES.map((type) => ({ value: type.value, label: type.label })));
+  const statuses = useMasterItems('record_status', [
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
+  const [menuId, setMenuId] = useState('');
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
-
-  const load = () => {
-    const params = new URLSearchParams({ detailed: '1', page: String(page) });
-    if (q) params.set('q', q);
-    if (status) params.set('status', status);
-    fetch(`/api/admin/finance/clients?${params}`).then((r) => r.json()).then((b) => {
-      setRows(b.rows || []);
-      setTotal(b.total || 0);
-    });
-  };
 
   const setClientStatus = async (id: string, nextStatus: string) => {
     setBusyId(id);
@@ -42,13 +40,21 @@ export default function FinanceClientsPage() {
       setError(body.error || 'Could not update client status');
       return;
     }
-    load();
+    filters.reload();
   };
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, status]);
+    const params = new URLSearchParams({ detailed: '1', page: String(filters.applied.page) });
+    if (filters.applied.q) params.set('q', filters.applied.q);
+    if (filters.applied.clientType) params.set('clientType', filters.applied.clientType);
+    if (filters.applied.country) params.set('country', filters.applied.country);
+    if (filters.applied.status) params.set('status', filters.applied.status);
+    fetch(`/api/admin/finance/clients?${params}`).then((r) => r.json()).then((b) => {
+      setRows(b.rows || []);
+      setCountries(b.countries || []);
+      setTotal(b.total || 0);
+    });
+  }, [filters.applied]);
 
   return (
     <FinanceShell>
@@ -57,76 +63,88 @@ export default function FinanceClientsPage() {
         description="Reusable billing clients for invoices. Indian and international records are supported."
         action={<Link href="/admin/finance/clients/new"><AdminButton variant="primary">+ Add Client</AdminButton></Link>}
       />
-      <AdminSection title="Clients">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input className={`${adminInputClass} max-w-sm`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, GSTIN, email" onKeyDown={(e) => e.key === 'Enter' && load()} />
-          <select className={`${adminSelectClass} w-40`} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-          <AdminButton onClick={load}>Search</AdminButton>
-        </div>
-        {error && <p className="mb-3 text-sm text-rose-700">{error}</p>}
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <FilterBar plain onSearch={filters.search} onClear={filters.clear}>
+        <FilterSearch value={filters.draft.q} onChange={(value) => filters.set('q', value)} placeholder="Search by name, GSTIN, email, or phone..." />
+        <FilterSelect icon="BuildingOffice2Icon" value={filters.draft.clientType} onChange={(value) => filters.set('clientType', value)} className="w-48">
+          <option value="">All client types</option>
+          {clientTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+        </FilterSelect>
+        <FilterSelect icon="GlobeAltIcon" value={filters.draft.country} onChange={(value) => filters.set('country', value)} className="w-44">
+          <option value="">All countries</option>
+          {countries.map((country) => <option key={country} value={country}>{country}</option>)}
+        </FilterSelect>
+        <FilterSelect value={filters.draft.status} onChange={(value) => filters.set('status', value)} className="w-40">
+          <option value="">All statuses</option>
+          {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+        </FilterSelect>
+      </FilterBar>
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="font-semibold text-slate-900">Clients</h2>
+        <p className="text-xs text-slate-400">{total} client account{total === 1 ? '' : 's'}</p>
+      </div>
+        {error && <p className="px-5 pt-3 text-sm text-rose-700">{error}</p>}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+          <table className="w-full min-w-[860px]">
             <thead>
               <tr>
-                <FinanceTh>Client / Company Name</FinanceTh>
-                <FinanceTh>Client Type</FinanceTh>
-                <FinanceTh>Contact Person</FinanceTh>
+                <FinanceTh>Client name</FinanceTh>
+                <FinanceTh>Client type</FinanceTh>
+                <FinanceTh>Contact person</FinanceTh>
                 <FinanceTh>Country</FinanceTh>
-                <FinanceTh>State / Region</FinanceTh>
                 <FinanceTh>Email</FinanceTh>
                 <FinanceTh>Phone</FinanceTh>
-                <FinanceTh>GSTIN / Tax Number</FinanceTh>
+                <FinanceTh>GSTIN / tax number</FinanceTh>
                 <FinanceTh>Status</FinanceTh>
-                <FinanceTh>Invoices</FinanceTh>
-                <FinanceTh>Total Invoiced</FinanceTh>
-                <FinanceTh>Outstanding</FinanceTh>
                 <FinanceTh>Actions</FinanceTh>
               </tr>
             </thead>
+            {rows.length > 0 && (
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <FinanceTd>{r.name}</FinanceTd>
-                  <FinanceTd>{clientTypeLabel(r.client_type)}</FinanceTd>
+                  <FinanceTd><span className="font-semibold text-slate-900">{r.name}</span></FinanceTd>
+                  <FinanceTd><TypePill>{clientTypeLabel(r.client_type)}</TypePill></FinanceTd>
                   <FinanceTd>{r.contact_person || '—'}</FinanceTd>
                   <FinanceTd>{r.country || '—'}</FinanceTd>
-                  <FinanceTd>{r.state || '—'}</FinanceTd>
                   <FinanceTd>{r.email || '—'}</FinanceTd>
                   <FinanceTd>{r.contact_number || '—'}</FinanceTd>
                   <FinanceTd>{r.gstin || '—'}</FinanceTd>
                   <FinanceTd><StatusBadge value={r.status || 'active'} /></FinanceTd>
-                  <FinanceTd>{r.invoice_count || 0}</FinanceTd>
-                  <FinanceTd>{money(r.total_invoiced)}</FinanceTd>
-                  <FinanceTd>{money(r.outstanding_amount)}</FinanceTd>
                   <FinanceTd>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link href={`/admin/finance/clients/${r.id}`}>
-                        <AdminButton size="sm">View</AdminButton>
+                    <div className="relative flex items-center gap-1">
+                      <Link href={`/admin/finance/clients/${r.id}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="View client">
+                        <Icon name="EyeIcon" size={16} />
                       </Link>
-                      <Link href={`/admin/finance/clients/${r.id}/edit`}>
-                        <AdminButton size="sm">Edit</AdminButton>
+                      <Link href={`/admin/finance/clients/${r.id}/edit`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Edit client">
+                        <Icon name="PencilSquareIcon" size={16} />
                       </Link>
-                      <AdminButton
-                        size="sm"
-                        variant={r.status === 'inactive' ? 'success' : 'secondary'}
-                        disabled={busyId === r.id}
-                        onClick={() => setClientStatus(r.id, r.status === 'inactive' ? 'active' : 'inactive')}
-                      >
-                        {r.status === 'inactive' ? 'Enable' : 'Disable'}
-                      </AdminButton>
+                      <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="More actions" onClick={() => setMenuId(menuId === r.id ? '' : r.id)}>
+                        <Icon name="EllipsisVerticalIcon" size={16} />
+                      </button>
+                      {menuId === r.id && (
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          className="absolute right-0 top-9 z-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg"
+                          onClick={() => { setMenuId(''); setClientStatus(r.id, r.status === 'inactive' ? 'active' : 'inactive'); }}
+                        >
+                          {r.status === 'inactive' ? 'Enable' : 'Disable'}
+                        </button>
+                      )}
                     </div>
                   </FinanceTd>
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
         </div>
-        <Pager page={page} pageSize={25} total={total} onPage={setPage} />
-      </AdminSection>
+        {rows.length === 0 && (
+          <EmptyRecords title="No clients found" description="Try adjusting your filters or add a client." action={<Link href="/admin/finance/clients/new"><AdminButton variant="primary">Add Client</AdminButton></Link>} />
+        )}
+        <div className="px-5 pb-4"><Pager page={filters.applied.page} pageSize={25} total={total} onPage={filters.setPage} /></div>
+      </section>
     </FinanceShell>
   );
 }

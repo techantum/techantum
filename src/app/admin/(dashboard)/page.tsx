@@ -48,15 +48,18 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState('');
 
   useEffect(() => {
     Promise.all([
       fetch('/api/admin/stats').then((r) => r.json()),
       fetch('/api/admin/analytics?range=7d').then((r) => r.json()),
+      fetch('/api/admin/me').then((r) => r.json()).catch(() => ({})),
     ])
-      .then(([statsData, analyticsData]) => {
+      .then(([statsData, analyticsData, me]) => {
         setStats(statsData);
         setAnalytics(analyticsData);
+        setRole(me?.role || '');
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -69,12 +72,12 @@ export default function AdminDashboardPage() {
     { href: '/admin/analytics', label: 'Website analytics' },
     { href: '/admin/content', label: 'Edit site content' },
     { href: '/admin/submissions', label: 'Manage leads' },
-    { href: '/admin/lead-discovery', label: 'Lead discovery' },
+    { href: '/admin/lead-discovery', label: 'Lead discovery', superAdmin: true },
     { href: '/admin/branding', label: 'Update branding' },
     { href: '/admin/seo', label: 'Global SEO' },
     { href: '/admin/page-seo', label: 'Page indexing' },
     { href: '/admin/partner-catalog', label: 'Wizard questions' },
-  ];
+  ].filter((link) => role === 'SUPER_ADMIN' || !link.superAdmin);
 
   return (
     <div className="w-full space-y-8">

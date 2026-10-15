@@ -203,7 +203,7 @@ export default function OpsCreatePage() {
       {message && <AdminAlert>{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
-      <AdminSection title="What would you like to create?">
+      <AdminSection icon="PlusCircleIcon" title="What would you like to create?">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {(['new', 'existing'] as const).map((item) => (
             <button
@@ -211,7 +211,7 @@ export default function OpsCreatePage() {
               type="button"
               onClick={() => setMode(item)}
               className={`rounded-lg border p-3 text-left transition-colors ${
-                mode === item ? 'border-indigo-500 bg-indigo-50' : 'border-border bg-white hover:border-indigo-200'
+                mode === item ? 'border-indigo-500 bg-orange-50' : 'border-border bg-white hover:border-indigo-200'
               }`}
             >
               <p className="text-sm font-semibold">{item === 'new' ? 'New Project' : 'Existing Project Ticket'}</p>
@@ -228,7 +228,7 @@ export default function OpsCreatePage() {
       {mode === 'new' && !created && (
         <>
           <OpsGrid>
-            <AdminSection title="Client information">
+            <AdminSection icon="UserIcon" title="Client information">
               <AdminFormGrid cols={1}>
                 <AdminField label="Client name *">
                   <input className={adminInputClass} value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} />
@@ -248,7 +248,7 @@ export default function OpsCreatePage() {
               </AdminFormGrid>
             </AdminSection>
 
-            <AdminSection title="Project information">
+            <AdminSection icon="RectangleStackIcon" title="Project information">
               <AdminFormGrid cols={1}>
                 <AdminField label="Type of project *">
                   <select
@@ -287,7 +287,7 @@ export default function OpsCreatePage() {
             </AdminSection>
           </OpsGrid>
 
-          <AdminSection title="Internal information" description="Never sent to the client on WhatsApp." accent="amber">
+          <AdminSection icon="ShieldCheckIcon" title="Internal information" description="Never sent to the client on WhatsApp." accent="amber">
             <AdminFormGrid cols={3}>
               <AdminField label="Estimated hours *">
                 <input type="number" min="0.5" step="0.5" className={adminInputClass} value={form.estimated_hours} onChange={(e) => setForm({ ...form, estimated_hours: e.target.value })} />
@@ -329,7 +329,7 @@ export default function OpsCreatePage() {
       )}
 
       {created && (
-        <AdminSection title="Send welcome message" accent="emerald">
+        <AdminSection icon="ChatBubbleLeftRightIcon" title="Send welcome message" accent="emerald">
           <p className="text-sm mb-2">
             Project <strong>{created.project.project_code}</strong> is ready. Preview the WhatsApp welcome message before sending.
           </p>
@@ -337,7 +337,7 @@ export default function OpsCreatePage() {
             <AdminButton variant="primary" onClick={openWelcome}>
               Preview message
             </AdminButton>
-            <Link href={`/admin/ops/projects/${created.project.id}`} className="text-sm text-indigo-600 self-center">
+            <Link href={`/admin/ops/projects/${created.project.id}`} className="text-sm text-secondary self-center">
               Open project
             </Link>
           </div>
@@ -346,7 +346,7 @@ export default function OpsCreatePage() {
 
       {mode === 'existing' && (
         <>
-          <AdminSection title="Select client">
+          <AdminSection icon="UserIcon" title="Select client">
             <input
               className={`${adminInputClass} mb-2 max-w-md`}
               placeholder="Search name, phone, WhatsApp, email…"
@@ -359,7 +359,7 @@ export default function OpsCreatePage() {
                   key={client.id}
                   type="button"
                   onClick={() => selectClient(client)}
-                  className={`w-full text-left px-3 py-2 text-sm ${selectedClient?.id === client.id ? 'bg-indigo-50' : 'hover:bg-muted/40'}`}
+                  className={`w-full text-left px-3 py-2 text-sm ${selectedClient?.id === client.id ? 'bg-orange-50' : 'hover:bg-muted/40'}`}
                 >
                   <span className="font-medium">{client.name}</span>{' '}
                   <span className="text-muted-foreground text-xs">
@@ -369,7 +369,7 @@ export default function OpsCreatePage() {
               ))}
             </div>
             <p className="text-xs mt-2">
-              <Link href="/admin/ops/clients" className="text-indigo-600">
+              <Link href="/admin/ops/clients" className="text-secondary">
                 + Add new client
               </Link>{' '}
               if they are not listed.
@@ -378,7 +378,7 @@ export default function OpsCreatePage() {
 
           {selectedClient && (
             <>
-              <AdminSection title="Client snapshot" description="Read-only. Edit from client page.">
+              <AdminSection icon="IdentificationIcon" title="Client snapshot" description="Read-only. Edit from client page.">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   <OpsOverviewField label="Name">{selectedClient.name}</OpsOverviewField>
                   <OpsOverviewField label="Location">{selectedClient.location || '—'}</OpsOverviewField>
@@ -387,13 +387,13 @@ export default function OpsCreatePage() {
                   <OpsOverviewField label="Domain">{selectedClient.website_domain || '—'}</OpsOverviewField>
                   <OpsOverviewField label="Hosting">{selectedClient.hosting_provider || '—'}</OpsOverviewField>
                 </div>
-                <Link href={`/admin/ops/clients/${selectedClient.id}`} className="text-xs text-indigo-600 mt-2 inline-block">
+                <Link href={`/admin/ops/clients/${selectedClient.id}`} className="text-xs text-secondary mt-2 inline-block">
                   Edit client
                 </Link>
               </AdminSection>
 
               <OpsGrid>
-                <AdminSection title="Ticket details">
+                <AdminSection icon="TicketIcon" title="Ticket details">
                   <AdminFormGrid cols={1}>
                     <AdminField label="Select project *">
                       <select className={adminSelectClass} value={ticketForm.project_id} onChange={(e) => setTicketForm({ ...ticketForm, project_id: e.target.value })}>
@@ -429,7 +429,7 @@ export default function OpsCreatePage() {
                   />
                 </AdminSection>
 
-                <AdminSection title="Internal estimation" accent="amber">
+                <AdminSection icon="CalculatorIcon" title="Internal estimation" accent="amber">
                   <AdminFormGrid cols={1}>
                     <AdminField label="Estimated hours *">
                       <input type="number" min="0.5" step="0.5" className={adminInputClass} value={ticketForm.estimated_hours} onChange={(e) => setTicketForm({ ...ticketForm, estimated_hours: e.target.value })} />

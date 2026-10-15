@@ -6,7 +6,7 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminBadge from '@/components/admin/AdminBadge';
-import { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
+import { FilterBar, FilterSearch, FilterSelect } from '@/components/admin/ListFilters';
 import { OpsPageShell, OpsStatusBadge, OpsTd, OpsTh } from '@/components/admin/ops/OpsUi';
 import { PROJECT_STATUS_LABELS, isClosedStatus } from '@/lib/ops/config';
 import { todayISO } from '@/lib/ops/working-days';
@@ -19,10 +19,12 @@ export default function OpsProjectsPage() {
   const [error, setError] = useState('');
   const today = todayISO();
 
-  const load = () => {
+  const load = (next: { search?: string; status?: string } = {}) => {
+    const query = next.search ?? search;
+    const nextStatus = next.status ?? status;
     const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (status) params.set('status', status);
+    if (query) params.set('search', query);
+    if (nextStatus) params.set('status', nextStatus);
     fetch(`/api/admin/ops/projects?${params}`)
       .then(async (r) => {
         const body = await r.json();
@@ -49,25 +51,23 @@ export default function OpsProjectsPage() {
       />
       {error && <p className="text-sm text-rose-700">{error}</p>}
 
+      <FilterBar
+        onSearch={() => load()}
+        onClear={() => {
+          setSearch('');
+          setStatus('');
+          load({ search: '', status: '' });
+        }}
+      >
+        <FilterSearch value={search} onChange={setSearch} placeholder="Search projects..." />
+        <FilterSelect value={status} onChange={setStatus}>
+          <option value="">All statuses</option>
+          {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </FilterSelect>
+      </FilterBar>
       <AdminSection title={`${rows.length} project(s)`}>
-        <div className="flex flex-wrap gap-2 mb-3">
-          <input
-            className={`${adminInputClass} max-w-xs`}
-            placeholder="Search…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && load()}
-          />
-          <select className={`${adminSelectClass} max-w-[180px]`} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All statuses</option>
-            {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <AdminButton onClick={load}>Filter</AdminButton>
-        </div>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">No delivery projects yet.</p>
         ) : (
@@ -91,7 +91,7 @@ export default function OpsProjectsPage() {
                       <OpsTd className="font-mono text-[11px]">{row.project_code}</OpsTd>
                       <OpsTd>{row.ops_clients?.name}</OpsTd>
                       <OpsTd>
-                        <Link className="text-indigo-600 hover:underline font-medium" href={`/admin/ops/projects/${row.id}`}>
+                        <Link className="text-secondary hover:underline font-medium" href={`/admin/ops/projects/${row.id}`}>
                           {row.project_name}
                         </Link>
                       </OpsTd>

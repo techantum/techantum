@@ -163,7 +163,7 @@ export default function AdminPartnerRequirementDetailPage() {
           type="button"
           onClick={regenerate}
           disabled={regenerating}
-          className="ml-auto px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="ml-auto inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50"
         >
           {regenerating ? 'Regenerating…' : 'Regenerate SOW'}
         </button>
@@ -273,7 +273,7 @@ export default function AdminPartnerRequirementDetailPage() {
             type="button"
             onClick={sendProposal}
             disabled={sendingProposal || !proposalSummary.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50"
           >
             {sendingProposal ? 'Sending…' : 'Send Proposal to Partner'}
           </button>

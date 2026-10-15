@@ -145,7 +145,7 @@ export default function LeadExportMenu({
             <button
               type="button"
               onClick={exportExcel}
-              className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-indigo-50"
+              className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-orange-50"
             >
               <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
                 <Icon name="TableCellsIcon" size={16} />

@@ -4,20 +4,24 @@ import { useEffect, useState } from 'react';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminField, { adminInputClass, adminSelectClass, adminTextareaClass } from '@/components/admin/AdminField';
 import AdminFormGrid from '@/components/admin/AdminFormGrid';
+import Link from 'next/link';
 import AdminSection from '@/components/admin/AdminSection';
 import { BILLING_CURRENCIES, INDIAN_STATES } from '@/lib/finance/gst';
 import { CLIENT_TYPES, isIndianClientType } from '@/lib/finance/client-types';
+import { useMasterItems } from '@/components/admin/useMasterItems';
 
 export default function ClientForm({
   initial,
   onSubmit,
   saving,
   submitLabel,
+  cancelHref,
 }: {
   initial?: Record<string, unknown>;
   onSubmit: (payload: Record<string, unknown>) => void;
   saving?: boolean;
   submitLabel: string;
+  cancelHref?: string;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -59,11 +63,18 @@ export default function ClientForm({
     }));
   }, [initial]);
 
-  const indian = isIndianClientType(form.client_type);
+  const clientTypes = useMasterItems('client_type', CLIENT_TYPES.map((type) => ({ value: type.value, label: type.label, parent: type.region })));
+  const currencies = useMasterItems('currency', BILLING_CURRENCIES.map((currency) => ({ value: currency, label: currency })));
+  const statuses = useMasterItems('record_status', [
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ]);
+  const selectedType = clientTypes.find((type) => type.value === form.client_type);
+  const indian = selectedType ? selectedType.parent === 'india' || selectedType.value.startsWith('indian_') : isIndianClientType(form.client_type);
 
   return (
     <>
-      <AdminSection title="Basic Information">
+      <AdminSection title="Basic Information" icon="UserIcon">
         <AdminFormGrid>
           <AdminField label="Company / Client Name" span={2}>
             <input className={adminInputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -83,7 +94,7 @@ export default function ClientForm({
                 });
               }}
             >
-              {CLIENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {clientTypes.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </AdminField>
           <AdminField label="Contact Person"><input className={adminInputClass} value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></AdminField>
@@ -93,7 +104,7 @@ export default function ClientForm({
           <AdminField label="Website"><input className={adminInputClass} value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></AdminField>
         </AdminFormGrid>
       </AdminSection>
-      <AdminSection title="Address">
+      <AdminSection title="Address" icon="MapPinIcon">
         <AdminFormGrid>
           <AdminField label="Address Line 1" span={2}><input className={adminInputClass} value={form.address_line1} onChange={(e) => setForm({ ...form, address_line1: e.target.value })} /></AdminField>
           <AdminField label="Address Line 2" span={2}><input className={adminInputClass} value={form.address_line2} onChange={(e) => setForm({ ...form, address_line2: e.target.value })} /></AdminField>
@@ -123,7 +134,7 @@ export default function ClientForm({
           </AdminField>
         </AdminFormGrid>
       </AdminSection>
-      <AdminSection title={indian ? 'Tax Information' : 'Business / Tax Information'}>
+      <AdminSection title={indian ? 'Tax Information' : 'Business / Tax Information'} icon="DocumentTextIcon">
         <AdminFormGrid>
           {indian && (
             <>
@@ -148,23 +159,25 @@ export default function ClientForm({
           )}
         </AdminFormGrid>
       </AdminSection>
-      <AdminSection title="Billing">
+      <AdminSection title="Billing" icon="BanknotesIcon">
         <AdminFormGrid>
           <AdminField label="Default Currency">
             <select className={adminSelectClass} value={form.default_currency} onChange={(e) => setForm({ ...form, default_currency: e.target.value })}>
-              {BILLING_CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+              {currencies.map((c) => <option key={c.value}>{c.label}</option>)}
             </select>
           </AdminField>
           <AdminField label="Default Payment Terms"><input className={adminInputClass} value={form.default_payment_terms} onChange={(e) => setForm({ ...form, default_payment_terms: e.target.value })} /></AdminField>
           <AdminField label="Status">
             <select className={adminSelectClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
             </select>
           </AdminField>
-          <AdminField label="Notes" span={3}><textarea className={adminTextareaClass} value={form.billing_notes} onChange={(e) => setForm({ ...form, billing_notes: e.target.value })} /></AdminField>
+          <AdminField label="Notes" span={4}><textarea className={adminTextareaClass} value={form.billing_notes} onChange={(e) => setForm({ ...form, billing_notes: e.target.value })} /></AdminField>
         </AdminFormGrid>
-        <AdminButton className="mt-4" variant="primary" disabled={saving} onClick={() => onSubmit(form)}>{submitLabel}</AdminButton>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <AdminButton variant="primary" disabled={saving} onClick={() => onSubmit(form)}>{submitLabel}</AdminButton>
+          {cancelHref && <Link href={cancelHref}><AdminButton>Cancel</AdminButton></Link>}
+        </div>
       </AdminSection>
     </>
   );

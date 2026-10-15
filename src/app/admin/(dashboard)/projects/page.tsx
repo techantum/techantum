@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminSection from '@/components/admin/AdminSection';
+import AdminButton from '@/components/admin/AdminButton';
+import { EmptyRecords, FilterBar, FilterSearch, FilterSelect } from '@/components/admin/ListFilters';
+import { FinanceTd, FinanceTh } from '@/components/admin/finance/FinanceUi';
 import { PROJECT_STATUS_LABELS, type ClientProject } from '@/lib/client-requirements/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -78,45 +80,52 @@ export default function ProjectsPage() {
       <AdminPageHeader
         title="Projects"
         description="Create client requirement projects. Draft links stay hidden until you set status to Active."
-        action={<Link href="/admin/projects/create" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold">Create Project</Link>}
+        action={<Link href="/admin/projects/create"><AdminButton variant="primary">+ Create Project</AdminButton></Link>}
       />
       {message && <p className="text-sm bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg">{message}</p>}
-      <AdminSection title="All Projects" description={`${projects.length} project(s)`}>
-        <div className="flex flex-wrap gap-3">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search project, company, email..." className="w-72 max-w-full rounded-lg border border-border px-3 py-2 text-sm" />
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm">
-            <option value="all">All statuses</option>
-            {Object.entries(PROJECT_STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
-        </div>
-        {loading ? <p className="text-sm text-muted-foreground">Loading projects...</p> : (
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <FilterBar
+        plain
+        onSearch={load}
+        onClear={() => {
+          setSearch('');
+          setStatus('all');
+        }}
+      >
+        <FilterSearch value={search} onChange={setSearch} placeholder="Search project, company, email..." />
+        <FilterSelect value={status} onChange={setStatus}>
+          <option value="all">All statuses</option>
+          {Object.entries(PROJECT_STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </FilterSelect>
+      </FilterBar>
+        {loading ? <p className="px-5 py-8 text-sm text-slate-500">Loading projects...</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="pb-3 pr-4 font-medium">Project</th>
-                  <th className="pb-3 pr-4 font-medium">Client</th>
-                  <th className="pb-3 pr-4 font-medium">Type</th>
-                  <th className="pb-3 pr-4 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Actions</th>
+                <tr>
+                  <FinanceTh>Project</FinanceTh>
+                  <FinanceTh>Company</FinanceTh>
+                  <FinanceTh>Type</FinanceTh>
+                  <FinanceTh>Status</FinanceTh>
+                  <FinanceTh>Actions</FinanceTh>
                 </tr>
               </thead>
               <tbody>
                 {projects.map((project) => (
-                  <tr key={project.id} className="border-b border-border/60 align-top">
-                    <td className="py-3 pr-4">
-                      <p className="font-medium">{project.project_name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{project.project_code}</p>
-                    </td>
-                    <td className="py-3 pr-4">
+                  <tr key={project.id}>
+                    <FinanceTd>
+                      <p className="font-semibold text-slate-900">{project.project_name}</p>
+                      <p className="text-xs text-slate-400 font-mono">{project.project_code}</p>
+                    </FinanceTd>
+                    <FinanceTd>
                       <p>{project.company_name}</p>
-                      <p className="text-xs text-muted-foreground">{project.email}</p>
-                    </td>
-                    <td className="py-3 pr-4 text-xs">
+                      <p className="text-xs text-slate-400">{project.email}</p>
+                    </FinanceTd>
+                    <FinanceTd>
                       {project.project_type}<br />
-                      <span className="text-muted-foreground">{project.package_name || 'No package'}</span>
-                    </td>
-                    <td className="py-3 pr-4">
+                      <span className="text-xs text-slate-400">{project.package_name || 'No package'}</span>
+                    </FinanceTd>
+                    <FinanceTd>
                       <select
                         value={project.status}
                         onChange={(e) => updateStatus(project.id, e.target.value)}
@@ -126,31 +135,32 @@ export default function ProjectsPage() {
                           <option key={key} value={key}>{label}</option>
                         ))}
                       </select>
-                    </td>
-                    <td className="py-3">
+                    </FinanceTd>
+                    <FinanceTd>
                       <div className="flex flex-wrap gap-2">
                         {project.status === 'active' ? (
                           <>
-                            <button onClick={() => copy(project.share_url)} className="text-xs text-indigo-600 hover:underline">Copy Link</button>
-                            <button onClick={() => regenerate(project.id)} className="text-xs text-amber-700 hover:underline">Regenerate</button>
-                            <a href={`mailto:${project.email}?subject=Requirement collection for ${encodeURIComponent(project.project_name)}&body=${encodeURIComponent(project.share_url || '')}`} className="text-xs text-primary hover:underline">Email</a>
-                            <a href={`https://wa.me/?text=${encodeURIComponent(project.share_url || '')}`} target="_blank" rel="noreferrer" className="text-xs text-green-700 hover:underline">WhatsApp</a>
+                            <button type="button" onClick={() => copy(project.share_url)} className="text-xs font-semibold text-secondary hover:underline">Copy Link</button>
+                            <button type="button" onClick={() => regenerate(project.id)} className="text-xs font-semibold text-slate-500 hover:underline">Regenerate</button>
+                            <a href={`mailto:${project.email}?subject=Requirement collection for ${encodeURIComponent(project.project_name)}&body=${encodeURIComponent(project.share_url || '')}`} className="text-xs font-semibold text-secondary hover:underline">Email</a>
+                            <a href={`https://wa.me/?text=${encodeURIComponent(project.share_url || '')}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline">WhatsApp</a>
                           </>
                         ) : (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-slate-400">
                             {project.status === 'draft' ? 'Activate to share link' : 'Link disabled'}
                           </span>
                         )}
                       </div>
-                    </td>
+                    </FinanceTd>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {projects.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No projects yet.</p>}
+            {projects.length === 0 && <EmptyRecords title="No projects found" description="Try another filter or create a project." action={<Link href="/admin/projects/create"><AdminButton variant="primary">+ Create Project</AdminButton></Link>} />}
           </div>
         )}
-      </AdminSection>
+        <p className="px-5 pb-4 text-xs text-slate-400">{projects.length} record{projects.length === 1 ? '' : 's'}</p>
+      </section>
     </div>
   );
 }

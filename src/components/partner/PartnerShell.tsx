@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
-import { visiblePartnerNavItems } from '@/lib/partner/nav';
+import { firstAllowedPartnerHref, visiblePartnerNavItems } from '@/lib/partner/nav';
 import { PARTNER_TIER_LABELS, type Partner, type PartnerUser } from '@/lib/partner/types';
 
 interface PartnerShellProps {
@@ -103,7 +103,7 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
             >
               {sidebarOpen ? 'Close' : 'Menu'}
             </button>
-            <Link href="/partner/dashboard" className="flex min-w-0 items-center" aria-label={partner.company_name}>
+            <Link href={firstAllowedPartnerHref(partnerUser, partner)} className="flex min-w-0 items-center" aria-label={partner.company_name}>
               <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="md" />
             </Link>
           </div>

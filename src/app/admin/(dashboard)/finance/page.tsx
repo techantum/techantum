@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminStatCard from '@/components/admin/AdminStatCard';
-import AdminField, { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
+import { FilterBar, FilterDate, FilterSelect, financialYearChoices, useListFilters } from '@/components/admin/ListFilters';
 import AdminAlert from '@/components/admin/AdminAlert';
 import { FinanceLink, FinanceShell, FinanceTd, FinanceTh, money } from '@/components/admin/finance/FinanceUi';
 import { currentFinancialYear } from '@/lib/finance/fy';
@@ -21,13 +21,13 @@ type Dashboard = {
   receiptsByCategory: { name: string; total: string }[];
 };
 
+const dashboardFilters = { period: 'current_month', fy: currentFinancialYear().label, from: '', to: '' };
+
 export default function FinanceDashboardPage() {
-  const [period, setPeriod] = useState('current_month');
-  const [fy, setFy] = useState(currentFinancialYear().label);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const filters = useListFilters(dashboardFilters);
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState('');
+  const { period, fy, from, to } = filters.applied;
 
   useEffect(() => {
     const params = new URLSearchParams({ period });
@@ -64,31 +64,25 @@ export default function FinanceDashboardPage() {
         title="Finance"
         description="Revenue from invoices and invoice payments. Spending from receipts. No separate income register."
       />
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <AdminField label="Period">
-          <select className={adminSelectClass} value={period} onChange={(e) => setPeriod(e.target.value)}>
-            <option value="current_month">Current Month</option>
-            <option value="previous_month">Previous Month</option>
-            <option value="financial_year">Financial Year</option>
-            <option value="custom">Custom Date Range</option>
-          </select>
-        </AdminField>
-        {period === 'financial_year' && (
-          <AdminField label="Indian FY">
-            <input className={adminInputClass} value={fy} onChange={(e) => setFy(e.target.value)} placeholder="2026-27" />
-          </AdminField>
+      <FilterBar onSearch={filters.search} onClear={filters.clear}>
+        <FilterSelect icon="CalendarDaysIcon" value={filters.draft.period} onChange={(value) => filters.set('period', value)} className="w-56">
+          <option value="current_month">Current Month</option>
+          <option value="previous_month">Previous Month</option>
+          <option value="financial_year">Financial Year</option>
+          <option value="custom">Custom Date Range</option>
+        </FilterSelect>
+        {filters.draft.period === 'financial_year' && (
+          <FilterSelect icon="CalendarDaysIcon" value={filters.draft.fy} onChange={(value) => filters.set('fy', value)} className="w-40">
+            {financialYearChoices(filters.draft.fy).map((year) => <option key={year} value={year}>{year}</option>)}
+          </FilterSelect>
         )}
-        {period === 'custom' && (
+        {filters.draft.period === 'custom' && (
           <>
-            <AdminField label="From">
-              <input type="date" className={adminInputClass} value={from} onChange={(e) => setFrom(e.target.value)} />
-            </AdminField>
-            <AdminField label="To">
-              <input type="date" className={adminInputClass} value={to} onChange={(e) => setTo(e.target.value)} />
-            </AdminField>
+            <FilterDate ariaLabel="From" value={filters.draft.from} onChange={(value) => filters.set('from', value)} />
+            <FilterDate ariaLabel="To" value={filters.draft.to} onChange={(value) => filters.set('to', value)} />
           </>
         )}
-      </div>
+      </FilterBar>
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
       <p className="text-xs text-slate-500">{data?.period.label} · {data?.period.from} to {data?.period.to}</p>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
@@ -99,7 +93,7 @@ export default function FinanceDashboardPage() {
         <AdminStatCard label="Receipts Paid" value={cards ? money(cards.receiptsPaid) : '—'} />
         <AdminStatCard label="Net Cash Position" value={cards ? money(cards.netCashPosition) : '—'} hint="Invoice payments received − receipts paid" accent="violet" icon="CalculatorIcon" />
       </div>
-      <AdminSection title="Invoice payments vs receipts (cash)">
+      <AdminSection title="Invoice payments vs receipts (cash)" icon="ScaleIcon">
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chart}>
@@ -115,7 +109,7 @@ export default function FinanceDashboardPage() {
         </div>
       </AdminSection>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <AdminSection title="Outstanding invoices">
+        <AdminSection title="Outstanding invoices" icon="ClockIcon">
           <table className="w-full text-sm">
             <thead>
               <tr>
@@ -140,7 +134,7 @@ export default function FinanceDashboardPage() {
           </table>
           {!data?.outstandingInvoices?.length && <p className="py-3 text-sm text-slate-500">No outstanding invoices.</p>}
         </AdminSection>
-        <AdminSection title="Overdue invoices">
+        <AdminSection title="Overdue invoices" icon="ExclamationTriangleIcon">
           <table className="w-full text-sm">
             <thead>
               <tr>
@@ -165,7 +159,7 @@ export default function FinanceDashboardPage() {
           </table>
           {!data?.overdueInvoices?.length && <p className="py-3 text-sm text-slate-500">No overdue invoices.</p>}
         </AdminSection>
-        <AdminSection title="Recent transactions">
+        <AdminSection title="Recent transactions" icon="ArrowsRightLeftIcon">
           {(data?.recentTransactions || []).map((row) => (
             <div key={row.id} className="flex justify-between border-b border-slate-100 py-2 text-sm">
               <div>
@@ -178,7 +172,7 @@ export default function FinanceDashboardPage() {
             </div>
           ))}
         </AdminSection>
-        <AdminSection title="Receipts missing supporting document">
+        <AdminSection title="Receipts missing supporting document" icon="PaperClipIcon">
           {(data?.receiptsMissingDocs || []).map((row) => (
             <div key={row.id} className="flex justify-between border-b border-slate-100 py-2 text-sm">
               <div>
@@ -191,7 +185,7 @@ export default function FinanceDashboardPage() {
           {!data?.receiptsMissingDocs?.length && <p className="text-sm text-slate-500">All recorded receipts have a supporting document.</p>}
         </AdminSection>
       </div>
-      <AdminSection title="Receipts by category">
+      <AdminSection title="Receipts by category" icon="ChartBarIcon">
         <table className="w-full text-sm">
           <thead>
             <tr>

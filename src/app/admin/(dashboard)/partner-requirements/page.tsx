@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
+import { FilterBar, FilterSearch, FilterSelect } from '@/components/admin/ListFilters';
 import { REQUIREMENT_STATUS_LABELS, type RequirementStatus } from '@/lib/partner/types';
 
 interface RequirementRow {
@@ -124,26 +125,16 @@ export default function AdminPartnerRequirementsPage() {
         </AdminSection>
       )}
 
+      <FilterBar onSearch={load} onClear={() => { setSearch(''); setStatusFilter('all'); }}>
+        <FilterSearch value={search} onChange={setSearch} placeholder="Search reference or project..." />
+        <FilterSelect value={statusFilter} onChange={setStatusFilter}>
+          <option value="all">All statuses</option>
+          {Object.entries(REQUIREMENT_STATUS_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </FilterSelect>
+      </FilterBar>
       <AdminSection title="All Requirements">
-        <div className="flex flex-wrap gap-3 mb-4">
-          <input
-            type="search"
-            placeholder="Search reference or project…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-border text-sm w-64"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-border text-sm"
-          >
-            <option value="all">All statuses</option>
-            {Object.entries(REQUIREMENT_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </div>
 
         {loading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>

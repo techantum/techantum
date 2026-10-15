@@ -53,10 +53,11 @@ export async function updateClientBilling(id: string, patch: Record<string, unkn
 export async function listFinanceProjects(clientId?: string) {
   const { rows } = await q(
     undefined,
-    `SELECT id, project_code, project_name, client_id, status
-     FROM ops_projects
-     WHERE ($1::uuid IS NULL OR client_id = $1)
-     ORDER BY created_at DESC`,
+    `SELECT p.id, p.project_code, p.project_name, p.client_id, p.status, p.project_type, c.name AS client_name
+     FROM ops_projects p
+     LEFT JOIN ops_clients c ON c.id = p.client_id
+     WHERE ($1::uuid IS NULL OR p.client_id = $1)
+     ORDER BY p.project_type NULLS LAST, p.project_name`,
     [clientId || null]
   );
   return rows;
