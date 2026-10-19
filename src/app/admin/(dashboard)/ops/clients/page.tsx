@@ -35,8 +35,8 @@ export default function OpsClientsPage() {
         title="Clients"
         description="One client can have many projects. Do not duplicate records for a new project."
         action={
-          <Link href="/admin/ops/create">
-            <AdminButton variant="primary">+ Create Ticket</AdminButton>
+          <Link href="/admin/pm/projects/new">
+            <AdminButton variant="primary">+ Create Project</AdminButton>
           </Link>
         }
       />

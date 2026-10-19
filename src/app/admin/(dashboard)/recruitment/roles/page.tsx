@@ -64,7 +64,7 @@ export default function RecruitmentRolesPage() {
               </Link>
             )}
             <Link href="/admin/recruitment/roles/new">
-              <AdminButton variant="primary">+ Create role</AdminButton>
+              <AdminButton variant="primary">+ Create Role</AdminButton>
             </Link>
           </div>
         }

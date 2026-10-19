@@ -18,7 +18,7 @@ export default function QualityPage() {
   const groups = ['GREEN', 'YELLOW', 'RED', 'UNKNOWN'];
   return (
     <ProviderShell>
-      <AdminPageHeader title="Quality Monitor" description="Phone quality history and downgrade alerts. Platform monitoring only." />
+      <AdminPageHeader title="Quality & Health" description="Phone quality history and downgrade alerts. Platform monitoring only." />
       {groups.map((group) => (
         <AdminSection key={group} title={group} accent={group === 'GREEN' ? 'emerald' : group === 'YELLOW' ? 'amber' : group === 'RED' ? 'rose' : 'indigo'}>
           <ProviderTable

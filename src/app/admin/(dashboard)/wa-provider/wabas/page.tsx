@@ -5,7 +5,7 @@ import ResourcePage, { cellStatus, cellWhen } from '@/components/admin/wa-provid
 export default function WabasPage() {
   return (
     <ResourcePage
-      title="WABA Accounts"
+      title="WhatsApp Accounts"
       description="WhatsApp Business Accounts connected through this Tech Provider."
       endpoint="/api/admin/wa-provider/wabas"
       searchHint="WABA name or ID"

@@ -226,7 +226,7 @@ export default function GbpAnalyticsPage() {
   return (
     <div className="w-full space-y-6">
       <AdminPageHeader
-        title="Maps / GBP Analytics"
+        title="Google Business Analytics"
         action={
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {RANGE_OPTIONS.map((option) => (

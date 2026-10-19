@@ -4,21 +4,37 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { ADMIN_NAV_GROUPS, type AdminNavGroup } from '@/lib/cms/admin-nav';
-import { filterNavGroups, type AdminRole } from '@/lib/admin/roles';
+import { ADMIN_NAV, visibleAdminNav, type AdminNavItem } from '@/lib/cms/admin-nav';
+import type { AdminRole } from '@/lib/admin/roles';
 import Icon from '@/components/ui/AppIcon';
 
-function isNavActive(pathname: string, href: string, exact?: boolean) {
-  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+function isNavActive(pathname: string, href: string, exact?: boolean, activePaths?: string[]) {
+  const onHref = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  if (onHref) return true;
+  return activePaths?.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ?? false;
 }
 
-function groupHasActiveItem(pathname: string, groupId: string) {
-  const group = ADMIN_NAV_GROUPS.find((g) => g.id === groupId);
-  return group?.items.some((item) => isNavActive(pathname, item.href, item.exact)) ?? false;
+function itemTreeActive(pathname: string, item: AdminNavItem): boolean {
+  if (item.href && isNavActive(pathname, item.href, item.exact, item.activePaths)) return true;
+  return item.children?.some((child) => itemTreeActive(pathname, child)) ?? false;
 }
 
-function openGroupsForPath(pathname: string) {
-  return Object.fromEntries(ADMIN_NAV_GROUPS.map((g) => [g.id, groupHasActiveItem(pathname, g.id)]));
+function nodeKey(trail: string[], item: AdminNavItem) {
+  return [...trail, item.id || item.label].join('/');
+}
+
+function openNodesForPath(pathname: string) {
+  const open: Record<string, boolean> = {};
+  const walk = (items: AdminNavItem[], trail: string[]) => {
+    for (const item of items) {
+      if (!item.children?.length) continue;
+      const key = nodeKey(trail, item);
+      if (itemTreeActive(pathname, item)) open[key] = true;
+      walk(item.children, [...trail, item.id || item.label]);
+    }
+  };
+  walk(ADMIN_NAV, []);
+  return open;
 }
 
 export default function AdminShell({
@@ -37,9 +53,9 @@ export default function AdminShell({
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const supabase = createClient();
-  const navGroups = useMemo(() => filterNavGroups(ADMIN_NAV_GROUPS, role), [role]);
+  const navItems = useMemo(() => visibleAdminNav(role), [role]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => openGroupsForPath(pathname));
+  const [openNodes, setOpenNodes] = useState<Record<string, boolean>>(() => openNodesForPath(pathname));
   const [appointmentCount, setAppointmentCount] = useState(0);
 
   useEffect(() => {
@@ -47,7 +63,7 @@ export default function AdminShell({
   }, [pathname]);
 
   useEffect(() => {
-    setOpenGroups(openGroupsForPath(pathname));
+    setOpenNodes((prev) => ({ ...prev, ...openNodesForPath(pathname) }));
   }, [pathname]);
 
   useEffect(() => {
@@ -72,20 +88,11 @@ export default function AdminShell({
     };
   }, [pathname, role]);
 
-  const activeGroupId = useMemo(
-    () => navGroups.find((g) => groupHasActiveItem(pathname, g.id))?.id,
-    [pathname, navGroups]
-  );
-
   const handleSignOut = async () => {
     await fetch('/api/admin/logout', { method: 'POST' }).catch(() => undefined);
     await supabase.auth.signOut().catch(() => undefined);
     router.push('/admin/login');
     router.refresh();
-  };
-
-  const toggleGroup = (groupId: string) => {
-    setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
   const brandMark = logoUrl ? (
@@ -97,79 +104,87 @@ export default function AdminShell({
     </div>
   );
 
-  const sidebar = (
-    <div className="flex h-full flex-col overflow-hidden bg-white text-slate-800">
-      <nav className="relative flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
-        {navGroups.map((group: AdminNavGroup) => {
-          const isOpen = openGroups[group.id];
-          const isGroupActive = activeGroupId === group.id;
+  const renderNodes = (items: AdminNavItem[], trail: string[], depth: number) =>
+    items.map((item) => {
+      const key = nodeKey(trail, item);
+      const nextTrail = [...trail, item.id || item.label];
 
-          return (
-            <div key={group.id} className="overflow-hidden rounded-2xl">
-              <button
-                type="button"
-                onClick={() => toggleGroup(group.id)}
-                className={`flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                  isGroupActive ? 'bg-orange-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
-                }`}
-              >
-                <span className="flex items-center gap-3">
+      if (item.children?.length) {
+        const open = Boolean(openNodes[key]);
+        const active = itemTreeActive(pathname, item);
+        const isMain = depth === 0;
+        return (
+          <div key={key} className={isMain ? 'overflow-hidden rounded-2xl' : undefined}>
+            <button
+              type="button"
+              onClick={() => setOpenNodes((prev) => ({ ...prev, [key]: !prev[key] }))}
+              className={
+                isMain
+                  ? `flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                      active ? 'bg-orange-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+                    }`
+                  : `flex w-full items-center justify-between gap-2 rounded-xl py-2 pr-3 text-sm font-medium transition-colors ${
+                      active ? 'text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+                    }`
+              }
+              style={isMain ? undefined : { paddingLeft: 8 + depth * 10 }}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                {isMain ? (
                   <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl ${
-                      isGroupActive ? 'bg-secondary text-white' : 'bg-slate-100 text-slate-500'
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                      active ? 'bg-secondary text-white' : 'bg-slate-100 text-slate-500'
                     }`}
                   >
-                    <Icon name={group.icon} size={16} />
+                    <Icon name={item.icon} size={16} />
                   </span>
-                  {group.label}
-                </span>
-                <Icon
-                  name="ChevronDownIcon"
-                  size={16}
-                  className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
+                ) : (
+                  <Icon name={item.icon} size={15} className={`shrink-0 ${active ? 'text-secondary' : 'text-slate-400'}`} />
+                )}
+                <span className="text-left leading-tight">{item.label}</span>
+              </span>
+              <Icon
+                name="ChevronDownIcon"
+                size={isMain ? 16 : 14}
+                className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {open ? <div className={`space-y-0.5 ${isMain ? 'pb-1 pl-2' : ''}`}>{renderNodes(item.children, nextTrail, depth + 1)}</div> : null}
+          </div>
+        );
+      }
 
-              <div
-                className={`grid transition-all duration-200 ${
-                  isOpen ? 'mt-1 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <div className="space-y-0.5 pb-1 pl-2">
-                    {group.items.map((item) => {
-                      const active = isNavActive(pathname, item.href, item.exact);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-2 text-sm transition-colors ${
-                            active
-                              ? 'border-secondary bg-secondary font-medium text-white shadow-sm'
-                              : 'border-transparent text-slate-600 hover:border-secondary/40 hover:bg-slate-50 hover:text-secondary'
-                          }`}
-                        >
-                          <Icon name={item.icon} size={16} className={active ? 'text-white' : 'text-slate-400'} />
-                          <span className="flex-1">{item.label}</span>
-                          {item.href === '/admin/whatsapp/appointments' && appointmentCount > 0 ? (
-                            <span
-                              className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold ${
-                                active ? 'bg-white text-secondary' : 'bg-secondary text-white'
-                              }`}
-                            >
-                              {appointmentCount}
-                            </span>
-                          ) : null}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </nav>
+      const href = item.href || '#';
+      const active = item.href ? isNavActive(pathname, item.href, item.exact, item.activePaths) : false;
+      return (
+        <Link
+          key={key}
+          href={href}
+          className={`flex items-center gap-2 rounded-xl border-l-2 py-2 pr-3 text-sm transition-colors ${
+            active
+              ? 'border-secondary bg-secondary font-medium text-white shadow-sm'
+              : 'border-transparent text-slate-600 hover:border-secondary/40 hover:bg-slate-50 hover:text-secondary'
+          }`}
+          style={{ paddingLeft: 8 + depth * 10 }}
+        >
+          <Icon name={item.icon} size={15} className={`shrink-0 ${active ? 'text-white' : 'text-slate-400'}`} />
+          <span className="min-w-0 flex-1 text-left leading-tight">{item.label}</span>
+          {item.href === '/admin/whatsapp/appointments' && appointmentCount > 0 ? (
+            <span
+              className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold ${
+                active ? 'bg-white text-secondary' : 'bg-secondary text-white'
+              }`}
+            >
+              {appointmentCount}
+            </span>
+          ) : null}
+        </Link>
+      );
+    });
+
+  const sidebar = (
+    <div className="flex h-full flex-col overflow-hidden bg-white text-slate-800">
+      <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 py-4">{renderNodes(navItems, [], 0)}</nav>
     </div>
   );
 
@@ -232,7 +247,7 @@ export default function AdminShell({
 
       <div className="min-h-[calc(100vh-4rem)] lg:flex">
         <aside
-          className={`fixed bottom-0 top-16 z-50 w-72 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 print:hidden lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] ${
+          className={`fixed bottom-0 top-16 z-50 w-80 shrink-0 border-r border-slate-200 bg-white shadow-sm transition-transform duration-200 print:hidden lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >

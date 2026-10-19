@@ -1,11 +1,12 @@
 export type AdminRole = 'SUPER_ADMIN' | 'ADMIN';
 
-export const SUPER_ADMIN_ONLY_NAV_GROUPS = ['recruitment', 'sales', 'hr', 'account'] as const;
+export const SUPER_ADMIN_ONLY_NAV_GROUPS = ['recruitment', 'sales', 'hr', 'account', 'project-management'] as const;
 
 export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/recruitment',
   '/admin/lead-discovery',
   '/admin/hr',
+  '/admin/pm',
   '/admin/profile',
 ];
 
@@ -15,6 +16,7 @@ export const SUPER_ADMIN_ONLY_API_PREFIXES = [
   '/api/admin/developer-admins',
   '/api/admin/profile',
   '/api/admin/hr',
+  '/api/admin/pm',
 ];
 
 export function isSuperAdmin(role?: string | null): boolean {

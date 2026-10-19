@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminField, { adminInputClass, adminSelectClass } from '@/components/admin/AdminField';
 import { ProviderLink, ProviderShell, ProviderTable, StatusPill, Td } from '@/components/admin/wa-provider/ProviderUi';
@@ -65,6 +66,11 @@ export default function WaClientsPage() {
       <AdminPageHeader
         title="Onboarded Clients"
         description="Clients complete WhatsApp setup with Techantum’s Meta Tech Provider onboarding. Share the Meta links below, or send them to /portal/wa/onboard."
+        action={
+          <Link href="/admin/wa-provider/onboard">
+            <AdminButton variant="primary">+ Onboard Client</AdminButton>
+          </Link>
+        }
       />
       <AdminSection title="Client onboarding links">
         <p className="text-sm text-slate-600">
