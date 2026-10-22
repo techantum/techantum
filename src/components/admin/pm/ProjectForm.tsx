@@ -168,6 +168,10 @@ export default function ProjectForm({ projectId }: { projectId?: string }) {
     if (res.ok) setFiles((current) => current.filter((item) => item.id !== itemId));
   };
 
+  const missing = (slot: StaffSlot, label: string) => (lookups.employees && !people(slot).length
+    ? <p className="text-xs text-amber-700">No active employees have the {label} role. Set the designation in HR → Employees.</p>
+    : null);
+
   const options = (slot: StaffSlot, selected: string, taken: string[] = []) => people(slot, selected)
     .filter((employee) => employee.id === selected || !taken.includes(employee.id))
     .map((employee) => <option key={employee.id} value={employee.id}>{employee.full_name}</option>);
@@ -198,16 +202,19 @@ export default function ProjectForm({ projectId }: { projectId?: string }) {
               <option value="">Select account manager</option>
               {options('account_manager', form.account_manager_id || '')}
             </select>
+            {missing('account_manager', 'Account Manager')}
           </Field>
           <Field label="Lead">
             <select className={inputClass} value={form.lead_developer_id || ''} onChange={(e) => set('lead_developer_id', e.target.value)}>
               <option value="">Select lead</option>
               {options('lead', form.lead_developer_id || '')}
             </select>
+            {missing('lead', 'Lead')}
           </Field>
         </div>
         <div className="space-y-2">
           <p className="text-sm font-medium text-slate-700">Developers</p>
+          {missing('developer', 'Developer')}
           {developers.map((employeeId, index) => (
             <div key={`${index}-${employeeId}`} className="flex gap-2">
               <select className={inputClass} value={employeeId} onChange={(e) => setDevelopers((current) => current.map((value, item) => item === index ? e.target.value : value))}>

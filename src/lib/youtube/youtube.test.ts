@@ -1,0 +1,289 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { classifyYoutubeError, createYoutube, normalizeYoutubeApiKey, YOUTUBE_CONNECTED_MESSAGE } from './client.ts';
+import { presentVideo } from './mask.ts';
+import { readFileSync } from 'node:fs';
+import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, parseChannelInput, publishingBuckets, shortsPlaylistId, YOUTUBE_METRIC_NOTICE } from './parse.ts';
+import { hasYoutubePermission, YOUTUBE_PERMISSIONS } from './permissions.ts';
+import { pdfFile, wordFile } from './reports.ts';
+import { actionsPerThousandViews, ANALYSIS_LENSES, contrastNotes, engagementActions, parseAnalysisLens } from './analysis.ts';
+import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
+
+const CHANNEL_ID = 'UC1234567890123456789012';
+
+describe('channel input', () => {
+  it('accepts a channel id, handle, and channel URL', () => {
+    assert.deepEqual(parseChannelInput(CHANNEL_ID), { ok: true, kind: 'id', value: CHANNEL_ID });
+    assert.deepEqual(parseChannelInput('@techantum'), { ok: true, kind: 'handle', value: 'techantum' });
+    assert.deepEqual(parseChannelInput(`https://www.youtube.com/channel/${CHANNEL_ID}`), { ok: true, kind: 'id', value: CHANNEL_ID });
+    assert.deepEqual(parseChannelInput('https://www.youtube.com/@techantum/videos'), { ok: true, kind: 'handle', value: 'techantum' });
+    assert.deepEqual(parseChannelInput('https://www.youtube.com/@abhilashlaparoscopycentre'), { ok: true, kind: 'handle', value: 'abhilashlaparoscopycentre' });
+    assert.deepEqual(parseChannelInput('https://www.youtube.com/user/LegacyName'), { ok: true, kind: 'username', value: 'LegacyName' });
+  });
+
+  it('rejects video links and custom links that cannot be resolved', () => {
+    assert.equal(parseChannelInput('https://youtu.be/abcdefghijk').ok, false);
+    assert.equal(parseChannelInput('https://www.youtube.com/c/SomeName').ok, false);
+    assert.equal(parseChannelInput('').ok, false);
+    assert.equal(parseChannelInput('https://example.com/@techantum').ok, false);
+  });
+});
+
+describe('YouTube client', () => {
+  it('resolves a channel only through the official API host', async () => {
+    const fetchImpl = async (url: string) => {
+      const parsed = new URL(url);
+      assert.equal(parsed.hostname, 'www.googleapis.com');
+      assert.equal(parsed.pathname, '/youtube/v3/channels');
+      assert.equal(parsed.searchParams.get('key'), 'test-key');
+      assert.equal(parsed.searchParams.get('forHandle'), '@techantum');
+      assert.equal(parsed.searchParams.get('mine'), null);
+      assert.match(parsed.searchParams.get('part') || '', /snippet,statistics,contentDetails/);
+      return new Response(JSON.stringify({
+        items: [{
+          id: CHANNEL_ID,
+          snippet: { title: 'Techantum', customUrl: '@techantum', description: 'About', thumbnails: { default: { url: 'https://i.ytimg.com/example.jpg' } } },
+          statistics: { subscriberCount: '4' },
+          contentDetails: { relatedPlaylists: { uploads: 'UU1234567890123456789012' } },
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    const channel = await createYoutube('test-key', fetchImpl).resolve('@techantum');
+    assert.equal(channel.youtubeChannelId, CHANNEL_ID);
+    assert.equal(channel.channelName, 'Techantum');
+    assert.equal(channel.subscriberCount, 4);
+    assert.equal(channel.viewCount, null);
+  });
+
+  it('classifies quota, invalid key, and missing statistics without turning gaps into zero', () => {
+    const quota = classifyYoutubeError(403, { error: { errors: [{ reason: 'quotaExceeded' }] } });
+    assert.equal(quota.code, 'quota');
+    assert.equal(quota.googleStatus, 403);
+    const invalid = classifyYoutubeError(400, { error: { message: 'API key not valid. Please pass a valid API key.', errors: [{ reason: 'badRequest' }], details: [{ reason: 'API_KEY_INVALID' }] } });
+    assert.equal(invalid.code, 'invalid_key');
+    assert.equal(invalid.googleReason, 'API_KEY_INVALID');
+    const hidden = presentVideo({
+      youtube_video_id: 'abcdefghijk',
+      fetched_at: new Date().toISOString(),
+      view_count: '12',
+      like_count: null,
+      comment_count: null,
+      thumbnail_caption: 'Manual caption',
+      research_notes: 'Keep this',
+      channel_refreshed_at: new Date().toISOString(),
+    });
+    assert.equal(hidden.view_count, 12);
+    assert.equal(hidden.like_count, null);
+    assert.equal(hidden.thumbnail_caption, 'Manual caption');
+  });
+});
+
+describe('connection diagnostics', () => {
+  const ipBody = {
+    error: {
+      code: 403,
+      message: 'The provided API key has an IP address restriction. The originating IP address of the call (106.222.229.71) violates this restriction.',
+      errors: [{ reason: 'forbidden', message: 'The provided API key has an IP address restriction.' }],
+      details: [{ reason: 'API_KEY_IP_ADDRESS_BLOCKED', metadata: { callerIp: '106.222.229.71' } }],
+    },
+  };
+
+  it('keeps an IP restriction separate from an invalid key', () => {
+    const error = classifyYoutubeError(403, ipBody);
+    assert.equal(error.code, 'ip_restricted');
+    assert.equal(error.googleStatus, 403);
+    assert.equal(error.googleReason, 'API_KEY_IP_ADDRESS_BLOCKED');
+    assert.match(error.message, /106\.222\.229\.71/);
+    assert.doesNotMatch(error.message, /API key was rejected/);
+  });
+
+  it('separates referrer, app, disabled API, quota, and a leaked key string', () => {
+    assert.equal(classifyYoutubeError(403, { error: { message: 'Requests from referer <empty> are blocked.', details: [{ reason: 'API_KEY_HTTP_REFERRER_BLOCKED' }] } }).code, 'referrer_restricted');
+    assert.equal(classifyYoutubeError(403, { error: { details: [{ reason: 'API_KEY_ANDROID_APP_BLOCKED' }] } }).code, 'app_restricted');
+    const disabled = classifyYoutubeError(403, { error: { message: 'YouTube Data API v3 has not been used in project 1 before or it is disabled.', errors: [{ reason: 'accessNotConfigured' }] } });
+    assert.equal(disabled.code, 'disabled');
+    assert.match(disabled.message, /Enable it in Google Cloud/);
+    const leaked = classifyYoutubeError(400, { error: { message: 'API key not valid. Please pass a valid API key. AIzaSyExampleKeyShouldNotLeak' } });
+    assert.equal(leaked.code, 'invalid_key');
+    assert.doesNotMatch(leaked.message, /AIza/);
+    assert.equal(normalizeYoutubeApiKey('  "AIza example"  '), 'AIzaexample');
+    assert.equal(YOUTUBE_CONNECTED_MESSAGE, 'YouTube Data API connected successfully.');
+  });
+
+  it('marks the connection successful only when the public test channel is returned', async () => {
+    const fetchImpl = async (url: string) => {
+      const parsed = new URL(url);
+      assert.equal(parsed.hostname, 'www.googleapis.com');
+      assert.equal(parsed.pathname, '/youtube/v3/channels');
+      assert.equal(parsed.searchParams.get('part'), 'snippet');
+      assert.equal(parsed.searchParams.get('id'), 'UC_x5XG1OV2P6uZZ5FSM9Ttw');
+      assert.equal(parsed.searchParams.get('mine'), null);
+      assert.equal(parsed.searchParams.get('key'), 'server-key');
+      return new Response(JSON.stringify({ items: [{ id: 'UC_x5XG1OV2P6uZZ5FSM9Ttw', snippet: { title: 'Google for Developers' } }] }), { status: 200 });
+    };
+    const result = await createYoutube('server-key', fetchImpl).test();
+    assert.equal(result.ok, true);
+    assert.equal(result.channelId, 'UC_x5XG1OV2P6uZZ5FSM9Ttw');
+  });
+
+  it('does not report success when YouTube returns no channel', async () => {
+    const fetchImpl = async () => new Response(JSON.stringify({ items: [] }), { status: 200 });
+    await assert.rejects(() => createYoutube('server-key', fetchImpl).test(), (err: unknown) => err instanceof Error && /not marked successful/.test(err.message));
+  });
+
+  it('returns the IP restriction from a live-shaped Google response and a network failure separately', async () => {
+    const blocked = async () => new Response(JSON.stringify(ipBody), { status: 403, headers: { 'content-type': 'application/json' } });
+    await assert.rejects(() => createYoutube('server-key', blocked).test(), (err: unknown) => {
+      assert.equal((err as { code?: string }).code, 'ip_restricted');
+      return true;
+    });
+    const offline = async () => { throw new TypeError('fetch failed'); };
+    await assert.rejects(() => createYoutube('server-key', offline).test(), (err: unknown) => (err as { code?: string }).code === 'network');
+    const timedOut = async () => {
+      const error = new Error('timed out');
+      error.name = 'TimeoutError';
+      throw error;
+    };
+    await assert.rejects(() => createYoutube('server-key', timedOut).test(), (err: unknown) => (err as { code?: string }).code === 'timeout');
+  });
+
+  it('looks up a channel id with id and leaves an unknown channel as not found', async () => {
+    const fetchImpl = async (url: string) => {
+      const parsed = new URL(url);
+      assert.equal(parsed.searchParams.get('id'), CHANNEL_ID);
+      assert.equal(parsed.searchParams.get('forHandle'), null);
+      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+    };
+    await assert.rejects(() => createYoutube('server-key', fetchImpl).resolve(CHANNEL_ID), (err: unknown) => (err as { code?: string }).code === 'not_found');
+  });
+});
+
+describe('retention and research separation', () => {
+  it('hides YouTube fields after 30 days and keeps manual research', () => {
+    const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+    const row = presentVideo({
+      youtube_video_id: 'abcdefghijk',
+      title: 'Old title',
+      view_count: 99,
+      fetched_at: old,
+      channel_refreshed_at: old,
+      channel_name: 'Old channel',
+      thumbnail_caption: 'Caption stays',
+      research_notes: 'Notes stay',
+      topic_name: 'Hiring',
+    });
+    assert.equal(row.stale, true);
+    assert.equal(row.title, null);
+    assert.equal(row.view_count, null);
+    assert.equal(row.channel_name, null);
+    assert.equal(row.thumbnail_caption, 'Caption stays');
+    assert.equal(row.research_notes, 'Notes stay');
+    assert.equal(row.topic_name, 'Hiring');
+    assert.match(String(row.watch_url), /abcdefghijk/);
+  });
+
+  it('does not write manual research from the video upsert', () => {
+    assert.match(VIDEO_UPSERT_SQL, /tags/);
+    assert.doesNotMatch(VIDEO_UPSERT_SQL, /thumbnail_caption|research_notes|topic_id/);
+    assert.equal(durationSeconds('PT1H2M3S'), 3723);
+    assert.equal(contentLabel(45), 'Short');
+    assert.equal(contentLabel(180), 'Short');
+    assert.equal(contentLabel(181), 'Video');
+    assert.equal(contentLabel(240, 'Clinic tour #Shorts'), 'Short');
+    assert.equal(isPaidPlacement({ hasPaidProductPlacement: true }), true);
+    assert.equal(isPaidPlacement({ tags: ['#ad'] }), true);
+    assert.equal(isPaidPlacement({ title: 'Normal vlog' }), false);
+    assert.equal(shortsPlaylistId(CHANNEL_ID), `UUSH${CHANNEL_ID.slice(2)}`);
+    assert.equal(categoryLabel('27'), 'Education');
+    assert.equal(categoryLabel(''), null);
+    assert.match(VIDEO_UPSERT_SQL, /has_paid_product_placement/);
+  });
+
+  it('adds projects without deleting existing research', () => {
+    const sql = readFileSync(new URL('../../../supabase/migrations/20261022133000_youtube_research_projects.sql', import.meta.url), 'utf8');
+    assert.match(sql, /youtube_project_one_own/);
+    assert.match(sql, /youtube_project_video_research/);
+    assert.doesNotMatch(sql, /DELETE FROM public\.youtube_video_research|DROP TABLE public\.youtube_channels/);
+  });
+});
+
+describe('analytics policy', () => {
+  it('counts library records and does not calculate engagement rate', () => {
+    const summary = performanceSummary([{ view_count: 10 }, { view_count: null }]);
+    assert.equal(summary.videosAnalyzed, 2);
+    assert.equal(summary.videosWithViewCounts, 1);
+    assert.equal(summary.officialAnalytics, false);
+    assert.equal('engagementRate' in summary, false);
+    assert.match(YOUTUBE_METRIC_NOTICE, /not YouTube Analytics/i);
+    assert.deepEqual(publishingBuckets(['2026-01-02', '2026-01-20', null]), [{ month: '2026-01', count: 2 }]);
+    const projects = readFileSync(new URL('./projects.ts', import.meta.url), 'utf8');
+    assert.match(projects, /historicalGrowth: false/);
+    assert.doesNotMatch(projects, /engagementRate|subscriberGrowth/);
+  });
+
+  it('ranks likes plus comments without naming it engagement rate', () => {
+    assert.equal(engagementActions(10, 2), 12);
+    assert.equal(engagementActions(null, null), null);
+    assert.equal(actionsPerThousandViews(20, 1000), 20);
+    assert.equal(actionsPerThousandViews(5, 0), null);
+    assert.equal(parseAnalysisLens('why'), 'why');
+    assert.equal(ANALYSIS_LENSES.some((lens) => lens.id === 'likes'), true);
+    const notes = contrastNotes(
+      [{ stale: false, content_label: 'Short', placement_label: 'Organic', title: 'Clinic tour #shorts', tags: ['clinic'], view_count: 9000 } as never],
+      [{ stale: false, content_label: 'Video', placement_label: 'Paid', title: 'Long hospital film about facilities and parking', tags: [], view_count: 80 } as never],
+    );
+    assert.match(notes.join(' '), /Shorts are 100%/);
+    assert.doesNotMatch(readFileSync(new URL('./analysis.ts', import.meta.url), 'utf8'), /engagementRate/);
+  });
+});
+
+describe('permissions and exports', () => {
+  it('gives every key to Super Admin and none to an ungranted admin', () => {
+    assert.equal(hasYoutubePermission('SUPER_ADMIN', [], 'youtube_research.settings.manage'), true);
+    assert.equal(hasYoutubePermission('ADMIN', [], 'youtube_research.view'), false);
+    assert.equal(hasYoutubePermission('ADMIN', ['youtube_research.view'], 'youtube_research.reports.export'), false);
+    assert.equal(YOUTUBE_PERMISSIONS.length, 9);
+  });
+
+  it('escapes spreadsheet formulas and quotes', () => {
+    assert.equal(csvCell('=cmd'), "'=cmd");
+    assert.equal(csvCell('safe'), 'safe');
+    assert.equal(csvCell('say "hi"'), '"say ""hi"""');
+    assert.equal(csvCell(null), '');
+  });
+
+  it('writes a table-style PDF', async () => {
+    const body = await pdfFile('videos', [{
+      project: 'Existing research',
+      title: 'Open Surgery Laparoscopy',
+      channel: 'Demo Channel',
+      relationship: 'own',
+      published: '2026-10-01',
+      duration: '10:12',
+      views: 1200,
+      likes: 40,
+      comments: 8,
+      topic: 'Hiring',
+      tags: 'hernia, surgery',
+    }]);
+    assert.equal(body.subarray(0, 4).toString(), '%PDF');
+    assert.ok(body.length > 800);
+  });
+
+  it('writes a Word table that ignores non-ASCII characters', async () => {
+    const body = await wordFile('comparison', [{
+      project: 'Existing research',
+      title: 'Open Surgery',
+      channel: 'Demo Channel',
+      relationship: 'own',
+      content: 'Video',
+      placement: 'Organic',
+      published: '2026-10-01',
+      views: 1200,
+      likes: 40,
+      comments: 8,
+      topic: 'Hiring',
+    }]);
+    assert.equal(body.subarray(0, 2).toString(), 'PK');
+  });
+});

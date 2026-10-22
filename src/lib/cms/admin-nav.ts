@@ -45,6 +45,32 @@ export const ADMIN_NAV: AdminNavItem[] = [
         ],
       },
       {
+        id: 'youtube-research',
+        label: 'YouTube Research',
+        icon: 'PlayCircleIcon',
+        children: [
+          {
+            href: '/admin/youtube-research',
+            label: 'Research Projects',
+            icon: 'RectangleStackIcon',
+            exact: true,
+            activePaths: [
+              '/admin/youtube-research/projects',
+              '/admin/youtube-research/overview',
+              '/admin/youtube-research/channels',
+              '/admin/youtube-research/import',
+              '/admin/youtube-research/videos',
+              '/admin/youtube-research/analysis',
+              '/admin/youtube-research/compare',
+              '/admin/youtube-research/channel-compare',
+              '/admin/youtube-research/reports',
+              '/admin/youtube-research/performance',
+            ],
+          },
+          { href: '/admin/youtube-research/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+        ],
+      },
+      {
         id: 'sales',
         label: 'Lead Discovery',
         icon: 'MapPinIcon',

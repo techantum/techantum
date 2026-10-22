@@ -1,0 +1,13 @@
+ALTER TABLE public.finance_employees
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS gender TEXT,
+  ADD COLUMN IF NOT EXISTS photo_path TEXT,
+  ADD COLUMN IF NOT EXISTS emergency_contact TEXT,
+  ADD COLUMN IF NOT EXISTS employee_type TEXT,
+  ADD COLUMN IF NOT EXISTS reporting_manager_id UUID REFERENCES public.finance_employees(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS aadhaar TEXT,
+  ADD COLUMN IF NOT EXISTS ifsc_code TEXT,
+  ADD COLUMN IF NOT EXISTS uan TEXT,
+  ADD COLUMN IF NOT EXISTS current_address TEXT,
+  ADD COLUMN IF NOT EXISTS permanent_address TEXT,
+  ADD COLUMN IF NOT EXISTS notes TEXT;

@@ -60,9 +60,11 @@ import {
   deletePayslip,
   generatePayslip,
   getPayslip,
+  employeePhoto,
   listEmployees,
   listPayslips,
   replacePayslip,
+  saveEmployeePhoto,
   uploadPayslip,
   upsertEmployee,
 } from '@/lib/finance/payslips';
@@ -74,6 +76,19 @@ import { currentFinancialYear, resolvePeriod, todayISO, type PeriodFilter } from
 
 function isReceiptsPath(seg: string) {
   return seg === 'receipts' || seg === 'expenses';
+}
+
+async function saveEmployeeRecord(body: Record<string, unknown>, userId: string, id?: string) {
+  const saved = await upsertEmployee(body, userId, id);
+  if (body.employment_status) {
+    try {
+      const { syncEmployeeLeave } = await import('@/lib/hr/service');
+      await syncEmployeeLeave(String(saved.id), userId);
+    } catch (err) {
+      console.error('Could not refresh leave after employment status change', err);
+    }
+  }
+  return saved;
 }
 
 export const dynamic = 'force-dynamic';
@@ -142,7 +157,11 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
     if (path[0] === 'receipt-categories' || path[0] === 'expense-categories') {
       return NextResponse.json(await listExpenseCategories(url.searchParams.get('active') === '1'));
     }
-    if (path[0] === 'employees') return NextResponse.json(await listEmployees({ q: url.searchParams.get('q') || undefined }));
+    if (path[0] === 'employees' && path[1] && path[2] === 'photo') {
+      const photo = await employeePhoto(path[1]);
+      return streamFileResponse(photo.path, 'profile-photo', photo.mime, 'inline');
+    }
+    if (path[0] === 'employees') return NextResponse.json(await listEmployees({ q: url.searchParams.get('q') || undefined, status: url.searchParams.get('status') || undefined, department: url.searchParams.get('department') || undefined }));
     if (path[0] === 'invoices' && path[1] && path[2] === 'pdf') {
       const detail = await getInvoice(path[1]);
       if (detail.invoice.pdf_path) {
@@ -352,8 +371,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
       const body = await parseJson(request);
       return NextResponse.json(await upsertCategory('finance_expense_categories', body, body.id));
     }
-    if (path[0] === 'employees' && path[1]) return NextResponse.json(await upsertEmployee(await parseJson(request), userId, path[1]));
-    if (path[0] === 'employees') return NextResponse.json(await upsertEmployee(await parseJson(request), userId));
+    if (path[0] === 'employees' && path[1] && path[2] === 'photo') {
+      const form = await request.formData();
+      const file = form.get('file');
+      if (!(file instanceof File)) return NextResponse.json({ error: 'Choose a JPG or PNG photo' }, { status: 400 });
+      return NextResponse.json(await saveEmployeePhoto(path[1], file, userId));
+    }
+    if (path[0] === 'employees' && path[1]) return NextResponse.json(await saveEmployeeRecord(await parseJson(request), userId, path[1]));
+    if (path[0] === 'employees') return NextResponse.json(await saveEmployeeRecord(await parseJson(request), userId));
     if (path[0] === 'invoices' && path[1] && path[2] === 'finalize') return NextResponse.json(await finalizeInvoice(path[1], userId, meta));
     if (path[0] === 'invoices' && path[1] && path[2] === 'cancel') {
       const cancelAuth = await auth('cancel');
@@ -479,7 +504,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ path: str
   const userId = gated.user.id;
   try {
     if (path[0] === 'invoices' && path[1]) return NextResponse.json(await updateDraftInvoice(path[1], await parseJson(request), userId));
-    if (path[0] === 'employees' && path[1]) return NextResponse.json(await upsertEmployee(await parseJson(request), userId, path[1]));
+    if (path[0] === 'employees' && path[1]) return NextResponse.json(await saveEmployeeRecord(await parseJson(request), userId, path[1]));
     if (path[0] === 'vendors' && path[1]) return NextResponse.json(await upsertVendor(await parseJson(request), userId, path[1]));
     if (path[0] === 'services' && path[1]) return NextResponse.json(await upsertService(await parseJson(request), userId, path[1]));
     return NextResponse.json({ error: 'Not found' }, { status: 404 });

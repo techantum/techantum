@@ -157,7 +157,7 @@ export default function ProjectDashboardPage() {
   const health = data?.health || {};
   const support = data?.support || {};
   const ops = data?.operations || {};
-  const n = (value: unknown) => (value == null || value === '' ? 0 : value);
+  const n = (value: unknown): string | number => (value == null || value === '' ? 0 : typeof value === 'number' ? value : String(value));
 
   return (
     <div className="space-y-4">
@@ -254,7 +254,7 @@ export default function ProjectDashboardPage() {
             <table className="min-w-full">
               <thead><tr><Head>Project</Head><Head>Client</Head><Head>AM</Head><Head>Blocker</Head><Head>Next action</Head><Head>Owner</Head><Head>Due</Head></tr></thead>
               <tbody>
-                {data.attention.map((row: Record<string, string>) => (
+                {(data?.attention || []).map((row: Record<string, string>) => (
                   <tr key={row.id}>
                     <Cell><Link className="font-medium text-secondary" href={`/admin/pm/projects/${row.id}`}>{row.project_name}</Link></Cell>
                     <Cell>{row.client_name}</Cell>
@@ -279,7 +279,7 @@ export default function ProjectDashboardPage() {
             <table className="min-w-full">
               <thead><tr><Head>Project</Head><Head>Phase</Head><Head>%</Head><Head>RAG</Head><Head>Team</Head><Head>Deadline</Head><Head>Last update</Head><Head>Health</Head></tr></thead>
               <tbody>
-                {data.ongoing.map((row: Record<string, string>) => (
+                {(data?.ongoing || []).map((row: Record<string, string>) => (
                   <tr key={row.id}>
                     <Cell><Link className="font-medium text-secondary" href={`/admin/pm/projects/${row.id}`}>{row.project_name}</Link></Cell>
                     <Cell>{row.phase_name}</Cell>
@@ -303,7 +303,7 @@ export default function ProjectDashboardPage() {
             <table className="min-w-full">
               <thead><tr><Head>AM</Head><Head>Ongoing</Head><Head>Planned</Head><Head>Delivered</Head><Head>Red</Head><Head>Pending</Head><Head>Total</Head></tr></thead>
               <tbody>
-                {data.managers.map((row: Record<string, string | number>) => (
+                {(data?.managers || []).map((row: Record<string, string | number>) => (
                   <tr key={String(row.name)}>
                     <Cell>{row.name}</Cell><Cell>{row.ongoing}</Cell><Cell>{row.planned}</Cell><Cell>{row.delivered}</Cell><Cell>{row.red}</Cell><Cell>{row.pending}</Cell><Cell>{row.total}</Cell>
                   </tr>
@@ -317,7 +317,7 @@ export default function ProjectDashboardPage() {
             <table className="min-w-full">
               <thead><tr><Head>Employee</Head><Head>Role</Head><Head>Ongoing</Head></tr></thead>
               <tbody>
-                {data.teamLoad.map((row: Record<string, string | number>) => (
+                {(data?.teamLoad || []).map((row: Record<string, string | number>) => (
                   <tr key={`${row.name}-${row.role}`}>
                     <Cell>{row.name}</Cell><Cell>{row.role}</Cell><Cell>{row.count}</Cell>
                   </tr>
@@ -332,7 +332,7 @@ export default function ProjectDashboardPage() {
         <Board title="Recent Activity" icon="ClockIcon" tone="sky">
           {(data?.activity || []).length ? (
             <ul className="space-y-2 px-4 py-3 text-sm">
-              {data.activity.map((row: { id: string; action: string; entity_type: string; created_at: string }) => (
+              {(data?.activity || []).map((row: { id: string; action: string; entity_type: string; created_at: string }) => (
                 <li key={row.id}><span className="font-medium text-slate-800">{row.action}</span> <span className="text-slate-400">· {row.entity_type} · {String(row.created_at || '').slice(0, 16).replace('T', ' ')}</span></li>
               ))}
             </ul>
@@ -341,7 +341,7 @@ export default function ProjectDashboardPage() {
         <Board title="Alerts" icon="BellAlertIcon" tone="amber">
           {(data?.alerts || []).length ? (
             <ul className="space-y-2 px-4 py-3 text-sm">
-              {data.alerts.slice(0, 20).map((alert: { kind: string; project: string; detail?: string }, index: number) => (
+              {(data?.alerts || []).slice(0, 20).map((alert: { kind: string; project: string; detail?: string }, index: number) => (
                 <li key={`${alert.kind}-${index}`}><span className="font-medium text-slate-800">{alert.kind}</span> <span className="text-slate-400">— {alert.project}{alert.detail ? ` · ${alert.detail}` : ''}</span></li>
               ))}
             </ul>

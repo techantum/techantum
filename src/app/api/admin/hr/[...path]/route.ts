@@ -16,7 +16,9 @@ import {
   getPayrollSettings,
   hrDashboard,
   listHolidays,
+  employeeLeaveHistory,
   listLeave,
+  listLeaveAdjustments,
   listPayroll,
   markPayrollPaid,
   payrollExport,
@@ -61,6 +63,8 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
       return NextResponse.json(await attendanceHistory(path[1], year, month));
     }
     if (path[0] === 'attendance') return NextResponse.json(await getAttendance(year, month, query));
+    if (path[0] === 'leave' && path[1] === 'adjustments') return NextResponse.json(await listLeaveAdjustments(year));
+    if (path[0] === 'leave' && path[1] === 'history') return NextResponse.json(await employeeLeaveHistory(url.searchParams.get('employeeId') || '', year));
     if (path[0] === 'leave') return NextResponse.json(await listLeave(year, month, query));
     if (path[0] === 'payroll' && path[1] === 'export') {
       const file = await payrollExport(year, month);

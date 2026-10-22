@@ -35,6 +35,7 @@ type Employee = {
   annual_ctc: string | null;
   department: string | null;
   designation: string | null;
+  employment_status: string | null;
 };
 
 type PolicyRecord = PayrollPolicy & { version: number };
@@ -200,7 +201,8 @@ async function loadEmployees(client?: DbClient) {
   const { rows } = await q(
     client,
     `SELECT id, employee_code, full_name, status, date_of_joining::text AS date_of_joining,
-            last_working_date::text AS last_working_date, annual_ctc::text AS annual_ctc, department, designation
+            last_working_date::text AS last_working_date, annual_ctc::text AS annual_ctc, department, designation,
+            employment_status
      FROM finance_employees ORDER BY full_name`
   );
   return rows as Employee[];
@@ -298,6 +300,10 @@ function emptyTotals() {
   };
 }
 
+function onLeavePolicy(employee: Employee) {
+  return employee.employment_status !== 'probation' && employee.employment_status !== 'part_time';
+}
+
 function projectEmployee(
   employee: Employee,
   year: number,
@@ -309,21 +315,24 @@ function projectEmployee(
   adjustment: number
 ) {
   const totals = summariseAttendance(calendar, marks, employee.date_of_joining, employee.last_working_date, policy.halfDayValue);
-  const credit = daysFromUnits(
-    monthCreditUnits(
-      policy,
-      monthOverlapsEmployment(year, month, employee.date_of_joining, employee.last_working_date),
-      employedEntireCalendarMonth(year, month, employee.date_of_joining, employee.last_working_date)
-    )
-  );
+  const eligible = onLeavePolicy(employee);
+  const credit = eligible
+    ? daysFromUnits(
+        monthCreditUnits(
+          policy,
+          monthOverlapsEmployment(year, month, employee.date_of_joining, employee.last_working_date),
+          employedEntireCalendarMonth(year, month, employee.date_of_joining, employee.last_working_date)
+        )
+      )
+    : 0;
   const leave = calculateLeave({
-    opening,
+    opening: eligible ? opening : 0,
     credit,
-    adjustment,
-    requestedPaid: totals.requestedPaid,
-    unpaid: totals.unpaidLeave,
+    adjustment: eligible ? adjustment : 0,
+    requestedPaid: eligible ? totals.requestedPaid : 0,
+    unpaid: eligible ? totals.unpaidLeave : totals.unpaidLeave + totals.requestedPaid,
     maxPaid: policy.maxPaidLeavePerMonth,
-    carryForward: policy.carryForward,
+    carryForward: eligible && policy.carryForward,
   });
   let pay = null as ReturnType<typeof calculatePay> | null;
   let structure = null as ReturnType<typeof salaryFromAnnualCtc> | null;
@@ -347,7 +356,7 @@ function projectEmployee(
         allowedPaidDays: leave.allowedPaid,
         lopDays: leave.lop,
         professionalTaxCents: attendanceComplete ? professionalTaxCents(base.proratedGrossCents) : 0,
-        pfCents: attendanceComplete ? structure.pfCents : 0,
+        pfCents: attendanceComplete && employee.employment_status !== 'part_time' ? structure.pfCents : 0,
       });
     } catch {
       pay = null;
@@ -574,6 +583,17 @@ async function recalculateEmployee(client: DbClient, employee: Employee, year: n
   }
 }
 
+export async function syncEmployeeLeave(employeeId: string, userId: string) {
+  const iso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const year = Number(iso.slice(0, 4));
+  const month = Number(iso.slice(5, 7));
+  await withFinanceTx(async (db) => {
+    const employee = (await loadEmployees(db)).find((item) => item.id === employeeId);
+    if (!employee) return;
+    await recalculateEmployee(db, employee, year, month, userId);
+  });
+}
+
 async function recalculateUnlocked(client: DbClient, userId: string) {
   const { rows } = await q(
     client,
@@ -614,7 +634,7 @@ export async function getAttendance(year: number, month: number, query = '') {
   );
   const employees = (await loadEmployees()).filter((employee) => inMonth(employee, year, month));
   const filtered = query
-    ? employees.filter((employee) => `${employee.full_name} ${employee.employee_code}`.toLowerCase().includes(query.toLowerCase()))
+    ? employees.filter((employee) => `${employee.full_name} ${employee.employee_code} ${employee.department || ''} ${employee.designation || ''}`.toLowerCase().includes(query.toLowerCase()))
     : employees;
   const markMap = await marksFor(undefined, year, month);
   const payrolls = await q(
@@ -635,6 +655,10 @@ export async function getAttendance(year: number, month: number, query = '') {
         employee_code: employee.employee_code,
         full_name: employee.full_name,
         department: employee.department,
+        designation: employee.designation,
+        employment_status: employee.employment_status || 'regular',
+        date_of_joining: employee.date_of_joining,
+        last_working_date: employee.last_working_date,
         cells: markMap.get(employee.id) || {},
         totals: projected.totals,
         leave: projected.leave,
@@ -655,6 +679,10 @@ export async function getAttendance(year: number, month: number, query = '') {
         employee_code: employee.employee_code,
         full_name: employee.full_name,
         department: employee.department,
+        designation: employee.designation,
+        employment_status: employee.employment_status || 'regular',
+        date_of_joining: employee.date_of_joining,
+        last_working_date: employee.last_working_date,
         cells: markMap.get(employee.id) || {},
         totals: emptyTotals(),
         leave: emptyLeave(),
@@ -920,12 +948,42 @@ export async function listLeave(year: number, month: number, query = '') {
       id: employee.id,
       employee_code: employee.employee_code,
       full_name: employee.full_name,
+      department: employee.department,
+      employment_status: employee.employment_status || 'regular',
       ...employee.leave,
       pendingDays: employee.totals.pendingDays,
       payroll_status: employee.payroll_status,
       calculation_error: employee.calculation_error,
     })),
   };
+}
+
+export async function listLeaveAdjustments(year: number) {
+  requireMonth(year, 1);
+  const { rows } = await q(
+    undefined,
+    `SELECT a.id, a.employee_id, a.payroll_year, a.payroll_month, a.amount::text AS amount, a.reason, a.created_at,
+            e.full_name, e.employee_code
+     FROM hr_leave_adjustments a
+     JOIN finance_employees e ON e.id = a.employee_id
+     WHERE a.payroll_year = $1
+     ORDER BY a.created_at DESC
+     LIMIT 100`,
+    [year]
+  );
+  return rows;
+}
+
+export async function employeeLeaveHistory(employeeId: string, year: number) {
+  requireMonth(year, 1);
+  if (!employeeId) throw new FinanceValidationError('Employee is required');
+  const months = [];
+  for (let month = 1; month <= 12; month += 1) {
+    const board = await listLeave(year, month);
+    const row = board.rows.find((item) => item.id === employeeId);
+    if (row) months.push({ month, ...row });
+  }
+  return months;
 }
 
 export async function addLeaveAdjustment(body: Record<string, unknown>, userId: string) {
@@ -939,6 +997,10 @@ export async function addLeaveAdjustment(body: Record<string, unknown>, userId: 
   if (!reason) throw new FinanceValidationError('A reason is required for a leave adjustment');
   if (!amount) throw new FinanceValidationError('Adjustment amount is required');
   return withFinanceTx(async (db) => {
+    const employees = await loadEmployees(db);
+    const employee = employees.find((item) => item.id === employeeId);
+    if (!employee) throw new FinanceNotFoundError('Employee not found');
+    if (!onLeavePolicy(employee)) throw new FinanceValidationError('Paid leave applies only to regular employees. Probation and part-time employees are outside the leave policy.');
     await assertUnlocked(db, employeeId, year, month);
     await q(
       db,
@@ -946,9 +1008,6 @@ export async function addLeaveAdjustment(body: Record<string, unknown>, userId: 
        VALUES ($1,$2,$3,$4,$5,$6)`,
       [employeeId, year, month, amount, reason, userId]
     );
-    const employees = await loadEmployees(db);
-    const employee = employees.find((item) => item.id === employeeId);
-    if (!employee) throw new FinanceNotFoundError('Employee not found');
     await recalculateEmployee(db, employee, year, month, userId);
     await writeFinanceAudit(db, {
       userId,
@@ -969,6 +1028,8 @@ export async function setLeaveOpening(body: Record<string, unknown>, userId: str
   const note = String(body.note || '').trim() || null;
   requireMonth(year, month);
   if (!employeeId) throw new FinanceValidationError('Employee is required');
+  const person = (await loadEmployees()).find((item) => item.id === employeeId);
+  if (person && !onLeavePolicy(person)) throw new FinanceValidationError('Opening leave applies only to regular employees.');
   if (balance < 0) throw new FinanceValidationError('Opening leave cannot be negative');
   const existing = await q(undefined, 'SELECT id FROM hr_leave_ledger WHERE employee_id=$1 LIMIT 1', [employeeId]);
   if (existing.rows[0]) {
@@ -1013,9 +1074,14 @@ async function payrollRows(client: DbClient | undefined, year: number, month: nu
   }
   const { rows } = await q(
     client,
-    `SELECT p.*, e.full_name, e.employee_code, e.department
+    `SELECT p.*, e.full_name, e.employee_code, e.department,
+            COALESCE(p.payslip_id, s.id) AS payslip_id
      FROM hr_monthly_payroll p
      JOIN finance_employees e ON e.id = p.employee_id
+     LEFT JOIN finance_employee_payslips s
+       ON s.employee_id = p.employee_id
+      AND s.payroll_year = p.payroll_year
+      AND s.payroll_month = p.payroll_month
      WHERE ${where.join(' AND ')}
      ORDER BY e.full_name`,
     values
@@ -1027,9 +1093,10 @@ async function payrollRows(client: DbClient | undefined, year: number, month: nu
       sum.lop += toCents(row.lop_deduction);
       sum.net += toCents(row.net_payable);
       if (row.status === 'attendance_pending' || row.status === 'ready_for_approval' || row.status === 'draft') sum.pending += 1;
+      if (row.status === 'approved' || row.status === 'paid') sum.approved += 1;
       return sum;
     },
-    { gross: 0, lopDays: 0, lop: 0, net: 0, pending: 0 }
+    { gross: 0, lopDays: 0, lop: 0, net: 0, pending: 0, approved: 0 }
   );
   return {
     year,
@@ -1042,6 +1109,7 @@ async function payrollRows(client: DbClient | undefined, year: number, month: nu
       lopDeduction: money(totals.lop),
       net: money(totals.net),
       pendingApprovals: totals.pending,
+      approved: totals.approved,
     },
   };
 }

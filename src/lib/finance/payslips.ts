@@ -31,17 +31,21 @@ export function payrollMonthName(month: number) {
   return MONTHS[month - 1] || String(month);
 }
 
-export async function listEmployees(params?: { q?: string; status?: string }) {
+export async function listEmployees(params?: { q?: string; status?: string; department?: string }) {
   const values: unknown[] = [];
   const where: string[] = [];
   if (params?.status) {
     values.push(params.status);
     where.push(`status = $${values.length}`);
   }
+  if (params?.department) {
+    values.push(params.department);
+    where.push(`department = $${values.length}`);
+  }
   if (params?.q) {
     values.push(`%${params.q}%`);
     where.push(
-      `(full_name ILIKE $${values.length} OR employee_code ILIKE $${values.length} OR email ILIKE $${values.length})`
+      `(full_name ILIKE $${values.length} OR employee_code ILIKE $${values.length} OR email ILIKE $${values.length} OR phone ILIKE $${values.length})`
     );
   }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -83,12 +87,32 @@ function employeeProfile(body: Record<string, unknown>) {
   const location = cleanText(body.work_location || body.location);
   const annualCtc = optionalCtc(body.annual_ctc);
   const lastWorkingDate = optionalDate(body.last_working_date, 'Last working date');
+  const phone = cleanText(body.phone);
+  const genderRaw = cleanText(body.gender)?.toLowerCase() || null;
+  const gender = genderRaw && ['male', 'female', 'other'].includes(genderRaw) ? genderRaw : genderRaw ? null : null;
+  if (cleanText(body.gender) && !gender) throw new FinanceValidationError('Choose a gender');
+  const emergencyContact = cleanText(body.emergency_contact);
+  const typeRaw = cleanText(body.employee_type);
+  const employeeType = typeRaw && ['full_time', 'part_time', 'contract', 'intern'].includes(typeRaw) ? typeRaw : null;
+  if (typeRaw && !employeeType) throw new FinanceValidationError('Choose an employee type');
+  const managerId = cleanText(body.reporting_manager_id);
+  const aadhaar = cleanText(body.aadhaar)?.replace(/\s+/g, '') || null;
+  const ifsc = cleanText(body.ifsc_code)?.toUpperCase() || null;
+  const uan = cleanText(body.uan);
+  const currentAddress = cleanText(body.current_address);
+  const permanentAddress = cleanText(body.permanent_address);
+  const notes = cleanText(body.notes);
   if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) {
     throw new FinanceValidationError('PAN must look like ABCDE1234F');
   }
   if (bankAccount && !/^\d{9,18}$/.test(bankAccount)) {
     throw new FinanceValidationError('Bank account number must be 9 to 18 digits');
   }
+  if (phone && !/^\+?[0-9]{10,15}$/.test(phone.replace(/[\s-]/g, ''))) {
+    throw new FinanceValidationError('Phone must be 10 to 15 digits');
+  }
+  if (aadhaar && !/^\d{12}$/.test(aadhaar)) throw new FinanceValidationError('Aadhaar must be 12 digits');
+  if (ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) throw new FinanceValidationError('IFSC must look like HDFC0001234');
   if (dateOfBirth && dateOfJoining && dateOfJoining < dateOfBirth) {
     throw new FinanceValidationError('Date of joining cannot be before date of birth');
   }
@@ -97,14 +121,20 @@ function employeeProfile(body: Record<string, unknown>) {
   }
   if (requireProfile) {
     const missing = [
-      !dateOfBirth ? 'date of birth' : '',
+      !phone ? 'phone' : '',
+      !gender ? 'gender' : '',
+      !emergencyContact ? 'emergency contact' : '',
       !dateOfJoining ? 'date of joining' : '',
       !designation ? 'designation' : '',
+      !location ? 'work location' : '',
+      !annualCtc ? 'annual CTC' : '',
+      !pan ? 'PAN' : '',
+      !aadhaar ? 'Aadhaar' : '',
       !bankName ? 'bank name' : '',
       !bankAccount ? 'bank account number' : '',
-      !pan ? 'PAN' : '',
-      !location ? 'location' : '',
-      !annualCtc ? 'annual CTC' : '',
+      !ifsc ? 'IFSC code' : '',
+      !currentAddress ? 'current address' : '',
+      !permanentAddress ? 'permanent address' : '',
     ].filter(Boolean);
     if (missing.length) throw new FinanceValidationError(`Employee needs ${missing.join(', ')}`);
   }
@@ -120,7 +150,19 @@ function employeeProfile(body: Record<string, unknown>) {
     location,
     annualCtc,
     lastWorkingDate,
+    phone: phone ? phone.replace(/[\s-]/g, '') : null,
+    gender,
+    emergencyContact,
+    employeeType,
+    managerId,
+    aadhaar,
+    ifsc,
+    uan,
+    currentAddress,
+    permanentAddress,
+    notes,
     status: String(body.status || 'active') === 'inactive' ? 'inactive' : 'active',
+    employmentStatus: ['probation', 'regular', 'part_time'].includes(String(body.employment_status || '')) ? String(body.employment_status) : null,
   };
 }
 
@@ -148,14 +190,34 @@ export async function upsertEmployee(body: Record<string, unknown>, userId: stri
     profile.location,
     profile.annualCtc,
     profile.lastWorkingDate,
+    profile.phone,
+    profile.gender,
+    profile.emergencyContact,
+    profile.employeeType,
+    profile.managerId,
+    profile.aadhaar,
+    profile.ifsc,
+    profile.uan,
+    profile.currentAddress,
+    profile.permanentAddress,
+    profile.notes,
+    profile.employmentStatus,
   ];
+  if (profile.managerId && profile.managerId === id) throw new FinanceValidationError('An employee cannot report to themselves');
+  if (profile.managerId) {
+    const manager = await q(undefined, `SELECT id FROM finance_employees WHERE id=$1`, [profile.managerId]);
+    if (!manager.rows[0]) throw new FinanceValidationError('Choose a reporting manager from the employee list');
+  }
   if (id) {
     const { rows } = await q(
       undefined,
       `UPDATE finance_employees SET
          employee_code=$2, full_name=$3, email=$4, user_id=$5, department=$6, designation=$7, status=$8,
          updated_by=$9, date_of_birth=$10, date_of_joining=$11, bank_name=$12, bank_account_no=$13,
-         pan=$14, work_location=$15, annual_ctc=$16, last_working_date=$17
+         pan=$14, work_location=$15, annual_ctc=$16, last_working_date=$17,
+         phone=$18, gender=$19, emergency_contact=$20, employee_type=$21, reporting_manager_id=$22,
+         aadhaar=$23, ifsc_code=$24, uan=$25, current_address=$26, permanent_address=$27, notes=$28,
+         employment_status=COALESCE($29, employment_status)
        WHERE id=$1 RETURNING *`,
       [id, ...values]
     );
@@ -176,6 +238,18 @@ export async function upsertEmployee(body: Record<string, unknown>, userId: stri
        work_location = EXCLUDED.work_location,
        annual_ctc = EXCLUDED.annual_ctc,
        last_working_date = EXCLUDED.last_working_date,
+       phone = EXCLUDED.phone,
+       gender = EXCLUDED.gender,
+       emergency_contact = EXCLUDED.emergency_contact,
+       employee_type = EXCLUDED.employee_type,
+       reporting_manager_id = EXCLUDED.reporting_manager_id,
+       aadhaar = EXCLUDED.aadhaar,
+       ifsc_code = EXCLUDED.ifsc_code,
+       uan = EXCLUDED.uan,
+       current_address = EXCLUDED.current_address,
+       permanent_address = EXCLUDED.permanent_address,
+       notes = EXCLUDED.notes,
+       employment_status = COALESCE($28, finance_employees.employment_status),
        updated_by = EXCLUDED.updated_by`
     : `full_name = EXCLUDED.full_name,
        email = COALESCE(EXCLUDED.email, finance_employees.email),
@@ -189,19 +263,53 @@ export async function upsertEmployee(body: Record<string, unknown>, userId: stri
        work_location = COALESCE(EXCLUDED.work_location, finance_employees.work_location),
        annual_ctc = COALESCE(EXCLUDED.annual_ctc, finance_employees.annual_ctc),
        last_working_date = COALESCE(EXCLUDED.last_working_date, finance_employees.last_working_date),
+       phone = COALESCE(EXCLUDED.phone, finance_employees.phone),
+       gender = COALESCE(EXCLUDED.gender, finance_employees.gender),
+       emergency_contact = COALESCE(EXCLUDED.emergency_contact, finance_employees.emergency_contact),
+       employee_type = COALESCE(EXCLUDED.employee_type, finance_employees.employee_type),
+       reporting_manager_id = COALESCE(EXCLUDED.reporting_manager_id, finance_employees.reporting_manager_id),
+       aadhaar = COALESCE(EXCLUDED.aadhaar, finance_employees.aadhaar),
+       ifsc_code = COALESCE(EXCLUDED.ifsc_code, finance_employees.ifsc_code),
+       uan = COALESCE(EXCLUDED.uan, finance_employees.uan),
+       current_address = COALESCE(EXCLUDED.current_address, finance_employees.current_address),
+       permanent_address = COALESCE(EXCLUDED.permanent_address, finance_employees.permanent_address),
+       notes = COALESCE(EXCLUDED.notes, finance_employees.notes),
+       employment_status = COALESCE($28, finance_employees.employment_status),
        updated_by = EXCLUDED.updated_by`;
   const { rows } = await q(
     undefined,
     `INSERT INTO finance_employees (
        employee_code, full_name, email, user_id, department, designation, status, created_by, updated_by,
-       date_of_birth, date_of_joining, bank_name, bank_account_no, pan, work_location, annual_ctc, last_working_date
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       date_of_birth, date_of_joining, bank_name, bank_account_no, pan, work_location, annual_ctc, last_working_date,
+       phone, gender, emergency_contact, employee_type, reporting_manager_id, aadhaar, ifsc_code, uan,
+       current_address, permanent_address, notes, employment_status
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,COALESCE($28,'regular'))
      ON CONFLICT (employee_code) DO UPDATE SET
        ${conflict}
      RETURNING *`,
     values
   );
   return rows[0];
+}
+
+export async function saveEmployeePhoto(id: string, file: File, userId: string) {
+  if (file.size > 2 * 1024 * 1024) throw new FinanceValidationError('Profile photo must be 2 MB or smaller');
+  const stored = await saveFinanceFile(file, 'employee-photos');
+  if (!stored.mime_type.startsWith('image/')) throw new FinanceValidationError('Profile photo must be a JPG or PNG');
+  const { rows } = await q(
+    undefined,
+    `UPDATE finance_employees SET photo_path=$2, updated_by=$3 WHERE id=$1 RETURNING id, photo_path`,
+    [id, stored.storage_path, userId]
+  );
+  if (!rows[0]) throw new FinanceNotFoundError('Employee not found');
+  return rows[0];
+}
+
+export async function employeePhoto(id: string) {
+  const { rows } = await q(undefined, `SELECT photo_path FROM finance_employees WHERE id=$1`, [id]);
+  if (!rows[0]?.photo_path) throw new FinanceNotFoundError('Profile photo not found');
+  const storagePath = String(rows[0].photo_path);
+  return { path: absoluteFinancePath(storagePath), mime: storagePath.endsWith('.png') ? 'image/png' : 'image/jpeg' };
 }
 
 export async function findEmployeeForUser(userId: string, email?: string | null) {
