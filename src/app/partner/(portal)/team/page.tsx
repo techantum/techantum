@@ -66,6 +66,7 @@ export default function PartnerTeamPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [form, setForm] = useState<TeamForm>(() => emptyForm(false));
 
   const applyPayload = (data: Record<string, unknown>) => {
@@ -90,6 +91,22 @@ export default function PartnerTeamPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const resend = async (member: TeamMember) => {
+    setResendingId(member.id);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`/api/partner/team/${member.id}/resend`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not resend the invitation');
+      setMessage(data.message || 'A new invitation has been sent.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not resend the invitation');
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const openCreate = () => {
     setEditingId(null);
@@ -333,27 +350,41 @@ export default function PartnerTeamPage() {
                       {isAdmin ? 'All menus' : `${enabledCount} of ${sidebarItems.length} menus`}
                     </td>
                     <td className="px-5 py-3">
-                      {isAdmin ? (
+                      {isAdmin && m.status !== 'pending' ? (
                         <p className="text-xs text-slate-400 text-right">Admin</p>
                       ) : (
                         <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(m)}
-                            className={`${partnerBtnSecondary} px-3 py-1.5 text-xs`}
-                          >
-                            <Icon name="PencilSquareIcon" size={14} />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            disabled={deletingId === m.id}
-                            onClick={() => remove(m)}
-                            className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                          >
-                            <Icon name="TrashIcon" size={14} />
-                            {deletingId === m.id ? 'Deleting…' : 'Delete'}
-                          </button>
+                          {m.status === 'pending' ? (
+                            <button
+                              type="button"
+                              disabled={resendingId === m.id}
+                              onClick={() => void resend(m)}
+                              className={`${partnerBtnSecondary} px-3 py-1.5 text-xs`}
+                            >
+                              {resendingId === m.id ? 'Sending…' : 'Resend invite'}
+                            </button>
+                          ) : null}
+                          {!isAdmin ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openEdit(m)}
+                                className={`${partnerBtnSecondary} px-3 py-1.5 text-xs`}
+                              >
+                                <Icon name="PencilSquareIcon" size={14} />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                disabled={deletingId === m.id}
+                                onClick={() => remove(m)}
+                                className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                              >
+                                <Icon name="TrashIcon" size={14} />
+                                {deletingId === m.id ? 'Deleting…' : 'Delete'}
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       )}
                     </td>

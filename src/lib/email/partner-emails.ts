@@ -1,15 +1,8 @@
 import { Resend } from 'resend';
-import { PARTNER_TYPE_LABELS, type PartnerType } from '@/lib/partner/types';
+import type { PartnerType } from '@/lib/partner/types';
+import { escapeHtml, formatEmailDate, loadEmailBrand, renderBrandedEmail, renderPartnerInvitationEmail, renderPartnerTeamInvitationEmail, type EmailBrand } from '@/lib/email/template';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 export interface PartnerInviteEmailData {
   to: string;
@@ -20,70 +13,13 @@ export interface PartnerInviteEmailData {
   onboardUrl: string;
 }
 
-function buildPartnerInviteHtml(data: PartnerInviteEmailData): string {
-  const typeLabel = PARTNER_TYPE_LABELS[data.partnerType] || data.partnerType;
-
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Inter,Segoe UI,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-          <tr>
-            <td style="background:linear-gradient(135deg,#1e1b4b,#6366f1);padding:32px;">
-              <p style="margin:0 0 4px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.85);">TechAntum</p>
-              <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;">Partner Portal Invitation</h1>
-              <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.9);">You're invited to join as a ${escapeHtml(typeLabel)}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-                Dear ${escapeHtml(data.contactName)},<br><br>
-                Welcome to the <strong>TechAntum Partner Portal</strong>. Your account for
-                <strong>${escapeHtml(data.companyName)}</strong> has been created.
-              </p>
-              <table role="presentation" width="100%" style="background:#f9fafb;border-radius:8px;margin-bottom:24px;">
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <p style="margin:0 0 4px;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;">Partner ID</p>
-                    <p style="margin:0;font-size:18px;font-weight:700;color:#1e1b4b;font-family:monospace;">${escapeHtml(data.partnerCode)}</p>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
-                Click the button below to set your password and complete onboarding. This link expires in 7 days.
-              </p>
-              <table role="presentation" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background:#6366f1;border-radius:8px;">
-                    <a href="${escapeHtml(data.onboardUrl)}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">
-                      Set Password &amp; Get Started
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.5;">
-                If the button doesn't work, copy this link:<br>
-                <a href="${escapeHtml(data.onboardUrl)}" style="color:#6366f1;word-break:break-all;">${escapeHtml(data.onboardUrl)}</a>
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">
-                TechAntum Partner Portal · info@techantum.com
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+function buildPartnerInviteHtml(brand: EmailBrand, data: PartnerInviteEmailData): string {
+  return renderPartnerInvitationEmail(brand, {
+    contactName: data.contactName,
+    companyName: data.companyName,
+    onboardUrl: data.onboardUrl,
+    audience: 'partner',
+  });
 }
 
 export async function sendPartnerInviteEmail(
@@ -94,12 +30,13 @@ export async function sendPartnerInviteEmail(
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
 
   const { error } = await resend.emails.send({
     from,
     to: [data.to],
-    subject: `Welcome to TechAntum Partner Portal — Set Your Password (${data.partnerCode})`,
-    html: buildPartnerInviteHtml(data),
+    subject: `Welcome to Techantum Partner Portal — set your password`,
+    html: buildPartnerInviteHtml(brand, data),
   });
 
   if (error) return { ok: false, error: error.message };
@@ -116,19 +53,20 @@ export async function sendPartnerPasswordResetEmail(
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
 
   const { error } = await resend.emails.send({
     from,
     to: [to],
     subject: 'Reset your TechAntum Partner Portal password',
-    html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;line-height:1.6;padding:24px;">
-  <p>Dear ${escapeHtml(contactName)},</p>
-  <p>We received a request to reset your Partner Portal password.</p>
-  <p><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Reset Password</a></p>
-  <p style="font-size:12px;color:#9ca3af;">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-  <p>Best regards,<br><strong>TechAntum Team</strong></p>
-</body></html>`,
+    html: renderBrandedEmail(brand, {
+      kicker: 'PARTNER PORTAL',
+      title: 'Reset your password',
+      subtitle: 'This link expires in 1 hour.',
+      bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(contactName)},</p>
+        <p style="margin:0;">We received a request to reset your Partner Portal password. If you didn't request this, you can ignore this email.</p>`,
+      action: { href: resetUrl, label: 'Reset password' },
+    }),
   });
 
   if (error) return { ok: false, error: error.message };
@@ -148,23 +86,51 @@ export interface RequirementSubmittedEmailData {
   sowMarkdown: string;
   promptText: string;
   questionnaireJson: string;
+  requirementId?: string;
+  submittedAt?: string;
 }
 
-function buildInternalRequirementHtml(data: RequirementSubmittedEmailData): string {
-  return `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;line-height:1.6;padding:24px;">
-  <h2 style="color:#1e1b4b;">New Client Requirement Submitted</h2>
-  <table style="border-collapse:collapse;width:100%;max-width:600px;">
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Reference ID</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.referenceId)}</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Project</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.projectName)}</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Partner</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.partnerName)} (${escapeHtml(data.partnerCompany)})</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Service</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.serviceName)}</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Package</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.packageName)}</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Budget</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.budgetRange)}</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Timeline</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.timeline)}</td></tr>
-  </table>
-  <p style="margin-top:24px;">Review the full Scope of Work in Admin → Partner Requirements.</p>
-</body></html>`;
+function detailLine(label: string, value: string) {
+  return `<p style="margin:0 0 6px;"><strong style="color:#0f172a;">${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+}
+
+function buildInternalRequirementHtml(brand: EmailBrand, data: RequirementSubmittedEmailData): string {
+  const reviewUrl = data.requirementId ? `${brand.siteUrl}/admin/partner-requirements/${data.requirementId}` : '';
+  return renderBrandedEmail(brand, {
+    kicker: 'PARTNER PORTAL',
+    title: 'New requirement submitted',
+    subtitle: `A new requirement has been submitted on the ${brand.companyName} Partner Portal and is ready for your review.`,
+    facts: [
+      { label: 'Reference No.', value: data.referenceId },
+      { label: 'Service', value: data.serviceName },
+      { label: 'Submitted On', value: formatEmailDate(data.submittedAt || new Date()) },
+    ],
+    bodyHtml: `<p style="margin:0 0 12px;">Hello Team,</p>
+      <p style="margin:0 0 16px;">A new requirement has been submitted. Please review the details, prepare the proposal with timeline and cost, and update the status in the partner portal.</p>
+      ${detailLine('Project', data.projectName)}
+      ${detailLine('Partner', `${data.partnerName} (${data.partnerCompany})`)}
+      ${detailLine('Package', data.packageName)}
+      ${detailLine('Budget', data.budgetRange)}
+      ${detailLine('Timeline', data.timeline)}`,
+    action: reviewUrl ? { href: reviewUrl, label: 'View Requirement' } : undefined,
+  });
+}
+
+function buildPartnerRequirementHtml(brand: EmailBrand, data: RequirementSubmittedEmailData): string {
+  const reviewUrl = data.requirementId ? `${brand.siteUrl}/partner/requirements/${data.requirementId}` : `${brand.siteUrl}/partner/requirements`;
+  return renderBrandedEmail(brand, {
+    kicker: 'PARTNER PORTAL',
+    title: 'Requirement submitted',
+    subtitle: 'Our team will review it and respond within 24–48 business hours.',
+    facts: [
+      { label: 'Reference No.', value: data.referenceId },
+      { label: 'Service', value: data.serviceName },
+      { label: 'Submitted On', value: formatEmailDate(data.submittedAt || new Date()) },
+    ],
+    bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(data.partnerName)},</p>
+      <p style="margin:0;">Your requirement for <strong>${escapeHtml(data.projectName)}</strong> has been submitted. You can follow the status from the Partner Portal.</p>`,
+    action: { href: reviewUrl, label: 'View Requirement' },
+  });
 }
 
 export async function sendRequirementSubmittedEmails(
@@ -175,6 +141,7 @@ export async function sendRequirementSubmittedEmails(
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
   const salesInbox = process.env.PARTNER_SALES_INBOX || process.env.CONTACT_INBOX || 'sales@techantum.com';
   const supportInbox = process.env.PARTNER_SUPPORT_INBOX || 'support@techantum.com';
   const recipients = [...new Set([salesInbox, supportInbox])];
@@ -183,7 +150,7 @@ export async function sendRequirementSubmittedEmails(
     from,
     to: recipients,
     subject: `New Client Requirement Submitted — ${data.referenceId}`,
-    html: buildInternalRequirementHtml(data),
+    html: buildInternalRequirementHtml(brand, data),
     attachments: [
       { filename: `${data.referenceId}-SOW.md`, content: Buffer.from(data.sowMarkdown).toString('base64') },
       { filename: `${data.referenceId}-questionnaire.json`, content: Buffer.from(data.questionnaireJson).toString('base64') },
@@ -198,13 +165,7 @@ export async function sendRequirementSubmittedEmails(
       from,
       to: [data.partnerEmail],
       subject: `Requirement Submitted — ${data.referenceId}`,
-      html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;padding:24px;">
-  <p>Dear ${escapeHtml(data.partnerName)},</p>
-  <p>Your client requirement <strong>${escapeHtml(data.referenceId)}</strong> for <strong>${escapeHtml(data.projectName)}</strong> has been submitted successfully.</p>
-  <p>Our team will review and respond within 24–48 business hours.</p>
-  <p>Best regards,<br><strong>TechAntum Team</strong></p>
-</body></html>`,
+      html: buildPartnerRequirementHtml(brand, data),
       attachments: [
         { filename: `${data.referenceId}-SOW.md`, content: Buffer.from(data.sowMarkdown).toString('base64') },
       ],
@@ -232,19 +193,22 @@ export async function sendPartnerOtpEmail(
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
 
   const { error } = await resend.emails.send({
     from,
     to: [to],
     subject: `${otpCode} — Your TechAntum Partner Portal verification code`,
-    html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;padding:24px;">
-  <p>Dear ${escapeHtml(contactName)},</p>
-  <p>Your verification code for the Partner Portal is:</p>
-  <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#1e1b4b;">${escapeHtml(otpCode)}</p>
-  <p>This code expires in ${expiryMinutes} minutes. If you didn't attempt to sign in, ignore this email.</p>
-  <p>Best regards,<br><strong>TechAntum Team</strong></p>
-</body></html>`,
+    html: renderBrandedEmail(brand, {
+      kicker: 'PARTNER PORTAL',
+      title: 'Verification code',
+      subtitle: `This code expires in ${expiryMinutes} minutes.`,
+      facts: [{ label: 'Code', value: otpCode }],
+      bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(contactName)},</p>
+        <p style="margin:0 0 12px;">Use this code to continue signing in to the Partner Portal:</p>
+        <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#0f172a;">${escapeHtml(otpCode)}</p>
+        <p style="margin:16px 0 0;">If you didn't attempt to sign in, you can ignore this email.</p>`,
+    }),
   });
 
   if (error) return { ok: false, error: error.message };
@@ -255,8 +219,18 @@ export interface PartnerTeamInviteEmailData {
   to: string;
   contactName: string;
   companyName: string;
-  partnerCode: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
   onboardUrl: string;
+  expiryDays?: number;
+}
+
+function partnerFromAddress(partnerName: string) {
+  const configured = process.env.RESEND_FROM_EMAIL || 'invites@techantum.com';
+  const match = configured.match(/<([^>]+)>/);
+  const email = (match?.[1] || configured).replace(/[\r\n<>]/g, '').trim();
+  const name = partnerName.replace(/[\r\n<>"]/g, ' ').replace(/\s+/g, ' ').trim() || 'Team';
+  return `${name} <${email}>`;
 }
 
 export async function sendPartnerTeamInviteEmail(
@@ -266,19 +240,24 @@ export async function sendPartnerTeamInviteEmail(
     return { ok: false, error: 'RESEND_API_KEY is not configured' };
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const partnerName = data.companyName.replace(/[\r\n]/g, ' ').trim();
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://techantum.com').replace(/\/$/, '');
+  const message = renderPartnerTeamInvitationEmail({
+    partnerName,
+    inviteeName: data.contactName,
+    logoUrl: data.logoUrl,
+    primaryColor: data.primaryColor,
+    invitationUrl: data.onboardUrl,
+    expiryDays: data.expiryDays,
+    siteUrl,
+  });
 
   const { error } = await resend.emails.send({
-    from,
+    from: partnerFromAddress(partnerName),
     to: [data.to],
-    subject: `You're invited to ${data.companyName} on TechAntum Partner Portal`,
-    html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;padding:24px;">
-  <p>Dear ${escapeHtml(data.contactName)},</p>
-  <p>You've been invited to join <strong>${escapeHtml(data.companyName)}</strong> (${escapeHtml(data.partnerCode)}) on the TechAntum Partner Portal.</p>
-  <p><a href="${escapeHtml(data.onboardUrl)}" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Set Password &amp; Join Team</a></p>
-  <p style="font-size:12px;color:#9ca3af;">Link expires in 7 days.</p>
-</body></html>`,
+    subject: `You're Invited to Join ${partnerName}`,
+    html: message.html,
+    text: message.text,
   });
 
   if (error) return { ok: false, error: error.message };
@@ -299,24 +278,26 @@ export async function sendProposalToPartnerEmail(data: {
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
 
   const { error } = await resend.emails.send({
     from,
     to: [data.partnerEmail],
     subject: `Project Proposal — ${data.referenceId}`,
-    html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;padding:24px;">
-  <h2 style="color:#1e1b4b;">Project Proposal Ready</h2>
-  <p>Dear ${escapeHtml(data.partnerName)},</p>
-  <p>Our team has prepared a proposal for <strong>${escapeHtml(data.projectName)}</strong> (${escapeHtml(data.referenceId)}).</p>
-  <table style="border-collapse:collapse;width:100%;max-width:500px;margin:16px 0;">
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Estimated Investment</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.proposalAmount)}</td></tr>
-    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Timeline</td><td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(data.proposalTimeline)}</td></tr>
-  </table>
-  <p>${escapeHtml(data.proposalSummary)}</p>
-  <p>View full details in your Partner Portal under My Requirements.</p>
-  <p>Best regards,<br><strong>TechAntum Team</strong></p>
-</body></html>`,
+    html: renderBrandedEmail(brand, {
+      kicker: 'PARTNER PORTAL',
+      title: 'Project proposal ready',
+      subtitle: 'Review the estimate and timeline in the Partner Portal.',
+      facts: [
+        { label: 'Reference No.', value: data.referenceId },
+        { label: 'Investment', value: data.proposalAmount },
+        { label: 'Timeline', value: data.proposalTimeline },
+      ],
+      bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(data.partnerName)},</p>
+        <p style="margin:0 0 12px;">Our team has prepared a proposal for <strong>${escapeHtml(data.projectName)}</strong>.</p>
+        <p style="margin:0;">${escapeHtml(data.proposalSummary)}</p>`,
+      action: { href: `${brand.siteUrl}/partner/requirements`, label: 'View Requirement' },
+    }),
   });
 
   if (error) return { ok: false, error: error.message };
@@ -333,20 +314,24 @@ export async function sendClarificationRequestEmail(data: {
   if (!resend) return { ok: false, error: 'RESEND not configured' };
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
   const { error } = await resend.emails.send({
     from,
     to: [data.partnerEmail],
     subject: `Clarification Needed — ${data.referenceId}`,
-    html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;padding:24px;">
-  <p>Dear ${escapeHtml(data.partnerName)},</p>
-  <p>We need additional information for <strong>${escapeHtml(data.projectName)}</strong> (${escapeHtml(data.referenceId)}).</p>
-  <blockquote style="border-left:4px solid #6366f1;padding-left:16px;margin:16px 0;color:#4b5563;">
-    ${escapeHtml(data.message)}
-  </blockquote>
-  <p>Please reply in the Partner Portal under My Requirements.</p>
-  <p>Best regards,<br><strong>TechAntum Team</strong></p>
-</body></html>`,
+    html: renderBrandedEmail(brand, {
+      kicker: 'PARTNER PORTAL',
+      title: 'Clarification needed',
+      subtitle: 'Please reply from My Requirements in the Partner Portal.',
+      facts: [
+        { label: 'Reference No.', value: data.referenceId },
+        { label: 'Project', value: data.projectName },
+      ],
+      bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(data.partnerName)},</p>
+        <p style="margin:0 0 12px;">We need additional information before we can continue.</p>
+        <p style="margin:0;padding:12px 16px;border-left:4px solid #EF4323;background:#f8fafc;">${escapeHtml(data.message)}</p>`,
+      action: { href: `${brand.siteUrl}/partner/requirements`, label: 'View Requirement' },
+    }),
   });
 
   if (error) return { ok: false, error: error.message };
@@ -364,19 +349,22 @@ export async function sendClarificationReplyEmail(data: {
   if (!resend) return { ok: false, error: 'RESEND not configured' };
 
   const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
+  const brand = await loadEmailBrand();
   const { error } = await resend.emails.send({
     from,
     to: [data.salesInbox],
     subject: `Partner Clarification Reply — ${data.referenceId}`,
-    html: `<!DOCTYPE html>
-<html><body style="font-family:Inter,sans-serif;color:#374151;padding:24px;">
-  <h2 style="color:#1e1b4b;">Partner Clarification Reply</h2>
-  <p><strong>${escapeHtml(data.partnerName)}</strong> (${escapeHtml(data.partnerCompany)}) replied on ${escapeHtml(data.referenceId)}.</p>
-  <blockquote style="border-left:4px solid #6366f1;padding-left:16px;margin:16px 0;">
-    ${escapeHtml(data.message)}
-  </blockquote>
-  <p>Review in Admin → Partner Requirements.</p>
-</body></html>`,
+    html: renderBrandedEmail(brand, {
+      kicker: 'PARTNER PORTAL',
+      title: 'Clarification reply',
+      subtitle: `${data.partnerName} (${data.partnerCompany}) replied on this requirement.`,
+      facts: [
+        { label: 'Reference No.', value: data.referenceId },
+        { label: 'Project', value: data.projectName },
+      ],
+      bodyHtml: `<p style="margin:0;padding:12px 16px;border-left:4px solid #EF4323;background:#f8fafc;">${escapeHtml(data.message)}</p>`,
+      action: { href: `${brand.siteUrl}/admin/partner-requirements`, label: 'View Requirement' },
+    }),
   });
 
   if (error) return { ok: false, error: error.message };

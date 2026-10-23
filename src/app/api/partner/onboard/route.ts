@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { validateInviteToken, completePartnerOnboarding } from '@/lib/partner/service';
+import { inspectInviteToken, completePartnerOnboarding, inviteStatusMessage } from '@/lib/partner/service';
 
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get('token');
@@ -8,14 +8,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ valid: false, error: 'Token required' }, { status: 400 });
   }
 
-  const invite = await validateInviteToken(token);
+  const inspected = await inspectInviteToken(token);
 
-  if (!invite) {
+  if (inspected.status !== 'valid' || !inspected.invite) {
     return NextResponse.json({
       valid: false,
-      error: 'Invalid or expired invite link.',
+      error: inviteStatusMessage(inspected.status === 'valid' ? 'invalid' : inspected.status),
     });
   }
+  const invite = inspected.invite;
 
   const partnerUser = invite.partner_users as {
     email?: string;

@@ -1,14 +1,8 @@
-import { randomBytes } from 'crypto';
 import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
 import { sendPartnerTeamInviteEmail } from '@/lib/email/partner-emails';
+import { generateInviteToken, hashInviteToken, inviteExpiryDate } from './invite-token';
 import { sanitizePartnerNavAccess } from './nav';
 import type { PartnerUserRole } from './types';
-
-const INVITE_EXPIRY_DAYS = 7;
-
-function generateInviteToken(): string {
-  return randomBytes(32).toString('hex');
-}
 
 const TEAM_MEMBER_COLUMNS = 'id, email, full_name, role, status, last_login_at, created_at, nav_access';
 
@@ -66,7 +60,7 @@ export async function invitePartnerTeamMember(input: {
 
   const { data: partner } = await supabase
     .from('partners')
-    .select('company_name, partner_code')
+    .select('company_name, logo_url, primary_color')
     .eq('id', input.partnerId)
     .single();
 
@@ -107,25 +101,14 @@ export async function invitePartnerTeamMember(input: {
     return { ok: false, error: userError?.message || 'Failed to create team member' };
   }
 
-  const token = generateInviteToken();
-  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-
-  await supabase.from('partner_invites').insert({
-    partner_id: input.partnerId,
-    partner_user_id: partnerUser.id,
-    token,
-    expires_at: expiresAt.toISOString(),
-  });
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
-  const onboardUrl = `${siteUrl.replace(/\/$/, '')}/partner/onboard?token=${token}`;
-
-  const emailResult = await sendPartnerTeamInviteEmail({
-    to: email,
-    contactName: fullName,
+  const emailResult = await issueTeamInvite({
+    partnerId: input.partnerId,
+    partnerUserId: partnerUser.id,
+    email,
+    fullName,
     companyName: partner.company_name,
-    partnerCode: partner.partner_code,
-    onboardUrl,
+    logoUrl: partner.logo_url,
+    primaryColor: partner.primary_color,
   });
 
   await supabase.from('partner_activity_logs').insert({
@@ -133,6 +116,98 @@ export async function invitePartnerTeamMember(input: {
     partner_user_id: input.invitedByUserId,
     action: 'team_member_invited',
     metadata: { invited_email: email, email_sent: emailResult.ok, nav_access: navAccess },
+  });
+
+  return {
+    ok: true,
+    inviteSent: emailResult.ok,
+    inviteError: emailResult.ok ? undefined : emailResult.error || 'Invite email could not be sent',
+  };
+}
+
+async function issueTeamInvite(input: {
+  partnerId: string;
+  partnerUserId: string;
+  email: string;
+  fullName: string;
+  companyName: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+}) {
+  const supabase = createAdminClient();
+  const rawToken = generateInviteToken();
+  const tokenHash = hashInviteToken(rawToken);
+  const expiresAt = inviteExpiryDate();
+
+  await supabase
+    .from('partner_invites')
+    .update({ used_at: new Date().toISOString() })
+    .eq('partner_user_id', input.partnerUserId)
+    .eq('partner_id', input.partnerId)
+    .is('used_at', null);
+
+  await supabase.from('partner_invites').insert({
+    partner_id: input.partnerId,
+    partner_user_id: input.partnerUserId,
+    token: tokenHash,
+    token_hash: tokenHash,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://techantum.com';
+  const onboardUrl = `${siteUrl.replace(/\/$/, '')}/partner/onboard?token=${rawToken}`;
+
+  return sendPartnerTeamInviteEmail({
+    to: input.email,
+    contactName: input.fullName,
+    companyName: input.companyName,
+    logoUrl: input.logoUrl,
+    primaryColor: input.primaryColor,
+    onboardUrl,
+  });
+}
+
+export async function resendPartnerTeamInvite(input: {
+  partnerId: string;
+  memberId: string;
+  invitedByUserId: string;
+}): Promise<{ ok: boolean; error?: string; inviteSent?: boolean; inviteError?: string }> {
+  const supabase = createAdminClient();
+  const { data: member } = await supabase
+    .from('partner_users')
+    .select('id, email, full_name, status, partner_id')
+    .eq('id', input.memberId)
+    .eq('partner_id', input.partnerId)
+    .maybeSingle();
+
+  if (!member) return { ok: false, error: 'Team member not found' };
+  if (member.status !== 'pending') {
+    return { ok: false, error: 'Only a pending invitation can be sent again.' };
+  }
+
+  const { data: partner } = await supabase
+    .from('partners')
+    .select('company_name, logo_url, primary_color')
+    .eq('id', input.partnerId)
+    .single();
+
+  if (!partner) return { ok: false, error: 'Partner not found' };
+
+  const emailResult = await issueTeamInvite({
+    partnerId: input.partnerId,
+    partnerUserId: member.id,
+    email: member.email,
+    fullName: member.full_name,
+    companyName: partner.company_name,
+    logoUrl: partner.logo_url,
+    primaryColor: partner.primary_color,
+  });
+
+  await supabase.from('partner_activity_logs').insert({
+    partner_id: input.partnerId,
+    partner_user_id: input.invitedByUserId,
+    action: 'team_invite_resent',
+    metadata: { invited_email: member.email, email_sent: emailResult.ok },
   });
 
   return {

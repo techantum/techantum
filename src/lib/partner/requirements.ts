@@ -288,6 +288,8 @@ export async function submitRequirement(
     sowMarkdown,
     promptText,
     questionnaireJson: JSON.stringify(allAnswers, null, 2),
+    requirementId,
+    submittedAt: now,
   });
 
   await supabase.from('partner_email_logs').insert([
