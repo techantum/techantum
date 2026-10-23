@@ -3,6 +3,7 @@ import { parseModelJson } from '../ai/json';
 import { q } from '../finance/db';
 import { FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { listProjectChannels, listProjectVideos } from './projects';
+import { assertYoutubeProject } from './scope';
 import { YOUTUBE_METRIC_NOTICE } from './parse';
 
 export const ANALYTICS_UNAVAILABLE = 'Not available through the current YouTube integration.';
@@ -488,11 +489,13 @@ function presentAnalysis(row: Record<string, any>) {
 }
 
 export async function listAiAnalyses(projectId: string) {
+  await assertYoutubeProject(projectId);
   const { rows } = await q(undefined, `SELECT id, project_id, name, status, config, provider, model, created_at, updated_at FROM youtube_ai_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 40`, [projectId]);
   return rows;
 }
 
 export async function getAiAnalysis(projectId: string, id: string) {
+  await assertYoutubeProject(projectId);
   const { rows } = await q(undefined, `SELECT * FROM youtube_ai_analyses WHERE project_id=$1 AND id=$2`, [projectId, id]);
   if (!rows[0]) throw new FinanceNotFoundError('Analysis not found');
   const actions = await q(undefined, `SELECT * FROM youtube_ai_actions WHERE analysis_id=$1 ORDER BY created_at`, [id]);
@@ -500,6 +503,7 @@ export async function getAiAnalysis(projectId: string, id: string) {
 }
 
 export async function createAiAnalysis(projectId: string, body: Record<string, unknown>, userId: string) {
+  await assertYoutubeProject(projectId);
   const config = parseAiResearchConfig(body);
   const name = cleanText(body.name, 120) || `AI Analysis · ${config.goals.join(', ')}`;
   const inserted = await q(undefined, `INSERT INTO youtube_ai_analyses (project_id, name, status, config, created_by) VALUES ($1,$2,'generating',$3::jsonb,$4) RETURNING id`, [projectId, name, JSON.stringify(config), userId]);
@@ -539,6 +543,7 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
 }
 
 export async function updateAiAction(projectId: string, actionId: string, body: Record<string, unknown>, userId: string) {
+  await assertYoutubeProject(projectId);
   const status = String(body.status || '');
   if (!ACTION_STATUSES.includes(status as (typeof ACTION_STATUSES)[number])) {
     throw new FinanceValidationError('Choose a supported action status.');
@@ -550,11 +555,13 @@ export async function updateAiAction(projectId: string, actionId: string, body: 
 }
 
 export async function listResearchReports(projectId: string) {
+  await assertYoutubeProject(projectId);
   const { rows } = await q(undefined, `SELECT id, project_id, analysis_id, name, report_type, status, generated_by, generated_at, archived_at FROM youtube_research_reports WHERE project_id=$1 AND status <> 'archived' ORDER BY generated_at DESC LIMIT 50`, [projectId]);
   return rows;
 }
 
 export async function createResearchReport(projectId: string, body: Record<string, unknown>, userId: string) {
+  await assertYoutubeProject(projectId);
   const typeRaw = String(body.report_type || body.reportType || 'executive');
   const reportType = REPORT_TYPES.some((item) => item.id === typeRaw) ? typeRaw : 'executive';
   const analysisId = String(body.analysis_id || body.analysisId || '');
@@ -583,6 +590,7 @@ export async function createResearchReport(projectId: string, body: Record<strin
 }
 
 export async function archiveResearchReport(projectId: string, id: string, userId: string) {
+  await assertYoutubeProject(projectId);
   const { rows } = await q(undefined, `UPDATE youtube_research_reports SET status='archived', archived_at=NOW() WHERE id=$1 AND project_id=$2 RETURNING id`, [id, projectId]);
   if (!rows[0]) throw new FinanceNotFoundError('Report not found');
   await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube Research Report Archived','youtube_research_report',$2,'{}'::jsonb)`, [userId, id]);
@@ -590,6 +598,7 @@ export async function archiveResearchReport(projectId: string, id: string, userI
 }
 
 export async function getResearchReport(projectId: string, id: string) {
+  await assertYoutubeProject(projectId);
   const { rows } = await q(undefined, `SELECT * FROM youtube_research_reports WHERE project_id=$1 AND id=$2`, [projectId, id]);
   if (!rows[0]) throw new FinanceNotFoundError('Report not found');
   return rows[0];

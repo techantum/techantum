@@ -7,10 +7,11 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 import { ChartCard, MonthBarChart, VideoMiniTable, handleLabel } from '@/components/admin/youtube/research-ui';
-import { metric, ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function Overview() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const [data, setData] = useState<Record<string, any> | null>(null);
   const [insights, setInsights] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
@@ -52,11 +53,11 @@ function Overview() {
               <MonthBarChart data={months} bars={[{ key: 'Views', color: '#2563EB' }]} empty="Import videos to see this chart." />
             </ChartCard>
           </div>
-          <AdminSection title="Project channels" icon="UserGroupIcon" action={<Link className="text-sm font-semibold text-secondary" href="/admin/youtube-research/channels">{own ? 'Manage channels' : 'Add own channel'}</Link>}>
+          <AdminSection title="Project channels" icon="UserGroupIcon" action={<Link className="text-sm font-semibold text-secondary" href={`${base}/channels`}>{own ? 'Manage channels' : 'Add own channel'}</Link>}>
             {channels.length ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {channels.slice(0, 6).map((channel: Record<string, any>) => (
-                  <Link key={channel.id} href={`/admin/youtube-research/videos?channel=${channel.id}`} className="ui-card flex gap-3 rounded-xl border border-slate-100 p-3">
+                  <Link key={channel.id} href={`${base}/videos?channel=${channel.id}`} className="ui-card flex gap-3 rounded-xl border border-slate-100 p-3">
                     {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">YT</span>}
                     <span className="min-w-0">
                       <span className="flex items-center gap-2">
@@ -71,7 +72,7 @@ function Overview() {
               </div>
             ) : <p className="text-sm text-slate-500">Channels you add for this project appear here.</p>}
           </AdminSection>
-          <VideoMiniTable title="Recent videos" href="/admin/youtube-research/videos" rows={insights?.recentVideos || data.recentVideos || []} empty="Import videos to see them here." />
+          <VideoMiniTable title="Recent videos" href={`${base}/videos`} rows={insights?.recentVideos || data.recentVideos || []} empty="Import videos to see them here." />
           <p className="text-xs text-slate-400">{data.notice}</p>
         </>
       ) : !error ? <p className="text-sm text-slate-500">Loading overview...</p> : null}

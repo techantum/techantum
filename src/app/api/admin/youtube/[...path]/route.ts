@@ -1,8 +1,12 @@
+import { cache } from 'react';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { financeErrorResponse, fileResponse } from '@/lib/finance/http';
+import { requirePartner } from '@/lib/partner/auth';
+import { partnerHasNavAccess } from '@/lib/partner/nav';
 import { YoutubeApiError } from '@/lib/youtube/client';
-import { hasYoutubePermission, type YoutubePermission } from '@/lib/youtube/permissions';
+import { hasYoutubePermission, permissionsForRole, type YoutubePermission } from '@/lib/youtube/permissions';
+import { currentYoutubePartnerId, protectPartnerScope, withYoutubePartner } from '@/lib/youtube/scope';
 import { projectAnalysis, summarizeAnalysisVideo, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
 import {
   addProjectChannel,
@@ -107,14 +111,46 @@ function fail(err: unknown) {
   return financeErrorResponse(err);
 }
 
+const resolveYoutubeActor = cache(async () => {
+  const admin = await requireAdmin();
+  if (!('error' in admin)) {
+    const access = await sessionAccess(admin.role, admin.user.id);
+    return {
+      user: admin.user,
+      role: admin.role as string,
+      permissions: access.permissions,
+      partnerId: null as string | null,
+    };
+  }
+  const partner = await requirePartner();
+  if ('error' in partner) return { error: partner.error };
+  if (!partnerHasNavAccess(partner.partnerUser, 'youtube-research', partner.partner)) {
+    return { error: NextResponse.json({ error: 'YouTube Research is not enabled for this account.' }, { status: 403 }) };
+  }
+  const permissions = permissionsForRole(partner.partnerUser.role, []);
+  return {
+    user: partner.user,
+    role: partner.partnerUser.role,
+    permissions,
+    partnerId: partner.partner.id,
+  };
+});
+
 async function gate(permission: YoutubePermission) {
-  const auth = await requireAdmin();
-  if ('error' in auth && auth.error) return auth;
-  const access = await sessionAccess(auth.role, auth.user.id);
-  if (!hasYoutubePermission(auth.role, access.permissions, permission)) {
+  const auth = await resolveYoutubeActor();
+  if ('error' in auth) return auth;
+  if (!hasYoutubePermission(auth.role, auth.permissions, permission)) {
     return { error: NextResponse.json({ error: 'You do not have permission for this action' }, { status: 403 }) };
   }
-  return { ...auth, permissions: access.permissions };
+  return auth;
+}
+
+async function enterPartnerScope<T>(run: () => Promise<T>) {
+  if (currentYoutubePartnerId()) return run();
+  const actor = await resolveYoutubeActor();
+  if ('error' in actor) return actor.error as T;
+  if (actor.partnerId) return withYoutubePartner(actor.partnerId, run);
+  return run();
 }
 
 async function readBody(request: Request) {
@@ -124,13 +160,18 @@ async function readBody(request: Request) {
 }
 
 export async function GET(request: Request, context: { params: Promise<{ path?: string[] }> }) {
+  return enterPartnerScope(() => handleGet(request, context));
+}
+
+async function handleGet(request: Request, context: { params: Promise<{ path?: string[] }> }) {
   try {
     const path = (await context.params).path || [];
     const url = new URL(request.url);
+    await protectPartnerScope('GET', path);
     if (path[0] === 'session') {
-      const auth = await requireAdmin();
-      if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await sessionAccess(auth.role, auth.user.id));
+      const auth = await resolveYoutubeActor();
+      if ('error' in auth) return auth.error;
+      return NextResponse.json({ role: auth.role, permissions: auth.permissions });
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'overview') {
       const auth = await gate('youtube_research.view');
@@ -321,9 +362,14 @@ export async function GET(request: Request, context: { params: Promise<{ path?: 
 }
 
 export async function POST(request: Request, context: { params: Promise<{ path?: string[] }> }) {
+  return enterPartnerScope(() => handlePost(request, context));
+}
+
+async function handlePost(request: Request, context: { params: Promise<{ path?: string[] }> }) {
   try {
     const path = (await context.params).path || [];
     const body = await readBody(request);
+    await protectPartnerScope('POST', path, body);
     if (path[0] === 'projects' && path[1] && path[2] === 'channels' && path[4] === 'primary') {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;
@@ -448,9 +494,14 @@ export async function POST(request: Request, context: { params: Promise<{ path?:
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ path?: string[] }> }) {
+  return enterPartnerScope(() => handlePatch(request, context));
+}
+
+async function handlePatch(request: Request, context: { params: Promise<{ path?: string[] }> }) {
   try {
     const path = (await context.params).path || [];
     const body = await readBody(request);
+    await protectPartnerScope('PATCH', path, body);
     if (path[0] === 'projects' && path[1] && path[2] === 'ai-actions' && path[3]) {
       const auth = await gate('youtube_research.research.edit');
       if ('error' in auth && auth.error) return auth.error;
@@ -498,8 +549,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ path?
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ path?: string[] }> }) {
+  return enterPartnerScope(() => handleDelete(context));
+}
+
+async function handleDelete(context: { params: Promise<{ path?: string[] }> }) {
   try {
     const path = (await context.params).path || [];
+    await protectPartnerScope('DELETE', path);
     if (path[0] === 'projects' && path[1] && path[2] === 'channels' && path[3]) {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;

@@ -17,6 +17,8 @@ import { buildWorkbook } from '../finance/excel';
 import { csvCell, YOUTUBE_METRIC_NOTICE } from './parse';
 import { projectExportRows } from './projects';
 import { rowsForExport } from './service';
+import { assertYoutubeProject, currentYoutubePartnerId } from './scope';
+import { FinanceNotFoundError } from '../finance/errors';
 
 const SOURCE = 'YouTube Data API public data. Not YouTube Analytics.';
 
@@ -309,6 +311,8 @@ export async function exportResearch(params: {
   placement?: string;
   projectName?: string;
 }) {
+  if (currentYoutubePartnerId() && !params.projectId) throw new FinanceNotFoundError('Research project not found');
+  if (params.projectId) await assertYoutubeProject(params.projectId);
   const format = params.format === 'csv' ? 'csv' : params.format === 'pdf' ? 'pdf' : params.format === 'docx' ? 'docx' : 'xlsx';
   const type = params.type || 'videos';
   const topicId = params.topicId || '';

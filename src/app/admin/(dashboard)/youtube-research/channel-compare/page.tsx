@@ -6,10 +6,11 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import { CHANNEL_COLORS, ChartCard, EMPTY_FILTERS, MonthBarChart, ResearchFilters, SimpleBars, VideoMiniTable, applyPreset, downloadProjectExport, handleLabel, mergeMonths, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
-import { metric, ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function ChannelCompare() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const [projectName, setProjectName] = useState('');
   const [channels, setChannels] = useState<Record<string, any>[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -89,14 +90,14 @@ function ChannelCompare() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Link href="/admin/youtube-research/channels" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
+          <Link href={`${base}/channels`} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
             ← Back to Channels
           </Link>
           <h2 className="mt-2 font-bricolage text-xl font-bold text-slate-900">Channel Comparison</h2>
           <p className="mt-1 text-sm text-slate-500">Public YouTube Data API values and imported videos for this project. These counts are not YouTube Analytics and are not a ranking.</p>
         </div>
         <span className="flex flex-wrap gap-2">
-          <Link href="/admin/youtube-research/channels" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Back to Channels</Link>
+          <Link href={`${base}/channels`} className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Back to Channels</Link>
           <AdminButton variant="primary" disabled={!selected.length} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
           <AdminButton disabled={!selected.length} onClick={() => exportFile('docx')}>Word report</AdminButton>
         </span>
@@ -124,7 +125,7 @@ function ChannelCompare() {
               </span>
             </label>
           ))}
-          <Link href="/admin/youtube-research/channels" className="flex min-h-[88px] items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm font-semibold text-slate-500">+ Add channel</Link>
+          <Link href={`${base}/channels`} className="flex min-h-[88px] items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm font-semibold text-slate-500">+ Add channel</Link>
         </div>
       </section>
       <ResearchFilters
@@ -190,8 +191,8 @@ function ChannelCompare() {
             </div>
           ) : null}
           <div className="grid gap-4 xl:grid-cols-2">
-            <VideoMiniTable title="Top imported videos" href="/admin/youtube-research/videos" rows={compared.flatMap((channel: Record<string, any>) => channel.insights?.topVideos || []).sort((a: Record<string, any>, b: Record<string, any>) => Number(b.view_count || 0) - Number(a.view_count || 0)).slice(0, 8)} empty="Import videos to compare public view counts." />
-            <VideoMiniTable title="Recent imported videos" href="/admin/youtube-research/videos" rows={compared.flatMap((channel: Record<string, any>) => channel.insights?.recentVideos || []).sort((a: Record<string, any>, b: Record<string, any>) => String(b.published_at || '').localeCompare(String(a.published_at || ''))).slice(0, 8)} empty="No imported videos match these filters." />
+            <VideoMiniTable title="Top imported videos" href={`${base}/videos`} rows={compared.flatMap((channel: Record<string, any>) => channel.insights?.topVideos || []).sort((a: Record<string, any>, b: Record<string, any>) => Number(b.view_count || 0) - Number(a.view_count || 0)).slice(0, 8)} empty="Import videos to compare public view counts." />
+            <VideoMiniTable title="Recent imported videos" href={`${base}/videos`} rows={compared.flatMap((channel: Record<string, any>) => channel.insights?.recentVideos || []).sort((a: Record<string, any>, b: Record<string, any>) => String(b.published_at || '').localeCompare(String(a.published_at || ''))).slice(0, 8)} empty="No imported videos match these filters." />
           </div>
         </>
       ) : busy ? <p className="text-sm text-slate-500">Loading comparison...</p> : null}

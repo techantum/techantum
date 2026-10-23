@@ -30,12 +30,25 @@ export async function yt(path: string, init?: RequestInit) {
   return body;
 }
 
+export function youtubePageBase(pathname: string) {
+  return pathname.startsWith('/partner/youtube-research') ? '/partner/youtube-research' : '/admin/youtube-research';
+}
+
+export function useYoutubePageBase() {
+  return youtubePageBase(usePathname() || '');
+}
+
+function projectCookieName() {
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
+  return path.startsWith('/partner/') ? 'ta_yt_partner_project' : 'ta_yt_project';
+}
+
 export function rememberProject(id: string) {
-  document.cookie = `ta_yt_project=${encodeURIComponent(id)}; Path=/; Max-Age=2592000; SameSite=Lax`;
+  document.cookie = `${projectCookieName()}=${encodeURIComponent(id)}; Path=/; Max-Age=2592000; SameSite=Lax`;
 }
 
 export function currentProjectId() {
-  const match = document.cookie.match(/(?:^|; )ta_yt_project=([^;]*)/);
+  const match = document.cookie.match(new RegExp(`(?:^|; )${projectCookieName()}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
 
@@ -49,6 +62,7 @@ export function useProjectId() {
 
 export function ProjectRequired({ children }: { children: React.ReactNode }) {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   if (!ready) return <p className="text-sm text-slate-500">Loading project...</p>;
@@ -56,7 +70,7 @@ export function ProjectRequired({ children }: { children: React.ReactNode }) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
         <p className="text-sm text-slate-600">Choose a research project to continue.</p>
-        <Link href="/admin/youtube-research" className="mt-3 inline-flex rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white">Research Projects</Link>
+        <Link href={base} className="mt-3 inline-flex rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white">Research Projects</Link>
       </div>
     );
   }
@@ -92,11 +106,11 @@ export function Bars({ rows }: { rows: { label: string; value: number | null }[]
 }
 
 const WORKSPACE = [
-  { href: '/admin/youtube-research/overview', label: 'Overview', section: 'overview', icon: 'HomeIcon' },
-  { href: '/admin/youtube-research/channels', label: 'Channels', section: 'channels', icon: 'UserGroupIcon' },
-  { href: '/admin/youtube-research/videos', label: 'Videos', section: 'videos', icon: 'PlayCircleIcon' },
-  { href: '/admin/youtube-research/reports', label: 'Reports', section: 'reports', icon: 'DocumentChartBarIcon' },
-  { href: '/admin/youtube-research/analysis', label: 'AI Analysis', section: 'analysis', icon: 'LightBulbIcon' },
+  { suffix: '/overview', label: 'Overview', section: 'overview', icon: 'HomeIcon' },
+  { suffix: '/channels', label: 'Channels', section: 'channels', icon: 'UserGroupIcon' },
+  { suffix: '/videos', label: 'Videos', section: 'videos', icon: 'PlayCircleIcon' },
+  { suffix: '/reports', label: 'Reports', section: 'reports', icon: 'DocumentChartBarIcon' },
+  { suffix: '/analysis', label: 'AI Analysis', section: 'analysis', icon: 'LightBulbIcon' },
 ];
 
 const SECTION_HINT: Record<string, string> = {
@@ -122,15 +136,16 @@ const SECTION_LABEL: Record<string, string> = {
 };
 
 function sectionOf(pathname: string) {
-  return pathname.replace('/admin/youtube-research', '').split('/').filter(Boolean)[0] || '';
+  return pathname.replace(youtubePageBase(pathname), '').split('/').filter(Boolean)[0] || '';
 }
 
 function isWorkspace(pathname: string) {
+  const base = youtubePageBase(pathname);
   if (
-    pathname === '/admin/youtube-research'
-    || pathname.startsWith('/admin/youtube-research/settings')
-    || pathname.startsWith('/admin/youtube-research/projects/new')
-    || pathname.startsWith('/admin/youtube-research/performance')
+    pathname === base
+    || pathname.startsWith(`${base}/settings`)
+    || pathname.startsWith(`${base}/projects/new`)
+    || pathname.startsWith(`${base}/performance`)
   ) return false;
   const section = sectionOf(pathname);
   if (section === 'projects' && pathname.endsWith('/edit')) return true;
@@ -150,15 +165,15 @@ function Crumbs({ items }: { items: { href?: string; label: string }[] }) {
   );
 }
 
-function ProjectNav({ activeSection }: { activeSection: string }) {
+function ProjectNav({ activeSection, base }: { activeSection: string; base: string }) {
   return (
     <nav className="flex gap-1 overflow-x-auto" aria-label="Project">
       {WORKSPACE.map((item) => {
         const active = activeSection === item.section;
         return (
           <Link
-            key={item.href}
-            href={item.href}
+            key={item.suffix}
+            href={`${base}${item.suffix}`}
             className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition ${active ? 'border-secondary text-secondary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
             <Icon name={item.icon} size={16} />
@@ -172,6 +187,7 @@ function ProjectNav({ activeSection }: { activeSection: string }) {
 
 export default function YoutubeFrame({ children, initialAccess }: { children: React.ReactNode; initialAccess?: string[] }) {
   const pathname = usePathname() || '';
+  const base = youtubePageBase(pathname);
   const [access, setAccess] = useState<string[] | null>(initialAccess ?? null);
   const [error, setError] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -209,18 +225,18 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
 
   const crumbs = workspace
     ? [
-        { href: '/admin/youtube-research', label: 'YouTube Research' },
-        { href: '/admin/youtube-research', label: 'Research Projects' },
-        { href: '/admin/youtube-research/overview', label: project?.name || 'Project' },
+        { href: base, label: 'YouTube Research' },
+        { href: base, label: 'Research Projects' },
+        { href: `${base}/overview`, label: project?.name || 'Project' },
         ...(SECTION_LABEL[section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : activeSection]
           ? [{ label: SECTION_LABEL[section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : activeSection] }]
           : []),
       ]
-    : pathname.startsWith('/admin/youtube-research/settings')
-      ? [{ href: '/admin/youtube-research', label: 'YouTube Research' }, { label: 'Settings' }]
-      : pathname.startsWith('/admin/youtube-research/projects/new')
-        ? [{ href: '/admin/youtube-research', label: 'YouTube Research' }, { href: '/admin/youtube-research', label: 'Research Projects' }, { label: 'Create Project' }]
-        : [{ href: '/admin/youtube-research', label: 'YouTube Research' }, { label: 'Research Projects' }];
+    : pathname.startsWith(`${base}/settings`)
+      ? [{ href: base, label: 'YouTube Research' }, { label: 'Settings' }]
+      : pathname.startsWith(`${base}/projects/new`)
+        ? [{ href: base, label: 'YouTube Research' }, { href: base, label: 'Research Projects' }, { label: 'Create Project' }]
+        : [{ href: base, label: 'YouTube Research' }, { label: 'Research Projects' }];
 
   const manage = access?.includes('youtube_research.channels.manage');
 
@@ -256,17 +272,17 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               {manage && projectId ? (
-                <Link className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`/admin/youtube-research/projects/${projectId}/edit`}>
+                <Link className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`${base}/projects/${projectId}/edit`}>
                   <Icon name="PencilSquareIcon" size={16} /> Edit Project
                 </Link>
               ) : null}
-              <Link className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white" href="/admin/youtube-research">
+              <Link className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white" href={base}>
                 <Icon name="ArrowLeftIcon" size={16} /> Back to Projects
               </Link>
             </div>
           </div>
           <div className="mt-4 border-b border-slate-200">
-            <ProjectNav activeSection={activeSection} />
+            <ProjectNav activeSection={activeSection} base={base} />
           </div>
         </div>
       ) : <Crumbs items={crumbs} />}

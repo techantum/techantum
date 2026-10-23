@@ -9,6 +9,12 @@ export const PARTNER_NAV_ITEMS = [
     icon: 'MagnifyingGlassCircleIcon',
     requiresLeadDiscovery: true,
   },
+  {
+    key: 'youtube-research',
+    href: '/partner/youtube-research',
+    label: 'YouTube Research',
+    icon: 'PlayCircleIcon',
+  },
   { key: 'packages', href: '/partner/packages', label: 'Service Packages', icon: 'CubeIcon' },
   { key: 'new-requirement', href: '/partner/requirements/new', label: 'New Requirement', icon: 'PlusCircleIcon' },
   { key: 'requirements', href: '/partner/requirements', label: 'My Requirements', icon: 'ClipboardDocumentListIcon' },
@@ -31,10 +37,10 @@ export function defaultPartnerNavAccess(role: PartnerUserRole): PartnerNavAccess
       continue;
     }
     if (role === 'partner_admin') {
-      access[item.key] = item.key === 'lead-discovery' || item.key === 'team';
+      access[item.key] = item.key === 'lead-discovery' || item.key === 'youtube-research' || item.key === 'team';
       continue;
     }
-    access[item.key] = item.key !== 'team';
+    access[item.key] = item.key !== 'team' && item.key !== 'youtube-research';
   }
   return access;
 }

@@ -7,12 +7,13 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import { allow, rememberProject, useYoutubeAccess, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, rememberProject, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 const control = 'h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm';
 
 export default function ResearchProjectsPage() {
   const router = useRouter();
+  const base = useYoutubePageBase();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
@@ -36,7 +37,7 @@ export default function ResearchProjectsPage() {
 
   const openProject = (id: string) => {
     rememberProject(id);
-    router.push('/admin/youtube-research/overview');
+    router.push(`${base}/overview`);
   };
 
   const pages = Math.max(1, Math.ceil(total / 20));
@@ -47,7 +48,7 @@ export default function ResearchProjectsPage() {
         kicker="YouTube Research"
         title="Research Projects"
         description="Manage your YouTube research projects, competitor channels, and content analysis."
-        action={manage ? <Link href="/admin/youtube-research/projects/new" className="inline-flex rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white">+ New Project</Link> : null}
+        action={manage ? <Link href={`${base}/projects/new`} className="inline-flex rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white">+ New Project</Link> : null}
       />
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       <form className="flex flex-col gap-2 xl:flex-row" onSubmit={(event) => { event.preventDefault(); setPage(1); load(1).catch((err) => setError(err.message)); }}>
@@ -90,7 +91,7 @@ export default function ResearchProjectsPage() {
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-2 text-xs font-semibold">
                       <button type="button" className="text-sky-700" onClick={() => openProject(row.id)}>Open</button>
-                      {manage ? <Link className="text-slate-600" href={`/admin/youtube-research/projects/${row.id}/edit`}>Edit</Link> : null}
+                      {manage ? <Link className="text-slate-600" href={`${base}/projects/${row.id}/edit`}>Edit</Link> : null}
                       {manage && row.status === 'active' && !row.legacy ? <button type="button" className="text-rose-600" onClick={() => { if (window.confirm(`Archive ${row.name}? Its channels and notes stay saved.`)) yt(`projects/${row.id}`, { method: 'DELETE' }).then(() => load()).catch((err) => setError(err.message)); }}>Archive</button> : null}
                     </div>
                   </td>

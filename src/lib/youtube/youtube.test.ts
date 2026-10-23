@@ -5,6 +5,7 @@ import { presentVideo } from './mask.ts';
 import { readFileSync } from 'node:fs';
 import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, parseChannelInput, publishingBuckets, shortsPlaylistId, YOUTUBE_METRIC_NOTICE } from './parse.ts';
 import { hasYoutubePermission, permissionsForRole, YOUTUBE_PERMISSIONS } from './permissions.ts';
+import { partnerYoutubeAccess } from './scope.ts';
 import { visibleAdminNav } from '../cms/admin-nav.ts';
 import { canAccessAdminPath } from '../admin/roles.ts';
 import { pdfFile, wordFile } from './reports.ts';
@@ -259,6 +260,12 @@ describe('permissions and exports', () => {
     assert.equal(hasYoutubePermission('partner_user', [], 'youtube_research.view'), true);
     assert.equal(permissionsForRole('partner_admin', []).includes('youtube_research.settings.manage'), false);
     assert.equal(YOUTUBE_PERMISSIONS.length, 9);
+    assert.equal(partnerYoutubeAccess('GET', ['projects']), 'allow');
+    assert.equal(partnerYoutubeAccess('GET', ['projects', 'project-1', 'videos']), 'project');
+    assert.equal(partnerYoutubeAccess('POST', ['channels', 'resolve']), 'allow');
+    assert.equal(partnerYoutubeAccess('GET', ['channels']), 'deny');
+    assert.equal(partnerYoutubeAccess('POST', ['settings', 'test-connection']), 'deny');
+    assert.equal(partnerYoutubeAccess('GET', ['access']), 'deny');
   });
 
   it('hides YouTube Research settings from partner and admin sessions', () => {

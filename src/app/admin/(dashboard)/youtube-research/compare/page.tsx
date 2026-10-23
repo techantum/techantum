@@ -8,10 +8,11 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 import { CHANNEL_COLORS, ChartCard, MonthBarChart, PlacementBadge, downloadProjectExport } from '@/components/admin/youtube/research-ui';
-import { metric, ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function CompareVideos() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const search = useSearchParams();
   const ids = search?.get('ids') || '';
   const [videos, setVideos] = useState<Record<string, any>[]>([]);
@@ -72,7 +73,7 @@ function CompareVideos() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Link href="/admin/youtube-research/videos" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
+          <Link href={`${base}/videos`} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
             ← Back to Videos
           </Link>
           <p className="mt-2 text-sm text-slate-500">Public counts sit side by side. A higher number is not a claim that the title or thumbnail caused it.</p>
@@ -136,7 +137,7 @@ function CompareVideos() {
           </section>
         </>
       ) : null}
-      <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href="/admin/youtube-research/videos">Back to Videos</Link>
+      <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`${base}/videos`}>Back to Videos</Link>
     </div>
   );
 }

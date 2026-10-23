@@ -251,7 +251,7 @@ export default function PartnerTeamPage() {
             </p>
             {form.role === 'partner_admin' ? (
               <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                Partner admins can use Lead Discovery, User management, and Profile.
+                Partner admins can use Lead Discovery, YouTube Research, User management, and Profile. YouTube Research for partner users is off until you allow it.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

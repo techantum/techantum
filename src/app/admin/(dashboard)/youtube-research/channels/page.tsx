@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import Icon from '@/components/ui/AppIcon';
-import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 const control = 'h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
 
@@ -70,6 +70,7 @@ function ChannelCard({ row }: { row: Record<string, any> }) {
 
 function Channels() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
@@ -170,7 +171,7 @@ function Channels() {
       {message ? <AdminAlert>{message}</AdminAlert> : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Link
-          href="/admin/youtube-research/channel-compare"
+          href={`${base}/channel-compare`}
           className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white"
         >
           <Icon name="ChartBarIcon" size={16} />
@@ -194,9 +195,9 @@ function Channels() {
             <>
               <ChannelCard row={own} />
               <div className="mt-5 flex flex-wrap gap-5">
-                <Action href={`/admin/youtube-research/videos?channel=${own.id}`} icon="EyeIcon" label="View" />
-                <Action href="/admin/youtube-research/channel-compare" icon="ChartBarIcon" label="Compare" />
-                <Action href={`/admin/youtube-research/import?channel=${own.id}`} icon="ArrowDownTrayIcon" label="Import" />
+                <Action href={`${base}/videos?channel=${own.id}`} icon="EyeIcon" label="View" />
+                <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
+                <Action href={`${base}/import?channel=${own.id}`} icon="ArrowDownTrayIcon" label="Import" />
                 {manage ? <Action icon="ArrowPathIcon" label={busy === own.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(own)} /> : null}
                 {manage ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => startAdd('own')} /> : null}
               </div>
@@ -216,9 +217,9 @@ function Channels() {
             <div key={row.id} className="border-t border-slate-100 py-5 first:border-t-0 first:pt-0">
               <ChannelCard row={row} />
               <div className="mt-5 flex flex-wrap gap-5">
-                <Action href={`/admin/youtube-research/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
-                <Action href="/admin/youtube-research/channel-compare" icon="ChartBarIcon" label="Compare" />
-                <Action href={`/admin/youtube-research/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
+                <Action href={`${base}/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
+                <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
+                <Action href={`${base}/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
                 {manage ? <Action icon="ArrowPathIcon" label={busy === row.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(row)} /> : null}
                 {manage ? <Action icon="TrashIcon" label="Remove" tone="accent" onClick={() => remove(row)} /> : null}
               </div>
@@ -257,9 +258,9 @@ function Channels() {
                   <td className="px-2 py-3 text-slate-500">{formatWhen(row.last_refreshed_at)}</td>
                   <td className="px-2 py-3">
                     <span className="flex flex-wrap gap-3">
-                      <Action href={`/admin/youtube-research/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
-                      <Action href="/admin/youtube-research/channel-compare" icon="ChartBarIcon" label="Compare" />
-                      <Action href={`/admin/youtube-research/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
+                      <Action href={`${base}/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
+                      <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
+                      <Action href={`${base}/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
                       {manage ? <Action icon="ArrowPathIcon" label="Refresh" tone="accent" onClick={() => refresh(row)} /> : null}
                       {manage && row.relationship === 'own' ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => startAdd('own')} /> : null}
                       {manage && row.relationship !== 'own' ? <Action icon="TrashIcon" label="Remove" tone="accent" onClick={() => remove(row)} /> : null}

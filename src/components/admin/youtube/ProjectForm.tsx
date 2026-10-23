@@ -9,10 +9,11 @@ import AdminField, { adminInputClass, adminSelectClass, adminTextareaClass } fro
 import AdminFormGrid from '@/components/admin/AdminFormGrid';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
-import { rememberProject, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { rememberProject, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function ProjectForm({ projectId = '' }: { projectId?: string }) {
   const router = useRouter();
+  const base = useYoutubePageBase();
   const [form, setForm] = useState({ name: '', brand_name: '', objective: '', industry: '', description: '', status: 'active' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,7 +38,7 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
         ? await yt(`projects/${projectId}`, { method: 'PATCH', body: JSON.stringify(form) })
         : await yt('projects', { method: 'POST', body: JSON.stringify(form) });
       rememberProject(saved.id);
-      router.push('/admin/youtube-research/overview');
+      router.push(`${base}/overview`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the project');
       setBusy(false);
@@ -77,7 +78,7 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
           </AdminField>
         </AdminFormGrid>
         <div className="mt-4 flex justify-end gap-2">
-          <Link href="/admin/youtube-research" className="inline-flex items-center rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700">Cancel</Link>
+          <Link href={base} className="inline-flex items-center rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700">Cancel</Link>
           <AdminButton variant="primary" disabled={busy} onClick={save}>{busy ? 'Saving...' : projectId ? 'Save Project' : 'Create Project'}</AdminButton>
         </div>
       </AdminSection>

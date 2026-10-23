@@ -6,11 +6,12 @@ import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import { allow, metric, useYoutubeAccess, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, metric, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function ChannelDetailPage() {
   const params = useParams<{ id: string }>();
   const channelId = params?.id || '';
+  const base = useYoutubePageBase();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [data, setData] = useState<Record<string, any> | null>(null);
@@ -52,9 +53,9 @@ export default function ChannelDetailPage() {
         <>
           <div className="flex flex-wrap gap-2">
             {manage ? <AdminButton variant="primary" onClick={() => yt(`channels/${channel.id}/refresh`, { method: 'POST', body: '{}' }).then(() => load()).catch((err) => setError(err.message))}>Refresh Channel</AdminButton> : null}
-            <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`/admin/youtube-research/import?channel=${channel.id}`}>Import Videos</Link>
-            <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`/admin/youtube-research/videos?channel=${channel.id}`}>View Videos</Link>
-            <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`/admin/youtube-research/compare?channels=${channel.id}`}>Compare Channel</Link>
+            <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`${base}/import?channel=${channel.id}`}>Import Videos</Link>
+            <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`${base}/videos?channel=${channel.id}`}>View Videos</Link>
+            <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`${base}/compare?channels=${channel.id}`}>Compare Channel</Link>
           </div>
           <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2">
             <div className="text-sm text-slate-600">

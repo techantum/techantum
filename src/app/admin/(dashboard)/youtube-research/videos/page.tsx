@@ -7,7 +7,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 import { ChartCard, EMPTY_FILTERS, MonthBarChart, PlacementBadge, ResearchFilters, applyPreset, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
-import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 const control = 'h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
 
@@ -19,6 +19,7 @@ function tagText(video: Record<string, any>) {
 
 function Explorer() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const router = useRouter();
   const search = useSearchParams();
   const access = useYoutubeAccess();
@@ -85,7 +86,7 @@ function Explorer() {
         <AdminButton
           variant="primary"
           disabled={selected.length < 2}
-          onClick={() => router.push(`/admin/youtube-research/compare?ids=${selected.join(',')}`)}
+          onClick={() => router.push(`${base}/compare?ids=${selected.join(',')}`)}
         >
           Compare videos{selected.length ? ` (${selected.length})` : ''}
         </AdminButton>
@@ -139,7 +140,7 @@ function Explorer() {
         }}
         selectedCount={selected.length}
         compareDisabled={selected.length < 2}
-        onCompare={() => router.push(`/admin/youtube-research/compare?ids=${selected.join(',')}`)}
+        onCompare={() => router.push(`${base}/compare?ids=${selected.join(',')}`)}
       />
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -200,7 +201,7 @@ function Explorer() {
                 <AdminButton variant="primary" onClick={() => saveResearch().catch((err) => setError(err.message))}>Save research</AdminButton>
               </section>
             ) : null}
-            <div className="mt-4"><Link className="text-sm font-semibold text-slate-600" href={`/admin/youtube-research/compare?ids=${detail.id}`}>Add to comparison from the list</Link></div>
+            <div className="mt-4"><Link className="text-sm font-semibold text-slate-600" href={`${base}/compare?ids=${detail.id}`}>Add to comparison from the list</Link></div>
             <AdminButton className="mt-4" onClick={() => setDetail(null)}>Close</AdminButton>
           </div>
         </div>

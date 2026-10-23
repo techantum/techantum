@@ -3,6 +3,7 @@ import { parseModelJson } from '../ai/json';
 import { q } from '../finance/db';
 import { FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { presentVideo } from './mask';
+import { assertYoutubeProject } from './scope';
 import { categoryLabel, contentLabel, isPaidPlacement, SHORT_MAX_SECONDS, YOUTUBE_METRIC_NOTICE } from './parse';
 
 const FROM = `FROM youtube_videos v
@@ -376,6 +377,7 @@ function orderSql(lens: AnalysisLens) {
 }
 
 async function requireProject(id: string) {
+  await assertYoutubeProject(id);
   const { rows } = await q(undefined, `SELECT id, name FROM youtube_research_projects WHERE id=$1`, [id]);
   if (!rows[0]) throw new FinanceNotFoundError('Research project not found');
   return rows[0];

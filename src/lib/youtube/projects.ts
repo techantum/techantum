@@ -4,6 +4,7 @@ import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } fr
 import { categoryLabel, contentLabel, isPaidPlacement, SHORT_MAX_SECONDS, YOUTUBE_METRIC_NOTICE } from './parse';
 import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, performanceSummary, startImport } from './service';
+import { currentYoutubePartnerId } from './scope';
 
 export const LEGACY_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';
 
@@ -36,7 +37,8 @@ async function audit(userId: string, action: string, entityId: string | null, me
 
 const requireProject = cache(async (id: string) => {
   const { rows } = await q(undefined, `SELECT * FROM youtube_research_projects WHERE id=$1`, [id]);
-  if (!rows[0]) throw new FinanceNotFoundError('Research project not found');
+  const partnerId = currentYoutubePartnerId();
+  if (!rows[0] || (partnerId && rows[0].partner_id !== partnerId)) throw new FinanceNotFoundError('Research project not found');
   return rows[0];
 });
 
@@ -45,6 +47,13 @@ export async function listProjects(params: { q?: string; status?: string; page?:
   const pageSize = Math.min(50, Math.max(1, Number(params.pageSize) || 20));
   const values: unknown[] = [];
   const where = ['1=1'];
+  const partnerId = currentYoutubePartnerId();
+  if (partnerId) {
+    values.push(partnerId);
+    where.push(`p.partner_id=$${values.length}`);
+  } else {
+    where.push('p.partner_id IS NULL');
+  }
   if (params.status === 'active' || params.status === 'archived') {
     values.push(params.status);
     where.push(`p.status=$${values.length}`);
@@ -98,9 +107,9 @@ export async function createProject(body: Record<string, unknown>, userId: strin
   if (!name || name.length < 2) throw new FinanceValidationError('Project name is required.');
   const { rows } = await q(
     undefined,
-    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-    [name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status), userId]
+    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status), userId, currentYoutubePartnerId()]
   );
   await audit(userId, 'YouTube Project Created', rows[0].id, { name });
   return rows[0];
@@ -522,6 +531,7 @@ export async function projectFilterOptions(projectId: string, channelIds?: strin
 }
 
 export async function compareProjectVideos(projectId: string, ids: string[]) {
+  await requireProject(projectId);
   const unique = [...new Set(ids.filter(Boolean))].slice(0, 6);
   if (unique.length < 2) throw new FinanceValidationError('Select at least two videos.');
   const filter = videoWhere({ projectId, channelIds: [] });
