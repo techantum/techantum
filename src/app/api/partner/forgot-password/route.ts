@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
 import { sendPartnerPasswordResetEmail } from '@/lib/email/partner-emails';
 
 export async function POST(request: Request) {
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
     const redirectTo = `${siteUrl.replace(/\/$/, '')}/partner/reset-password`;
 
-    const { data, error } = await supabase.auth.admin.generateLink({
+    const { data, error } = await createAuthAdminClient().auth.admin.generateLink({
       type: 'recovery',
       email: normalizedEmail,
       options: { redirectTo },

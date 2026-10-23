@@ -213,7 +213,7 @@ export async function deletePartnerTeamMember(input: {
   if (error) return { ok: false, error: error.message || 'Failed to delete team member' };
 
   if (member.user_id) {
-    await supabase.auth.admin.deleteUser(member.user_id).catch(() => undefined);
+    await createAuthAdminClient().auth.admin.deleteUser(member.user_id).catch(() => undefined);
   }
 
   await supabase.from('partner_activity_logs').insert({

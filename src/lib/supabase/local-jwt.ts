@@ -8,6 +8,12 @@ export function getAuthSupabaseUrl() {
   return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isAuthUserId(value: unknown): value is string {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
 export function mintServiceRoleJwt() {
   const secret = process.env.POSTGREST_JWT_SECRET?.trim();
   if (!secret) {

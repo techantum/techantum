@@ -18,14 +18,21 @@ export async function GET(request: Request) {
   }
 
   const partnerUser = invite.partner_users as {
-    email: string;
-    full_name: string;
-  };
+    email?: string;
+    full_name?: string;
+  } | null;
   const partner = invite.partners as {
-    company_name: string;
-    partner_code: string;
+    company_name?: string;
+    partner_code?: string;
     logo_url?: string | null;
-  };
+  } | null;
+
+  if (!partnerUser?.email || !partner?.company_name) {
+    return NextResponse.json({
+      valid: false,
+      error: 'Invalid or expired invite link.',
+    });
+  }
 
   return NextResponse.json({
     valid: true,

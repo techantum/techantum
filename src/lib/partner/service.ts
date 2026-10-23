@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createAuthAdminClient, setAuthUserPassword } from '@/lib/supabase/admin';
 import { sendPartnerInviteEmail } from '@/lib/email/partner-emails';
 import type { CreatePartnerInput, Partner } from './types';
 
@@ -216,7 +216,16 @@ export async function validateInviteToken(token: string) {
   if (!invite) return null;
   if (new Date(invite.expires_at) < new Date()) return null;
 
-  return invite;
+  return {
+    ...invite,
+    partners: firstRelated(invite.partners),
+    partner_users: firstRelated(invite.partner_users),
+  };
+}
+
+function firstRelated<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
 }
 
 export async function completePartnerOnboarding(
@@ -230,16 +239,22 @@ export async function completePartnerOnboarding(
     return { ok: false, error: 'Invalid or expired invite link. Please contact TechAntum for a new invite.' };
   }
 
-  const partnerUser = invite.partner_users as { user_id: string; id: string; email: string };
-  const partner = invite.partners as { id: string };
+  const partnerUser = invite.partner_users as { user_id: string; id: string; email: string } | null;
+  const partner = invite.partners as { id: string } | null;
 
-  const { error: updateError } = await supabase.auth.admin.updateUserById(partnerUser.user_id, {
-    password,
-    email_confirm: true,
-  });
+  if (!partnerUser?.email || !partner?.id) {
+    return { ok: false, error: 'Invalid or expired invite link. Please contact TechAntum for a new invite.' };
+  }
 
-  if (updateError) {
-    return { ok: false, error: updateError.message };
+  let authUserId: string;
+  try {
+    authUserId = await setAuthUserPassword(partnerUser.email, password, partnerUser.user_id);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Could not set the password.' };
+  }
+
+  if (authUserId !== partnerUser.user_id) {
+    await supabase.from('partner_users').update({ user_id: authUserId }).eq('id', partnerUser.id);
   }
 
   const now = new Date().toISOString();

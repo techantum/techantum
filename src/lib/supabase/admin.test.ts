@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getAuthSupabaseUrl, getLocalRestUrl } from './local-jwt.ts';
+import { getAuthSupabaseUrl, getLocalRestUrl, isAuthUserId } from './local-jwt.ts';
 
 describe('Supabase Auth Admin URL', () => {
   it('uses the real Supabase URL even when LOCAL_REST_URL is set', () => {
@@ -17,5 +17,12 @@ describe('Supabase Auth Admin URL', () => {
       if (previousUrl === undefined) delete process.env.SUPABASE_URL;
       else process.env.SUPABASE_URL = previousUrl;
     }
+  });
+
+  it('accepts only a UUID as an Auth user id', () => {
+    assert.equal(isAuthUserId('9c4e4a2e-6d1f-4c3b-9f10-0a1b2c3d4e5f'), true);
+    assert.equal(isAuthUserId(''), false);
+    assert.equal(isAuthUserId('undefined'), false);
+    assert.equal(isAuthUserId(null), false);
   });
 });
