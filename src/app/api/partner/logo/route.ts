@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePartner, requirePartnerAdmin } from '@/lib/partner/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { parseBrandColor } from '@/lib/email/template';
 import { saveUploadedFile } from '@/lib/storage/local';
 import { optimizeUploadedImage } from '@/lib/image/optimize';
 
@@ -26,6 +27,7 @@ export async function GET() {
   return NextResponse.json({
     company_name: auth.partner.company_name,
     logo_url: auth.partner.logo_url ?? null,
+    primary_color: auth.partner.primary_color ?? null,
     partner_code: auth.partner.partner_code,
   });
 }
@@ -72,6 +74,22 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Upload failed' }, { status: 500 });
   }
+}
+
+export async function PATCH(request: Request) {
+  const auth = await requirePartnerAdmin();
+  if ('error' in auth) return auth.error;
+
+  const body = await request.json().catch(() => ({}));
+  const parsed = parseBrandColor(body.primaryColor);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: 'Enter a brand color as a 6-digit hex value, such as #1F4B99.' }, { status: 400 });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from('partners').update({ primary_color: parsed.color }).eq('id', auth.partner.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ primary_color: parsed.color });
 }
 
 export async function DELETE() {

@@ -68,19 +68,81 @@ function ChannelCard({ row }: { row: Record<string, any> }) {
   );
 }
 
+function ChannelDraftForm({
+  relationship,
+  projectId,
+  hasOwn,
+  onSaved,
+  onCancel,
+}: {
+  relationship: 'own' | 'competitor';
+  projectId: string;
+  hasOwn: boolean;
+  onSaved: () => Promise<void>;
+  onCancel?: () => void;
+}) {
+  const [input, setInput] = useState('');
+  const [preview, setPreview] = useState<Record<string, any> | null>(null);
+  const [error, setError] = useState('');
+
+  const fetchChannel = async () => {
+    setError('');
+    setPreview(null);
+    try {
+      setPreview(await yt('channels/resolve', { method: 'POST', body: JSON.stringify({ input }) }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not fetch the channel');
+    }
+  };
+
+  const save = async () => {
+    setError('');
+    try {
+      if (relationship === 'own' && hasOwn && !window.confirm('Replace the current own channel? The previous one stays in the project as a competitor.')) return;
+      await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input, relationship }) });
+      setPreview(null);
+      setInput('');
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the channel');
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-sm font-semibold text-slate-800">{relationship === 'own' ? 'Add own channel' : 'Add competitor'}</p>
+      {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+        <input className={control} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Channel URL, @handle, or ID" />
+        <AdminButton variant="primary" onClick={fetchChannel}>Fetch</AdminButton>
+        <AdminButton onClick={() => { setInput(''); setPreview(null); setError(''); onCancel?.(); }}>Cancel</AdminButton>
+      </div>
+      {preview ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+          {preview.thumbnailUrl ? <img src={preview.thumbnailUrl} alt="" className="h-10 w-10 rounded-full object-cover" /> : null}
+          <div className="min-w-0">
+            <p className="font-semibold">{preview.channelName}</p>
+            <p className="text-slate-500">{preview.channelHandle ? `@${preview.channelHandle}` : preview.youtubeChannelId} · {metric(preview.subscriberCount)} subscribers</p>
+          </div>
+          <AdminButton variant="primary" onClick={save}>Save in project</AdminButton>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Channels() {
   const projectId = useProjectId();
   const base = useYoutubePageBase();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
-  const [draft, setDraft] = useState({ input: '', relationship: 'own' });
-  const [preview, setPreview] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [adding, setAdding] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState('');
+  const [competitorOpen, setCompetitorOpen] = useState(false);
+  const [replacingOwn, setReplacingOwn] = useState(false);
 
   const load = () => yt(`projects/${projectId}/channels`).then((next) => {
     setRows(next);
@@ -94,38 +156,6 @@ function Channels() {
   const own = rows.find((row) => row.relationship === 'own');
   const competitors = rows.filter((row) => row.relationship === 'competitor');
   const imported = rows.reduce((sum, row) => sum + Number(row.videos_imported || 0), 0);
-
-  const startAdd = (relationship: string) => {
-    setDraft({ input: '', relationship });
-    setPreview(null);
-    setAdding(true);
-    setError('');
-  };
-
-  const fetchChannel = async () => {
-    setError('');
-    setPreview(null);
-    try {
-      setPreview(await yt('channels/resolve', { method: 'POST', body: JSON.stringify({ input: draft.input }) }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not fetch the channel');
-    }
-  };
-
-  const save = async () => {
-    setError('');
-    try {
-      if (draft.relationship === 'own' && own && !window.confirm('Replace the current own channel? The previous one stays in the project as a competitor.')) return;
-      await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify(draft) });
-      setPreview(null);
-      setDraft({ input: '', relationship: own ? 'competitor' : 'own' });
-      setAdding(false);
-      setMessage('Channel saved in this project.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the channel');
-    }
-  };
 
   const remove = async (row: Record<string, string>) => {
     if (!window.confirm(`Remove ${row.channel_name || row.youtube_channel_id} from this project? Videos and notes stay available to other projects.`)) return;
@@ -143,27 +173,6 @@ function Channels() {
       setBusy('');
     }
   };
-
-  const addForm = (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm font-semibold text-slate-800">{draft.relationship === 'own' ? 'Add own channel' : 'Add competitor'}</p>
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-        <input className={control} value={draft.input} onChange={(event) => setDraft({ ...draft, input: event.target.value })} placeholder="Channel URL, @handle, or ID" />
-        <AdminButton variant="primary" onClick={fetchChannel}>Fetch</AdminButton>
-        <AdminButton onClick={() => { setAdding(false); setPreview(null); }}>Cancel</AdminButton>
-      </div>
-      {preview ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          {preview.thumbnailUrl ? <img src={preview.thumbnailUrl} alt="" className="h-10 w-10 rounded-full object-cover" /> : null}
-          <div className="min-w-0">
-            <p className="font-semibold">{preview.channelName}</p>
-            <p className="text-slate-500">{preview.channelHandle ? `@${preview.channelHandle}` : preview.youtubeChannelId} · {metric(preview.subscriberCount)} subscribers</p>
-          </div>
-          <AdminButton variant="primary" onClick={save}>Save in project</AdminButton>
-        </div>
-      ) : null}
-    </div>
-  );
 
   return (
     <div className="space-y-4">
@@ -199,11 +208,25 @@ function Channels() {
                 <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
                 <Action href={`${base}/import?channel=${own.id}`} icon="ArrowDownTrayIcon" label="Import" />
                 {manage ? <Action icon="ArrowPathIcon" label={busy === own.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(own)} /> : null}
-                {manage ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => startAdd('own')} /> : null}
+                {manage ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => setReplacingOwn(true)} /> : null}
               </div>
             </>
           ) : <p className="text-sm text-slate-500">No own channel yet. Add your YouTube channel to begin competitor research.</p>}
-          {manage && ((adding && draft.relationship === 'own') || !own) ? <div className="mt-4">{addForm}</div> : null}
+          {manage && projectId && (!own || replacingOwn) ? (
+            <div className="mt-4">
+              <ChannelDraftForm
+                relationship="own"
+                projectId={projectId}
+                hasOwn={Boolean(own)}
+                onSaved={async () => {
+                  setReplacingOwn(false);
+                  setMessage('Own channel saved in this project.');
+                  await load();
+                }}
+                onCancel={own ? () => setReplacingOwn(false) : undefined}
+              />
+            </div>
+          ) : null}
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="mb-5 flex items-center justify-between gap-2">
@@ -211,7 +234,7 @@ function Channels() {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Icon name="UserGroupIcon" size={16} /></span>
               <h2 className="text-base font-semibold text-slate-900">Competitor Channels ({competitors.length})</h2>
             </div>
-            {manage ? <AdminButton size="sm" variant="primary" onClick={() => startAdd('competitor')}>+ Add competitor</AdminButton> : null}
+            {manage ? <AdminButton size="sm" variant="primary" onClick={() => setCompetitorOpen(true)}>+ Add competitor</AdminButton> : null}
           </div>
           {competitors.length ? competitors.map((row) => (
             <div key={row.id} className="border-t border-slate-100 py-5 first:border-t-0 first:pt-0">
@@ -225,7 +248,21 @@ function Channels() {
               </div>
             </div>
           )) : <p className="text-sm text-slate-500">Add competitor channels to start comparing content.</p>}
-          {manage && adding && draft.relationship === 'competitor' ? <div className="mt-4">{addForm}</div> : null}
+          {manage && projectId && competitorOpen ? (
+            <div className="mt-4">
+              <ChannelDraftForm
+                relationship="competitor"
+                projectId={projectId}
+                hasOwn={Boolean(own)}
+                onSaved={async () => {
+                  setCompetitorOpen(false);
+                  setMessage('Competitor channel saved in this project.');
+                  await load();
+                }}
+                onCancel={() => setCompetitorOpen(false)}
+              />
+            </div>
+          ) : null}
         </section>
       </div>
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -262,7 +299,7 @@ function Channels() {
                       <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
                       <Action href={`${base}/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
                       {manage ? <Action icon="ArrowPathIcon" label="Refresh" tone="accent" onClick={() => refresh(row)} /> : null}
-                      {manage && row.relationship === 'own' ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => startAdd('own')} /> : null}
+                      {manage && row.relationship === 'own' ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => setReplacingOwn(true)} /> : null}
                       {manage && row.relationship !== 'own' ? <Action icon="TrashIcon" label="Remove" tone="accent" onClick={() => remove(row)} /> : null}
                     </span>
                   </td>

@@ -1,13 +1,7 @@
-import { randomBytes } from 'crypto';
 import { createAdminClient, createAuthAdminClient, setAuthUserPassword } from '@/lib/supabase/admin';
 import { sendPartnerInviteEmail } from '@/lib/email/partner-emails';
+import { classifyInvite, generateInviteToken, hashInviteToken, inviteExpiryDate, inviteStatusMessage } from './invite-token';
 import type { CreatePartnerInput, Partner } from './types';
-
-const INVITE_EXPIRY_DAYS = 7;
-
-function generateInviteToken(): string {
-  return randomBytes(32).toString('hex');
-}
 
 export async function createPartnerWithInvite(
   input: CreatePartnerInput
@@ -93,13 +87,15 @@ export async function createPartnerWithInvite(
     throw new Error(userError?.message || 'Failed to create partner user');
   }
 
-  const token = generateInviteToken();
-  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  const rawToken = generateInviteToken();
+  const tokenHash = hashInviteToken(rawToken);
+  const expiresAt = inviteExpiryDate();
 
   const { error: inviteError } = await supabase.from('partner_invites').insert({
     partner_id: partner.id,
     partner_user_id: partnerUser.id,
-    token,
+    token: tokenHash,
+    token_hash: tokenHash,
     expires_at: expiresAt.toISOString(),
   });
 
@@ -108,7 +104,7 @@ export async function createPartnerWithInvite(
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3005';
-  const onboardUrl = `${siteUrl.replace(/\/$/, '')}/partner/onboard?token=${token}`;
+  const onboardUrl = `${siteUrl.replace(/\/$/, '')}/partner/onboard?token=${rawToken}`;
 
   const emailResult = await sendPartnerInviteEmail({
     to: email,
@@ -169,18 +165,20 @@ export async function resendPartnerInvite(partnerId: string): Promise<{ ok: bool
     .eq('partner_id', partnerId)
     .is('used_at', null);
 
-  const token = generateInviteToken();
-  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  const rawToken = generateInviteToken();
+  const tokenHash = hashInviteToken(rawToken);
+  const expiresAt = inviteExpiryDate();
 
   await supabase.from('partner_invites').insert({
     partner_id: partner.id,
     partner_user_id: partnerUser.id,
-    token,
+    token: tokenHash,
+    token_hash: tokenHash,
     expires_at: expiresAt.toISOString(),
   });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
-  const onboardUrl = `${siteUrl.replace(/\/$/, '')}/partner/onboard?token=${token}`;
+  const onboardUrl = `${siteUrl.replace(/\/$/, '')}/partner/onboard?token=${rawToken}`;
 
   const emailResult = await sendPartnerInviteEmail({
     to: partner.email,
@@ -203,25 +201,49 @@ export async function resendPartnerInvite(partnerId: string): Promise<{ ok: bool
   return emailResult;
 }
 
-export async function validateInviteToken(token: string) {
+const INVITE_COLUMNS = '*, partners(*), partner_users(*)';
+
+async function findInviteByToken(token: string) {
   const supabase = createAdminClient();
-
-  const { data: invite } = await supabase
+  const hash = hashInviteToken(token);
+  const hashed = await supabase
     .from('partner_invites')
-    .select('*, partners(*), partner_users(*)')
-    .eq('token', token)
-    .is('used_at', null)
+    .select(INVITE_COLUMNS)
+    .eq('token_hash', hash)
     .maybeSingle();
+  if (hashed.data) return hashed.data;
 
-  if (!invite) return null;
-  if (new Date(invite.expires_at) < new Date()) return null;
+  const legacy = await supabase
+    .from('partner_invites')
+    .select(INVITE_COLUMNS)
+    .eq('token', token)
+    .is('token_hash', null)
+    .maybeSingle();
+  return legacy.data;
+}
 
+function presentInvite<T extends { partners: unknown; partner_users: unknown }>(invite: T) {
   return {
     ...invite,
     partners: firstRelated(invite.partners),
     partner_users: firstRelated(invite.partner_users),
   };
 }
+
+export async function inspectInviteToken(token: string) {
+  const invite = await findInviteByToken(token);
+  if (!invite) return { status: 'invalid' as const, invite: null };
+  const presented = presentInvite(invite);
+  const status = classifyInvite(presented);
+  return { status, invite: presented };
+}
+
+export async function validateInviteToken(token: string) {
+  const result = await inspectInviteToken(token);
+  return result.status === 'valid' ? result.invite : null;
+}
+
+export { inviteStatusMessage };
 
 function firstRelated<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -233,17 +255,21 @@ export async function completePartnerOnboarding(
   password: string
 ): Promise<{ ok: boolean; email?: string; error?: string }> {
   const supabase = createAdminClient();
-  const invite = await validateInviteToken(token);
+  const inspected = await inspectInviteToken(token);
 
-  if (!invite) {
-    return { ok: false, error: 'Invalid or expired invite link. Please contact TechAntum for a new invite.' };
+  if (inspected.status !== 'valid' || !inspected.invite) {
+    return { ok: false, error: inviteStatusMessage(inspected.status === 'valid' ? 'invalid' : inspected.status) };
   }
+  const invite = inspected.invite;
 
-  const partnerUser = invite.partner_users as { user_id: string; id: string; email: string } | null;
+  const partnerUser = invite.partner_users as { user_id: string; id: string; email: string; partner_id?: string } | null;
   const partner = invite.partners as { id: string } | null;
 
   if (!partnerUser?.email || !partner?.id) {
-    return { ok: false, error: 'Invalid or expired invite link. Please contact TechAntum for a new invite.' };
+    return { ok: false, error: 'Invalid or expired invite link. Please contact your team admin for a new invite.' };
+  }
+  if (partnerUser.partner_id && partnerUser.partner_id !== partner.id) {
+    return { ok: false, error: 'This invitation does not belong to this organization.' };
   }
 
   let authUserId: string;

@@ -16,6 +16,7 @@ export default function PartnerProfilePage() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [partnerUser, setPartnerUser] = useState<PartnerUser | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [color, setColor] = useState('#334155');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -25,6 +26,7 @@ export default function PartnerProfilePage() {
       .then((data) => {
         setPartner(data.partner);
         setPartnerUser(data.partnerUser);
+        if (data.partner?.primary_color) setColor(data.partner.primary_color);
       });
   };
 
@@ -49,6 +51,27 @@ export default function PartnerProfilePage() {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const saveColor = async () => {
+    setUploading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch('/api/partner/logo', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primaryColor: color }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not save the brand color');
+      setPartner((prev) => (prev ? { ...prev, primary_color: data.primary_color } : prev));
+      setMessage('Brand color saved. Team invitations will use it on the button.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the brand color');
     } finally {
       setUploading(false);
     }
@@ -123,6 +146,26 @@ export default function PartnerProfilePage() {
               </button>
             ) : null}
             {uploading ? <p className="text-xs text-slate-500">Uploading…</p> : null}
+            <div className="pt-3">
+              <p className="text-sm font-semibold text-slate-900">Invitation button color</p>
+              <p className="mt-1 mb-2 text-xs text-slate-500">Used on the Set Password button in team invitation emails.</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={/^#[0-9A-Fa-f]{6}$/.test(color) ? color.toLowerCase() : '#334155'}
+                  onChange={(e) => setColor(e.target.value.toUpperCase())}
+                  className="h-10 w-14 cursor-pointer rounded border border-slate-200 bg-white p-1"
+                />
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={() => void saveColor()}
+                  className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  Save color
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="text-xs text-slate-500">Ask a partner admin to change the company logo.</p>

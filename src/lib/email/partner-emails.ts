@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
-import { PARTNER_TYPE_LABELS, type PartnerType } from '@/lib/partner/types';
-import { escapeHtml, formatEmailDate, loadEmailBrand, renderBrandedEmail, type EmailBrand } from '@/lib/email/template';
+import type { PartnerType } from '@/lib/partner/types';
+import { escapeHtml, formatEmailDate, loadEmailBrand, renderBrandedEmail, renderPartnerInvitationEmail, renderPartnerTeamInvitationEmail, type EmailBrand } from '@/lib/email/template';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -14,19 +14,11 @@ export interface PartnerInviteEmailData {
 }
 
 function buildPartnerInviteHtml(brand: EmailBrand, data: PartnerInviteEmailData): string {
-  const typeLabel = PARTNER_TYPE_LABELS[data.partnerType] || data.partnerType;
-  return renderBrandedEmail(brand, {
-    kicker: 'PARTNER PORTAL',
-    title: 'Partner invitation',
-    subtitle: `You're invited to join as a ${typeLabel}.`,
-    facts: [
-      { label: 'Company', value: data.companyName },
-      { label: 'Partner ID', value: data.partnerCode },
-    ],
-    bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(data.contactName)},</p>
-      <p style="margin:0;">Your Partner Portal account is ready. Set a password to finish onboarding. This link expires in 7 days.</p>
-      <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#94a3b8;">If the button does not work, copy this link:<br><a href="${escapeHtml(data.onboardUrl)}" style="color:#EF4323;word-break:break-all;">${escapeHtml(data.onboardUrl)}</a></p>`,
-    action: { href: data.onboardUrl, label: 'Set password' },
+  return renderPartnerInvitationEmail(brand, {
+    contactName: data.contactName,
+    companyName: data.companyName,
+    onboardUrl: data.onboardUrl,
+    audience: 'partner',
   });
 }
 
@@ -43,7 +35,7 @@ export async function sendPartnerInviteEmail(
   const { error } = await resend.emails.send({
     from,
     to: [data.to],
-    subject: `Welcome to TechAntum Partner Portal — Set Your Password (${data.partnerCode})`,
+    subject: `Welcome to Techantum Partner Portal — set your password`,
     html: buildPartnerInviteHtml(brand, data),
   });
 
@@ -227,8 +219,18 @@ export interface PartnerTeamInviteEmailData {
   to: string;
   contactName: string;
   companyName: string;
-  partnerCode: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
   onboardUrl: string;
+  expiryDays?: number;
+}
+
+function partnerFromAddress(partnerName: string) {
+  const configured = process.env.RESEND_FROM_EMAIL || 'invites@techantum.com';
+  const match = configured.match(/<([^>]+)>/);
+  const email = (match?.[1] || configured).replace(/[\r\n<>]/g, '').trim();
+  const name = partnerName.replace(/[\r\n<>"]/g, ' ').replace(/\s+/g, ' ').trim() || 'Team';
+  return `${name} <${email}>`;
 }
 
 export async function sendPartnerTeamInviteEmail(
@@ -238,25 +240,24 @@ export async function sendPartnerTeamInviteEmail(
     return { ok: false, error: 'RESEND_API_KEY is not configured' };
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || 'TechAntum <info@techantum.com>';
-  const brand = await loadEmailBrand();
+  const partnerName = data.companyName.replace(/[\r\n]/g, ' ').trim();
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://techantum.com').replace(/\/$/, '');
+  const message = renderPartnerTeamInvitationEmail({
+    partnerName,
+    inviteeName: data.contactName,
+    logoUrl: data.logoUrl,
+    primaryColor: data.primaryColor,
+    invitationUrl: data.onboardUrl,
+    expiryDays: data.expiryDays,
+    siteUrl,
+  });
 
   const { error } = await resend.emails.send({
-    from,
+    from: partnerFromAddress(partnerName),
     to: [data.to],
-    subject: `You're invited to ${data.companyName} on TechAntum Partner Portal`,
-    html: renderBrandedEmail(brand, {
-      kicker: 'PARTNER PORTAL',
-      title: 'Team invitation',
-      subtitle: 'This link expires in 7 days.',
-      facts: [
-        { label: 'Company', value: data.companyName },
-        { label: 'Partner ID', value: data.partnerCode },
-      ],
-      bodyHtml: `<p style="margin:0 0 12px;">Dear ${escapeHtml(data.contactName)},</p>
-        <p style="margin:0;">You've been invited to join ${escapeHtml(data.companyName)} on the Partner Portal.</p>`,
-      action: { href: data.onboardUrl, label: 'Set password' },
-    }),
+    subject: `You're Invited to Join ${partnerName}`,
+    html: message.html,
+    text: message.text,
   });
 
   if (error) return { ok: false, error: error.message };

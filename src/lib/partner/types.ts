@@ -30,6 +30,7 @@ export interface Partner {
   notes: string | null;
   lead_discovery_enabled?: boolean;
   logo_url?: string | null;
+  primary_color?: string | null;
   joined_at: string | null;
   created_at: string;
   updated_at: string;
