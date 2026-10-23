@@ -30,6 +30,7 @@ export async function fetchCanonicalHostPreference(): Promise<CanonicalHost> {
             Authorization: `Bearer ${supabaseKey}`,
           },
           next: { revalidate: 300 },
+          signal: AbortSignal.timeout(1500),
         }
       );
       if (res.ok) {

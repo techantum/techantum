@@ -36,11 +36,11 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
   }, [pathname]);
 
   useEffect(() => {
-    fetch('/api/partner/notifications')
+    fetch('/api/partner/notifications?countOnly=1')
       .then((r) => r.json())
       .then((data) => setUnreadCount(data.unreadCount ?? 0))
       .catch(() => setUnreadCount(0));
-  }, [pathname]);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -84,7 +84,7 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
               }`}
             >
               <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                   active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
                 }`}
               >
@@ -95,12 +95,34 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
           );
         })}
       </nav>
+      <div className="border-t border-slate-100 p-3">
+        <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Icon name="ChatBubbleLeftRightIcon" size={16} className="text-secondary" />
+            Need help?
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">Get support or share feedback with our team.</p>
+          <Link
+            href="/partner/support"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-secondary hover:underline"
+          >
+            Contact Support →
+          </Link>
+        </div>
+        <Link
+          href="/partner/profile"
+          className="mt-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+          aria-label="Profile settings"
+        >
+          <Icon name="Cog6ToothIcon" size={16} />
+        </Link>
+      </div>
     </div>
   );
 
   return (
     <PartnerAccessContext.Provider value={{ partner, partnerUser }}>
-      <div className="admin-shell min-h-screen bg-slate-50">
+      <div className="admin-shell partner-shell min-h-screen bg-slate-50">
         <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <button

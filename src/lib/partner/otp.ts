@@ -56,6 +56,13 @@ export async function verifyLoginOtp(partnerUserId: string, code: string): Promi
   return true;
 }
 
+export function isOtpStale(lastVerifiedAt: string | null | undefined): boolean {
+  if (!isPartnerOtpEnabled()) return false;
+  if (!lastVerifiedAt) return true;
+  const verifiedAt = new Date(lastVerifiedAt).getTime();
+  return verifiedAt < Date.now() - 12 * 60 * 60 * 1000;
+}
+
 export async function isOtpVerificationRequired(partnerUserId: string): Promise<boolean> {
   if (!isPartnerOtpEnabled()) return false;
 
@@ -66,9 +73,5 @@ export async function isOtpVerificationRequired(partnerUserId: string): Promise<
     .eq('id', partnerUserId)
     .maybeSingle();
 
-  if (!user?.last_otp_verified_at) return true;
-
-  const verifiedAt = new Date(user.last_otp_verified_at).getTime();
-  const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
-  return verifiedAt < twelveHoursAgo;
+  return isOtpStale(user?.last_otp_verified_at);
 }

@@ -1,20 +1,16 @@
 import Icon from '@/components/ui/AppIcon';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { PartnerPageHero, partnerCard } from '@/components/partner/PartnerUi';
 
 export default function PartnerSupportPage() {
   return (
-    <div className="w-full space-y-6">
-      <AdminPageHeader
-        kicker="Partner portal"
+    <div className="w-full space-y-5">
+      <PartnerPageHero
         title="Partner support"
         description="Get help with the partner portal and requirement submissions."
       />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <a
-          href="mailto:info@techantum.com"
-          className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-secondary/40"
-        >
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-white">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <a href="mailto:info@techantum.com" className={`flex items-center gap-4 ${partnerCard} p-5 transition hover:border-secondary/40`}>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-rose-600">
             <Icon name="EnvelopeIcon" size={20} />
           </span>
           <div>
@@ -22,11 +18,8 @@ export default function PartnerSupportPage() {
             <p className="text-sm text-slate-500">info@techantum.com</p>
           </div>
         </a>
-        <a
-          href="mailto:sales@techantum.com"
-          className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-secondary/40"
-        >
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-white">
+        <a href="mailto:sales@techantum.com" className={`flex items-center gap-4 ${partnerCard} p-5 transition hover:border-secondary/40`}>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-50 text-sky-600">
             <Icon name="PhoneIcon" size={20} />
           </span>
           <div>

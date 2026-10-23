@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Icon from '@/components/ui/AppIcon';
 import type { PartnerNotification } from '@/lib/partner/notifications';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { PartnerEmpty, PartnerPageHero, partnerCard } from '@/components/partner/PartnerUi';
 
 export default function PartnerNotificationsPage() {
   const [notifications, setNotifications] = useState<PartnerNotification[]>([]);
@@ -41,18 +40,13 @@ export default function PartnerNotificationsPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
-      <AdminPageHeader
-        kicker="Partner portal"
+    <div className="w-full space-y-5">
+      <PartnerPageHero
         title="Notifications"
         description="Updates on your requirements and proposals."
         action={
           notifications.some((n) => !n.read_at) ? (
-            <button
-              type="button"
-              onClick={markAllRead}
-              className="text-sm font-semibold text-secondary hover:underline"
-            >
+            <button type="button" onClick={markAllRead} className="text-sm font-semibold text-secondary hover:underline">
               Mark all read
             </button>
           ) : null
@@ -60,20 +54,15 @@ export default function PartnerNotificationsPage() {
       />
 
       {loading ? (
-        <p className="text-slate-500 text-sm">Loading…</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : notifications.length === 0 ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <Icon name="BellIcon" size={40} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-600">No notifications yet.</p>
-        </div>
+        <PartnerEmpty icon="BellIcon" title="No notifications yet." />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`rounded-3xl border bg-white p-4 shadow-sm ${
-                n.read_at ? 'border-slate-200' : 'border-orange-200 bg-orange-50/50'
-              }`}
+              className={`${partnerCard} p-4 ${n.read_at ? '' : 'border-orange-100 bg-orange-50/60'}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

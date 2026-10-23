@@ -9,28 +9,21 @@ import {
   type PartnerUser,
 } from '@/lib/partner/types';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { PartnerAlert, PartnerPageHero, partnerCard } from '@/components/partner/PartnerUi';
+import { usePartnerAccess } from '@/components/partner/PartnerShell';
 
 export default function PartnerProfilePage() {
   const router = useRouter();
-  const [partner, setPartner] = useState<Partner | null>(null);
-  const [partnerUser, setPartnerUser] = useState<PartnerUser | null>(null);
+  const access = usePartnerAccess();
+  const [partner, setPartner] = useState<Partner | null>(access?.partner ?? null);
+  const partnerUser = access?.partnerUser ?? null;
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const load = () => {
-    fetch('/api/partner/dashboard')
-      .then((r) => r.json())
-      .then((data) => {
-        setPartner(data.partner);
-        setPartnerUser(data.partnerUser);
-      });
-  };
-
   useEffect(() => {
-    load();
-  }, []);
+    if (access?.partner) setPartner(access.partner);
+  }, [access?.partner]);
 
   const isAdmin = partnerUser?.role === 'partner_admin';
 
@@ -77,15 +70,11 @@ export default function PartnerProfilePage() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <AdminPageHeader
-        kicker="Partner portal"
-        title="Partner profile"
-        description="Company details and portal branding."
-      />
+    <div className="w-full space-y-5">
+      <PartnerPageHero title="Partner profile" description="Company details and portal branding." />
 
-      <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <div className={`${partnerCard} p-5`}>
         <p className="mb-1 text-sm font-semibold text-slate-900">Partner logo</p>
         <p className="mb-4 text-xs text-slate-500">
           This logo is shown in the header, footer, and partner login.
@@ -128,14 +117,18 @@ export default function PartnerProfilePage() {
           <p className="text-xs text-slate-500">Ask a partner admin to change the company logo.</p>
         )}
         {message ? (
-          <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{message}</p>
+          <div className="mt-3">
+            <PartnerAlert variant="success">{message}</PartnerAlert>
+          </div>
         ) : null}
         {error ? (
-          <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+          <div className="mt-3">
+            <PartnerAlert variant="error">{error}</PartnerAlert>
+          </div>
         ) : null}
       </div>
 
-      <div className="divide-y divide-slate-100 rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className={`divide-y divide-slate-50 ${partnerCard}`}>
         {[
           ['Partner ID', partner.partner_code],
           ['Company', partner.company_name],

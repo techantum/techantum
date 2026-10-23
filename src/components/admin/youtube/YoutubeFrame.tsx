@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import Icon from '@/components/ui/AppIcon';
+import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
 
 const YoutubeAccessContext = createContext<string[]>([]);
 
@@ -70,7 +71,7 @@ export function ProjectRequired({ children }: { children: React.ReactNode }) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
         <p className="text-sm text-slate-600">Choose a research project to continue.</p>
-        <Link href={base} className="mt-3 inline-flex rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white">Research Projects</Link>
+        <Link href={base} className={`mt-3 ${partnerBtnPrimary}`}>Research Projects</Link>
       </div>
     );
   }
@@ -272,11 +273,11 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               {manage && projectId ? (
-                <Link className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`${base}/projects/${projectId}/edit`}>
+                <Link className={partnerBtnSecondary} href={`${base}/projects/${projectId}/edit`}>
                   <Icon name="PencilSquareIcon" size={16} /> Edit Project
                 </Link>
               ) : null}
-              <Link className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white" href={base}>
+              <Link className={partnerBtnPrimary} href={base}>
                 <Icon name="ArrowLeftIcon" size={16} /> Back to Projects
               </Link>
             </div>

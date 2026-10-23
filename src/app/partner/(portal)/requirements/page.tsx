@@ -7,6 +7,15 @@ import { REQUIREMENT_STATUS_LABELS, type RequirementRecord, type RequirementStat
 import { usePartnerAccess } from '@/components/partner/PartnerShell';
 import { partnerHasNavAccess } from '@/lib/partner/nav';
 import { ENGAGEMENT_TYPES } from '@/lib/partner/service-catalog';
+import {
+  PartnerEmpty,
+  PartnerPageHero,
+  PartnerStatTile,
+  partnerBtnPrimary,
+  partnerBtnSecondary,
+  partnerCard,
+  partnerInput,
+} from '@/components/partner/PartnerUi';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
@@ -43,11 +52,6 @@ function businessName(req: RequirementRecord): string {
   const fromData = req.business_data?.company_name;
   if (typeof fromData === 'string' && fromData.trim()) return fromData.trim();
   return req.project_name || 'Untitled project';
-}
-
-function percentOf(part: number, total: number): string {
-  if (!total) return '0% of total';
-  return `${Math.round((part / total) * 100)}% of total`;
 }
 
 export default function PartnerRequirementsPage() {
@@ -91,18 +95,7 @@ export default function PartnerRequirementsPage() {
     const inReview = requirements.filter((req) => req.status === 'submitted' || req.status === 'under_review' || req.status === 'need_clarification').length;
     const proposalReceived = requirements.filter((req) => req.status === 'proposal_sent' || req.proposal_sent_at).length;
     const quotationSent = requirements.filter((req) => req.status === 'approved' || req.status === 'won').length;
-    const now = new Date();
-    const thisMonth = requirements.filter((req) => {
-      const created = new Date(req.created_at);
-      return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-    }).length;
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonth = requirements.filter((req) => {
-      const created = new Date(req.created_at);
-      return created.getMonth() === lastMonthDate.getMonth() && created.getFullYear() === lastMonthDate.getFullYear();
-    }).length;
-    const delta = thisMonth - lastMonth;
-    return { total, inReview, proposalReceived, quotationSent, delta };
+    return { total, inReview, proposalReceived, quotationSent };
   }, [requirements]);
 
   const filtered = useMemo(() => {
@@ -147,73 +140,55 @@ export default function PartnerRequirementsPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">Requirements</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Track submissions, receive proposals and quotations, and manage requirement status.
-          </p>
-        </div>
-        {canCreateRequirement ? (
-          <Link
-            href="/partner/requirements/new"
-            className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
-          >
-            <Icon name="PlusIcon" size={16} />
-            New Requirement
-          </Link>
-        ) : null}
+    <div className="w-full space-y-5">
+      <PartnerPageHero
+        title="Requirements"
+        description="Track submissions, receive proposals and quotations, and manage requirement status."
+        action={
+          canCreateRequirement ? (
+            <Link href="/partner/requirements/new" className={partnerBtnPrimary}>
+              <Icon name="PlusIcon" size={16} />
+              Create new requirement
+            </Link>
+          ) : null
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <PartnerStatTile label="Total Requirements" value={stats.total} icon="DocumentTextIcon" tone="sky" href="/partner/requirements" />
+        <PartnerStatTile label="In Review" value={stats.inReview} icon="ClockIcon" tone="amber" />
+        <PartnerStatTile label="Proposal Received" value={stats.proposalReceived} icon="DocumentDuplicateIcon" tone="blue" />
+        <PartnerStatTile label="Quotation Sent" value={stats.quotationSent} icon="EnvelopeIcon" tone="emerald" />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: 'Total Requirements', value: stats.total, hint: `${stats.delta >= 0 ? '+' : ''}${stats.delta} vs last month`, icon: 'DocumentTextIcon', accent: 'text-secondary bg-orange-50' },
-          { label: 'In Review', value: stats.inReview, hint: percentOf(stats.inReview, stats.total), icon: 'ClockIcon', accent: 'text-amber-600 bg-amber-50' },
-          { label: 'Proposal Received', value: stats.proposalReceived, hint: percentOf(stats.proposalReceived, stats.total), icon: 'DocumentDuplicateIcon', accent: 'text-sky-600 bg-sky-50' },
-          { label: 'Quotation Sent', value: stats.quotationSent, hint: percentOf(stats.quotationSent, stats.total), icon: 'EnvelopeIcon', accent: 'text-emerald-600 bg-emerald-50' },
-        ].map((card) => (
-          <div key={card.label} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4">
-            <div>
-              <p className="text-sm text-slate-500">{card.label}</p>
-              <p className="mt-1 font-bricolage text-3xl font-bold text-slate-900">{card.value}</p>
-              <p className="mt-1 text-xs text-slate-400">{card.hint}</p>
-            </div>
-            <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.accent}`}>
-              <Icon name={card.icon} size={18} />
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 lg:flex-row lg:items-center">
+      <div className={`flex flex-col gap-3 ${partnerCard} p-3 lg:flex-row lg:items-center`}>
         <div className="relative min-w-0 flex-1">
           <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by reference, project name or service…"
-            className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm focus:border-transparent focus:ring-2 focus:ring-secondary/20"
+            className={`${partnerInput} pl-9`}
           />
         </div>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={partnerInput}>
           <option value="all">All Statuses</option>
           {Object.entries(LIST_STATUS_LABELS).map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
-        <select value={serviceFilter} onChange={(event) => setServiceFilter(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
+        <select value={serviceFilter} onChange={(event) => setServiceFilter(event.target.value)} className={partnerInput}>
           <option value="all">All Services</option>
           {services.map((name) => (
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
-        <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
+        <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className={partnerInput}>
           <option value="all">All Dates</option>
           <option value="30">Last 30 days</option>
           <option value="90">Last 90 days</option>
         </select>
-        <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
+        <select value={sort} onChange={(event) => setSort(event.target.value)} className={partnerInput}>
           <option value="newest">Sort by Newest First</option>
           <option value="oldest">Sort by Oldest First</option>
         </select>
@@ -222,16 +197,19 @@ export default function PartnerRequirementsPage() {
       {loading ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <p className="mb-4 text-slate-600">No requirements found.</p>
-          {canCreateRequirement ? (
-            <Link href="/partner/requirements/new" className="text-sm font-medium text-secondary hover:underline">
-              Create your first requirement →
-            </Link>
-          ) : null}
-        </div>
+        <PartnerEmpty
+          icon="ClipboardDocumentListIcon"
+          title="No requirements found."
+          action={
+            canCreateRequirement ? (
+              <Link href="/partner/requirements/new" className="text-sm font-semibold text-secondary hover:underline">
+                Create your first requirement →
+              </Link>
+            ) : null
+          }
+        />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <div className={`overflow-x-auto ${partnerCard}`}>
           <table className="w-full min-w-[1100px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
@@ -326,22 +304,19 @@ export default function PartnerRequirementsPage() {
         </div>
       )}
 
-      <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center">
+      <div className={`flex flex-col items-start justify-between gap-4 ${partnerCard} px-5 py-4 sm:flex-row sm:items-center`}>
         <div>
           <p className="font-medium text-slate-900">Need something custom?</p>
           <p className="mt-0.5 text-sm text-slate-500">
             Contact us for enterprise or bespoke solutions beyond standard packages.
           </p>
         </div>
-        <Link
-          href="/partner/support"
-          className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
+        <Link href="/partner/support" className={partnerBtnSecondary}>
           Request Custom Solution
         </Link>
       </div>
 
-      <div className="rounded-3xl border border-orange-100 bg-gradient-to-r from-orange-50 via-white to-violet-50 p-5 sm:p-6">
+      <div className="rounded-[28px] bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50 p-5 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-secondary">How it works</p>
         <h2 className="mt-1 font-bricolage text-xl font-bold text-slate-900">From Requirement to Quotation</h2>
         <ol className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">

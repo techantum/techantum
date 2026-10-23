@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminAlert from '@/components/admin/AdminAlert';
+import { PartnerPageHero } from '@/components/partner/PartnerUi';
 import LeadExportMenu from '@/components/admin/lead-discovery/LeadExportMenu';
 import LeadResultsTable from '@/components/admin/lead-discovery/LeadResultsTable';
 import { displaySearchName } from '@/lib/places/sheet-data';
@@ -18,6 +19,7 @@ function formatDate(iso: string) {
 
 export default function LeadDiscoveryDetailsPage() {
   const { apiBase, pageBase } = useLeadDiscoveryPaths();
+  const isPartner = pageBase.startsWith('/partner');
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const [run, setRun] = useState<LeadDiscoveryRun | null>(null);
@@ -49,11 +51,19 @@ export default function LeadDiscoveryDetailsPage() {
         ← All saved searches
       </Link>
 
-      <AdminPageHeader
-        title={run ? displaySearchName(run) : 'Search details'}
-        description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
-        action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
-      />
+      {isPartner ? (
+        <PartnerPageHero
+          title={run ? displaySearchName(run) : 'Search details'}
+          description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
+          action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
+        />
+      ) : (
+        <AdminPageHeader
+          title={run ? displaySearchName(run) : 'Search details'}
+          description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
+          action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
+        />
+      )}
 
       {message && <AdminAlert variant="success">{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}

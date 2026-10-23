@@ -104,6 +104,14 @@ export interface PartnerDashboardStats {
   under_review: number;
   approved: number;
   converted: number;
+  thisMonth: {
+    total: number;
+    draft: number;
+    submitted: number;
+    under_review: number;
+    approved: number;
+    converted: number;
+  };
 }
 
 export interface RequirementRecord {

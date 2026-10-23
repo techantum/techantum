@@ -7,6 +7,7 @@ import Icon from '@/components/ui/AppIcon';
 import RequirementQuickChat from '@/components/partner/RequirementQuickChat';
 import { REQUIREMENT_STATUS_LABELS, type RequirementStatus } from '@/lib/partner/types';
 import { stripVendorBranding } from '@/lib/partner/document-branding';
+import { PartnerPageHero, PartnerStatTile, partnerBtnPrimary, partnerBtnSecondary, partnerCard } from '@/components/partner/PartnerUi';
 
 interface RequirementDetail {
   requirement: Record<string, unknown>;
@@ -65,59 +66,45 @@ function RequirementDetailContent() {
             </div>
           </div>
         )}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="font-mono text-sm font-semibold text-secondary">{String(req.reference_id)}</p>
-            <h1 className="mt-1 font-bricolage text-3xl font-bold tracking-tight text-slate-900">
-              {String(req.project_name || 'Untitled Project')}
-            </h1>
-            <span className="mt-2 inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-secondary">
-              {REQUIREMENT_STATUS_LABELS[status]}
-            </span>
-          </div>
-          {status === 'draft' ? (
-            <Link
-              href={`/partner/requirements/new?draft=${id}`}
-              className="rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
-            >
-              Continue Editing
-            </Link>
-          ) : null}
-        </div>
+        <PartnerPageHero
+          eyebrow={String(req.reference_id)}
+          title={String(req.project_name || 'Untitled Project')}
+          description={REQUIREMENT_STATUS_LABELS[status]}
+          action={
+            status === 'draft' ? (
+              <Link href={`/partner/requirements/new?draft=${id}`} className={partnerBtnPrimary}>
+                Continue Editing
+              </Link>
+            ) : null
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Proposal</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{proposalReady ? 'Received' : 'Pending'}</p>
-          <p className="text-xs text-slate-500">{proposalReady ? `Sent ${new Date(String(req.proposal_sent_at)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Waiting for team review'}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Quotation</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{quotationReady ? 'Sent' : 'Pending'}</p>
-          <p className="text-xs text-slate-500">{quotationReady ? 'Final quotation is available from the document export.' : 'Sent by email after proposal approval'}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Package</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{String((req.partner_packages as { name?: string } | undefined)?.name ?? '—')}</p>
-          <p className="text-xs text-slate-500">{String((req.partner_service_categories as { name?: string } | undefined)?.name ?? '—')}</p>
-        </div>
+        <PartnerStatTile label="Proposal" value={proposalReady ? 'Received' : 'Pending'} icon="DocumentDuplicateIcon" tone="blue" />
+        <PartnerStatTile label="Quotation" value={quotationReady ? 'Sent' : 'Pending'} icon="EnvelopeIcon" tone="emerald" />
+        <PartnerStatTile
+          label="Package"
+          value={String((req.partner_packages as { name?: string } | undefined)?.name ?? '—')}
+          icon="CubeIcon"
+          tone="amber"
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         {([
           ['Budget', req.budget_range ?? '—'],
           ['Industry', req.industry ?? '—'],
         ] as const).map(([label, value]) => (
-          <div key={label} className="bg-white rounded-xl border border-slate-200 p-4">
+          <div key={label} className={`${partnerCard} p-4`}>
             <p className="text-xs text-slate-500">{label}</p>
-            <p className="font-medium text-slate-900 mt-1">{String(value)}</p>
+            <p className="mt-1 font-medium text-slate-900">{String(value)}</p>
           </div>
         ))}
       </div>
 
       {status === 'need_clarification' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4">
           <Icon name="ExclamationTriangleIcon" size={24} className="text-amber-600 shrink-0" />
           <div>
             <p className="font-semibold text-amber-900">Clarification Needed</p>
@@ -142,7 +129,7 @@ function RequirementDetailContent() {
       )}
 
       {Boolean(req.proposal_sent_at) && (
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
+        <div className="rounded-2xl border border-orange-100 bg-orange-50 p-5">
           <h2 className="font-semibold text-slate-900 mb-3">Project Proposal</h2>
           <div className="grid grid-cols-2 gap-4 text-sm mb-3">
             <div>
@@ -164,7 +151,7 @@ function RequirementDetailContent() {
       )}
 
       {sowPreview && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className={`${partnerCard} p-5`}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-semibold text-slate-900">Scope of Work</h2>
             <div className="flex flex-wrap gap-2">
@@ -173,7 +160,7 @@ function RequirementDetailContent() {
                   key={fmt}
                   type="button"
                   onClick={() => downloadExport(fmt)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium hover:bg-slate-50"
+                  className={`${partnerBtnSecondary} px-3 py-1.5 text-xs`}
                 >
                   <Icon name="ArrowDownTrayIcon" size={14} />
                   {fmt.toUpperCase()}

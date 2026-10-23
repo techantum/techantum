@@ -84,6 +84,26 @@
     @apply transition-colors;
   }
 
+  .partner-shell [data-ui-card],
+  .partner-shell .ui-card {
+    border-radius: 1rem;
+    box-shadow: none;
+  }
+
+  .partner-shell input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']),
+  .partner-shell select,
+  .partner-shell textarea {
+    border-radius: 0.75rem;
+  }
+
+  .partner-shell input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']):focus,
+  .partner-shell select:focus,
+  .partner-shell textarea:focus {
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px rgba(239, 67, 35, 0.2);
+  }
+
   /* Glass morphism */
   .glass-effect {
     @apply bg-white/70 backdrop-blur-2xl border border-white/40;

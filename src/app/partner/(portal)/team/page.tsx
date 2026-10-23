@@ -10,7 +10,14 @@ import {
   type PartnerNavKey,
 } from '@/lib/partner/nav';
 import type { PartnerUserRole, PartnerUserStatus } from '@/lib/partner/types';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import {
+  PartnerAlert,
+  PartnerPageHero,
+  partnerBtnPrimary,
+  partnerBtnSecondary,
+  partnerCard,
+  partnerInput,
+} from '@/components/partner/PartnerUi';
 
 interface TeamMember {
   id: string;
@@ -178,36 +185,23 @@ export default function PartnerTeamPage() {
   );
 
   return (
-    <div className="w-full space-y-6">
-      <AdminPageHeader
-        kicker="Partner portal"
+    <div className="w-full space-y-5">
+      <PartnerPageHero
         title="User management"
         description="Invite colleagues and choose which left-menu pages each partner user can access."
         action={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
-          >
+          <button type="button" onClick={openCreate} className={partnerBtnPrimary}>
             <Icon name="PlusIcon" size={16} />
             Invite member
           </button>
         }
       />
 
-      {message && (
-        <p className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-          {message}
-        </p>
-      )}
-      {error && (
-        <p className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-          {error}
-        </p>
-      )}
+      {message ? <PartnerAlert variant="success">{message}</PartnerAlert> : null}
+      {error ? <PartnerAlert variant="error">{error}</PartnerAlert> : null}
 
       {showForm && (
-        <form onSubmit={save} className="bg-white rounded-xl border border-slate-200 p-5 mb-6 space-y-5">
+        <form onSubmit={save} className={`${partnerCard} space-y-5 p-5`}>
           <div>
             <h2 className="font-semibold text-slate-900">{editingId ? 'Edit team member' : 'Invite team member'}</h2>
             <p className="text-sm text-slate-500 mt-1">
@@ -222,7 +216,7 @@ export default function PartnerTeamPage() {
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               placeholder="Full name"
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
+              className={partnerInput}
             />
             <input
               required
@@ -231,14 +225,14 @@ export default function PartnerTeamPage() {
               disabled={Boolean(editingId)}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               placeholder="Email address"
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              className={partnerInput}
             />
           </div>
           <select
             value={form.role}
             onChange={(e) => setRole(e.target.value as PartnerUserRole)}
             disabled={actorRole !== 'partner_admin'}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
+            className={partnerInput}
           >
             <option value="partner_user">Partner User</option>
             <option value="partner_admin">Partner Admin</option>
@@ -282,11 +276,7 @@ export default function PartnerTeamPage() {
           </div>
 
           <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 rounded-full bg-secondary text-white text-sm font-medium disabled:opacity-50"
-            >
+            <button type="submit" disabled={saving} className={partnerBtnPrimary}>
               {saving ? (editingId ? 'Saving…' : 'Sending…') : editingId ? 'Save changes' : 'Send Invite'}
             </button>
             <button
@@ -295,7 +285,7 @@ export default function PartnerTeamPage() {
                 setShowForm(false);
                 setEditingId(null);
               }}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-sm"
+              className={partnerBtnSecondary}
             >
               Cancel
             </button>
@@ -304,17 +294,17 @@ export default function PartnerTeamPage() {
       )}
 
       {loading ? (
-        <p className="text-slate-500 text-sm">Loading team…</p>
+        <p className="text-sm text-slate-500">Loading team…</p>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <div className={`overflow-x-auto ${partnerCard}`}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-slate-500">
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Role</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Access</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
+              <tr className="text-left text-xs text-slate-400">
+                <th className="px-5 py-2 font-medium">Name</th>
+                <th className="px-5 py-2 font-medium">Role</th>
+                <th className="px-5 py-2 font-medium">Status</th>
+                <th className="px-5 py-2 font-medium">Access</th>
+                <th className="px-5 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -324,7 +314,7 @@ export default function PartnerTeamPage() {
                 const sidebarItems = PARTNER_NAV_ITEMS.filter((item) => item.area === 'sidebar');
                 const enabledCount = sidebarItems.filter((item) => access[item.key]).length;
                 return (
-                  <tr key={m.id} className="border-b border-slate-50">
+                  <tr key={m.id} className="border-t border-slate-50 hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <p className="font-medium text-slate-900">{m.full_name}</p>
                       <p className="text-xs text-slate-500">{m.email}</p>
@@ -350,7 +340,7 @@ export default function PartnerTeamPage() {
                           <button
                             type="button"
                             onClick={() => openEdit(m)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            className={`${partnerBtnSecondary} px-3 py-1.5 text-xs`}
                           >
                             <Icon name="PencilSquareIcon" size={14} />
                             Edit
@@ -359,7 +349,7 @@ export default function PartnerTeamPage() {
                             type="button"
                             disabled={deletingId === m.id}
                             onClick={() => remove(m)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                           >
                             <Icon name="TrashIcon" size={14} />
                             {deletingId === m.id ? 'Deleting…' : 'Delete'}

@@ -7,9 +7,15 @@ import {
   markNotificationRead,
 } from '@/lib/partner/notifications';
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requirePartner();
   if ('error' in auth) return auth.error;
+
+  const countOnly = new URL(request.url).searchParams.get('countOnly') === '1';
+  if (countOnly) {
+    const unreadCount = await countUnreadNotifications(auth.partner.id, auth.partnerUser.id);
+    return NextResponse.json({ unreadCount });
+  }
 
   const [notifications, unreadCount] = await Promise.all([
     listPartnerNotifications(auth.partner.id, auth.partnerUser.id),

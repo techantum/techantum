@@ -20,10 +20,15 @@ export function getAuthSecretKey() {
   return (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 }
 
+let adminClient: ReturnType<typeof createClient> | null = null;
+
 export function createAdminClient() {
-  return createClient(getSupabaseUrl(), getSecretKey(), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (!adminClient) {
+    adminClient = createClient(getSupabaseUrl(), getSecretKey(), {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return adminClient;
 }
 
 export function createAuthAdminClient() {

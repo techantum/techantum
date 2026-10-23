@@ -1,5 +1,7 @@
+import { cache } from 'react';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { canManagePartnerTeam, partnerHasNavAccess, type PartnerNavKey } from './nav';
 import type { Partner, PartnerUser } from './types';
 
@@ -10,9 +12,7 @@ export interface PartnerSession {
   partner: Partner;
 }
 
-export async function requirePartner(): Promise<
-  PartnerSession | { error: NextResponse }
-> {
+const loadPartnerSession = cache(async (): Promise<PartnerSession | { error: NextResponse }> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,9 +23,10 @@ export async function requirePartner(): Promise<
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 
-  const { data: partnerUser } = await supabase
+  const admin = createAdminClient();
+  const { data: partnerUser } = await admin
     .from('partner_users')
-    .select('*')
+    .select('*, partners(*)')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -33,22 +34,25 @@ export async function requirePartner(): Promise<
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
-  const { data: partner } = await supabase
-    .from('partners')
-    .select('*')
-    .eq('id', partnerUser.partner_id)
-    .maybeSingle();
+  const nested = partnerUser.partners as Partner | Partner[] | null;
+  const partner = Array.isArray(nested) ? nested[0] : nested;
 
   if (!partner || partner.status !== 'active') {
     return { error: NextResponse.json({ error: 'Partner account inactive' }, { status: 403 }) };
   }
 
+  const { partners: _partners, ...userRow } = partnerUser as typeof partnerUser & { partners?: unknown };
+
   return {
     supabase,
     user,
-    partnerUser: partnerUser as PartnerUser,
-    partner: partner as Partner,
+    partnerUser: userRow as PartnerUser,
+    partner,
   };
+});
+
+export async function requirePartner(): Promise<PartnerSession | { error: NextResponse }> {
+  return loadPartnerSession();
 }
 
 export async function getPartnerSession(): Promise<PartnerSession | null> {
@@ -110,15 +114,17 @@ export async function logPartnerActivity(
     ipAddress?: string;
   }
 ) {
-  const { createAdminClient } = await import('@/lib/supabase/admin');
   const supabase = createAdminClient();
-  await supabase.from('partner_activity_logs').insert({
-    partner_id: partnerId,
-    partner_user_id: options?.partnerUserId ?? null,
-    action,
-    entity_type: options?.entityType ?? null,
-    entity_id: options?.entityId ?? null,
-    metadata: options?.metadata ?? {},
-    ip_address: options?.ipAddress ?? null,
-  });
+  void supabase
+    .from('partner_activity_logs')
+    .insert({
+      partner_id: partnerId,
+      partner_user_id: options?.partnerUserId ?? null,
+      action,
+      entity_type: options?.entityType ?? null,
+      entity_id: options?.entityId ?? null,
+      metadata: options?.metadata ?? {},
+      ip_address: options?.ipAddress ?? null,
+    })
+    .then(() => undefined, () => undefined);
 }

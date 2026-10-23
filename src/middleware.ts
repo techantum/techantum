@@ -33,6 +33,7 @@ async function fetchRedirects(): Promise<RedirectRow[]> {
       {
         headers,
         next: { revalidate: 300 },
+        signal: AbortSignal.timeout(1500),
       }
     );
     if (!res.ok) return [];
@@ -53,8 +54,18 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const hostname = request.headers.get('host') || '';
   const isProduction = process.env.NODE_ENV === 'production';
-  const canonicalHost = await fetchCanonicalHostPreference().catch(() => getCanonicalHost());
   const pathname = normalizeRedirectPath(url.pathname);
+  const isLocal = hostname.includes('localhost') || hostname.startsWith('127.');
+  const skipHostLookup =
+    isLocal ||
+    pathname.startsWith('/partner') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/portal') ||
+    pathname.startsWith('/login');
+  const canonicalHost = skipHostLookup
+    ? getCanonicalHost()
+    : await fetchCanonicalHostPreference().catch(() => getCanonicalHost());
 
   // Force HTTPS in production
   if (isProduction) {

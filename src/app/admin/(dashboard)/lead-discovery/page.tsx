@@ -6,6 +6,14 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminAlert from '@/components/admin/AdminAlert';
 import Icon from '@/components/ui/AppIcon';
+import {
+  PartnerPageHero,
+  PartnerStatTile,
+  partnerBtnPrimary,
+  partnerBtnSecondary,
+  partnerCard,
+  partnerInput,
+} from '@/components/partner/PartnerUi';
 import LeadExportMenu from '@/components/admin/lead-discovery/LeadExportMenu';
 import LeadResultsTable from '@/components/admin/lead-discovery/LeadResultsTable';
 import PlacesSearchSelect, { type PlacesOption } from '@/components/admin/lead-discovery/PlacesSearchSelect';
@@ -21,7 +29,7 @@ import type {
   WebsiteFilter,
 } from '@/lib/places/types';
 
-const INPUT =
+const ADMIN_INPUT =
   'w-full rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5 text-sm font-inter shadow-sm focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300';
 
 const DEFAULT_COUNTRY: PlacesOption = {
@@ -87,6 +95,8 @@ function isoCodeFromOption(option: PlacesOption | null) {
 
 export default function LeadDiscoveryPage() {
   const { apiBase, pageBase } = useLeadDiscoveryPaths();
+  const isPartner = pageBase.startsWith('/partner');
+  const INPUT = isPartner ? partnerInput : ADMIN_INPUT;
   const [country, setCountry] = useState<PlacesOption | null>(DEFAULT_COUNTRY);
   const [state, setState] = useState<PlacesOption | null>(null);
   const [city, setCity] = useState<PlacesOption | null>(null);
@@ -371,14 +381,28 @@ export default function LeadDiscoveryPage() {
 
   return (
     <div className="w-full space-y-5">
-      <AdminPageHeader
-        title="Lead Discovery"
-        description="Find and save businesses using Google Places. Filter by location, segment and more."
-      />
+      {isPartner ? (
+        <PartnerPageHero
+          title="Lead Discovery"
+          description="Find and save businesses using Google Places. Filter by location, segment and more."
+        />
+      ) : (
+        <AdminPageHeader
+          title="Lead Discovery"
+          description="Find and save businesses using Google Places. Filter by location, segment and more."
+        />
+      )}
 
       {message && <AdminAlert variant="success">{message}</AdminAlert>}
       {error && <AdminAlert variant="error">{error}</AdminAlert>}
 
+      {isPartner ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <PartnerStatTile label="Saved searches" value={history.length} icon="BookmarkIcon" tone="sky" />
+          <PartnerStatTile label="Preview results" value={preview?.result_count ?? 0} icon="MagnifyingGlassIcon" tone="emerald" />
+          <PartnerStatTile label="No website" value={noWebsiteCount} icon="ExclamationTriangleIcon" tone="rose" />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
@@ -414,8 +438,9 @@ export default function LeadDiscoveryPage() {
           </div>
         </div>
       </div>
+      )}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className={isPartner ? `${partnerCard} p-5` : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm'}>
         <div className="mb-4 flex items-start gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-50 text-violet-600">
             <Icon name="MagnifyingGlassIcon" size={18} />
@@ -532,7 +557,7 @@ export default function LeadDiscoveryPage() {
             type="button"
             disabled={loading || !canSearch || !payload.name}
             onClick={() => runSearch(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+            className={isPartner ? partnerBtnPrimary : 'inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50'}
           >
             <Icon name="MagnifyingGlassIcon" size={16} />
             {loading ? 'Working…' : 'Search & Save'}
@@ -541,7 +566,7 @@ export default function LeadDiscoveryPage() {
             type="button"
             disabled={loading || !canSearch}
             onClick={() => runSearch(false)}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className={isPartner ? partnerBtnSecondary : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50'}
           >
             <Icon name="EyeIcon" size={16} />
             {loading ? 'Searching…' : 'Preview Search'}
@@ -555,7 +580,7 @@ export default function LeadDiscoveryPage() {
               type="button"
               disabled={loading}
               onClick={savePreview}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              className={isPartner ? `${partnerBtnPrimary} bg-emerald-600 hover:bg-emerald-700` : 'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50'}
             >
               Save preview
             </button>
@@ -572,7 +597,7 @@ export default function LeadDiscoveryPage() {
         </AdminSection>
       )}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className={isPartner ? `${partnerCard} p-5` : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm'}>
         <div className="mb-4">
           <h2 className="font-bricolage text-lg font-semibold text-slate-900">Saved Searches</h2>
           <p className="text-sm text-slate-500">Your saved Places searches. Open details to see only that list.</p>
@@ -614,7 +639,7 @@ export default function LeadDiscoveryPage() {
                     <td className="px-3 py-3 font-semibold text-slate-900">{run.result_count}</td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <Link href={`${pageBase}/${run.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-violet-600 hover:underline">
+                        <Link href={`${pageBase}/${run.id}`} className={`inline-flex items-center gap-1 text-sm font-semibold hover:underline ${isPartner ? 'text-secondary' : 'text-violet-600'}`}>
                           <Icon name="DocumentTextIcon" size={14} />
                           Details
                         </Link>

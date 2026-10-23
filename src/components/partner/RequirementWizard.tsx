@@ -23,6 +23,7 @@ import {
   SERVICE_LABELS,
 } from '@/lib/partner/wizard-config';
 import { getVisibleQuestions, validateStepAnswers } from '@/lib/partner/questions';
+import { PartnerPageHero, partnerBtnGhost } from '@/components/partner/PartnerUi';
 
 function RequirementTypeBanner({
   label,
@@ -424,20 +425,22 @@ export default function RequirementWizard({
   return (
     <div className="flex flex-col xl:flex-row gap-6">
       <div className="flex-1 min-w-0">
-        <div className="mb-6">
-          <Link
-            href="/partner/requirements"
-            className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-secondary"
-          >
-            <Icon name="ArrowLeftIcon" size={16} />
-            Back to Requirements
-          </Link>
-          <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">Create New Requirement</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {step === 1
-              ? 'Submit your project details to receive a proposal with timeline and cost.'
-              : `Step ${step} of ${WIZARD_STEPS.length} — ${WIZARD_STEPS[step - 1]?.label}`}
-          </p>
+        <div className="mb-5">
+          <PartnerPageHero
+            eyebrow="New requirement"
+            title="Create new requirement"
+            description={
+              step === 1
+                ? 'Submit your project details to receive a proposal with timeline and cost.'
+                : `Step ${step} of ${WIZARD_STEPS.length} — ${WIZARD_STEPS[step - 1]?.label}`
+            }
+            action={
+              <Link href="/partner/requirements" className={partnerBtnGhost}>
+                <Icon name="ArrowLeftIcon" size={16} />
+                Back to Requirements
+              </Link>
+            }
+          />
         </div>
 
         <ol className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">

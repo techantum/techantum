@@ -17,9 +17,8 @@ export async function listPartnerRequirements(partnerId: string): Promise<Requir
   const { data } = await supabase
     .from('partner_requirements')
     .select(`
-      *,
-      partner_packages (name),
-      partner_service_categories (name)
+      id, reference_id, project_name, status, created_at, updated_at, submitted_at,
+      proposal_sent_at, engagement_type, business_data, partner_packages (name), partner_service_categories (name)
     `)
     .eq('partner_id', partnerId)
     .order('updated_at', { ascending: false });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import type { PartnerCatalogCategory, PartnerCatalogPackage } from '@/lib/partner/service-catalog';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { PartnerPageHero, partnerBtnPrimary, partnerBtnSecondary, partnerCard } from '@/components/partner/PartnerUi';
 
 function CellValue({ value }: { value: string }) {
   if (value === '✓') {
@@ -68,18 +68,17 @@ export default function PackageComparison() {
 
   if (!catalog.length) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+      <div className={`${partnerCard} p-8 text-center`}>
         <p className="text-slate-600">No packages available.</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-6">
-      <AdminPageHeader
-        kicker="Partner portal"
+    <div className="w-full space-y-5">
+      <PartnerPageHero
         title="Select the right plan for your client"
-        description="Compare Website, Web App, and Mobile packages — same plans as on techantum.com/services."
+        description="Compare Website, Web App, and Mobile packages and pick a plan that fits this requirement."
       />
 
       <div className="flex flex-wrap gap-2">
@@ -91,7 +90,7 @@ export default function PackageComparison() {
               setActiveDivision(cat.slug);
               setSelectedPackageId('');
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border-2 ${
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all border ${
               activeDivision === cat.slug
                 ? 'border-secondary bg-orange-50 text-slate-900'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-secondary/40'
@@ -119,7 +118,7 @@ export default function PackageComparison() {
       )}
 
       {matrix?.packages && matrix.packages.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+        <div className={`${partnerCard} overflow-x-auto`}>
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr>
@@ -192,7 +191,7 @@ export default function PackageComparison() {
       )}
 
       {selectedPackage && selectedPackage.includes.length > 0 && (
-        <div className="bg-slate-50 rounded-xl border border-slate-200 p-5">
+        <div className={`${partnerCard} bg-orange-50/40 p-5`}>
           <p className="text-sm font-semibold text-slate-900 mb-2">
             {selectedPackage.name} — What&apos;s Included
           </p>
@@ -207,7 +206,7 @@ export default function PackageComparison() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 rounded-xl border border-slate-200 p-5">
+      <div className={`flex flex-col items-start justify-between gap-4 ${partnerCard} p-5 sm:flex-row sm:items-center`}>
         <div>
           <p className="font-medium text-slate-900">Need something custom?</p>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -217,14 +216,14 @@ export default function PackageComparison() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/partner/support"
-            className="px-4 py-2.5 rounded-lg text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className={partnerBtnSecondary}
           >
             Request Custom Solution
           </Link>
           {selectedPackageId && activeDivision ? (
             <Link
               href={`/partner/requirements/new?division=${activeDivision}&plan=${selectedPackage?.slug ?? ''}`}
-              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold bg-secondary text-white hover:bg-secondary/90"
+              className={partnerBtnPrimary}
             >
               Continue to Requirements
               <Icon name="ArrowRightIcon" size={16} />
