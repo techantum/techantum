@@ -214,7 +214,6 @@ function WizardField({
         {q.label}
         {q.is_required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      {q.help_text && <p className="text-xs text-slate-500 mb-1.5 leading-relaxed">{q.help_text}</p>}
       {renderControl()}
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </div>

@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
 import { firstAllowedPartnerHref, visiblePartnerNavItems } from '@/lib/partner/nav';
-import { PARTNER_TIER_LABELS, type Partner, type PartnerUser } from '@/lib/partner/types';
+import type { Partner, PartnerUser } from '@/lib/partner/types';
 
 interface PartnerShellProps {
   partner: Partner;
@@ -25,11 +25,14 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const menuRef = useRef<HTMLDivElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setSidebarOpen(false);
+    setMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -39,7 +42,24 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
       .catch(() => setUnreadCount(0));
   }, [pathname]);
 
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onPointer = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
   const handleSignOut = async () => {
+    setMenuOpen(false);
     await supabase.auth.signOut();
     router.push('/partner/login');
     router.refresh();
@@ -75,18 +95,6 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
           );
         })}
       </nav>
-
-      <div className="mx-3 mb-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Partner ID</p>
-        <p className="mt-1 font-mono text-xs font-semibold text-slate-900">{partner.partner_code}</p>
-        <p className="mt-1 text-xs text-slate-500">{PARTNER_TIER_LABELS[partner.tier]}</p>
-        <Link
-          href="/partner/profile"
-          className="mt-3 block rounded-full border border-slate-200 bg-white py-1.5 text-center text-xs font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
-        >
-          View partner profile
-        </Link>
-      </div>
     </div>
   );
 
@@ -108,9 +116,63 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
             </Link>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 md:inline-flex">
-              {PARTNER_TIER_LABELS[partner.tier]}
-            </span>
+            <Link
+              href="/"
+              target="_blank"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
+            >
+              <Icon name="ArrowTopRightOnSquareIcon" size={16} />
+              <span className="hidden sm:inline">View live site</span>
+            </Link>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                className="inline-flex max-w-[16rem] items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 text-left hover:border-secondary/40"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-white">
+                  {partnerUser.full_name.charAt(0).toUpperCase()}
+                </span>
+                <span className="hidden min-w-0 lg:block">
+                  <span className="block truncate text-sm font-medium text-slate-900">{partnerUser.full_name}</span>
+                  <span className="block truncate text-xs text-slate-500">{partnerUser.email}</span>
+                </span>
+                <Icon name="ChevronDownIcon" size={14} className={`text-slate-400 ${menuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-lg" role="menu">
+                  <Link
+                    href="/partner/profile"
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-secondary"
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Icon name="UserCircleIcon" size={16} />
+                    Profile
+                  </Link>
+                  <Link
+                    href="/partner/support"
+                    className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-secondary"
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Icon name="LifebuoyIcon" size={16} />
+                    Partner Support
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600"
+                    role="menuitem"
+                  >
+                    <Icon name="ArrowRightOnRectangleIcon" size={16} />
+                    Sign out
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <Link
               href="/partner/notifications"
               className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:border-secondary/40 hover:text-secondary"
@@ -123,31 +185,6 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
                 </span>
               )}
             </Link>
-            <Link
-              href="/"
-              target="_blank"
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
-            >
-              <Icon name="ArrowTopRightOnSquareIcon" size={16} />
-              <span className="hidden sm:inline">View live site</span>
-            </Link>
-            <div className="hidden items-center gap-2 pl-1 sm:flex">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-white">
-                {partnerUser.full_name.charAt(0).toUpperCase()}
-              </div>
-              <div className="hidden text-right lg:block">
-                <p className="text-sm font-medium text-slate-900">{partnerUser.full_name}</p>
-                <p className="text-xs text-slate-500">{partnerUser.email}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-            >
-              <Icon name="ArrowRightOnRectangleIcon" size={16} />
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
           </div>
         </header>
 
@@ -175,7 +212,6 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
             </main>
             <footer className="mt-auto flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm sm:px-6 lg:px-8">
               <PartnerBrandMark logoUrl={partner.logo_url} companyName={partner.company_name} size="sm" />
-              <span className="font-mono text-xs font-semibold text-slate-800">{partner.partner_code}</span>
               <span className="text-slate-500">{partner.company_name}</span>
               {partner.joined_at ? (
                 <span className="text-xs text-slate-400">

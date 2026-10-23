@@ -20,6 +20,7 @@ interface ClarificationThreadProps {
   pollIntervalMs?: number;
   compact?: boolean;
   chatMode?: 'clarification' | 'chat';
+  fillHeight?: boolean;
 }
 
 function formatDayLabel(date: Date): string {
@@ -40,12 +41,13 @@ export default function ClarificationThread({
   requirementId,
   apiBase,
   canReply = false,
-  replyLabel = 'Send Reply',
+  replyLabel = 'Send',
   placeholder = 'Type your message…',
   refreshKey = 0,
   pollIntervalMs = 15000,
   compact = false,
   chatMode = 'chat',
+  fillHeight = false,
 }: ClarificationThreadProps) {
   const [messages, setMessages] = useState<ClarificationMessage[]>([]);
   const [reply, setReply] = useState('');
@@ -135,9 +137,9 @@ export default function ClarificationThread({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={fillHeight ? 'flex h-full min-h-0 flex-col' : 'space-y-4'}>
       {error && (
-        <div className="flex items-center justify-between gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className={`flex items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 ${fillHeight ? 'mx-4 mt-3 shrink-0' : ''}`}>
           <span>{error}</span>
           <button type="button" onClick={() => load()} className="text-xs font-medium underline shrink-0">
             Retry
@@ -146,16 +148,16 @@ export default function ClarificationThread({
       )}
 
       {messages.length === 0 ? (
-        <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
-          <p className="text-sm font-medium text-slate-700">No messages yet</p>
-          <p className="text-xs text-slate-500 mt-1">
-            Start the conversation to clarify requirements and keep the discussion in one place.
-          </p>
+        <div className={`${fillHeight ? 'flex min-h-0 flex-1 items-center' : ''} px-4 py-8 text-center`}>
+          <div className="w-full rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8">
+            <p className="text-sm font-medium text-slate-700">No messages yet</p>
+            <p className="mt-1 text-xs text-slate-500">Send a message to keep the discussion in one place.</p>
+          </div>
         </div>
       ) : (
         <div
           ref={scrollRef}
-          className={`space-y-4 overflow-y-auto pr-1 ${compact ? 'max-h-72' : 'max-h-[28rem]'}`}
+          className={`space-y-4 overflow-y-auto ${fillHeight ? 'min-h-0 flex-1 p-4' : compact ? 'max-h-72' : 'max-h-[28rem]'}`}
         >
           {grouped.map((group) => (
             <div key={group.day}>
@@ -175,8 +177,8 @@ export default function ClarificationThread({
                       className={`flex gap-2 ${isAdmin ? 'justify-start' : 'justify-end'}`}
                     >
                       {isAdmin && (
-                        <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
-                          TA
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                          {msg.author_name.charAt(0).toUpperCase() || 'A'}
                         </div>
                       )}
                       <div className={`max-w-[85%] ${isAdmin ? '' : 'order-first'}`}>
@@ -212,7 +214,7 @@ export default function ClarificationThread({
       )}
 
       {canReply && (
-        <form onSubmit={send} className="space-y-2 border-t border-slate-100 pt-4">
+        <form onSubmit={send} className={`space-y-2 border-t border-slate-100 ${fillHeight ? 'shrink-0 p-4' : 'pt-4'}`}>
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}

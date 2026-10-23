@@ -62,7 +62,7 @@ export default function PackageComparisonTable({ division }: { division: Service
               </tr>
             </thead>
             <tbody>
-              {division.comparisonRows.map((row, idx) => (
+              {(division.comparisonRows ?? []).map((row, idx) => (
                 <tr
                   key={row.feature}
                   className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}

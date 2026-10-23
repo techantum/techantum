@@ -170,7 +170,7 @@ export default function PartnerTeamPage() {
 
   const navItems = useMemo(
     () =>
-      PARTNER_NAV_ITEMS.filter((item) => item.key !== 'profile').map((item) => ({
+      PARTNER_NAV_ITEMS.filter((item) => item.area === 'sidebar').map((item) => ({
         ...item,
         locked: 'requiresLeadDiscovery' in item && item.requiresLeadDiscovery && !leadDiscoveryEnabled,
       })),
@@ -321,7 +321,8 @@ export default function PartnerTeamPage() {
               {members.map((m) => {
                 const isAdmin = m.role === 'partner_admin';
                 const access = normalizePartnerNavAccess(m.role, m.nav_access);
-                const enabledCount = PARTNER_NAV_ITEMS.filter((item) => access[item.key]).length;
+                const sidebarItems = PARTNER_NAV_ITEMS.filter((item) => item.area === 'sidebar');
+                const enabledCount = sidebarItems.filter((item) => access[item.key]).length;
                 return (
                   <tr key={m.id} className="border-b border-slate-50">
                     <td className="px-5 py-3">
@@ -339,7 +340,7 @@ export default function PartnerTeamPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {isAdmin ? 'All menus' : `${enabledCount} of ${PARTNER_NAV_ITEMS.length} menus`}
+                      {isAdmin ? 'All menus' : `${enabledCount} of ${sidebarItems.length} menus`}
                     </td>
                     <td className="px-5 py-3">
                       {isAdmin ? (

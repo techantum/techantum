@@ -1,12 +1,13 @@
 import type { Partner, PartnerUser, PartnerUserRole } from './types';
 
 export const PARTNER_NAV_ITEMS = [
-  { key: 'dashboard', href: '/partner/dashboard', label: 'Dashboard', icon: 'Squares2X2Icon' },
+  { key: 'dashboard', href: '/partner/dashboard', label: 'Dashboard', icon: 'Squares2X2Icon', area: 'sidebar' },
   {
     key: 'lead-discovery',
     href: '/partner/lead-discovery',
     label: 'Lead Discovery',
     icon: 'MagnifyingGlassCircleIcon',
+    area: 'sidebar',
     requiresLeadDiscovery: true,
   },
   {
@@ -14,30 +15,30 @@ export const PARTNER_NAV_ITEMS = [
     href: '/partner/youtube-research',
     label: 'YouTube Research',
     icon: 'PlayCircleIcon',
+    area: 'sidebar',
   },
-  { key: 'packages', href: '/partner/packages', label: 'Service Packages', icon: 'CubeIcon' },
-  { key: 'new-requirement', href: '/partner/requirements/new', label: 'New Requirement', icon: 'PlusCircleIcon' },
-  { key: 'requirements', href: '/partner/requirements', label: 'My Requirements', icon: 'ClipboardDocumentListIcon' },
-  { key: 'documents', href: '/partner/documents', label: 'Documents', icon: 'DocumentTextIcon' },
-  { key: 'team', href: '/partner/team', label: 'User management', icon: 'UsersIcon' },
-  { key: 'profile', href: '/partner/profile', label: 'Profile', icon: 'UserCircleIcon' },
-  { key: 'support', href: '/partner/support', label: 'Partner Support', icon: 'LifebuoyIcon' },
+  { key: 'packages', href: '/partner/packages', label: 'Service Packages', icon: 'CubeIcon', area: 'hidden' },
+  { key: 'requirements', href: '/partner/requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon', area: 'sidebar' },
+  { key: 'documents', href: '/partner/documents', label: 'Documents', icon: 'DocumentTextIcon', area: 'sidebar' },
+  { key: 'team', href: '/partner/team', label: 'User management', icon: 'UsersIcon', area: 'sidebar' },
+  { key: 'profile', href: '/partner/profile', label: 'Profile', icon: 'UserCircleIcon', area: 'account' },
+  { key: 'support', href: '/partner/support', label: 'Partner Support', icon: 'LifebuoyIcon', area: 'account' },
 ] as const;
 
 export type PartnerNavKey = (typeof PARTNER_NAV_ITEMS)[number]['key'];
 export type PartnerNavAccess = Record<PartnerNavKey, boolean>;
 
-const ALWAYS_ALLOWED_PREFIXES = ['/partner/profile', '/partner/notifications', '/partner/login'];
+const ALWAYS_ALLOWED_PREFIXES = ['/partner/profile', '/partner/notifications', '/partner/login', '/partner/support'];
 
 export function defaultPartnerNavAccess(role: PartnerUserRole): PartnerNavAccess {
   const access = {} as PartnerNavAccess;
   for (const item of PARTNER_NAV_ITEMS) {
-    if (item.key === 'profile') {
+    if (item.area === 'account') {
       access[item.key] = true;
       continue;
     }
     if (role === 'partner_admin') {
-      access[item.key] = item.key === 'lead-discovery' || item.key === 'youtube-research' || item.key === 'team';
+      access[item.key] = true;
       continue;
     }
     access[item.key] = item.key !== 'team' && item.key !== 'youtube-research';
@@ -53,12 +54,14 @@ export function sanitizePartnerNavAccess(input: unknown, role: PartnerUserRole):
   const raw = input as Record<string, unknown>;
   const result = { ...defaults };
   for (const item of PARTNER_NAV_ITEMS) {
-    if (item.key === 'profile') continue;
+    if (item.area === 'account') continue;
     if (typeof raw[item.key] === 'boolean') {
       result[item.key] = raw[item.key];
     }
   }
+  if (raw['new-requirement'] === true) result.requirements = true;
   result.profile = true;
+  result.support = true;
   return result;
 }
 
@@ -102,7 +105,9 @@ export function firstAllowedPartnerHref(
   partnerUser: Pick<PartnerUser, 'role' | 'nav_access'>,
   partner?: Pick<Partner, 'lead_discovery_enabled'> | null
 ): string {
-  const allowed = PARTNER_NAV_ITEMS.find((item) => partnerHasNavAccess(partnerUser, item.key, partner));
+  const allowed = PARTNER_NAV_ITEMS.find(
+    (item) => item.area === 'sidebar' && partnerHasNavAccess(partnerUser, item.key, partner)
+  );
   return allowed?.href ?? '/partner/profile';
 }
 
@@ -110,5 +115,7 @@ export function visiblePartnerNavItems(
   partnerUser: Pick<PartnerUser, 'role' | 'nav_access'>,
   partner?: Pick<Partner, 'lead_discovery_enabled'> | null
 ) {
-  return PARTNER_NAV_ITEMS.filter((item) => partnerHasNavAccess(partnerUser, item.key, partner));
+  return PARTNER_NAV_ITEMS.filter(
+    (item) => item.area === 'sidebar' && partnerHasNavAccess(partnerUser, item.key, partner)
+  );
 }

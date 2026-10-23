@@ -6,7 +6,7 @@ import {
 } from '@/lib/partner/service-catalog';
 
 export async function GET(request: Request) {
-  const auth = await requirePartnerNavAny(['packages', 'new-requirement']);
+  const auth = await requirePartnerNavAny(['packages', 'requirements']);
   if ('error' in auth) return auth.error;
 
   const url = new URL(request.url);

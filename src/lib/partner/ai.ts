@@ -1,33 +1,41 @@
 import { generateAIChat } from '@/lib/ai';
+import { stripVendorBranding } from './document-branding';
 import type { RequirementRecord } from './types';
 
-const ARCHITECT_PROMPT = `You are a Senior Solution Architect with 20 years of experience at TechAntum Solutions.
+const ARCHITECT_PROMPT = `You are a senior solution architect writing a white-label Scope of Work that a sales partner will send to their end client.
 
-Based on the following client requirements, generate a complete, professional Scope of Work document suitable for client approval.
+Write a complete, professional Scope of Work from the requirement answers provided.
 
-Include these sections:
+Required sections:
 1. Executive Summary
 2. Business Background & Problem Statement
 3. Objectives
 4. Project Scope (In Scope)
 5. Modules & Features
 6. User Roles & Workflows
-7. Technology Stack Recommendation
+7. Recommended Technology Approach
 8. Integrations
 9. Timeline & Milestones
 10. Deliverables
 11. Acceptance Criteria
-12. Testing Strategy
-13. Deployment Strategy
+12. Testing Approach
+13. Deployment Approach
 14. Training & Support
 15. Assumptions
 16. Out of Scope / Exclusions
-17. Risk Analysis
+17. Risks
 18. Future Enhancements
-19. Questions to Clarify
+19. Open Questions
 
-Use clean markdown formatting with tables where appropriate (timeline, deliverables, tech stack, approval sign-off).
-Write in professional business language. Be specific to the client's industry and requirements.`;
+Rules:
+- Do not mention any vendor, agency, studio, or partner company name.
+- Do not mention TechAntum, Techantum, or any similar brand.
+- Do not include letterhead, logos, prepared-by lines, or approval blocks that name a company.
+- Refer to the receiving organization only as "the client".
+- Refer to delivery only as "the project team".
+- Use clean markdown, tables where useful, and specific language based on the submitted answers.`;
+
+export { stripVendorBranding } from './document-branding';
 
 export function buildRequirementSummary(
   requirement: RequirementRecord,
@@ -36,7 +44,6 @@ export function buildRequirementSummary(
   const modules = requirement.modules_data ?? answers.modules ?? [];
   return {
     businessOverview: {
-      company: answers.company_name ?? requirement.business_data?.company_name,
       industry: answers.industry ?? requirement.industry,
       country: answers.country ?? requirement.country,
       painPoints: answers.pain_points ?? requirement.business_data?.pain_points,
@@ -50,19 +57,21 @@ export function buildRequirementSummary(
     },
     selectedModules: Array.isArray(modules) ? modules : [],
     selectedFeatures: Object.entries(answers)
-      .filter(([k, v]) => !['company_name', 'industry', 'country', 'pain_points', 'goals', 'project_name', 'budget_range', 'priority', 'expected_launch', 'modules'].includes(k))
+      .filter(([k]) =>
+        !['company_name', 'industry', 'country', 'pain_points', 'goals', 'project_name', 'budget_range', 'priority', 'expected_launch', 'modules', 'contact_name', 'contact_email', 'contact_phone'].includes(k)
+      )
       .map(([key, value]) => ({ key, value })),
     recommendedPackage: requirement.partner_packages?.name ?? null,
     recommendedService: requirement.partner_service_categories?.name ?? null,
     estimatedComplexity: estimateComplexity(answers, modules as string[]),
     assumptions: [
-      'Client will provide content, branding assets, and timely feedback.',
+      'The client will provide content, branding assets, and timely feedback.',
       'Third-party API credentials will be provided by the client where applicable.',
       'Scope excludes ongoing hosting costs unless specified.',
     ],
     risks: [
-      'Scope creep if additional modules are requested mid-project.',
-      'Integration delays if third-party APIs are unavailable.',
+      'Scope may expand if additional modules are requested mid-project.',
+      'Integrations may be delayed if third-party APIs are unavailable.',
     ],
   };
 }
@@ -82,22 +91,37 @@ function estimateComplexity(
   return 'Low';
 }
 
+function extraNamesToStrip(requirement: RequirementRecord, answers: Record<string, unknown>): string[] {
+  return [
+    requirement.partners?.company_name,
+    requirement.partners?.contact_name,
+    answers.company_name,
+    answers.contact_name,
+    requirement.business_data?.company_name,
+  ].map((value) => (typeof value === 'string' ? value : '')).filter(Boolean);
+}
+
 export function generateAiPrompt(
   requirement: RequirementRecord,
   answers: Record<string, unknown>,
   summary: ReturnType<typeof buildRequirementSummary>
 ): string {
+  const safeAnswers = { ...answers };
+  delete safeAnswers.company_name;
+  delete safeAnswers.contact_name;
+  delete safeAnswers.contact_email;
+  delete safeAnswers.contact_phone;
+
   return `${ARCHITECT_PROMPT}
 
 ---
 REFERENCE: ${requirement.reference_id}
-PARTNER: ${requirement.partners?.company_name ?? 'Partner'}
 SERVICE: ${summary.recommendedService ?? '—'}
 PACKAGE: ${summary.recommendedPackage ?? '—'}
 COMPLEXITY: ${summary.estimatedComplexity}
 
 QUESTIONNAIRE (JSON):
-${JSON.stringify(answers, null, 2)}
+${JSON.stringify(safeAnswers, null, 2)}
 
 SUMMARY:
 ${JSON.stringify(summary, null, 2)}
@@ -110,23 +134,24 @@ export async function generateSowContent(
   summary: ReturnType<typeof buildRequirementSummary>,
   promptText: string
 ): Promise<string> {
+  const names = extraNamesToStrip(requirement, answers);
   try {
     const generated = await generateAIChat({
       purpose: 'partner_sow',
-      temperature: 0.4,
-      maxTokens: 4000,
-      timeoutMs: 45000,
+      temperature: 0.35,
+      maxTokens: 5000,
+      timeoutMs: 60000,
       messages: [
         { role: 'system', content: ARCHITECT_PROMPT },
         { role: 'user', content: promptText },
       ],
     });
-    if (generated.text) return generated.text;
+    if (generated.text) return stripVendorBranding(generated.text, names);
   } catch {
     /* fall through to template */
   }
 
-  return buildTemplateSow(requirement, answers, summary);
+  return stripVendorBranding(buildTemplateSow(requirement, answers, summary), names);
 }
 
 function buildTemplateSow(
@@ -145,7 +170,7 @@ function buildTemplateSow(
   const functionalTable =
     functionalRows.length > 0
       ? `| Requirement | Response |\n|-------------|----------|\n${functionalRows.join('\n')}`
-      : '| Requirement | Response |\n|-------------|----------|\n| Detailed in questionnaire | See partner submission |';
+      : '| Requirement | Response |\n|-------------|----------|\n| Detailed in questionnaire | See submitted answers |';
 
   const moduleTable = `| Module | Included |\n|--------|----------|\n${modules.map((m) => `| ${m} | Yes |`).join('\n')}`;
 
@@ -153,16 +178,15 @@ function buildTemplateSow(
 
 **Reference:** ${requirement.reference_id}  
 **Project:** ${requirement.project_name ?? 'Untitled Project'}  
-**Prepared by:** TechAntum Solutions (via Partner Portal)  
 **Date:** ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
 
 ---
 
 ## 1. Executive Summary
 
-TechAntum Solutions proposes to deliver a **${summary.recommendedService ?? 'digital solution'}** for **${summary.businessOverview.company ?? 'the client'}** operating in the **${summary.businessOverview.industry ?? 'specified'}** sector.
+This Scope of Work describes a **${summary.recommendedService ?? 'digital solution'}** for the client, based on the submitted requirement.
 
-This Scope of Work defines project objectives, deliverables, timeline, and acceptance criteria based on requirements captured through the Partner Discovery Platform.
+It defines objectives, deliverables, timeline, and acceptance criteria so both parties can review and approve the same understanding of scope.
 
 | Item | Detail |
 |------|--------|
@@ -178,16 +202,15 @@ This Scope of Work defines project objectives, deliverables, timeline, and accep
 
 | Field | Information |
 |-------|-------------|
-| Client Company | ${summary.businessOverview.company ?? '—'} |
 | Industry | ${summary.businessOverview.industry ?? '—'} |
 | Country | ${summary.businessOverview.country ?? '—'} |
 | Business Size | ${String(answers.business_size ?? '—')} |
 
-### Pain Points
-${summary.businessOverview.painPoints ?? 'As discussed with the partner during discovery.'}
+### Current Challenges
+${summary.businessOverview.painPoints ?? 'As captured during discovery.'}
 
-### Business Goals & Expected Outcomes
-${summary.businessOverview.goals ?? 'As discussed with the partner during discovery.'}
+### Objectives
+${summary.businessOverview.goals ?? 'As captured during discovery.'}
 
 ---
 
@@ -202,19 +225,19 @@ ${moduleTable}
 ${functionalTable}
 
 ### 3.3 Target Audience
-${String(answers.target_audience ?? 'As specified in discovery questionnaire')}
+${String(answers.target_audience ?? 'As specified in the requirement')}
 
 ---
 
-## 4. Technology Stack (Recommended)
+## 4. Recommended Technology Approach
 
 | Layer | Recommendation |
 |-------|----------------|
 | Frontend | Next.js / React — responsive, SEO-ready |
-| Backend | Node.js / Supabase or custom REST API |
+| Backend | Node.js with a REST API |
 | Database | PostgreSQL |
-| Hosting | Cloud (Vercel / AWS / Azure) |
-| Integrations | As specified in requirements |
+| Hosting | Cloud (AWS, Azure, or equivalent) |
+| Integrations | As specified in the requirement |
 
 ---
 
@@ -222,11 +245,11 @@ ${String(answers.target_audience ?? 'As specified in discovery questionnaire')}
 
 | Phase | Duration | Key Deliverable |
 |-------|----------|-----------------|
-| Discovery & Design | 2–3 weeks | Wireframes, UI/UX approval |
-| Development | 4–8 weeks | Working application / website |
-| Testing & QA | 1–2 weeks | Test reports, bug fixes |
+| Discovery & Design | 2–3 weeks | Wireframes and UI/UX approval |
+| Development | 4–8 weeks | Working application or website |
+| Testing & QA | 1–2 weeks | Test reports and defect fixes |
 | Deployment | 1 week | Production launch |
-| Training & Handover | 1 week | Documentation & admin training |
+| Training & Handover | 1 week | Documentation and admin training |
 
 ---
 
@@ -237,16 +260,16 @@ ${String(answers.target_audience ?? 'As specified in discovery questionnaire')}
 | 1 | Solution Build | Fully functional ${summary.recommendedService ?? 'solution'} per agreed scope |
 | 2 | Source Code | Complete codebase with deployment documentation |
 | 3 | Training | Admin / user training session |
-| 4 | Support | Post-launch support per selected package terms |
+| 4 | Support | Post-launch support per the selected package |
 
 ---
 
 ## 7. Acceptance Criteria
 
-- All in-scope features functional as documented in Section 3
-- Cross-browser and mobile responsive (where applicable)
-- Performance benchmarks met (Core Web Vitals for web projects)
-- Successful User Acceptance Testing (UAT) and client sign-off
+- All in-scope features work as documented in Section 3
+- Cross-browser and mobile responsive where applicable
+- Agreed performance targets are met
+- Successful user acceptance testing and client sign-off
 
 ---
 
@@ -260,29 +283,15 @@ ${summary.assumptions.map((a) => `- ${a}`).join('\n')}
 
 - Features not explicitly listed in this document
 - Third-party subscription and licensing costs
-- Content creation (copy, images, video) unless specified
+- Content creation unless specified
 - Ongoing maintenance beyond the package support period
 
 ---
 
-## 10. Risk Analysis
+## 10. Risks
 
 | Risk | Mitigation |
 |------|------------|
-${summary.risks.map((r) => `| ${r.split(':')[0] || 'General'} | ${r.includes(':') ? r.split(':').slice(1).join(':').trim() : 'Monitor and address during project'} |`).join('\n')}
-
----
-
-## 11. Approval
-
-| Role | Name | Signature | Date |
-|------|------|-----------|------|
-| Client Representative | | | |
-| TechAntum Solutions | | | |
-| Partner | ${requirement.partners?.contact_name ?? ''} | | |
-
----
-
-*This document was generated by the TechAntum Partner Portal — ${requirement.reference_id}*
+${summary.risks.map((r) => `| ${r} | Review during delivery and confirm changes in writing |`).join('\n')}
 `;
 }

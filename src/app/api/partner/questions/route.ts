@@ -8,7 +8,7 @@ import { resolveWizardQuestions } from '@/lib/partner/wizard-config';
 import { getQuestionServiceType } from '@/lib/partner/service-catalog';
 
 export async function GET(request: Request) {
-  const auth = await requirePartnerNavAny(['new-requirement', 'requirements']);
+  const auth = await requirePartnerNavAny(['requirements']);
   if ('error' in auth) return auth.error;
 
   const url = new URL(request.url);

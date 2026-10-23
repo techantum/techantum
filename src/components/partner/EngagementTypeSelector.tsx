@@ -14,18 +14,10 @@ export default function EngagementTypeSelector({
   onChange,
   loading = false,
 }: EngagementTypeSelectorProps) {
-  const selectedEngagement = ENGAGEMENT_TYPES.find((e) => e.slug === value);
-
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 mb-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-        <div>
-          <h2 className="font-semibold text-slate-900">Client Requirement Type</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Optional — select if the client needs a focused engagement beyond the standard service package.
-            The form fields will update to match your selection.
-          </p>
-        </div>
+    <div className="mb-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="font-semibold text-slate-900">Requirement Type</h2>
         {loading && (
           <span className="inline-flex items-center gap-1.5 text-xs text-secondary shrink-0">
             <Icon name="ArrowPathIcon" size={14} className="animate-spin" />
@@ -85,15 +77,6 @@ export default function EngagementTypeSelector({
         })}
       </div>
 
-      {selectedEngagement && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-orange-50 border border-orange-100 px-4 py-3">
-          <Icon name="InformationCircleIcon" size={18} className="text-secondary shrink-0 mt-0.5" />
-          <p className="text-sm text-slate-900">
-            Showing fields tailored for <strong>{selectedEngagement.name}</strong>. Business, project,
-            and functional questions below reflect this requirement type.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

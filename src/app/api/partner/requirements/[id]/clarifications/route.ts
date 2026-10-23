@@ -7,7 +7,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
+  const auth = await requirePartnerNavAny(['requirements']);
   if ('error' in auth) return auth.error;
 
   const { id } = await params;
@@ -28,7 +28,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
+  const auth = await requirePartnerNavAny(['requirements']);
   if ('error' in auth) return auth.error;
 
   const { id } = await params;

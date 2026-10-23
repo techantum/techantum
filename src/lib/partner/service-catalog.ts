@@ -101,7 +101,7 @@ function divisionToCategory(division: ServiceDivision, order: number): PartnerCa
     packagesHeadline: division.packagesHeadline,
     display_order: order + 1,
     is_active: true,
-    partner_packages: division.plans.map((plan, i) => planToPackage(division, plan, i)),
+    partner_packages: (division.plans || []).map((plan, i) => planToPackage(division, plan, i)),
   };
 }
 
@@ -115,12 +115,12 @@ export function getPartnerComparisonMatrix(divisionSlug: string): PartnerCompari
     return { divisionSlug, packages: [], rows: [] };
   }
 
-  const packages = division.plans.map((plan, i) => planToPackage(division, plan, i));
-
-  const rows = division.comparisonRows.map((row) => ({
+  const packages = (division.plans || []).map((plan, i) => planToPackage(division, plan, i));
+  const comparisonRows = division.comparisonRows ?? [];
+  const rows = comparisonRows.map((row) => ({
     feature_key: slugifyFeature(row.feature),
     feature_label: row.feature,
-    values: row.values,
+    values: row.values || {},
   }));
 
   return { divisionSlug, packages, rows };

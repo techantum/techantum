@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import RequirementQuickChat from '@/components/partner/RequirementQuickChat';
 import { REQUIREMENT_STATUS_LABELS, type RequirementStatus } from '@/lib/partner/types';
+import { stripVendorBranding } from '@/lib/partner/document-branding';
 
 interface RequirementDetail {
   requirement: Record<string, unknown>;
@@ -39,43 +40,72 @@ function RequirementDetailContent() {
   const req = data.requirement;
   const status = req.status as RequirementStatus;
   const sowDoc = data.documents.find((d) => d.format === 'markdown' && d.doc_type === 'sow');
+  const sowPreview = sowDoc?.content ? stripVendorBranding(sowDoc.content) : '';
+
+  const proposalReady = Boolean(req.proposal_sent_at);
+  const quotationReady = status === 'approved' || status === 'won';
 
   return (
-    <div className="max-w-4xl space-y-6">
-      {submitted && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
-          <Icon name="CheckCircleIcon" size={24} className="text-green-600 shrink-0" variant="solid" />
-          <div>
-            <p className="font-semibold text-green-800">Requirement Submitted Successfully</p>
-            <p className="text-sm text-green-700">SOW generated and team notified. Reference: {String(req.reference_id)}</p>
+    <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+      <div className="min-w-0 flex-1 space-y-6">
+      <div>
+        <Link
+          href="/partner/requirements"
+          className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-secondary"
+        >
+          <Icon name="ArrowLeftIcon" size={16} />
+          Back to Requirements
+        </Link>
+        {submitted && (
+          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4">
+            <Icon name="CheckCircleIcon" size={24} className="shrink-0 text-green-600" variant="solid" />
+            <div>
+              <p className="font-semibold text-green-800">Requirement submitted successfully</p>
+              <p className="text-sm text-green-700">Our team will review this and send a proposal with timeline and cost. Reference: {String(req.reference_id)}</p>
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="font-mono text-sm text-secondary">{String(req.reference_id)}</p>
-          <h1 className="font-bricolage text-2xl font-bold text-slate-900 mt-1">
-            {String(req.project_name || 'Untitled Project')}
-          </h1>
-          <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-secondary">
-            {REQUIREMENT_STATUS_LABELS[status]}
-          </span>
-        </div>
-        {status === 'draft' && (
-          <Link
-            href={`/partner/requirements/new?draft=${id}`}
-            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50"
-          >
-            Continue Editing
-          </Link>
         )}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-sm font-semibold text-secondary">{String(req.reference_id)}</p>
+            <h1 className="mt-1 font-bricolage text-3xl font-bold tracking-tight text-slate-900">
+              {String(req.project_name || 'Untitled Project')}
+            </h1>
+            <span className="mt-2 inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-secondary">
+              {REQUIREMENT_STATUS_LABELS[status]}
+            </span>
+          </div>
+          {status === 'draft' ? (
+            <Link
+              href={`/partner/requirements/new?draft=${id}`}
+              className="rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
+            >
+              Continue Editing
+            </Link>
+          ) : null}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Proposal</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{proposalReady ? 'Received' : 'Pending'}</p>
+          <p className="text-xs text-slate-500">{proposalReady ? `Sent ${new Date(String(req.proposal_sent_at)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Waiting for team review'}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Quotation</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{quotationReady ? 'Sent' : 'Pending'}</p>
+          <p className="text-xs text-slate-500">{quotationReady ? 'Final quotation is available from the document export.' : 'Sent by email after proposal approval'}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Package</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{String((req.partner_packages as { name?: string } | undefined)?.name ?? '—')}</p>
+          <p className="text-xs text-slate-500">{String((req.partner_service_categories as { name?: string } | undefined)?.name ?? '—')}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
         {([
-          ['Service', (req.partner_service_categories as { name?: string } | undefined)?.name ?? '—'],
-          ['Package', (req.partner_packages as { name?: string } | undefined)?.name ?? '—'],
           ['Budget', req.budget_range ?? '—'],
           ['Industry', req.industry ?? '—'],
         ] as const).map(([label, value]) => (
@@ -99,13 +129,16 @@ function RequirementDetailContent() {
       )}
 
       {status !== 'draft' && (
-        <RequirementQuickChat
-          requirementId={id}
-          apiBase="/api/partner/requirements"
-          canReply
-          referenceId={String(req.reference_id)}
-          defaultOpen={status === 'need_clarification'}
-        />
+        <div className="h-[28rem] xl:hidden">
+          <RequirementQuickChat
+            requirementId={id}
+            apiBase="/api/partner/requirements"
+            canReply
+            referenceId={String(req.reference_id)}
+            defaultOpen
+            variant="sidebar"
+          />
+        </div>
       )}
 
       {Boolean(req.proposal_sent_at) && (
@@ -130,9 +163,9 @@ function RequirementDetailContent() {
         </div>
       )}
 
-      {sowDoc && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      {sowPreview && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-semibold text-slate-900">Scope of Work</h2>
             <div className="flex flex-wrap gap-2">
               {(['markdown', 'pdf', 'docx'] as const).map((fmt) => (
@@ -140,7 +173,7 @@ function RequirementDetailContent() {
                   key={fmt}
                   type="button"
                   onClick={() => downloadExport(fmt)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 hover:bg-slate-50"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium hover:bg-slate-50"
                 >
                   <Icon name="ArrowDownTrayIcon" size={14} />
                   {fmt.toUpperCase()}
@@ -148,25 +181,26 @@ function RequirementDetailContent() {
               ))}
             </div>
           </div>
-          <div className="prose prose-sm max-w-none bg-slate-50 rounded-lg p-4 max-h-96 overflow-y-auto text-sm whitespace-pre-wrap font-mono">
-            {sowDoc.content.slice(0, 3000)}
-            {sowDoc.content.length > 3000 && '…'}
+          <div className="prose prose-sm max-h-96 max-w-none overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm">
+            {sowPreview.slice(0, 4000)}
+            {sowPreview.length > 4000 && '…'}
           </div>
         </div>
       )}
 
-      {data.prompt && (
-        <details className="bg-white rounded-xl border border-slate-200 p-5">
-          <summary className="font-semibold text-slate-900 cursor-pointer">AI Prompt (for reference)</summary>
-          <pre className="mt-4 text-xs bg-slate-50 p-4 rounded-lg overflow-x-auto max-h-64">
-            {data.prompt.prompt_text.slice(0, 2000)}…
-          </pre>
-        </details>
-      )}
-
-      <Link href="/partner/requirements" className="text-sm text-slate-500 hover:text-secondary">
-        ← Back to requirements
-      </Link>
+      </div>
+      {status !== 'draft' ? (
+        <aside className="hidden h-[calc(100vh-7rem)] w-[22rem] shrink-0 xl:sticky xl:top-24 xl:block">
+          <RequirementQuickChat
+            requirementId={id}
+            apiBase="/api/partner/requirements"
+            canReply
+            referenceId={String(req.reference_id)}
+            defaultOpen
+            variant="sidebar"
+          />
+        </aside>
+      ) : null}
     </div>
   );
 }

@@ -94,7 +94,7 @@ export default function PartnerDashboardPage() {
   }
 
   const firstName = partnerUser?.full_name?.split(' ')[0] ?? 'Partner';
-  const canCreateRequirement = partnerUser ? partnerHasNavAccess(partnerUser, 'new-requirement', partner) : false;
+  const canCreateRequirement = partnerUser ? partnerHasNavAccess(partnerUser, 'requirements', partner) : false;
   const canViewRequirements = partnerUser ? partnerHasNavAccess(partnerUser, 'requirements', partner) : false;
   const canUseLeadDiscovery = partnerUser ? partnerHasNavAccess(partnerUser, 'lead-discovery', partner) : false;
 
@@ -111,7 +111,7 @@ export default function PartnerDashboardPage() {
               className="inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
             >
               <Icon name="PlusIcon" size={18} />
-              New requirement
+              Create new requirement
             </Link>
           ) : null
         }

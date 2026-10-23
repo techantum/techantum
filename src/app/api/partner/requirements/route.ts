@@ -7,7 +7,7 @@ import {
 } from '@/lib/partner/requirements';
 
 export async function GET() {
-  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
+  const auth = await requirePartnerNavAny(['requirements']);
   if ('error' in auth) return auth.error;
 
   const data = await listPartnerRequirements(auth.partner.id);
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requirePartnerNavAny(['requirements', 'new-requirement']);
+  const auth = await requirePartnerNavAny(['requirements']);
   if ('error' in auth) return auth.error;
 
   try {

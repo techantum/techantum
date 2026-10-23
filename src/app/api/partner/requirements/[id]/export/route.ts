@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import path from 'path';
 import { requirePartnerNavAny } from '@/lib/partner/auth';
 import { getRequirementDocuments } from '@/lib/partner/requirements';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getUploadRoot } from '@/lib/storage/local';
 import { generateDocxBuffer, generatePdfBuffer } from '@/lib/partner/document-export';
+import { stripVendorBranding } from '@/lib/partner/document-branding';
 
 export async function GET(
   request: Request,
@@ -39,10 +37,11 @@ export async function GET(
   }
 
   const ref = req.reference_id;
-  const title = `Scope of Work — ${ref}`;
+  const title = 'Scope of Work';
+  const sowContent = sowMarkdown?.content ? stripVendorBranding(sowMarkdown.content) : '';
 
-  if (format === 'markdown' && sowMarkdown?.content) {
-    return new NextResponse(sowMarkdown.content, {
+  if (format === 'markdown' && sowContent) {
+    return new NextResponse(sowContent, {
       headers: {
         'Content-Type': 'text/markdown; charset=utf-8',
         'Content-Disposition': `attachment; filename="${ref}-SOW.md"`,
@@ -50,38 +49,12 @@ export async function GET(
     });
   }
 
-  const fileDoc = documents.find(
-    (d) => d.format === format && d.doc_type === 'sow' && (d.version ?? 1) === latestVersion
-  );
-
-  if (fileDoc?.file_url) {
-    const urlPath = fileDoc.file_url.includes('/uploads/')
-      ? fileDoc.file_url.split('/uploads/')[1]
-      : null;
-    if (urlPath) {
-      try {
-        const buffer = await readFile(path.join(getUploadRoot(), urlPath));
-        const contentType = format === 'pdf'
-          ? 'application/pdf'
-          : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        return new NextResponse(new Uint8Array(buffer), {
-          headers: {
-            'Content-Type': contentType,
-            'Content-Disposition': `attachment; filename="${ref}-SOW-v${latestVersion}.${format}"`,
-          },
-        });
-      } catch {
-        // fall through to on-the-fly generation
-      }
-    }
-  }
-
-  if (!sowMarkdown?.content) {
+  if (!sowContent) {
     return NextResponse.json({ error: 'SOW not found' }, { status: 404 });
   }
 
   if (format === 'pdf') {
-    const buffer = await generatePdfBuffer(sowMarkdown.content, title);
+    const buffer = await generatePdfBuffer(sowContent, title);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',
@@ -91,7 +64,7 @@ export async function GET(
   }
 
   if (format === 'docx') {
-    const buffer = await generateDocxBuffer(sowMarkdown.content, title);
+    const buffer = await generateDocxBuffer(sowContent, title);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

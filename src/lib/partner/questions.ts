@@ -93,12 +93,5 @@ export function validateStepAnswers(
     }
   }
 
-  if (wizardStep === 3) {
-    const modules = answers.modules;
-    if (!Array.isArray(modules) || modules.length === 0) {
-      errors.modules = 'Select at least one module';
-    }
-  }
-
   return errors;
 }

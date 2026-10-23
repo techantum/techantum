@@ -1,5 +1,5 @@
-import PackageComparison from '@/components/partner/PackageComparison';
+import { redirect } from 'next/navigation';
 
 export default function PartnerPackagesPage() {
-  return <PackageComparison />;
+  redirect('/partner/requirements/new');
 }

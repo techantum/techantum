@@ -39,6 +39,7 @@ export interface ServiceDivision {
   image: string;
   imageAlt: string;
   plans: ServicePlan[];
+  comparisonRows?: { feature: string; values: Record<string, string> }[];
 }
 
 export const digitalTransformationJourney = [

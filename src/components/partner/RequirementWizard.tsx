@@ -9,6 +9,7 @@ import WizardFieldGrid from '@/components/partner/WizardFieldGrid';
 import type { PartnerQuestion } from '@/lib/partner/catalog';
 import { WIZARD_STEPS } from '@/lib/partner/catalog';
 import {
+  DIVISION_ICONS,
   ENGAGEMENT_TYPES,
   getQuestionServiceType,
   getSuggestedModulesFromPlan,
@@ -22,6 +23,34 @@ import {
   SERVICE_LABELS,
 } from '@/lib/partner/wizard-config';
 import { getVisibleQuestions, validateStepAnswers } from '@/lib/partner/questions';
+
+function RequirementTypeBanner({
+  label,
+  hint,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  onChange: () => void;
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-secondary">Selected Requirement Type</p>
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        <p className="text-xs text-slate-500">{hint}</p>
+      </div>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
+        onClick={onChange}
+      >
+        <Icon name="PencilSquareIcon" size={12} />
+        Change Type
+      </button>
+    </div>
+  );
+}
 
 interface RequirementWizardProps {
   initialDivision?: string;
@@ -75,7 +104,6 @@ export default function RequirementWizard({
         if (Array.isArray(data)) {
           setCatalog(data);
           if (!divisionSlug && initialDivision) setDivisionSlug(initialDivision);
-          else if (!divisionSlug && data[0]) setDivisionSlug(data[0].slug);
           if (!planSlug && initialPlan) setPlanSlug(initialPlan);
         }
       });
@@ -93,6 +121,17 @@ export default function RequirementWizard({
       .catch(() => setQuestions([]))
       .finally(() => setQuestionsLoading(false));
   }, [divisionSlug, engagementType]);
+
+  const selectPackage = (division: string, plan: string) => {
+    setDivisionSlug(division);
+    setPlanSlug(plan);
+    setModulesInitialized(false);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.package;
+      return next;
+    });
+  };
 
   const handleEngagementChange = (slug: string) => {
     setEngagementType(slug);
@@ -226,24 +265,16 @@ export default function RequirementWizard({
       if (!confirmed) return { confirmed: 'Please confirm the information is accurate' };
       return {};
     }
-    if (step === 3 && engagementType) return {};
     const stepErrors = validateStepAnswers(questions, answers, step);
     if (!planSlug || !divisionSlug) stepErrors.package = 'Select a service package before continuing';
+    if (step === 3 && moduleOptions.length > 0) {
+      const modules = Array.isArray(answers.modules) ? (answers.modules as string[]) : [];
+      if (modules.length === 0) stepErrors.modules = 'Select at least one module';
+    }
     return stepErrors;
   };
 
-  const goBack = () => {
-    setStep((s) => {
-      if (s === 4 && engagementType) return 2;
-      return Math.max(1, s - 1);
-    });
-  };
-
-  useEffect(() => {
-    if (engagementType && step === 3) setStep(4);
-  }, [engagementType, step]);
-
-  const isStepSkipped = (wizardStep: number) => wizardStep === 3 && !!engagementType;
+  const goBack = () => setStep((s) => Math.max(1, s - 1));
 
   const goNext = async () => {
     const stepErrors = validateCurrentStep();
@@ -258,9 +289,7 @@ export default function RequirementWizard({
     }
     setErrors({});
     if (step < 5) await saveDraft();
-    let next = step + 1;
-    if (engagementType && next === 3) next = 4;
-    setStep(Math.min(5, next));
+    setStep(Math.min(5, step + 1));
   };
 
   const handleSubmit = async () => {
@@ -305,6 +334,24 @@ export default function RequirementWizard({
     FUNCTIONAL_GROUPS.website ??
     ['General'];
   const selectedModules = Array.isArray(answers.modules) ? (answers.modules as string[]) : [];
+  const suggestedModules = useMemo(
+    () => (divisionSlug && planSlug ? getSuggestedModulesFromPlan(divisionSlug, planSlug) : []),
+    [divisionSlug, planSlug]
+  );
+  const selectedEngagement = ENGAGEMENT_TYPES.find((item) => item.slug === engagementType);
+  const requirementTypeLabel = selectedEngagement?.name ?? 'Standard Package';
+  const requirementTypeHint = selectedEngagement?.description ?? 'Use questionnaire for the selected Website / Web App / Mobile plan.';
+  const attachmentNames = Array.isArray(answers.attachment_names) ? (answers.attachment_names as string[]) : [];
+  const whyWeAsk =
+    step === 1
+      ? 'These details help us understand your goals, prepare a relevant proposal, suggest the right solution, and provide a realistic timeline and accurate quotation.'
+      : step === 2
+        ? 'Project timing, budget, and audience help us size the work and recommend a realistic delivery plan.'
+        : step === 3
+          ? 'Confirming features and scope keeps the proposal aligned with what you actually need — and avoids surprises later.'
+          : step === 4
+            ? 'Notes and supporting context help our team review faster and quote more accurately.'
+            : 'A final check ensures we review the right information before sending a proposal with timeline and cost.';
 
   const formatAnswer = (q: PartnerQuestion): string => {
     const val = answers[q.question_key];
@@ -318,6 +365,7 @@ export default function RequirementWizard({
       title: 'Business Details',
       step: 1,
       items: getVisibleQuestions(questions, answers, 1).map((q) => ({
+        key: q.question_key,
         label: q.label,
         value: formatAnswer(q),
       })),
@@ -328,11 +376,13 @@ export default function RequirementWizard({
       items: [
         ...(engagementType
           ? [{
+              key: 'requirement_type',
               label: 'Requirement Type',
               value: ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name ?? engagementType,
             }]
           : []),
         ...getVisibleQuestions(questions, answers, 2).map((q) => ({
+          key: q.question_key,
           label: q.label,
           value: formatAnswer(q),
         })),
@@ -343,14 +393,17 @@ export default function RequirementWizard({
           title: 'Modules & Features',
           step: 3,
           items: [
-            { label: 'Service', value: serviceInfo?.name ?? selectedCategory?.name ?? '—' },
-            { label: 'Package', value: selectedPackage?.name ?? '—' },
+            { key: 'service', label: 'Service', value: serviceInfo?.name ?? selectedCategory?.name ?? '—' },
+            { key: 'package', label: 'Package', value: selectedPackage?.name ?? '—' },
             ...(selectedPackage?.includes && selectedPackage.includes.length > 0
-              ? [{ label: 'Plan Includes', value: selectedPackage.includes.slice(0, 8).join(', ') + (selectedPackage.includes.length > 8 ? '…' : '') }]
+              ? [{ key: 'plan_includes', label: 'Plan Includes', value: selectedPackage.includes.slice(0, 8).join(', ') + (selectedPackage.includes.length > 8 ? '…' : '') }]
               : []),
-            { label: 'Selected Modules', value: selectedModules.join(', ') || '—' },
+            { key: 'modules', label: 'Selected Modules', value: selectedModules.join(', ') || '—' },
             ...(customRequirements
-              ? [{ label: 'Additional Notes', value: customRequirements }]
+              ? [{ key: 'custom_notes', label: 'Additional Notes', value: customRequirements }]
+              : []),
+            ...(attachmentNames.length > 0
+              ? [{ key: 'attachments', label: 'Referenced files', value: attachmentNames.join(', ') }]
               : []),
           ],
         }]
@@ -361,6 +414,7 @@ export default function RequirementWizard({
         : 'Functional Requirements',
       step: 4,
       items: getVisibleQuestions(questions, answers, 4).map((q) => ({
+        key: q.question_key,
         label: q.label,
         value: formatAnswer(q),
       })),
@@ -370,89 +424,47 @@ export default function RequirementWizard({
   return (
     <div className="flex flex-col xl:flex-row gap-6">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="font-bricolage text-2xl font-bold text-slate-900">Gather Client Requirements</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Step {step} of {WIZARD_STEPS.length} — {WIZARD_STEPS[step - 1]?.label}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {lastSaved && (
-              <span className="text-xs text-slate-400 hidden sm:inline">
-                Saved {lastSaved.toLocaleTimeString()}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={saveDraft}
-              disabled={saving}
-              className="px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save Draft'}
-            </button>
-          </div>
+        <div className="mb-6">
+          <Link
+            href="/partner/requirements"
+            className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-secondary"
+          >
+            <Icon name="ArrowLeftIcon" size={16} />
+            Back to Requirements
+          </Link>
+          <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">Create New Requirement</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {step === 1
+              ? 'Submit your project details to receive a proposal with timeline and cost.'
+              : `Step ${step} of ${WIZARD_STEPS.length} — ${WIZARD_STEPS[step - 1]?.label}`}
+          </p>
         </div>
 
-        <EngagementTypeSelector
-          value={engagementType}
-          onChange={handleEngagementChange}
-          loading={questionsLoading}
-        />
-
-        {/* Stepper */}
-        <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-2">
-          {WIZARD_STEPS.map((s, i) => {
-            const skipped = isStepSkipped(s.step);
+        <ol className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">
+          {WIZARD_STEPS.map((item, index) => {
+            const done = step > item.step;
+            const active = step === item.step;
             return (
-            <div key={s.step} className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (skipped || s.step > step) return;
-                  if (s.step === 3 && engagementType) return;
-                  setStep(s.step);
-                }}
-                disabled={skipped || s.step > step}
-                className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${
-                  step === s.step ? 'bg-orange-50' : ''
-                } ${skipped ? 'opacity-40 cursor-not-allowed' : s.step <= step ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
-              >
-                <span
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                    skipped
-                      ? 'bg-slate-100 text-slate-300 line-through'
-                      : step === s.step
-                      ? 'bg-secondary text-white'
-                      : step > s.step
-                        ? 'bg-orange-50 text-secondary'
-                        : 'bg-slate-100 text-slate-400'
-                  }`}
+              <li key={item.step} className="flex min-w-0 flex-1 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { if (item.step <= step) setStep(item.step); }}
+                  className="flex min-w-0 items-center gap-2"
                 >
-                  {skipped ? '—' : step > s.step ? '✓' : s.step}
-                </span>
-                <span
-                  className={`text-xs sm:text-sm whitespace-nowrap ${
-                    skipped ? 'text-slate-300 line-through' : step === s.step ? 'font-medium text-slate-900' : 'text-slate-400'
-                  }`}
-                >
-                  {s.label}
-                </span>
-              </button>
-              {i < WIZARD_STEPS.length - 1 && (
-                <span className="text-slate-300 mx-0.5 hidden sm:inline">→</span>
-              )}
-            </div>
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${active ? 'bg-secondary text-white' : done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {done ? <Icon name="CheckIcon" size={16} /> : item.step}
+                  </span>
+                  <span className={`truncate text-sm ${active ? 'font-semibold text-secondary' : done ? 'font-medium text-slate-700' : 'text-slate-400'}`}>{item.label}</span>
+                </button>
+                {index < WIZARD_STEPS.length - 1 ? <span className="hidden h-px flex-1 bg-slate-200 sm:block" /> : null}
+              </li>
             );
           })}
-        </div>
+        </ol>
 
-        {!planSlug && (
-          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-            Select a service package first.{' '}
-            <Link href="/partner/packages" className="font-medium underline">
-              Compare packages
-            </Link>
+        {!planSlug && step > 1 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Select a service package on step 1 before continuing.
           </div>
         )}
 
@@ -466,10 +478,91 @@ export default function RequirementWizard({
           </p>
         )}
 
-        <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
           {step === 1 && (
             <>
-              <h2 className="font-semibold text-slate-900 mb-4">Business Details</h2>
+              <div className="mb-6">
+                <h2 className="mb-4 font-semibold text-slate-900">Select Package</h2>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {catalog.map((category) => (
+                    <button
+                      key={category.slug}
+                      type="button"
+                      onClick={() => {
+                        setDivisionSlug(category.slug);
+                        if (!category.partner_packages.some((pkg) => pkg.slug === planSlug)) {
+                          setPlanSlug('');
+                          setModulesInitialized(false);
+                        }
+                      }}
+                      className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all ${
+                        divisionSlug === category.slug
+                          ? 'border-secondary bg-orange-50 text-slate-900'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-secondary/40'
+                      }`}
+                    >
+                      <Icon
+                        name={(DIVISION_ICONS[category.slug] ?? 'CubeIcon') as 'CubeIcon'}
+                        size={18}
+                        className={divisionSlug === category.slug ? 'text-secondary' : 'text-slate-400'}
+                      />
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+                {selectedCategory ? (
+                  <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {selectedCategory.partner_packages.map((pkg) => {
+                      const selected = planSlug === pkg.slug;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => selectPackage(selectedCategory.slug, pkg.slug)}
+                          className={`relative rounded-xl border-2 p-4 text-left transition-all ${
+                            selected
+                              ? 'border-secondary bg-orange-50/80 ring-1 ring-secondary/20'
+                              : 'border-slate-200 bg-white hover:border-secondary/40'
+                          }`}
+                        >
+                          {selected ? (
+                            <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-white">
+                              <Icon name="CheckIcon" size={12} />
+                            </span>
+                          ) : null}
+                          <p className="pr-6 text-sm font-semibold text-slate-900">{pkg.name}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">{pkg.tagline || pkg.best_for}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="mb-4 text-sm text-slate-500">Choose a service to see available plans.</p>
+                )}
+                <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center">
+                  <div>
+                    <p className="font-medium text-slate-900">Need something custom?</p>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      Contact us for enterprise or bespoke solutions beyond standard packages.
+                    </p>
+                  </div>
+                  <Link
+                    href="/partner/support"
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Request Custom Solution
+                  </Link>
+                </div>
+                {errors.package ? <p className="mt-2 text-xs text-red-600">{errors.package}</p> : null}
+              </div>
+              {planSlug ? (
+                <>
+              <EngagementTypeSelector
+                value={engagementType}
+                onChange={handleEngagementChange}
+                loading={questionsLoading}
+              />
+              <h2 className="mb-4 font-semibold text-slate-900">Business Profile</h2>
               {questionsLoading ? (
                 <p className="text-sm text-slate-500 py-8 text-center">Loading form fields…</p>
               ) : stepQuestions.length === 0 ? (
@@ -487,12 +580,19 @@ export default function RequirementWizard({
                   onChange={setAnswer}
                 />
               )}
+                </>
+              ) : null}
             </>
           )}
 
           {step === 2 && (
             <>
-              <h2 className="font-semibold text-slate-900 mb-4">Project Details</h2>
+              <RequirementTypeBanner
+                label={requirementTypeLabel}
+                hint={requirementTypeHint}
+                onChange={() => setStep(1)}
+              />
+              <h2 className="mb-4 font-semibold text-slate-900">Project Brief</h2>
               {questionsLoading ? (
                 <p className="text-sm text-slate-500 py-8 text-center">Loading form fields…</p>
               ) : stepQuestions.length === 0 ? (
@@ -508,12 +608,14 @@ export default function RequirementWizard({
             </>
           )}
 
-          {step === 3 && !engagementType && (
+          {step === 3 && (
             <>
-              <h2 className="font-semibold text-slate-900 mb-1">Modules & Features</h2>
-              <p className="text-sm text-slate-500 mb-4">
-                Review what&apos;s included in your selected plan, then confirm or adjust modules for your client.
-              </p>
+              <RequirementTypeBanner
+                label={requirementTypeLabel}
+                hint={requirementTypeHint}
+                onChange={() => setStep(1)}
+              />
+              <h2 className="mb-4 font-semibold text-slate-900">Features & Scope</h2>
 
               {selectedPackage && selectedCategory && (
                 <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50/60 p-4">
@@ -535,33 +637,35 @@ export default function RequirementWizard({
                       </span>
                     )}
                   </div>
-                  {selectedPackage.includes.length > 0 && (
+                  {(selectedPackage.includes ?? []).length > 0 && (
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto">
-                      {selectedPackage.includes.slice(0, 12).map((item) => (
+                      {(selectedPackage.includes ?? []).slice(0, 12).map((item) => (
                         <li key={item} className="flex items-start gap-1.5 text-xs text-slate-700">
                           <Icon name="CheckIcon" size={12} className="text-green-600 shrink-0 mt-0.5" />
                           {item}
                         </li>
                       ))}
-                      {selectedPackage.includes.length > 12 && (
-                        <li className="text-xs text-slate-400">+{selectedPackage.includes.length - 12} more…</li>
+                      {(selectedPackage.includes ?? []).length > 12 && (
+                        <li className="text-xs text-slate-400">+{(selectedPackage.includes ?? []).length - 12} more…</li>
                       )}
                     </ul>
                   )}
                 </div>
               )}
 
-              <h3 className="text-sm font-medium text-slate-800 mb-2">Confirm Required Modules</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                Modules relevant to {serviceInfo?.name ?? 'this service'} are shown below. Select what your client needs beyond the plan.
-              </p>
+              <h3 className="mb-3 text-sm font-medium text-slate-800">Confirm Required Modules</h3>
               {errors.modules && (
                 <p className="text-xs text-red-600 mb-3">{errors.modules}</p>
               )}
+              {moduleOptions.length === 0 ? (
+                <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                  Scope for <strong>{requirementTypeLabel}</strong> will be captured in the next step. You can still note anything unique here.
+                </div>
+              ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                 {moduleOptions.map((mod) => {
                   const selected = selectedModules.includes(mod.key);
-                  const inPlan = getSuggestedModulesFromPlan(divisionSlug, planSlug).includes(mod.key);
+                  const inPlan = suggestedModules.includes(mod.key);
                   return (
                     <button
                       key={mod.key}
@@ -594,13 +698,11 @@ export default function RequirementWizard({
                   );
                 })}
               </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Additional Requirements or Questions for Client
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Additional Requirements or Questions
                 </label>
-                <p className="text-xs text-slate-500 mb-1.5">
-                  Note anything not covered above — pain points, integrations, or open questions to clarify with the client.
-                </p>
                 <textarea
                   value={customRequirements}
                   onChange={(e) => setCustomRequirements(e.target.value)}
@@ -613,54 +715,88 @@ export default function RequirementWizard({
           )}
 
           {step === 4 && (
-            <div className="flex flex-col lg:flex-row gap-5">
-              <nav className="lg:w-52 shrink-0 flex lg:flex-col gap-1 overflow-x-auto pb-2 lg:pb-0">
-                {functionalGroups.map((group) => (
-                  <button
-                    key={group}
-                    type="button"
-                    onClick={() => setFunctionalGroup(group)}
-                    className={`whitespace-nowrap text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      functionalGroup === group
-                        ? 'bg-secondary text-white'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {group}
-                  </button>
-                ))}
-              </nav>
-              <div className="flex-1 min-w-0">
-                {engagementType && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-secondary mb-1">
-                    {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name}
-                  </p>
-                )}
-                <h2 className="font-semibold text-slate-900 mb-1">{functionalGroup}</h2>
-                <p className="text-sm text-slate-500 mb-4">
-                  {engagementType
-                    ? 'Answer the questions below specific to this client requirement type.'
-                    : 'Answer the questions below to help us scope the project accurately.'}
-                </p>
-                <WizardFieldGrid
-                  questions={stepQuestions}
-                  answers={answers}
-                  errors={errors}
-                  onChange={setAnswer}
-                />
-                {stepQuestions.length === 0 && (
-                  <p className="text-sm text-slate-400 italic">No questions in this category.</p>
-                )}
+            <div className="space-y-5">
+              <RequirementTypeBanner
+                label={requirementTypeLabel}
+                hint={requirementTypeHint}
+                onChange={() => setStep(1)}
+              />
+              <div>
+                <h2 className="mb-4 font-semibold text-slate-900">Files & Notes</h2>
+                <label className="mb-5 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center hover:border-secondary/40">
+                  <Icon name="PaperClipIcon" size={22} className="text-secondary" />
+                  <p className="mt-2 text-sm font-semibold text-slate-800">Add file names or references</p>
+                  <p className="mt-1 text-xs text-slate-500">List documents you already have — brand kit, sitemap, current site access, etc.</p>
+                  <input
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    onChange={(event) => {
+                      const names = Array.from(event.target.files ?? []).map((file) => file.name);
+                      if (names.length === 0) return;
+                      setAnswer('attachment_names', [...new Set([...attachmentNames, ...names])]);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                {attachmentNames.length > 0 ? (
+                  <ul className="mb-5 flex flex-wrap gap-2">
+                    {attachmentNames.map((name) => (
+                      <li key={name} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
+                        {name}
+                        <button
+                          type="button"
+                          className="font-semibold text-slate-400 hover:text-red-500"
+                          onClick={() => setAnswer('attachment_names', attachmentNames.filter((item) => item !== name))}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-5 lg:flex-row">
+                <nav className="flex gap-1 overflow-x-auto pb-2 lg:w-52 lg:shrink-0 lg:flex-col lg:pb-0">
+                  {functionalGroups.map((group) => (
+                    <button
+                      key={group}
+                      type="button"
+                      onClick={() => setFunctionalGroup(group)}
+                      className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+                        functionalGroup === group
+                          ? 'bg-secondary text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {group}
+                    </button>
+                  ))}
+                </nav>
+                <div className="min-w-0 flex-1">
+                  <h3 className="mb-4 text-sm font-semibold text-slate-800">{functionalGroup}</h3>
+                  <WizardFieldGrid
+                    questions={stepQuestions}
+                    answers={answers}
+                    errors={errors}
+                    onChange={setAnswer}
+                  />
+                  {stepQuestions.length === 0 && (
+                    <p className="text-sm italic text-slate-400">No questions in this category.</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {step === 5 && (
             <div className="space-y-4">
-              <h2 className="font-semibold text-slate-900">Review & Summary</h2>
-              <p className="text-sm text-slate-500">
-                Review all captured information before submitting. A Scope of Work (PDF) will be generated automatically.
-              </p>
+              <RequirementTypeBanner
+                label={requirementTypeLabel}
+                hint={requirementTypeHint}
+                onChange={() => setStep(1)}
+              />
+              <h2 className="font-semibold text-slate-900">Review & Submit</h2>
               {reviewSections.map((section) => (
                 <div key={section.title} className="border border-slate-200 rounded-xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
@@ -678,7 +814,7 @@ export default function RequirementWizard({
                   </div>
                   <dl className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                     {section.items.map((item) => (
-                      <div key={item.label}>
+                      <div key={item.key ?? item.label}>
                         <dt className="text-xs text-slate-500">{item.label}</dt>
                         <dd className="text-sm text-slate-900 mt-0.5">{item.value}</dd>
                       </div>
@@ -713,136 +849,110 @@ export default function RequirementWizard({
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-6">
-          <div>
-            {step > 1 && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => router.push('/partner/requirements')}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            {step > 1 ? (
               <button
                 type="button"
                 onClick={goBack}
-                className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50"
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Back
               </button>
-            )}
+            ) : null}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={saveDraft}
+              disabled={saving}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save Draft'}
+            </button>
             {step < 5 ? (
               <button
                 type="button"
                 onClick={goNext}
-                className="rounded-full px-6 py-2.5 text-sm font-semibold bg-secondary text-white hover:bg-secondary/90"
+                className="inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90"
               >
-                Save & Next
+                Save & Continue
+                <Icon name="ArrowRightIcon" size={16} />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold bg-secondary text-white hover:bg-secondary/90 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90 disabled:opacity-50"
               >
-                {submitting ? (
-                  <>
-                    <Icon name="ArrowPathIcon" size={16} className="animate-spin" />
-                    Generating SOW…
-                  </>
-                ) : (
-                  <>
-                    Submit Requirement
-                    <Icon name="SparklesIcon" size={16} />
-                  </>
-                )}
+                {submitting ? 'Submitting…' : 'Submit Requirement'}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Sidebar */}
-      <aside className="xl:w-72 shrink-0 space-y-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Selected Plan
-          </p>
+      <aside className="xl:w-80 shrink-0 space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Selected Plan</p>
+            <button type="button" onClick={() => setStep(1)} className="text-xs font-semibold text-secondary">
+              Change Plan
+            </button>
+          </div>
           {selectedPackage && selectedCategory ? (
             <>
               <p className="font-semibold text-slate-900">{selectedCategory.name}</p>
-              <p className="text-sm text-secondary font-medium mt-0.5">{selectedPackage.name}</p>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">{selectedPackage.tagline}</p>
-              <Link
-                href={`/partner/packages?division=${divisionSlug}`}
-                className="inline-block mt-3 text-xs font-medium text-secondary hover:text-secondary"
-              >
-                Change Plan
-              </Link>
+              <p className="text-sm font-medium text-secondary">{selectedPackage.name}</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">{selectedPackage.tagline}</p>
             </>
           ) : (
-            <p className="text-sm text-slate-500">No plan selected</p>
+            <p className="text-sm text-slate-500">Choose a service package to continue.</p>
           )}
-          {errors.package && <p className="text-xs text-red-600 mt-2">{errors.package}</p>}
+          {errors.package && <p className="mt-2 text-xs text-red-600">{errors.package}</p>}
         </div>
 
-        {engagementType && (
-          <div className="bg-white rounded-xl border border-orange-200 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-              Requirement Type
+        {step === 1 ? (
+          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+            <p className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Icon name="LightBulbIcon" size={16} className="text-secondary" /> What happens next?
             </p>
-            <p className="font-semibold text-slate-900">
-              {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.name ?? engagementType}
-            </p>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              {ENGAGEMENT_TYPES.find((e) => e.slug === engagementType)?.description}
-            </p>
+            <ol className="space-y-2 text-sm text-slate-600">
+              <li>1. Submit your requirement</li>
+              <li>2. Receive proposal with timeline & cost</li>
+              <li>3. Get quotation by email</li>
+              <li>4. Synced to admin dashboard</li>
+            </ol>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Your progress</p>
+            <ul className="space-y-2">
+              {WIZARD_STEPS.map((item) => (
+                <li key={item.step} className="flex items-center gap-2 text-sm">
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${step > item.step ? 'bg-emerald-100 text-emerald-700' : step === item.step ? 'bg-secondary text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {step > item.step ? <Icon name="CheckIcon" size={12} /> : item.step}
+                  </span>
+                  <span className={step === item.step ? 'font-semibold text-slate-900' : 'text-slate-500'}>{item.label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        <div className="bg-orange-50 rounded-xl border border-orange-100 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Why we need this
+        <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+          <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <Icon name="LightBulbIcon" size={16} className="text-secondary" /> Why we ask this
           </p>
-          <p className="text-sm text-slate-900 leading-relaxed">
-            Our goal is to understand your client&apos;s pain points clearly so we can propose the right solution — answer only what you know; you can clarify details later via Quick Chat.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
-            Progress
-          </p>
-          <ul className="space-y-2">
-            {WIZARD_STEPS.map((s) => {
-              const skipped = isStepSkipped(s.step);
-              return (
-              <li key={s.step} className="flex items-center gap-2 text-sm">
-                <span
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    skipped
-                      ? 'bg-slate-100 text-slate-300'
-                      : step > s.step
-                      ? 'bg-green-100 text-green-700'
-                      : step === s.step
-                        ? 'bg-secondary text-white'
-                        : 'bg-slate-100 text-slate-400'
-                  }`}
-                >
-                  {skipped ? '—' : step > s.step ? '✓' : s.step}
-                </span>
-                <span
-                  className={
-                    skipped
-                      ? 'text-slate-300 line-through'
-                      : step === s.step
-                        ? 'font-medium text-slate-900'
-                        : 'text-slate-500'
-                  }
-                >
-                  {s.label}
-                  {skipped ? ' (skipped)' : ''}
-                </span>
-              </li>
-              );
-            })}
-          </ul>
+          <p className="text-sm leading-relaxed text-slate-600">{whyWeAsk}</p>
         </div>
       </aside>
     </div>
