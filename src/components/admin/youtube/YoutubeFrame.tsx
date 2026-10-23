@@ -104,10 +104,10 @@ const SECTION_HINT: Record<string, string> = {
   channels: 'Manage your own channel and competitor channels for this project.',
   import: 'Import public videos for the channels in this project.',
   videos: 'Search and review imported videos for this project.',
-  analysis: 'Understand why some videos get high engagement while others stay quiet.',
+  analysis: 'Find improvement opportunities and get AI-powered recommendations for better performing videos.',
   compare: 'Compare imported videos side by side.',
   'channel-compare': 'Compare own and competitor channels using public Data API values.',
-  reports: 'Project reports will be available here.',
+  reports: 'Preview, save, and export AI research reports for this project.',
 };
 
 const SECTION_LABEL: Record<string, string> = {

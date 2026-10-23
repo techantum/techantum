@@ -314,6 +314,22 @@ export function mergeMonths(channels: { id: string; channel_name?: string | null
   });
 }
 
+export async function downloadResearchReport(projectId: string, reportId: string, format: 'pdf' | 'xlsx') {
+  const response = await fetch(`/api/admin/youtube/projects/${projectId}/research-reports/${reportId}/export?format=${format}`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || 'Could not export report');
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const match = response.headers.get('content-disposition')?.match(/filename="([^"]+)"/);
+  link.href = url;
+  link.download = match?.[1] || `youtube-research-report.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function downloadProjectExport(body: Record<string, unknown>) {
   const response = await fetch('/api/admin/youtube/reports/export', {
     method: 'POST',

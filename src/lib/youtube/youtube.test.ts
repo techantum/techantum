@@ -10,6 +10,8 @@ import { canAccessAdminPath } from '../admin/roles.ts';
 import { pdfFile, wordFile } from './reports.ts';
 import { actionsPerThousandViews, ANALYSIS_LENSES, clockDuration, contrastNotes, engagementActions, insightCards, parseAnalysisLens, performanceNote } from './analysis.ts';
 import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
+import { ANALYTICS_UNAVAILABLE, buildFallbackObservations, classifyVideos, parseAiResearchConfig } from './ai-research.ts';
+import { FinanceValidationError } from '../finance/errors.ts';
 
 const CHANNEL_ID = 'UC1234567890123456789012';
 
@@ -318,5 +320,47 @@ describe('permissions and exports', () => {
       topic: 'Hiring',
     }]);
     assert.equal(body.subarray(0, 2).toString(), 'PK');
+  });
+});
+
+describe('AI research configuration', () => {
+  it('requires a goal and keeps desired audience as a user target', () => {
+    assert.throws(() => parseAiResearchConfig({}), (err: unknown) => err instanceof FinanceValidationError);
+    const config = parseAiResearchConfig({
+      goals: ['views', 'retention', 'views'],
+      source: 'own',
+      targetAge: '25–44',
+      targetGeography: 'Telangana, India',
+      outputs: ['improve_existing'],
+    });
+    assert.deepEqual(config.goals, ['views', 'retention']);
+    assert.equal(config.targetAge, '25–44');
+    assert.equal(config.targetGeography, 'Telangana, India');
+    assert.equal(config.source, 'own');
+    const wizard = parseAiResearchConfig({
+      goals: ['views'],
+      source: 'selected',
+      videoIds: ['a'],
+      contentFocus: ['titles', 'thumbnails'],
+      targetAges: ['25–34', '35–44'],
+      geographies: ['India', 'Telangana'],
+      languages: ['English', 'Telugu'],
+    });
+    assert.deepEqual(wizard.contentFocus, ['titles', 'thumbnails']);
+    assert.deepEqual(wizard.targetAges, ['25–34', '35–44']);
+    assert.equal(wizard.targetGeography, 'India, Telangana');
+  });
+
+  it('classifies public counts without inventing retention and labels missing analytics', () => {
+    const videos = [
+      { id: 'a', youtube_video_id: 'aaaaaaaaaaa', title: 'How hernia repair actually works', channel_name: 'Own', relationship: 'own', content_label: 'Video', placement_label: 'Organic', topic_name: 'Surgery', published_at: '2026-01-01', duration_label: '08:12', tags: ['hernia'], view_count: 4000, like_count: 80, comment_count: 12, watch_url: null, thumbnail_url: null, description: 'Walkthrough' },
+      { id: 'b', youtube_video_id: 'bbbbbbbbbbb', title: 'Clinic update', channel_name: 'Own', relationship: 'own', content_label: 'Video', placement_label: 'Organic', topic_name: null, published_at: '2026-02-01', duration_label: '03:10', tags: [], view_count: 120, like_count: 0, comment_count: 0, watch_url: null, thumbnail_url: null, description: null },
+    ];
+    const groups = classifyVideos(videos);
+    assert.equal(groups.highViews[0].id, 'a');
+    assert.equal(groups.quiet[0].id, 'b');
+    const observations = buildFallbackObservations(videos, parseAiResearchConfig({ goals: ['views', 'retention'] }));
+    assert.ok(observations.some((item) => item.category === 'Audience Retention' && item.observation === ANALYTICS_UNAVAILABLE));
+    assert.ok(observations.every((item) => !/will increase views/i.test(`${item.headline} ${item.observation}`)));
   });
 });

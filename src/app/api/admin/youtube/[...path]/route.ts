@@ -27,6 +27,17 @@ import {
   setPrimaryChannel,
   updateProject,
 } from '@/lib/youtube/projects';
+import {
+  archiveResearchReport,
+  createAiAnalysis,
+  createResearchReport,
+  getAiAnalysis,
+  getResearchReport,
+  listAiAnalyses,
+  listResearchReports,
+  updateAiAction,
+} from '@/lib/youtube/ai-research';
+import { exportResearchReport } from '@/lib/youtube/ai-research-export';
 import { exportResearch } from '@/lib/youtube/reports';
 import {
   archiveTopic,
@@ -61,6 +72,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 function videoQuery(projectId: string, url: URL) {
   return {
@@ -180,6 +192,32 @@ export async function GET(request: Request, context: { params: Promise<{ path?: 
       if ('error' in auth && auth.error) return auth.error;
       const query = videoQuery(path[1], url);
       return NextResponse.json(await projectAnalysis(path[1], url.searchParams.get('lens') || 'why', url.searchParams.get('limit'), query));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses' && path[3]) {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await getAiAnalysis(path[1], path[3]));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses') {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await listAiAnalyses(path[1]));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'research-reports' && path[3] && path[4] === 'export') {
+      const auth = await gate('youtube_research.reports.export');
+      if ('error' in auth && auth.error) return auth.error;
+      const file = await exportResearchReport(path[1], path[3], url.searchParams.get('format') || 'pdf');
+      return fileResponse(file.body, file.filename, file.mime);
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'research-reports' && path[3]) {
+      const auth = await gate('youtube_research.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await getResearchReport(path[1], path[3]));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'research-reports') {
+      const auth = await gate('youtube_research.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await listResearchReports(path[1]));
     }
     if (path[0] === 'projects' && path[1]) {
       const auth = await gate('youtube_research.view');
@@ -306,6 +344,21 @@ export async function POST(request: Request, context: { params: Promise<{ path?:
       if ('error' in auth && auth.error) return auth.error;
       return NextResponse.json(await summarizeAnalysisVideo(path[1], String(body.videoId || body.video_id || ''), body.mode, body));
     }
+    if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses') {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await createAiAnalysis(path[1], body, auth.user.id));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'research-reports' && path[3] && path[4] === 'archive') {
+      const auth = await gate('youtube_research.reports.export');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await archiveResearchReport(path[1], path[3], auth.user.id));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'research-reports') {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await createResearchReport(path[1], body, auth.user.id));
+    }
     if (path[0] === 'projects' && path[1] && path[2] === 'import') {
       const auth = await gate('youtube_research.videos.import');
       if ('error' in auth && auth.error) return auth.error;
@@ -398,6 +451,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ path?
   try {
     const path = (await context.params).path || [];
     const body = await readBody(request);
+    if (path[0] === 'projects' && path[1] && path[2] === 'ai-actions' && path[3]) {
+      const auth = await gate('youtube_research.research.edit');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await updateAiAction(path[1], path[3], body, auth.user.id));
+    }
     if (path[0] === 'projects' && path[1] && path[2] === 'videos' && path[4] === 'research') {
       const auth = await gate('youtube_research.research.edit');
       if ('error' in auth && auth.error) return auth.error;
