@@ -28,7 +28,7 @@ export default function AdminStatCard({
   const styles = accentStyles[accent];
 
   return (
-    <div className={`flex h-full items-center justify-between gap-3 rounded-2xl border border-slate-200 ${styles.bg} px-4 py-3.5 shadow-sm`}>
+    <div data-ui-card className={`ui-card flex h-full items-center justify-between gap-3 rounded-2xl border border-slate-200 ${styles.bg} px-4 py-3.5 shadow-sm`}>
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
         <div className="mt-1 font-bricolage text-xl font-bold text-slate-900">{value}</div>

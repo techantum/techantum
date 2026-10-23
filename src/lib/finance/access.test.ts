@@ -32,6 +32,8 @@ describe('finance access', () => {
     assert.equal(canAccessAdminPath('ADMIN', '/admin/hr/payslips'), false);
     assert.equal(canAccessAdminPath('ADMIN', '/admin/whatsapp/inbox'), true);
     assert.equal(canAccessAdminPath('ADMIN', '/admin/partners'), true);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/youtube-research/settings'), false);
+    assert.equal(canAccessAdminPath('SUPER_ADMIN', '/admin/youtube-research/settings'), true);
     assert.equal(canAccessAdminPath('ADMIN', '/admin/meta-ads'), true);
     assert.equal(canAccessAdminPath('ADMIN', '/admin/master-data'), true);
     assert.equal(canAccessAdminPath('SUPER_ADMIN', '/admin/lead-discovery'), true);

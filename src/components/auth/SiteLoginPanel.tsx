@@ -47,13 +47,17 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
       .then((r) => r.json())
       .then((body) => setConfig(body || {}))
       .catch(() => undefined);
+    const requestedMode = searchParams.get('mode');
+    if (requestedMode === 'signup' || requestedMode === 'forgot') {
+      setMode(requestedMode);
+    }
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
         setSignedInEmail(data.user.email || data.user.phone || 'your account');
         router.replace(next);
       }
     });
-  }, [next, router, supabase]);
+  }, [next, router, searchParams, supabase]);
 
   const finishAfterSession = async () => {
     const res = await fetch('/api/public/auth/prepare', {
@@ -226,13 +230,15 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
             <span className="block text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">solutions</span>
           </p>
         )}
-        <p className="mt-1 text-sm font-medium text-slate-900">Welcome to {branding?.company_name || 'Techantum Solutions'}</p>
+        <p className="mt-1 text-sm font-medium text-slate-900">
+          {mode === 'signup' ? 'Create Your Account' : mode === 'forgot' ? 'Forgot Password?' : 'Welcome Back'}
+        </p>
         <p className="mt-1 text-sm text-slate-500">
           {mode === 'signup'
-            ? 'Create your WhatsApp Business API workspace in a few minutes.'
+            ? 'Join Techantum to manage your projects and stay connected with our team.'
             : mode === 'forgot'
-              ? 'Enter your email and we will send a reset link.'
-              : 'Log in to your WhatsApp Business API portal and continue managing your business.'}
+              ? 'Enter your email address and we will send a reset link.'
+              : 'Sign in to your Techantum account.'}
         </p>
       </div>
 
@@ -256,7 +262,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
             href={next}
             className="flex w-full items-center justify-center rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90"
           >
-            Continue to workspace
+            Continue to dashboard
           </Link>
           <button type="button" onClick={signOut} className="mt-3 text-sm text-slate-500 hover:text-slate-800">
             Use a different account
@@ -380,7 +386,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
 
               {mode === 'forgot' ? (
                 <form onSubmit={sendReset} className="space-y-4">
-                  <Field label="Email address">
+                  <Field label="Email Address">
                     <input
                       className={inputClass}
                       type="email"
@@ -414,7 +420,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                       onChange={(e) => setFullName(e.target.value)}
                     />
                   </Field>
-                  <Field label="Email address">
+                  <Field label="Email Address">
                     <input
                       className={inputClass}
                       type="email"
@@ -439,19 +445,19 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                     disabled={busy === 'signup'}
                     className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
                   >
-                    {busy === 'signup' ? 'Creating account…' : 'Get started free'}
+                    {busy === 'signup' ? 'Creating account…' : 'Create Account'}
                     <Icon name="ArrowRightIcon" size={16} />
                   </button>
                   <p className="text-center text-sm text-slate-500">
                     Already have an account?{' '}
                     <button type="button" onClick={() => switchMode('signin')} className="font-semibold text-secondary hover:underline">
-                      Sign in
+                      Sign In
                     </button>
                   </p>
                 </form>
               ) : (
                 <form onSubmit={signInWithEmail} className="space-y-4">
-                  <Field label="Email address">
+                  <Field label="Email Address">
                     <input
                       className={inputClass}
                       type="email"
@@ -473,7 +479,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                   </Field>
                   <div className="flex justify-end">
                     <button type="button" onClick={() => switchMode('forgot')} className="text-sm font-medium text-secondary hover:underline">
-                      Forgot password?
+                      Forgot Password?
                     </button>
                   </div>
                   <button
@@ -481,13 +487,13 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                     disabled={busy === 'email'}
                     className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3.5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
                   >
-                    {busy === 'email' ? 'Signing in…' : 'Sign in'}
+                    {busy === 'email' ? 'Signing in…' : 'Sign In'}
                     <Icon name="ArrowRightIcon" size={16} />
                   </button>
                   <p className="text-center text-sm text-slate-500">
                     Don&apos;t have an account?{' '}
                     <button type="button" onClick={() => switchMode('signup')} className="font-semibold text-secondary hover:underline">
-                      Get started free
+                      Create Account
                     </button>
                   </p>
                 </form>

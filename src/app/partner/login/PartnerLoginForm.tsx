@@ -149,13 +149,9 @@ export default function PartnerLoginForm({
   return (
     <AuthSplitShell
       logo={logo}
-      kicker="Partner portal"
-      title={
-        <>
-          Welcome back to <span className="text-secondary">{displayName}</span>
-        </>
-      }
-      subtitle="Submit client requirements, manage your team, and download proposals from one workspace."
+      kicker="Partner Portal"
+      title={<>Partner Portal</>}
+      subtitle="Sign in to manage your partner account and activities."
       highlights={[
         { icon: 'ClipboardDocumentListIcon', title: 'Client requirements', description: 'Capture briefs and track every submission.' },
         { icon: 'UsersIcon', title: 'Team access', description: 'Decide which menus each teammate can open.' },
@@ -165,8 +161,8 @@ export default function PartnerLoginForm({
     >
       <div className="lg:hidden mb-8">{logo}</div>
       <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-        <h2 className="font-bricolage text-2xl font-bold text-slate-900">Partner sign in</h2>
-        <p className="mt-1 text-sm text-slate-500">Access your dashboard, requirements, and SOW documents.</p>
+        <h2 className="font-bricolage text-2xl font-bold text-slate-900">Partner Portal</h2>
+        <p className="mt-1 text-sm text-slate-500">Sign in to manage your partner account and activities.</p>
 
         {error && (
           <div className="mt-4 flex gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -177,7 +173,7 @@ export default function PartnerLoginForm({
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label className="block text-sm font-medium text-slate-700">
-            Email
+            Email Address
             <input
               type="email"
               required
@@ -210,7 +206,7 @@ export default function PartnerLoginForm({
           </label>
           <div className="text-right">
             <Link href="/partner/forgot-password" className="text-sm font-medium text-secondary hover:underline">
-              Forgot password?
+              Forgot Password?
             </Link>
           </div>
           <button
@@ -225,7 +221,7 @@ export default function PartnerLoginForm({
               </>
             ) : (
               <>
-                Sign in
+                Sign In
                 <Icon name="ArrowRightIcon" size={16} />
               </>
             )}

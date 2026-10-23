@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
@@ -28,7 +29,7 @@ async function pathRequiresSuperAdmin(explicit?: boolean) {
   }
 }
 
-export async function resolveAdminAuth(): Promise<AdminAuth | null> {
+export const resolveAdminAuth = cache(async (): Promise<AdminAuth | null> => {
   const local = await getLocalAdminUser();
   let user = local?.user ?? null;
   let role = local?.role;
@@ -64,7 +65,7 @@ export async function resolveAdminAuth(): Promise<AdminAuth | null> {
   }
 
   return { user, role, email: email || user.email || '' };
-}
+});
 
 export async function requireAdmin(options?: { superAdmin?: boolean }) {
   const auth = await resolveAdminAuth();

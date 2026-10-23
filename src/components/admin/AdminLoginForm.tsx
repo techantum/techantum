@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import AuthSplitShell from '@/components/auth/AuthSplitShell';
@@ -151,26 +150,9 @@ export default function AdminLoginForm({
           </button>
         </form>
 
-        {!needsSetup && (
-          <button
-            type="button"
-            onClick={() => setSetupMode((v) => !v)}
-            className="mt-4 text-sm text-slate-500 hover:text-secondary"
-          >
-            {setupMode ? 'Already have an account? Sign in' : 'First time? Create admin account'}
-          </button>
-        )}
-
-        <p className="mt-6 text-sm text-slate-500">
-          Looking for the client or partner portal?{' '}
-          <Link href="/login" className="font-semibold text-secondary hover:underline">
-            Client login
-          </Link>
-          {' · '}
-          <Link href="/partner/login" className="font-semibold text-secondary hover:underline">
-            Partner login
-          </Link>
-        </p>
+        {needsSetup && setupMode ? (
+          <p className="mt-6 text-sm text-slate-500">This sets up the first internal administrator. Public website users sign in separately.</p>
+        ) : null}
       </div>
     </AuthSplitShell>
   );

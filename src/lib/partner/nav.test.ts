@@ -49,6 +49,7 @@ describe('partner nav access', () => {
     assert.equal(partnerHasNavAccess(user, 'lead-discovery', { lead_discovery_enabled: false }), false);
     assert.equal(partnerHasNavAccess(user, 'lead-discovery', { lead_discovery_enabled: true }), true);
     assert.equal(canManagePartnerTeam(user), true);
+    assert.equal(canManagePartnerTeam({ role: 'partner_admin', nav_access: { team: false } }), true);
   });
 
   it('matches the most specific nav key for a path', () => {

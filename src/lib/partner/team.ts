@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
 import { sendPartnerTeamInviteEmail } from '@/lib/email/partner-emails';
 import { sanitizePartnerNavAccess } from './nav';
 import type { PartnerUserRole } from './types';
@@ -12,6 +12,27 @@ function generateInviteToken(): string {
 
 const TEAM_MEMBER_COLUMNS = 'id, email, full_name, role, status, last_login_at, created_at, nav_access';
 
+async function findOrCreatePartnerAuthUser(email: string, fullName: string) {
+  const auth = createAuthAdminClient();
+  const created = await auth.auth.admin.createUser({
+    email,
+    email_confirm: false,
+    user_metadata: { full_name: fullName, role: 'partner' },
+  });
+  if (created.data.user) {
+    return { user: created.data.user, created: true };
+  }
+  const existing = await auth.auth.admin.generateLink({ type: 'magiclink', email });
+  if (existing.data.user) {
+    return { user: existing.data.user, created: false };
+  }
+  return {
+    user: null,
+    created: false,
+    error: created.error?.message || existing.error?.message || 'Failed to create user',
+  };
+}
+
 export async function invitePartnerTeamMember(input: {
   partnerId: string;
   invitedByUserId: string;
@@ -19,11 +40,19 @@ export async function invitePartnerTeamMember(input: {
   fullName: string;
   role?: PartnerUserRole;
   navAccess?: unknown;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; inviteSent?: boolean; inviteError?: string }> {
   const supabase = createAdminClient();
   const email = input.email.trim().toLowerCase();
+  const fullName = input.fullName.trim();
   const role = input.role === 'partner_admin' ? 'partner_admin' : 'partner_user';
   const navAccess = sanitizePartnerNavAccess(input.navAccess, role);
+
+  if (!fullName || fullName.length < 2) {
+    return { ok: false, error: 'Enter the team member\'s full name.' };
+  }
+  if (!email.includes('@')) {
+    return { ok: false, error: 'Enter a valid email address.' };
+  }
 
   const { data: existingUser } = await supabase
     .from('partner_users')
@@ -43,14 +72,18 @@ export async function invitePartnerTeamMember(input: {
 
   if (!partner) return { ok: false, error: 'Partner not found' };
 
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    email_confirm: false,
-    user_metadata: { full_name: input.fullName, role: 'partner' },
-  });
+  const authUser = await findOrCreatePartnerAuthUser(email, fullName);
+  if (!authUser.user) {
+    return { ok: false, error: authUser.error || 'Failed to create user' };
+  }
 
-  if (authError || !authUser.user) {
-    return { ok: false, error: authError?.message || 'Failed to create user' };
+  const { data: linked } = await supabase
+    .from('partner_users')
+    .select('id')
+    .eq('user_id', authUser.user.id)
+    .maybeSingle();
+  if (linked) {
+    return { ok: false, error: 'This email is already registered in the Partner Portal.' };
   }
 
   const { data: partnerUser, error: userError } = await supabase
@@ -59,7 +92,7 @@ export async function invitePartnerTeamMember(input: {
       partner_id: input.partnerId,
       user_id: authUser.user.id,
       email,
-      full_name: input.fullName.trim(),
+      full_name: fullName,
       role,
       status: 'pending',
       nav_access: navAccess,
@@ -68,7 +101,9 @@ export async function invitePartnerTeamMember(input: {
     .single();
 
   if (userError || !partnerUser) {
-    await supabase.auth.admin.deleteUser(authUser.user.id);
+    if (authUser.created) {
+      await createAuthAdminClient().auth.admin.deleteUser(authUser.user.id).catch(() => undefined);
+    }
     return { ok: false, error: userError?.message || 'Failed to create team member' };
   }
 
@@ -87,7 +122,7 @@ export async function invitePartnerTeamMember(input: {
 
   const emailResult = await sendPartnerTeamInviteEmail({
     to: email,
-    contactName: input.fullName,
+    contactName: fullName,
     companyName: partner.company_name,
     partnerCode: partner.partner_code,
     onboardUrl,
@@ -100,11 +135,11 @@ export async function invitePartnerTeamMember(input: {
     metadata: { invited_email: email, email_sent: emailResult.ok, nav_access: navAccess },
   });
 
-  if (!emailResult.ok) {
-    return { ok: false, error: emailResult.error || 'Invite created but email failed' };
-  }
-
-  return { ok: true };
+  return {
+    ok: true,
+    inviteSent: emailResult.ok,
+    inviteError: emailResult.ok ? undefined : emailResult.error || 'Invite email could not be sent',
+  };
 }
 
 export async function updatePartnerTeamMember(input: {

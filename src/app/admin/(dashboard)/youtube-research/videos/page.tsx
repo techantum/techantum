@@ -81,6 +81,15 @@ function Explorer() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <AdminButton
+          variant="primary"
+          disabled={selected.length < 2}
+          onClick={() => router.push(`/admin/youtube-research/compare?ids=${selected.join(',')}`)}
+        >
+          Compare videos{selected.length ? ` (${selected.length})` : ''}
+        </AdminButton>
+      </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
       {insights ? (

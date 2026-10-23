@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { q, withFinanceTx } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { categoryLabel, contentLabel, isPaidPlacement, SHORT_MAX_SECONDS, YOUTUBE_METRIC_NOTICE } from './parse';
@@ -33,11 +34,11 @@ async function audit(userId: string, action: string, entityId: string | null, me
   await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,$2,'youtube_project',$3,$4::jsonb)`, [userId, action, entityId, JSON.stringify(metadata)]);
 }
 
-async function requireProject(id: string) {
+const requireProject = cache(async (id: string) => {
   const { rows } = await q(undefined, `SELECT * FROM youtube_research_projects WHERE id=$1`, [id]);
   if (!rows[0]) throw new FinanceNotFoundError('Research project not found');
   return rows[0];
-}
+});
 
 export async function listProjects(params: { q?: string; status?: string; page?: number; pageSize?: number }) {
   const page = Math.max(1, Number(params.page) || 1);
@@ -52,9 +53,10 @@ export async function listProjects(params: { q?: string; status?: string; page?:
     values.push(`%${params.q.trim()}%`);
     where.push(`(p.name ILIKE $${values.length} OR p.brand_name ILIKE $${values.length} OR p.industry ILIKE $${values.length})`);
   }
-  const { rows } = await q(
-    undefined,
-    `SELECT p.*,
+  const [listed, count] = await Promise.all([
+    q(
+      undefined,
+      `SELECT p.*,
        own.channel_name AS own_channel_name, own.channel_handle AS own_channel_handle, own.thumbnail_url AS own_thumbnail_url,
        own.youtube_channel_id AS own_youtube_channel_id, own.last_refreshed_at AS own_refreshed_at,
        (SELECT COUNT(*) FROM youtube_project_channels pc WHERE pc.project_id=p.id AND pc.relationship='competitor') AS competitor_count,
@@ -65,9 +67,11 @@ export async function listProjects(params: { q?: string; status?: string; page?:
      WHERE ${where.join(' AND ')}
      ORDER BY p.updated_at DESC
      LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
-    values
-  );
-  const count = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM youtube_research_projects p WHERE ${where.join(' AND ')}`, values);
+      values
+    ),
+    q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM youtube_research_projects p WHERE ${where.join(' AND ')}`, values),
+  ]);
+  const { rows } = listed;
   return {
     rows: rows.map((row) => ({
       ...row,
@@ -304,13 +308,16 @@ function shapeVideo(row: Record<string, unknown>) {
   };
 }
 
-export async function listProjectVideos(params: VideoQuery) {
+export async function listProjectVideos(params: VideoQuery & { includeTotal?: boolean }) {
   await requireProject(params.projectId);
   const page = Math.max(1, Number(params.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
   const filter = videoWhere(params);
-  const { rows } = await q(undefined, `${PROJECT_VIDEO_SELECT} WHERE ${filter.where} ORDER BY ${filter.sort} LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`, filter.values);
-  const count = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_VIDEO_FROM} WHERE ${filter.where}`, filter.values);
+  const rowsQuery = q(undefined, `${PROJECT_VIDEO_SELECT} WHERE ${filter.where} ORDER BY ${filter.sort} LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`, filter.values);
+  const countQuery = params.includeTotal === false
+    ? Promise.resolve({ rows: [{ count: String(pageSize) }] })
+    : q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_VIDEO_FROM} WHERE ${filter.where}`, filter.values);
+  const [{ rows }, count] = await Promise.all([rowsQuery, countQuery]);
   return { rows: rows.map((row) => shapeVideo(row)), total: Number(count.rows[0]?.count || 0), page, pageSize, notice: YOUTUBE_METRIC_NOTICE };
 }
 
@@ -377,9 +384,10 @@ function numberCell(value: unknown) {
 export async function projectVideoInsights(params: VideoQuery) {
   await requireProject(params.projectId);
   const filter = videoWhere(params);
-  const months = await q<{ month: string; imported: number; shorts: number; long_videos: number; views: string | null }>(
-    undefined,
-    `SELECT to_char(date_trunc('month', v.published_at), 'YYYY-MM') AS month,
+  const [months, topics, categories, totals, top, recent] = await Promise.all([
+    q<{ month: string; imported: number; shorts: number; long_videos: number; views: string | null }>(
+      undefined,
+      `SELECT to_char(date_trunc('month', v.published_at), 'YYYY-MM') AS month,
        COUNT(*)::int AS imported,
        COUNT(*) FILTER (WHERE v.fetched_at > NOW() - INTERVAL '30 days' AND ${SHORT_MATCH})::int AS shorts,
        COUNT(*) FILTER (WHERE v.fetched_at > NOW() - INTERVAL '30 days' AND NOT ${SHORT_MATCH})::int AS long_videos,
@@ -387,25 +395,25 @@ export async function projectVideoInsights(params: VideoQuery) {
      ${PROJECT_VIDEO_FROM}
      WHERE ${filter.where} AND v.published_at IS NOT NULL
      GROUP BY 1 ORDER BY 1`,
-    filter.values
-  );
-  const topics = await q<{ topic: string; count: number }>(
-    undefined,
-    `SELECT COALESCE(t.name, 'Uncategorized') AS topic, COUNT(*)::int AS count
+      filter.values
+    ),
+    q<{ topic: string; count: number }>(
+      undefined,
+      `SELECT COALESCE(t.name, 'Uncategorized') AS topic, COUNT(*)::int AS count
      ${PROJECT_VIDEO_FROM} WHERE ${filter.where}
      GROUP BY 1 ORDER BY count DESC, topic ASC LIMIT 12`,
-    filter.values
-  );
-  const categories = await q<{ category_id: string | null; count: number }>(
-    undefined,
-    `SELECT CASE WHEN v.fetched_at > NOW() - INTERVAL '30 days' THEN v.category_id ELSE NULL END AS category_id, COUNT(*)::int AS count
+      filter.values
+    ),
+    q<{ category_id: string | null; count: number }>(
+      undefined,
+      `SELECT CASE WHEN v.fetched_at > NOW() - INTERVAL '30 days' THEN v.category_id ELSE NULL END AS category_id, COUNT(*)::int AS count
      ${PROJECT_VIDEO_FROM} WHERE ${filter.where}
      GROUP BY 1 ORDER BY count DESC LIMIT 12`,
-    filter.values
-  );
-  const totals = await q<{ imported: number; categorized: number; shorts: number; long_videos: number; paid: number; organic: number; views: string | null; likes: string | null; comments: string | null }>(
-    undefined,
-    `SELECT COUNT(*)::int AS imported,
+      filter.values
+    ),
+    q<{ imported: number; categorized: number; shorts: number; long_videos: number; paid: number; organic: number; views: string | null; likes: string | null; comments: string | null }>(
+      undefined,
+      `SELECT COUNT(*)::int AS imported,
        COUNT(*) FILTER (WHERE r.topic_id IS NOT NULL)::int AS categorized,
        COUNT(*) FILTER (WHERE v.fetched_at > NOW() - INTERVAL '30 days' AND ${SHORT_MATCH})::int AS shorts,
        COUNT(*) FILTER (WHERE v.fetched_at > NOW() - INTERVAL '30 days' AND NOT ${SHORT_MATCH})::int AS long_videos,
@@ -415,10 +423,11 @@ export async function projectVideoInsights(params: VideoQuery) {
        SUM(CASE WHEN v.fetched_at > NOW() - INTERVAL '30 days' THEN v.like_count ELSE NULL END) AS likes,
        SUM(CASE WHEN v.fetched_at > NOW() - INTERVAL '30 days' THEN v.comment_count ELSE NULL END) AS comments
      ${PROJECT_VIDEO_FROM} WHERE ${filter.where}`,
-    filter.values
-  );
-  const top = await listProjectVideos({ ...params, sort: 'view_count', page: 1, pageSize: 8 });
-  const recent = await listProjectVideos({ ...params, sort: 'published_at', page: 1, pageSize: 8 });
+      filter.values
+    ),
+    listProjectVideos({ ...params, sort: 'view_count', page: 1, pageSize: 8, includeTotal: false }),
+    listProjectVideos({ ...params, sort: 'published_at', page: 1, pageSize: 8, includeTotal: false }),
+  ]);
   const row = totals.rows[0];
   return {
     notice: YOUTUBE_METRIC_NOTICE,
@@ -457,10 +466,11 @@ export async function projectFilterOptions(projectId: string, channelIds?: strin
   const channelClause = channelIds?.length ? (values.push(channelIds), ` AND v.channel_id = ANY($${values.length}::uuid[])`) : '';
   const fresh = `v.fetched_at > NOW() - INTERVAL '30 days'`;
   const base = `${PROJECT_VIDEO_FROM} WHERE c.status='active'${channelClause}`;
-  const [channels, topics] = await Promise.all([listProjectChannels(projectId), listProjectTopics(projectId)]);
-  return withFinanceTx(async (client) => {
-    const counts = await q<{ shorts: number; videos: number; paid: number; organic: number }>(
-      client,
+  const [channels, topics, counts, categories, tags] = await Promise.all([
+    listProjectChannels(projectId),
+    listProjectTopics(projectId),
+    q<{ shorts: number; videos: number; paid: number; organic: number }>(
+      undefined,
       `SELECT
          COUNT(*) FILTER (WHERE ${fresh} AND ${SHORT_MATCH})::int AS shorts,
          COUNT(*) FILTER (WHERE ${fresh} AND NOT ${SHORT_MATCH})::int AS videos,
@@ -468,14 +478,14 @@ export async function projectFilterOptions(projectId: string, channelIds?: strin
          COUNT(*) FILTER (WHERE ${fresh} AND NOT ${PAID_MATCH})::int AS organic
        ${base}`,
       values
-    );
-    const categories = await q<{ category_id: string; count: number }>(
-      client,
+    ),
+    q<{ category_id: string; count: number }>(
+      undefined,
       `SELECT v.category_id, COUNT(*)::int AS count ${base} AND ${fresh} AND v.category_id IS NOT NULL AND v.category_id <> '' GROUP BY 1 ORDER BY count DESC, v.category_id ASC`,
       values
-    );
-    const tags = await q<{ tag: string; count: number }>(
-      client,
+    ),
+    q<{ tag: string; count: number }>(
+      undefined,
       `SELECT tag, COUNT(*)::int AS count
        FROM youtube_videos v
        JOIN youtube_channels c ON c.id = v.channel_id
@@ -484,31 +494,31 @@ export async function projectFilterOptions(projectId: string, channelIds?: strin
        WHERE c.status='active'${channelClause} AND ${fresh} AND btrim(tag) <> ''
        GROUP BY 1 ORDER BY count DESC, tag ASC LIMIT 40`,
       values
-    );
-    const row = counts.rows[0];
-    return {
-      channels: channels.map((channel) => ({
-        id: channel.id,
-        label: `${channel.relationship === 'own' ? 'Own · ' : ''}${channel.channel_name || channel.youtube_channel_id}`,
-        relationship: channel.relationship,
-      })),
-      topics: topics.map((topic: { id: string; name: string }) => ({ id: topic.id, name: topic.name })),
-      categories: categories.rows.map((item) => ({
-        id: item.category_id,
-        label: categoryLabel(item.category_id) || item.category_id,
-        count: Number(item.count || 0),
-      })),
-      content: [
-        ...(Number(row?.videos || 0) ? [{ id: 'video', label: 'Videos', count: Number(row.videos) }] : []),
-        ...(Number(row?.shorts || 0) ? [{ id: 'short', label: 'Shorts', count: Number(row.shorts) }] : []),
-      ],
-      placement: [
-        ...(Number(row?.organic || 0) ? [{ id: 'organic', label: 'Organic', count: Number(row.organic) }] : []),
-        ...(Number(row?.paid || 0) ? [{ id: 'paid', label: 'Paid', count: Number(row.paid) }] : []),
-      ],
-      tags: tags.rows.map((item) => ({ tag: item.tag, count: Number(item.count || 0) })),
-    };
-  });
+    ),
+  ]);
+  const row = counts.rows[0];
+  return {
+    channels: channels.map((channel) => ({
+      id: channel.id,
+      label: `${channel.relationship === 'own' ? 'Own · ' : ''}${channel.channel_name || channel.youtube_channel_id}`,
+      relationship: channel.relationship,
+    })),
+    topics: topics.map((topic: { id: string; name: string }) => ({ id: topic.id, name: topic.name })),
+    categories: categories.rows.map((item) => ({
+      id: item.category_id,
+      label: categoryLabel(item.category_id) || item.category_id,
+      count: Number(item.count || 0),
+    })),
+    content: [
+      ...(Number(row?.videos || 0) ? [{ id: 'video', label: 'Videos', count: Number(row.videos) }] : []),
+      ...(Number(row?.shorts || 0) ? [{ id: 'short', label: 'Shorts', count: Number(row.shorts) }] : []),
+    ],
+    placement: [
+      ...(Number(row?.organic || 0) ? [{ id: 'organic', label: 'Organic', count: Number(row.organic) }] : []),
+      ...(Number(row?.paid || 0) ? [{ id: 'paid', label: 'Paid', count: Number(row.paid) }] : []),
+    ],
+    tags: tags.rows.map((item) => ({ tag: item.tag, count: Number(item.count || 0) })),
+  };
 }
 
 export async function compareProjectVideos(projectId: string, ids: string[]) {
@@ -530,10 +540,9 @@ export async function compareProjectChannels(projectId: string, ids: string[], p
     ? linked.filter((channel) => wanted.includes(String(channel.id)))
     : linked.filter((channel) => channel.relationship === 'own').concat(linked.filter((channel) => channel.relationship === 'competitor')).slice(0, 6);
   if (selected.length < 1) throw new FinanceValidationError('Add a channel to this project before comparing.');
-  const channels = [];
-  for (const channel of selected.slice(0, 6)) {
+  const channels = await Promise.all(selected.slice(0, 6).map(async (channel) => {
     const insights = await projectVideoInsights({ projectId, ...params, channelIds: [String(channel.id)] });
-    channels.push({
+    return {
       id: channel.id,
       relationship: channel.relationship,
       channel_name: channel.channel_name,
@@ -551,8 +560,8 @@ export async function compareProjectChannels(projectId: string, ids: string[], p
       videos: insights.topVideos,
       publishing: insights.months.map((item) => ({ month: item.month, count: item.imported })),
       insights,
-    });
-  }
+    };
+  }));
   return {
     notice: YOUTUBE_METRIC_NOTICE,
     officialAnalytics: false,
@@ -563,20 +572,19 @@ export async function compareProjectChannels(projectId: string, ids: string[], p
 }
 
 export async function projectOverview(projectId: string) {
-  const project = await getProject(projectId);
-  const videos = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_VIDEO_FROM} WHERE c.status='active'`, [projectId]);
-  const categorized = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_VIDEO_FROM} WHERE c.status='active' AND r.topic_id IS NOT NULL`, [projectId]);
-  const recent = await q(undefined, `${PROJECT_VIDEO_SELECT} WHERE c.status='active' ORDER BY v.published_at DESC NULLS LAST LIMIT 6`, [projectId]);
-  const videoCount = Number(videos.rows[0]?.count || 0);
-  const categorizedCount = Number(categorized.rows[0]?.count || 0);
-  const insights = await projectVideoInsights({ projectId });
+  const [project, insights] = await Promise.all([
+    getProject(projectId),
+    projectVideoInsights({ projectId }),
+  ]);
+  const videoCount = insights.imported;
+  const categorizedCount = insights.categorized;
   return {
     project,
     notice: YOUTUBE_METRIC_NOTICE,
     videos: videoCount,
     categorized: categorizedCount,
     awaitingReview: Math.max(0, videoCount - categorizedCount),
-    recentVideos: recent.rows.map((row) => shapeVideo(row)),
+    recentVideos: insights.recentVideos,
     insights,
   };
 }

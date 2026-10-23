@@ -79,7 +79,7 @@ export default function PortalWorkspace({ children }: { children: React.ReactNod
           {menuOpen && (
             <div className="absolute right-0 z-20 mt-2 w-44 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
               <Link href="/portal/wa/settings" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>
-                Account settings
+                My Profile
               </Link>
               <button type="button" onClick={signOut} className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
                 Sign out

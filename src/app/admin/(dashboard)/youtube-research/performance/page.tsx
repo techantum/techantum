@@ -8,5 +8,5 @@ export default function PerformanceRedirect() {
   useEffect(() => {
     router.replace('/admin/youtube-research/videos');
   }, [router]);
-  return <p className="text-sm text-slate-500">Opening Video Explorer...</p>;
+  return <p className="text-sm text-slate-500">Opening Videos...</p>;
 }

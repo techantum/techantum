@@ -372,7 +372,7 @@ export default function LeadDiscoveryPage() {
   return (
     <div className="w-full space-y-5">
       <AdminPageHeader
-        title="Places Search"
+        title="Lead Discovery"
         description="Find and save businesses using Google Places. Filter by location, segment and more."
       />
 

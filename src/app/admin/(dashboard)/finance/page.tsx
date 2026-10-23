@@ -102,8 +102,8 @@ export default function FinanceDashboardPage() {
               <YAxis fontSize={11} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="Received" fill="#059669" />
-              <Bar dataKey="Receipts" fill="#e11d48" />
+              <Bar dataKey="Received" fill="#059669" isAnimationActive animationDuration={900} />
+              <Bar dataKey="Receipts" fill="#e11d48" isAnimationActive animationDuration={900} animationBegin={120} />
             </BarChart>
           </ResponsiveContainer>
         </div>

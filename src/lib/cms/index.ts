@@ -12,39 +12,71 @@ import {
 } from './default-content';
 import type { CmsSnapshot, SiteBranding, SiteSeo } from './types';
 
+const CMS_TTL_MS = 60_000;
+
+type CmsBundle = {
+  branding: SiteBranding;
+  seo: SiteSeo;
+  content: Record<string, Record<string, unknown>>;
+};
+
+const globalForCms = globalThis as typeof globalThis & {
+  techantumCmsBundle?: { expires: number; value: CmsBundle };
+};
+
+export function invalidateCmsRuntimeCache() {
+  globalForCms.techantumCmsBundle = undefined;
+}
+
+async function fetchCmsBundle(): Promise<CmsBundle> {
+  const supabase = createAdminClient();
+  const [brandingRes, seoRes, contentRes] = await Promise.all([
+    supabase.from('site_branding').select('*').eq('id', 1).maybeSingle(),
+    supabase.from('site_seo').select('*').eq('id', 1).maybeSingle(),
+    supabase.from('cms_content').select('entry_key, content'),
+  ]);
+
+  const content: Record<string, Record<string, unknown>> = {};
+  contentRes.data?.forEach((row) => {
+    content[row.entry_key] = row.content as Record<string, unknown>;
+  });
+
+  return {
+    branding: brandingRes.data ? normalizeSiteBranding(brandingRes.data as Partial<SiteBranding>) : defaultBranding,
+    seo: normalizeSiteSeo(seoRes.data as Partial<SiteSeo> | null),
+    content,
+  };
+}
+
+async function loadCmsBundle(): Promise<CmsBundle> {
+  const now = Date.now();
+  const cached = globalForCms.techantumCmsBundle;
+  if (cached && cached.expires > now) return cached.value;
+  const value = await fetchCmsBundle();
+  globalForCms.techantumCmsBundle = { expires: now + CMS_TTL_MS, value };
+  return value;
+}
+
 export const getBranding = cache(async (): Promise<SiteBranding> => {
   try {
-    const supabase = createAdminClient();
-    const { data } = await supabase.from('site_branding').select('*').eq('id', 1).maybeSingle();
-    if (data) return normalizeSiteBranding(data as Partial<SiteBranding>);
+    return (await loadCmsBundle()).branding;
   } catch {
-    /* fall through to defaults */
+    return defaultBranding;
   }
-  return defaultBranding;
 });
 
 export const getSeo = cache(async (): Promise<SiteSeo> => {
   try {
-    const supabase = createAdminClient();
-    const { data } = await supabase.from('site_seo').select('*').eq('id', 1).maybeSingle();
-    if (data) return normalizeSiteSeo(data as Partial<SiteSeo>);
+    return (await loadCmsBundle()).seo;
   } catch {
-    /* fall through to defaults */
+    return defaultSeo;
   }
-  return defaultSeo;
 });
 
 export const getCmsContent = cache(async (key: string): Promise<Record<string, unknown>> => {
   try {
-    const supabase = createAdminClient();
-    const { data } = await supabase
-      .from('cms_content')
-      .select('content')
-      .eq('entry_key', key)
-      .maybeSingle();
-    if (data?.content) {
-      return mergeCmsContent(key, data.content as Record<string, unknown>);
-    }
+    const raw = (await loadCmsBundle()).content[key];
+    if (raw) return mergeCmsContent(key, raw);
   } catch {
     /* fall through to defaults */
   }
@@ -53,22 +85,11 @@ export const getCmsContent = cache(async (key: string): Promise<Record<string, u
 
 export const getCmsSnapshot = cache(async (): Promise<CmsSnapshot> => {
   try {
-    const supabase = createAdminClient();
-    const [brandingRes, seoRes, contentRes] = await Promise.all([
-      supabase.from('site_branding').select('*').eq('id', 1).maybeSingle(),
-      supabase.from('site_seo').select('*').eq('id', 1).maybeSingle(),
-      supabase.from('cms_content').select('entry_key, content'),
-    ]);
-
-    const content: Record<string, Record<string, unknown>> = getDefaultContentMap();
-    contentRes.data?.forEach((row) => {
-      content[row.entry_key] = row.content as Record<string, unknown>;
-    });
-
+    const bundle = await loadCmsBundle();
     return {
-      branding: (brandingRes.data as SiteBranding) || defaultBranding,
-      seo: normalizeSiteSeo(seoRes.data as Partial<SiteSeo> | null),
-      content,
+      branding: bundle.branding,
+      seo: bundle.seo,
+      content: { ...getDefaultContentMap(), ...bundle.content },
     };
   } catch {
     return {
@@ -105,6 +126,7 @@ export async function seedMissingCmsEntries() {
     });
   }
 
+  invalidateCmsRuntimeCache();
   return { seeded: missing.length, total: defaultCmsEntries.length };
 }
 
@@ -123,6 +145,7 @@ export async function seedCmsDatabase() {
     });
   }
 
+  invalidateCmsRuntimeCache();
   return { seeded: true, entries: defaultCmsEntries.length };
 }
 

@@ -133,7 +133,7 @@ export default function PartnerTeamPage() {
     setShowForm(false);
     setEditingId(null);
     setForm(emptyForm(leadDiscoveryEnabled));
-    setMessage(editingId ? 'Team member updated.' : 'Invite sent successfully.');
+    setMessage(editingId ? 'Team member updated.' : data.message || 'Invite sent successfully.');
   };
 
   const remove = async (member: TeamMember) => {

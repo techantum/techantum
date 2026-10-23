@@ -71,7 +71,12 @@ function CompareVideos() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <p className="text-sm text-slate-500">Public counts sit side by side. A higher number is not a claim that the title or thumbnail caused it.</p>
+        <div>
+          <Link href="/admin/youtube-research/videos" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
+            ← Back to Videos
+          </Link>
+          <p className="mt-2 text-sm text-slate-500">Public counts sit side by side. A higher number is not a claim that the title or thumbnail caused it.</p>
+        </div>
         {videos.length >= 2 ? (
           <span className="flex flex-wrap gap-2">
             <AdminButton variant="primary" disabled={busy} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
@@ -81,7 +86,7 @@ function CompareVideos() {
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {notice ? <p className="text-xs text-slate-500">{notice}</p> : null}
-      {!ids || ids.split(',').filter(Boolean).length < 2 ? <p className="text-sm text-slate-500">Select at least two videos in Video Explorer.</p> : null}
+      {!ids || ids.split(',').filter(Boolean).length < 2 ? <p className="text-sm text-slate-500">Select at least two videos on the Videos page.</p> : null}
       {videos.length ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -131,7 +136,7 @@ function CompareVideos() {
           </section>
         </>
       ) : null}
-      <Link className="text-sm font-semibold text-slate-600" href="/admin/youtube-research/videos">Return to Video Explorer</Link>
+      <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href="/admin/youtube-research/videos">Back to Videos</Link>
     </div>
   );
 }

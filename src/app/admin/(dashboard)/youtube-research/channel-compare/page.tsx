@@ -89,10 +89,14 @@ function ChannelCompare() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-bricolage text-xl font-bold text-slate-900">Channel Comparison</h2>
+          <Link href="/admin/youtube-research/channels" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
+            ← Back to Channels
+          </Link>
+          <h2 className="mt-2 font-bricolage text-xl font-bold text-slate-900">Channel Comparison</h2>
           <p className="mt-1 text-sm text-slate-500">Public YouTube Data API values and imported videos for this project. These counts are not YouTube Analytics and are not a ranking.</p>
         </div>
         <span className="flex flex-wrap gap-2">
+          <Link href="/admin/youtube-research/channels" className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Back to Channels</Link>
           <AdminButton variant="primary" disabled={!selected.length} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
           <AdminButton disabled={!selected.length} onClick={() => exportFile('docx')}>Word report</AdminButton>
         </span>

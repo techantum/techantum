@@ -26,7 +26,7 @@ export default function HeaderAuthLink({ compact = false }: { compact?: boolean 
             : 'border border-secondary text-secondary px-5 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors'
         }
       >
-        Workspace
+        My Dashboard
       </Link>
     );
   }

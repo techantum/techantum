@@ -335,6 +335,8 @@ export default function WebsiteAnalyticsPage() {
                       stroke="#6366f1"
                       fill="url(#usersGradient)"
                       strokeWidth={2}
+                      isAnimationActive
+                      animationDuration={900}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

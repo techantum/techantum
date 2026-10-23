@@ -17,7 +17,7 @@ export default function AdminSection({
   icon,
 }: AdminSectionProps) {
   return (
-    <section className="w-full rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section data-ui-card className="ui-card w-full rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           {icon && <Icon name={icon} size={18} className="shrink-0 text-slate-500" />}

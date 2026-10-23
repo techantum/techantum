@@ -118,10 +118,10 @@ export default function WaProviderDashboardPage() {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="sent" stroke="#4f46e5" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="delivered" stroke="#059669" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="read" stroke="#0284c7" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="failed" stroke="#e11d48" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="sent" stroke="#4f46e5" strokeWidth={2} dot={false} isAnimationActive animationDuration={900} />
+                <Line type="monotone" dataKey="delivered" stroke="#059669" strokeWidth={2} dot={false} isAnimationActive animationDuration={900} animationBegin={80} />
+                <Line type="monotone" dataKey="read" stroke="#0284c7" strokeWidth={2} dot={false} isAnimationActive animationDuration={900} animationBegin={160} />
+                <Line type="monotone" dataKey="failed" stroke="#e11d48" strokeWidth={2} dot={false} isAnimationActive animationDuration={900} animationBegin={240} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -130,7 +130,7 @@ export default function WaProviderDashboardPage() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={qualityData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>
+                <Pie data={qualityData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} isAnimationActive animationDuration={900}>
                   {qualityData.map((entry) => (
                     <Cell key={entry.name} fill={QUALITY_COLORS[entry.name as keyof typeof QUALITY_COLORS] || '#94a3b8'} />
                   ))}
@@ -149,7 +149,7 @@ export default function WaProviderDashboardPage() {
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="value" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" fill="#6366f1" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={900} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -162,7 +162,7 @@ export default function WaProviderDashboardPage() {
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="messages" fill="#0f766e" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="messages" fill="#0f766e" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={900} />
               </BarChart>
             </ResponsiveContainer>
           </div>

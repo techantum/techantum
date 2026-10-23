@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createAuthAdminClient } from '@/lib/supabase/admin';
 import { sendPartnerInviteEmail } from '@/lib/email/partner-emails';
 import type { CreatePartnerInput, Partner } from './types';
 
@@ -31,7 +31,8 @@ export async function createPartnerWithInvite(
       ? partnerCodeRow
       : `PART-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
 
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+  const auth = createAuthAdminClient();
+  const createdAuth = await auth.auth.admin.createUser({
     email,
     email_confirm: false,
     user_metadata: {
@@ -39,9 +40,16 @@ export async function createPartnerWithInvite(
       role: 'partner',
     },
   });
+  const authUser = createdAuth.data.user
+    ? { user: createdAuth.data.user, created: true, error: undefined as string | undefined }
+    : await auth.auth.admin.generateLink({ type: 'magiclink', email }).then((existing) => ({
+      user: existing.data.user,
+      created: false,
+      error: createdAuth.error?.message || existing.error?.message,
+    }));
 
-  if (authError || !authUser.user) {
-    throw new Error(authError?.message || 'Failed to create auth user');
+  if (!authUser.user) {
+    throw new Error(authUser.error || createdAuth.error?.message || 'Failed to create auth user');
   }
 
   const { data: partner, error: partnerError } = await supabase
@@ -62,7 +70,7 @@ export async function createPartnerWithInvite(
     .single();
 
   if (partnerError || !partner) {
-    await supabase.auth.admin.deleteUser(authUser.user.id);
+    if (authUser.created) await auth.auth.admin.deleteUser(authUser.user.id).catch(() => undefined);
     throw new Error(partnerError?.message || 'Failed to create partner');
   }
 
@@ -81,7 +89,7 @@ export async function createPartnerWithInvite(
 
   if (userError || !partnerUser) {
     await supabase.from('partners').delete().eq('id', partner.id);
-    await supabase.auth.admin.deleteUser(authUser.user.id);
+    if (authUser.created) await auth.auth.admin.deleteUser(authUser.user.id).catch(() => undefined);
     throw new Error(userError?.message || 'Failed to create partner user');
   }
 

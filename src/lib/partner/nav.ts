@@ -74,6 +74,7 @@ export function partnerHasNavAccess(
 }
 
 export function canManagePartnerTeam(partnerUser: Pick<PartnerUser, 'role' | 'nav_access'>): boolean {
+  if (partnerUser.role === 'partner_admin') return true;
   return partnerHasNavAccess(partnerUser, 'team');
 }
 

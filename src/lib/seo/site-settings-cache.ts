@@ -11,7 +11,12 @@ export async function fetchCanonicalHostPreference(): Promise<CanonicalHost> {
   if (seoSettingsCache.expires > now) return seoSettingsCache.canonicalHost;
 
   const envPref = process.env.CANONICAL_HOST || process.env.NEXT_PUBLIC_CANONICAL_HOST;
-  let canonicalHost: CanonicalHost = envPref === 'www' ? 'www' : 'non-www';
+  if (envPref === 'www' || envPref === 'non-www') {
+    seoSettingsCache = { expires: now + 300_000, canonicalHost: envPref };
+    return envPref;
+  }
+
+  let canonicalHost: CanonicalHost = 'non-www';
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

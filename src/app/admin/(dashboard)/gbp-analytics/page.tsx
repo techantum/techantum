@@ -598,6 +598,8 @@ export default function GbpAnalyticsPage() {
                       stroke="#f59e0b"
                       fill="url(#directionsGradient)"
                       strokeWidth={2}
+                      isAnimationActive
+                      animationDuration={900}
                     />
                     <Area
                       type="monotone"
@@ -606,6 +608,9 @@ export default function GbpAnalyticsPage() {
                       stroke="#6366f1"
                       fill="url(#mapsGradient)"
                       strokeWidth={2}
+                      isAnimationActive
+                      animationDuration={900}
+                      animationBegin={120}
                     />
                     <Area
                       type="monotone"
@@ -614,6 +619,9 @@ export default function GbpAnalyticsPage() {
                       stroke="#10b981"
                       fill="transparent"
                       strokeWidth={2}
+                      isAnimationActive
+                      animationDuration={900}
+                      animationBegin={220}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

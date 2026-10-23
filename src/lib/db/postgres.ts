@@ -11,8 +11,11 @@ export function getPool(): Pool {
   if (!connectionString) {
     throw new Error('DIRECT_URL or DATABASE_URL is not set');
   }
-  const max = Math.min(4, Math.max(1, Number(process.env.PG_POOL_MAX || 3)));
-  if (globalForPg.techantumPgPool && globalForPg.techantumPgPool.options.max > max) {
+  const configured = Number(process.env.PG_POOL_MAX);
+  const pgbouncer = /:6543\b|pgbouncer|pooler\.supabase/i.test(connectionString);
+  const fallback = pgbouncer ? 3 : 8;
+  const max = Math.min(12, Math.max(1, Number.isFinite(configured) && configured > 0 ? configured : fallback));
+  if (globalForPg.techantumPgPool && globalForPg.techantumPgPool.options.max !== max) {
     void globalForPg.techantumPgPool.end().catch(() => undefined);
     globalForPg.techantumPgPool = undefined;
   }
@@ -20,7 +23,7 @@ export function getPool(): Pool {
     globalForPg.techantumPgPool = new Pool({
       connectionString,
       max,
-      idleTimeoutMillis: 8_000,
+      idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 8_000,
       allowExitOnIdle: true,
       ssl: /supabase\.com/i.test(connectionString) ? { rejectUnauthorized: false } : undefined,

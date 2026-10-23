@@ -44,5 +44,10 @@ export async function POST(request: Request) {
     members,
     leadDiscoveryEnabled: Boolean(auth.partner.lead_discovery_enabled),
     actorRole: auth.partnerUser.role,
+    inviteSent: result.inviteSent !== false,
+    inviteError: result.inviteError || null,
+    message: result.inviteSent === false
+      ? `Team member added. Invite email could not be sent${result.inviteError ? `: ${result.inviteError}` : ''}.`
+      : 'Invite sent successfully.',
   });
 }

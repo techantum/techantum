@@ -76,6 +76,8 @@ export async function sessionAccess(role: string, userId: string) {
 }
 
 async function settingsRow() {
+  const existing = await q(undefined, `SELECT * FROM youtube_module_settings WHERE id=1`);
+  if (existing.rows[0]) return existing.rows[0];
   await q(undefined, `INSERT INTO youtube_module_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`);
   const { rows } = await q(undefined, `SELECT * FROM youtube_module_settings WHERE id=1`);
   return rows[0];

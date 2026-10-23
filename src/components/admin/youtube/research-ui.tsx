@@ -212,17 +212,26 @@ export function EmptyChart({ text }: { text: string }) {
   return <p className="flex h-full items-center justify-center text-sm text-slate-500">{text}</p>;
 }
 
-export function MonthBarChart({ data, bars }: { data: Record<string, unknown>[]; bars: { key: string; color: string }[] }) {
-  if (!data.length) return <EmptyChart text="No imported videos match these filters." />;
+const CHART_MOTION = {
+  isAnimationActive: true,
+  animationBegin: 80,
+  animationDuration: 900,
+  animationEasing: 'ease-out' as const,
+};
+
+export function MonthBarChart({ data, bars, empty }: { data: Record<string, unknown>[]; bars: { key: string; color: string }[]; empty?: string }) {
+  if (!data.length) return <EmptyChart text={empty || 'No imported videos match these filters.'} />;
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data}>
+      <BarChart data={data} key={`month-${bars.map((bar) => bar.key).join('-')}-${data.length}`}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis dataKey="month" fontSize={11} />
         <YAxis fontSize={11} />
         <Tooltip />
         <Legend />
-        {bars.map((bar) => <Bar key={bar.key} dataKey={bar.key} fill={bar.color} radius={[4, 4, 0, 0]} />)}
+        {bars.map((bar, index) => (
+          <Bar key={bar.key} dataKey={bar.key} fill={bar.color} radius={[4, 4, 0, 0]} {...CHART_MOTION} animationBegin={80 + index * 120} />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -232,12 +241,12 @@ export function SimpleBars({ rows, color = '#EA580C' }: { rows: { label: string;
   if (!rows.length) return <EmptyChart text="No values for this view." />;
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={rows} layout="vertical" margin={{ left: 24 }}>
+      <BarChart data={rows} layout="vertical" margin={{ left: 24 }} key={`simple-${rows.length}-${color}`}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis type="number" fontSize={11} />
         <YAxis type="category" dataKey="label" width={110} fontSize={11} />
         <Tooltip />
-        <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} />
+        <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} {...CHART_MOTION} />
       </BarChart>
     </ResponsiveContainer>
   );

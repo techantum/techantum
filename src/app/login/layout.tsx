@@ -5,10 +5,9 @@ import { buildPageMetadata } from '@/lib/seo/page-metadata';
 export async function generateMetadata() {
   return buildPageMetadata({
     path: '/login',
-    title: 'Client portal sign in',
-    description:
-      'Sign in to your Techantum WhatsApp Business API portal to manage numbers, templates, messages, and analytics.',
-    keywords: ['TechAntum login', 'WhatsApp Business API portal', 'Google sign in', 'WhatsApp OTP'],
+    title: 'Sign in',
+    description: 'Sign in to your Techantum account to manage your dashboard and stay connected with our team.',
+    keywords: ['TechAntum login', 'sign in', 'create account'],
   });
 }
 

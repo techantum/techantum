@@ -19,8 +19,9 @@ export default function Footer({ branding = defaultBranding }: { branding?: Site
     { id: 'comp_test', label: 'Testimonials', href: '/testimonials' },
     { id: 'comp_blog', label: 'Blog', href: '/blog' },
     { id: 'comp_contact', label: 'Contact', href: '/contact' },
-    { id: 'comp_login', label: 'Sign in', href: '/login' },
-  ]
+    { id: 'comp_login', label: 'Sign In', href: '/login' },
+    { id: 'comp_partner', label: 'Partner Login', href: '/partner/login' },
+  ];
 
   const legalLinks = [
     { id: 'legal_privacy', label: 'Privacy Policy', href: '/privacy-policy' },
@@ -137,20 +138,6 @@ export default function Footer({ branding = defaultBranding }: { branding?: Site
             {branding.copyright_text}
           </p>
           <div className="flex items-center gap-4">
-            <Link
-              href="/login"
-              className="font-inter text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              Sign in
-            </Link>
-            <span className="text-muted-foreground">·</span>
-            <Link
-              href="/partner/login"
-              className="font-inter text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              Partner Login
-            </Link>
-            <span className="text-muted-foreground">·</span>
             <Link
               href="/privacy-policy"
               className="font-inter text-sm text-muted-foreground hover:text-primary transition-colors"

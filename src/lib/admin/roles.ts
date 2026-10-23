@@ -1,6 +1,13 @@
 export type AdminRole = 'SUPER_ADMIN' | 'ADMIN';
 
-export const SUPER_ADMIN_ONLY_NAV_GROUPS = ['recruitment', 'sales', 'hr', 'account', 'project-management'] as const;
+export const SUPER_ADMIN_ONLY_NAV_GROUPS = [
+  'recruitment',
+  'sales',
+  'hr',
+  'account',
+  'project-management',
+  'youtube-research-settings',
+] as const;
 
 export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/recruitment',
@@ -8,6 +15,7 @@ export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/hr',
   '/admin/pm',
   '/admin/profile',
+  '/admin/youtube-research/settings',
 ];
 
 export const SUPER_ADMIN_ONLY_API_PREFIXES = [

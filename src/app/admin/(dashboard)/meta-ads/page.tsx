@@ -203,8 +203,8 @@ export default function MetaAdsDashboardPage() {
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="spend" name="Spend" stroke="#7c3aed" fill="#c4b5fd" />
-                <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#0284c7" fill="#bae6fd" />
+                <Area type="monotone" dataKey="spend" name="Spend" stroke="#7c3aed" fill="#c4b5fd" isAnimationActive animationDuration={900} />
+                <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#0284c7" fill="#bae6fd" isAnimationActive animationDuration={900} animationBegin={120} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

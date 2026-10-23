@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { getAllStaticPublicRoutes } from '@/lib/seo/public-routes';
 import { CMS_SITE_PAGES } from '@/lib/cms/site-pages';
+import { invalidateCmsRuntimeCache } from '@/lib/cms';
 
 /**
  * ISR revalidation interval (seconds) for public marketing pages.
@@ -32,6 +33,7 @@ function routesForCmsKey(entryKey: string): string[] {
 
 /** Bust ISR caches for specific public paths (and shared layout). */
 export function revalidatePublicPaths(paths: string[]) {
+  invalidateCmsRuntimeCache();
   const unique = [...new Set(paths.filter(Boolean))];
   for (const path of unique) {
     revalidatePath(path);

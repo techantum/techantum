@@ -4,9 +4,11 @@ import { classifyYoutubeError, createYoutube, normalizeYoutubeApiKey, YOUTUBE_CO
 import { presentVideo } from './mask.ts';
 import { readFileSync } from 'node:fs';
 import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, parseChannelInput, publishingBuckets, shortsPlaylistId, YOUTUBE_METRIC_NOTICE } from './parse.ts';
-import { hasYoutubePermission, YOUTUBE_PERMISSIONS } from './permissions.ts';
+import { hasYoutubePermission, permissionsForRole, YOUTUBE_PERMISSIONS } from './permissions.ts';
+import { visibleAdminNav } from '../cms/admin-nav.ts';
+import { canAccessAdminPath } from '../admin/roles.ts';
 import { pdfFile, wordFile } from './reports.ts';
-import { actionsPerThousandViews, ANALYSIS_LENSES, contrastNotes, engagementActions, parseAnalysisLens } from './analysis.ts';
+import { actionsPerThousandViews, ANALYSIS_LENSES, clockDuration, contrastNotes, engagementActions, insightCards, parseAnalysisLens, performanceNote } from './analysis.ts';
 import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
 
 const CHANNEL_ID = 'UC1234567890123456789012';
@@ -233,6 +235,14 @@ describe('analytics policy', () => {
       [{ stale: false, content_label: 'Video', placement_label: 'Paid', title: 'Long hospital film about facilities and parking', tags: [], view_count: 80 } as never],
     );
     assert.match(notes.join(' '), /Shorts are 100%/);
+    assert.equal(clockDuration(125), '2:05');
+    assert.match(performanceNote({ title: 'What is hernia?', tags: [], content_label: 'Video', comment_count: 0, like_count: 1 } as never, 'low'), /hook|interaction|tags/i);
+    const cards = insightCards(
+      [{ stale: false, content_label: 'Short', title: 'Tips', tags: ['a', 'b', 'c'], view_count: 9000, like_count: 100, weekday: 'Tue', topic_name: 'Recovery' } as never],
+      [{ stale: false, content_label: 'Video', title: 'Long film', tags: [], view_count: 80, like_count: 1, weekday: 'Sun', topic_name: 'Parking' } as never],
+    );
+    assert.equal(cards.length, 4);
+    assert.match(cards[0].body, /× more views/);
     assert.doesNotMatch(readFileSync(new URL('./analysis.ts', import.meta.url), 'utf8'), /engagementRate/);
   });
 });
@@ -242,7 +252,30 @@ describe('permissions and exports', () => {
     assert.equal(hasYoutubePermission('SUPER_ADMIN', [], 'youtube_research.settings.manage'), true);
     assert.equal(hasYoutubePermission('ADMIN', [], 'youtube_research.view'), false);
     assert.equal(hasYoutubePermission('ADMIN', ['youtube_research.view'], 'youtube_research.reports.export'), false);
+    assert.equal(hasYoutubePermission('ADMIN', ['youtube_research.settings.manage'], 'youtube_research.settings.manage'), false);
+    assert.equal(hasYoutubePermission('partner_admin', YOUTUBE_PERMISSIONS, 'youtube_research.settings.manage'), false);
+    assert.equal(hasYoutubePermission('partner_user', [], 'youtube_research.view'), true);
+    assert.equal(permissionsForRole('partner_admin', []).includes('youtube_research.settings.manage'), false);
     assert.equal(YOUTUBE_PERMISSIONS.length, 9);
+  });
+
+  it('hides YouTube Research settings from partner and admin sessions', () => {
+    const hrefs = (role: string) => {
+      const found: string[] = [];
+      const walk = (items: ReturnType<typeof visibleAdminNav>) => {
+        for (const item of items) {
+          if (item.href) found.push(item.href);
+          if (item.children) walk(item.children);
+        }
+      };
+      walk(visibleAdminNav(role));
+      return found;
+    };
+    assert.equal(hrefs('SUPER_ADMIN').includes('/admin/youtube-research/settings'), true);
+    assert.equal(hrefs('ADMIN').includes('/admin/youtube-research/settings'), false);
+    assert.equal(canAccessAdminPath('SUPER_ADMIN', '/admin/youtube-research/settings'), true);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/youtube-research/settings'), false);
+    assert.equal(canAccessAdminPath('ADMIN', '/admin/youtube-research'), true);
   });
 
   it('escapes spreadsheet formulas and quotes', () => {

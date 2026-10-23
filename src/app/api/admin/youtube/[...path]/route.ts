@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/admin/auth';
 import { financeErrorResponse, fileResponse } from '@/lib/finance/http';
 import { YoutubeApiError } from '@/lib/youtube/client';
 import { hasYoutubePermission, type YoutubePermission } from '@/lib/youtube/permissions';
-import { projectAnalysis, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
+import { projectAnalysis, summarizeAnalysisVideo, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
 import {
   addProjectChannel,
   archiveProject,
@@ -178,7 +178,8 @@ export async function GET(request: Request, context: { params: Promise<{ path?: 
     if (path[0] === 'projects' && path[1] && path[2] === 'analysis') {
       const auth = await gate('youtube_research.analytics.view');
       if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await projectAnalysis(path[1], url.searchParams.get('lens'), url.searchParams.get('limit')));
+      const query = videoQuery(path[1], url);
+      return NextResponse.json(await projectAnalysis(path[1], url.searchParams.get('lens') || 'why', url.searchParams.get('limit'), query));
     }
     if (path[0] === 'projects' && path[1]) {
       const auth = await gate('youtube_research.view');
@@ -298,7 +299,12 @@ export async function POST(request: Request, context: { params: Promise<{ path?:
     if (path[0] === 'projects' && path[1] && path[2] === 'analysis' && path[3] === 'summarize') {
       const auth = await gate('youtube_research.analytics.view');
       if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await summarizeProjectAnalysis(path[1]));
+      return NextResponse.json(await summarizeProjectAnalysis(path[1], body));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'analysis' && path[3] === 'video') {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await summarizeAnalysisVideo(path[1], String(body.videoId || body.video_id || ''), body.mode, body));
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'import') {
       const auth = await gate('youtube_research.videos.import');

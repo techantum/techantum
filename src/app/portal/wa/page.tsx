@@ -67,14 +67,13 @@ export default function PortalDashboardPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-900/55 to-transparent" />
         <div className="relative grid gap-6 px-6 py-8 sm:px-8 lg:grid-cols-[1fr_280px] lg:items-center">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Dashboard</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">My Dashboard</p>
             <h1 className="mt-2 font-bricolage text-3xl font-bold sm:text-4xl">
-              Welcome back,
-              <br />
-              <span className="text-orange-300">{name}!</span>
+              Welcome to Your Dashboard
             </h1>
             <p className="mt-3 max-w-xl text-sm text-white/75">
-              Manage your WhatsApp Business API and grow your business with smarter conversations.
+              Manage your projects, view updates, and stay connected with Techantum.
+              {name && name !== 'there' ? ` Signed in as ${name}.` : ''}
             </p>
           </div>
           <div className="rounded-3xl bg-white/95 p-5 text-slate-900 shadow-lg">

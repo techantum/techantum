@@ -168,6 +168,15 @@ function Channels() {
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Link
+          href="/admin/youtube-research/channel-compare"
+          className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white"
+        >
+          <Icon name="ChartBarIcon" size={16} />
+          Channel Comparison
+        </Link>
+      </div>
       {loaded ? (
         <div className="grid gap-3 md:grid-cols-3">
           <Stat icon="PlayCircleIcon" label="Own Channel" value={own ? 1 : 0} />
@@ -186,6 +195,7 @@ function Channels() {
               <ChannelCard row={own} />
               <div className="mt-5 flex flex-wrap gap-5">
                 <Action href={`/admin/youtube-research/videos?channel=${own.id}`} icon="EyeIcon" label="View" />
+                <Action href="/admin/youtube-research/channel-compare" icon="ChartBarIcon" label="Compare" />
                 <Action href={`/admin/youtube-research/import?channel=${own.id}`} icon="ArrowDownTrayIcon" label="Import" />
                 {manage ? <Action icon="ArrowPathIcon" label={busy === own.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(own)} /> : null}
                 {manage ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => startAdd('own')} /> : null}
@@ -207,6 +217,7 @@ function Channels() {
               <ChannelCard row={row} />
               <div className="mt-5 flex flex-wrap gap-5">
                 <Action href={`/admin/youtube-research/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
+                <Action href="/admin/youtube-research/channel-compare" icon="ChartBarIcon" label="Compare" />
                 <Action href={`/admin/youtube-research/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
                 {manage ? <Action icon="ArrowPathIcon" label={busy === row.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(row)} /> : null}
                 {manage ? <Action icon="TrashIcon" label="Remove" tone="accent" onClick={() => remove(row)} /> : null}
@@ -247,6 +258,7 @@ function Channels() {
                   <td className="px-2 py-3">
                     <span className="flex flex-wrap gap-3">
                       <Action href={`/admin/youtube-research/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
+                      <Action href="/admin/youtube-research/channel-compare" icon="ChartBarIcon" label="Compare" />
                       <Action href={`/admin/youtube-research/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
                       {manage ? <Action icon="ArrowPathIcon" label="Refresh" tone="accent" onClick={() => refresh(row)} /> : null}
                       {manage && row.relationship === 'own' ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => startAdd('own')} /> : null}

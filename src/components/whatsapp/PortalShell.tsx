@@ -76,7 +76,7 @@ export default function PortalShell({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between">
-        <p className="font-bricolage font-bold text-slate-900">WhatsApp Portal</p>
+        <p className="font-bricolage font-bold text-slate-900">My Dashboard</p>
         <div className="flex items-center gap-2">
           <button type="button" onClick={signOut} className="text-xs font-semibold text-slate-600 hover:text-rose-700">
             Sign out
@@ -100,8 +100,8 @@ export default function PortalShell({ children }: { children: React.ReactNode })
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <p className="font-bricolage font-bold text-lg text-slate-900">Client Portal</p>
-        <p className="text-[11px] uppercase tracking-wider text-slate-400 mb-6">WhatsApp Business API</p>
+        <p className="font-bricolage font-bold text-lg text-slate-900">My Dashboard</p>
+        <p className="text-[11px] uppercase tracking-wider text-slate-400 mb-6">Your Techantum account</p>
         <div className="flex-1 overflow-y-auto">{nav}</div>
         <div className="pt-4 mt-4 border-t border-slate-200 space-y-2">
           {email && <p className="px-3 text-xs text-slate-500 truncate">{email}</p>}

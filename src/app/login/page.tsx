@@ -1,43 +1,32 @@
 import { Suspense } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import SiteLoginPanel from '@/components/auth/SiteLoginPanel';
-import LoginLaptopPreview from '@/components/auth/LoginLaptopPreview';
 import { getBranding } from '@/lib/cms';
 
 export const dynamic = 'force-dynamic';
 
 const FEATURES = [
   {
-    icon: 'CheckBadgeIcon',
-    title: 'Official WhatsApp Business API',
-    description: 'Secure, reliable, and approved by Meta.',
+    icon: 'Squares2X2Icon',
+    title: 'My Dashboard',
+    description: 'See your account, updates, and activity in one place.',
   },
   {
-    icon: 'Cog6ToothIcon',
-    title: 'Manage Numbers & Templates',
-    description: 'Add numbers, create templates, and go live faster.',
+    icon: 'ChatBubbleLeftRightIcon',
+    title: 'Stay connected',
+    description: 'Reach the Techantum team and keep conversations together.',
   },
   {
-    icon: 'ChartBarIcon',
-    title: 'Conversations & Analytics',
-    description: 'Manage chats, track performance, and grow your business.',
-  },
-  {
-    icon: 'UserGroupIcon',
-    title: 'Built for Business Teams',
-    description: 'Give access to your team and maintain control.',
+    icon: 'DocumentTextIcon',
+    title: 'Your workspace',
+    description: 'Access the tools already available on your account.',
   },
 ];
 
-const STATS = [
-  { icon: 'PaperAirplaneIcon', value: '2M+', label: 'Messages Sent' },
-  { icon: 'BuildingOffice2Icon', value: '10K+', label: 'Businesses Trust Us' },
-  { icon: 'ShieldCheckIcon', value: '98%', label: 'Delivery Rate' },
-  { icon: 'ClockIcon', value: '24/7', label: 'Customer Support' },
-];
-
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const branding = await getBranding();
+  const mode = (await searchParams).mode;
+  const isSignup = mode === 'signup';
 
   return (
     <main className="page-main bg-[#F6F3EE]">
@@ -48,15 +37,17 @@ export default async function LoginPage() {
             <div className="lg:col-span-7">
               <div className="mb-5 inline-flex items-center gap-3">
                 <span className="font-inter text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Client portal
+                  My Account
                 </span>
                 <span className="h-px w-10 bg-secondary" />
               </div>
               <h1 className="font-bricolage text-4xl font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-5xl xl:text-6xl">
-                Manage Your <span className="text-secondary">WhatsApp</span> Business API With Ease
+                {isSignup ? 'Create Your Account' : 'Welcome Back'}
               </h1>
               <p className="mt-5 max-w-xl font-inter text-base leading-relaxed text-slate-500 sm:text-lg">
-                Access your WhatsApp Business API, manage numbers, templates, messages, and analytics — all in one place.
+                {isSignup
+                  ? 'Join Techantum to manage your projects and stay connected with our team.'
+                  : 'Sign in to your Techantum account.'}
               </p>
               <ul className="mt-8 grid gap-4 sm:grid-cols-2">
                 {FEATURES.map((feature) => (
@@ -71,7 +62,6 @@ export default async function LoginPage() {
                   </li>
                 ))}
               </ul>
-              <LoginLaptopPreview />
             </div>
 
             <div className="lg:col-span-5">
@@ -79,23 +69,6 @@ export default async function LoginPage() {
                 <SiteLoginPanel branding={branding} />
               </Suspense>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y border-slate-100 bg-white">
-        <div className="mx-auto w-full px-4 py-8 sm:px-8 sm:py-10 lg:px-12 xl:px-16">
-          <div className="grid grid-cols-2 gap-6 lg:grid-cols-4 lg:gap-8">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center text-secondary">
-                  <Icon name={stat.icon} size={26} />
-                </span>
-                <p className="font-bricolage text-2xl font-bold text-slate-900 sm:text-3xl">{stat.value}</p>
-                <p className="mt-1 font-inter text-sm text-slate-500">{stat.label}</p>
-                <span className="mx-auto mt-3 block h-0.5 w-8 bg-secondary" />
-              </div>
-            ))}
           </div>
         </div>
       </section>

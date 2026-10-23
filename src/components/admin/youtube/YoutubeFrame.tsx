@@ -82,8 +82,8 @@ export function Bars({ rows }: { rows: { label: string; value: number | null }[]
             <span className="truncate">{row.label}</span>
             <span>{metric(row.value)}</span>
           </div>
-          <div className="mt-1 h-2 rounded-full bg-slate-100">
-            <div className="h-2 rounded-full bg-secondary" style={{ width: `${Math.max(4, Math.round(((row.value || 0) / max) * 100))}%` }} />
+          <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="chart-bar-fill h-2 rounded-full bg-secondary" style={{ width: `${Math.max(4, Math.round(((row.value || 0) / max) * 100))}%` }} />
           </div>
         </div>
       ))}
@@ -94,9 +94,9 @@ export function Bars({ rows }: { rows: { label: string; value: number | null }[]
 const WORKSPACE = [
   { href: '/admin/youtube-research/overview', label: 'Overview', section: 'overview', icon: 'HomeIcon' },
   { href: '/admin/youtube-research/channels', label: 'Channels', section: 'channels', icon: 'UserGroupIcon' },
-  { href: '/admin/youtube-research/videos', label: 'Video Explorer', section: 'videos', icon: 'PlayCircleIcon' },
-  { href: '/admin/youtube-research/analysis', label: 'Analysis', section: 'analysis', icon: 'LightBulbIcon' },
-  { href: '/admin/youtube-research/channel-compare', label: 'Channel Comparison', section: 'channel-compare', icon: 'ChartBarIcon' },
+  { href: '/admin/youtube-research/videos', label: 'Videos', section: 'videos', icon: 'PlayCircleIcon' },
+  { href: '/admin/youtube-research/reports', label: 'Reports', section: 'reports', icon: 'DocumentChartBarIcon' },
+  { href: '/admin/youtube-research/analysis', label: 'AI Analysis', section: 'analysis', icon: 'LightBulbIcon' },
 ];
 
 const SECTION_HINT: Record<string, string> = {
@@ -107,14 +107,15 @@ const SECTION_HINT: Record<string, string> = {
   analysis: 'Understand why some videos get high engagement while others stay quiet.',
   compare: 'Compare imported videos side by side.',
   'channel-compare': 'Compare own and competitor channels using public Data API values.',
+  reports: 'Project reports will be available here.',
 };
 
 const SECTION_LABEL: Record<string, string> = {
   overview: 'Overview',
   channels: 'Channels',
   import: 'Import Videos',
-  videos: 'Video Explorer',
-  analysis: 'Analysis',
+  videos: 'Videos',
+  analysis: 'AI Analysis',
   compare: 'Compare Videos',
   'channel-compare': 'Channel Comparison',
   reports: 'Reports',
@@ -169,9 +170,9 @@ function ProjectNav({ activeSection }: { activeSection: string }) {
   );
 }
 
-export default function YoutubeFrame({ children }: { children: React.ReactNode }) {
+export default function YoutubeFrame({ children, initialAccess }: { children: React.ReactNode; initialAccess?: string[] }) {
   const pathname = usePathname() || '';
-  const [access, setAccess] = useState<string[] | null>(null);
+  const [access, setAccess] = useState<string[] | null>(initialAccess ?? null);
   const [error, setError] = useState('');
   const [projectId, setProjectId] = useState('');
   const [project, setProject] = useState<{ name: string; status: string; objective: string; brand_name: string; industry: string; thumbnail: string } | null>(null);
@@ -179,11 +180,12 @@ export default function YoutubeFrame({ children }: { children: React.ReactNode }
   const [stickyTop, setStickyTop] = useState(176);
   const workspace = isWorkspace(pathname);
   const section = sectionOf(pathname);
-  const activeSection = section === 'import' ? 'channels' : section === 'compare' ? 'videos' : section;
+  const activeSection = section === 'import' || section === 'channel-compare' ? 'channels' : section === 'compare' ? 'videos' : section;
 
   useEffect(() => {
+    if (initialAccess) return;
     yt('session').then((body) => setAccess(body.permissions || [])).catch((err) => setError(err.message));
-  }, []);
+  }, [initialAccess]);
 
   useEffect(() => {
     const id = currentProjectId();
@@ -210,7 +212,9 @@ export default function YoutubeFrame({ children }: { children: React.ReactNode }
         { href: '/admin/youtube-research', label: 'YouTube Research' },
         { href: '/admin/youtube-research', label: 'Research Projects' },
         { href: '/admin/youtube-research/overview', label: project?.name || 'Project' },
-        ...(SECTION_LABEL[activeSection] ? [{ label: SECTION_LABEL[section === 'import' ? 'import' : activeSection] }] : []),
+        ...(SECTION_LABEL[section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : activeSection]
+          ? [{ label: SECTION_LABEL[section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : activeSection] }]
+          : []),
       ]
     : pathname.startsWith('/admin/youtube-research/settings')
       ? [{ href: '/admin/youtube-research', label: 'YouTube Research' }, { label: 'Settings' }]
@@ -268,7 +272,7 @@ export default function YoutubeFrame({ children }: { children: React.ReactNode }
       ) : <Crumbs items={crumbs} />}
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {access && !access.includes('youtube_research.view') ? (
-        <AdminAlert>You do not have YouTube Research access. A Super Admin can grant it from YouTube Research settings.</AdminAlert>
+        <AdminAlert>You do not have YouTube Research access. Ask a Super Admin to grant it.</AdminAlert>
       ) : null}
       {access?.includes('youtube_research.view') ? (
         <YoutubeAccessContext.Provider value={access}>
