@@ -131,6 +131,26 @@ export function formatDuration(iso: string | null | undefined) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+export function lengthLabel(input: {
+  duration_label?: string | null;
+  duration_seconds?: number | null;
+  duration?: string | null;
+}) {
+  const saved = String(input.duration_label || '').trim();
+  if (saved && saved !== '—') return saved;
+  const seconds = input.duration_seconds == null ? null : Number(input.duration_seconds);
+  if (seconds != null && Number.isFinite(seconds) && seconds >= 0) {
+    const total = Math.round(seconds);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = total % 60;
+    if (hours) return `${hours}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
+  }
+  const iso = formatDuration(input.duration);
+  return iso === '—' ? '' : iso;
+}
+
 export function csvCell(value: unknown) {
   const text = value == null ? '' : String(value);
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
@@ -151,3 +171,6 @@ export function publishingBuckets(dates: (string | null | undefined)[]) {
 
 export const YOUTUBE_METRIC_NOTICE =
   'These figures are public values retrieved from the YouTube Data API for items saved in this workspace. They are not YouTube Analytics. Engagement rate is not calculated. Retrieved YouTube details are hidden after 30 days until you refresh them.';
+
+export const WATCH_HOURS_NOTE =
+  'Watch hours are not returned by the YouTube Data API. Title, content on the thumbnail, organic or paid placement, and public viewership are.';

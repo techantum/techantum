@@ -4,9 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
-import { EMPTY_FILTERS, PlacementBadge, ResearchFilters, downloadResearchReport, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import { EMPTY_FILTERS, PlacementBadge, ResearchFilters, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 import PageLoader from '@/components/admin/youtube/PageLoader';
+import { PartnerStatTile } from '@/components/partner/PartnerUi';
 import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { lengthLabel, WATCH_HOURS_NOTE } from '@/lib/youtube/parse';
 
 function VideoCard({
   video,
@@ -32,9 +34,15 @@ function VideoCard({
         <button type="button" className="line-clamp-2 text-left text-sm font-semibold text-slate-900" onClick={onToggle}>
           {video.title || (video.stale ? 'Refresh required' : video.youtube_video_id)}
         </button>
+        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+          <span className="font-medium text-slate-600">Content on thumbnail: </span>
+          {video.thumbnail_caption || 'Not recorded'}
+        </p>
         <p className="mt-1 truncate text-xs text-slate-500">{video.channel_name || '—'} · {video.published_at ? String(video.published_at).slice(0, 10) : '—'}</p>
-        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
-          <span>{metric(video.view_count)} views</span>
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+          <span>Length {lengthLabel(video) || '—'}</span>
+          <span>Viewership {metric(video.view_count)}</span>
+          <span title={WATCH_HOURS_NOTE}>Watch hours —</span>
           <span>{metric(video.like_count)} likes</span>
           <span>{metric(video.comment_count)} comments</span>
           <PlacementBadge value={video.placement_label} />
@@ -57,6 +65,8 @@ function Explorer() {
   const [competitorRows, setCompetitorRows] = useState<Record<string, any>[]>([]);
   const [ownTotal, setOwnTotal] = useState(0);
   const [competitorTotal, setCompetitorTotal] = useState(0);
+  const [ownSummary, setOwnSummary] = useState<Record<string, any> | null>(null);
+  const [competitorSummary, setCompetitorSummary] = useState<Record<string, any> | null>(null);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS, channelIds: search?.get('channel') || '', sort: 'published_at' });
@@ -99,13 +109,15 @@ function Explorer() {
     const ownIds = idsFor('own', next, channelRows);
     const competitorIds = idsFor('competitor', next, channelRows);
     const [ownBody, competitorBody] = await Promise.all([
-      ownIds.length ? yt(`projects/${projectId}/videos?${videoQuery(nextPage, next, ownIds)}`) : { rows: [], total: 0 },
-      competitorIds.length ? yt(`projects/${projectId}/videos?${videoQuery(nextPage, next, competitorIds)}`) : { rows: [], total: 0 },
+      ownIds.length ? yt(`projects/${projectId}/videos?${videoQuery(nextPage, next, ownIds)}`) : { rows: [], total: 0, summary: null },
+      competitorIds.length ? yt(`projects/${projectId}/videos?${videoQuery(nextPage, next, competitorIds)}`) : { rows: [], total: 0, summary: null },
     ]);
     setOwnRows(ownBody.rows || []);
     setCompetitorRows(competitorBody.rows || []);
     setOwnTotal(ownBody.total || 0);
     setCompetitorTotal(competitorBody.total || 0);
+    setOwnSummary(ownBody.summary || null);
+    setCompetitorSummary(competitorBody.summary || null);
     return { own: ownBody, competitor: competitorBody };
   };
 
@@ -178,18 +190,18 @@ function Explorer() {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 12)));
   };
 
-  const runComparison = async (download: boolean) => {
+  const runComparison = async (report: boolean) => {
     if (selected.length < 2) {
-      setError('Select at least two videos to summarise, ideally one own and one competitor.');
+      setError('Select at least two videos, ideally one own and one competitor.');
       return;
     }
-    setBusy(download ? 'report' : 'summary');
+    setBusy(report ? 'report' : 'summary');
     setError('');
     try {
       const analysis = await yt(`projects/${projectId}/ai-analyses`, {
         method: 'POST',
         body: JSON.stringify({
-          name: download ? 'Selected video comparison report' : 'Selected video comparison',
+          name: report ? `Video comparison · ${selected.length} videos` : 'Selected video comparison',
           goals: ['views', 'engagement'],
           source: 'selected',
           videoIds: selected,
@@ -197,18 +209,21 @@ function Explorer() {
           outputs: ['improve_existing', 'gap_report'],
         }),
       });
-      if (download) {
-        const report = await yt(`projects/${projectId}/research-reports`, {
+      if (report) {
+        await yt(`projects/${projectId}/research-reports`, {
           method: 'POST',
-          body: JSON.stringify({ name: 'Own vs competitor video comparison', report_type: 'competitor', analysis_id: analysis.id }),
+          body: JSON.stringify({
+            name: `Video comparison · ${selected.length} videos`,
+            report_type: 'competitor',
+            analysis_id: analysis.id,
+          }),
         });
-        await downloadResearchReport(projectId, report.id, 'pdf');
-        setMessage('Report downloaded. You can also open it from Reports.');
+        router.push(`${base}/reports`);
         return;
       }
       router.push(`${base}/analysis?id=${analysis.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not summarise the selected videos');
+      setError(err instanceof Error ? err.message : report ? 'Could not generate the report' : 'Could not generate the summary');
     } finally {
       setBusy('');
     }
@@ -221,6 +236,10 @@ function Explorer() {
     load(1, used).catch((err) => setError(err.message)).finally(() => setFiltering(false));
   };
 
+  const viewership = ownSummary?.viewership == null && competitorSummary?.viewership == null
+    ? null
+    : Number(ownSummary?.viewership || 0) + Number(competitorSummary?.viewership || 0);
+
   if (loading) return <PageLoader label="Loading videos…" />;
 
   return (
@@ -232,15 +251,22 @@ function Explorer() {
           </AdminButton>
         ) : null}
         <AdminButton variant="secondary" loading={busy === 'summary'} disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(false)}>
-          Summarise
+          Generate Summary
         </AdminButton>
         <AdminButton variant="primary" loading={busy === 'report'} disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(true)}>
-          Download report
+          Generate Report
         </AdminButton>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
       {fetching ? <PageLoader label="Fetching videos from YouTube…" /> : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <PartnerStatTile label="Organic videos" value={Number(ownSummary?.organic_videos || 0) + Number(competitorSummary?.organic_videos || 0)} icon="PlayCircleIcon" tone="emerald" />
+        <PartnerStatTile label="Paid videos" value={Number(ownSummary?.paid_videos || 0) + Number(competitorSummary?.paid_videos || 0)} icon="MegaphoneIcon" tone="amber" />
+        <PartnerStatTile label="Video viewership" value={metric(viewership)} icon="EyeIcon" tone="sky" />
+        <PartnerStatTile label="Watch hours" value="—" icon="ClockIcon" tone="violet" />
+      </div>
+      <p className="text-xs text-slate-500">{WATCH_HOURS_NOTE}</p>
       <ResearchFilters
         value={filters}
         options={{
@@ -266,8 +292,8 @@ function Explorer() {
       />
       <p className="text-xs text-slate-500">
         {selected.length
-          ? `${selected.length} video${selected.length === 1 ? '' : 's'} selected. Summarise compares the selection and explains why stronger videos outperform weaker ones.`
-          : 'Select videos from both columns, then summarise or download a report.'}
+          ? `${selected.length} video${selected.length === 1 ? '' : 's'} selected. Generate Summary opens the side-by-side comparison. Generate Report saves it under Reports.`
+          : 'Select videos from both columns, then generate a summary or a report.'}
       </p>
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">

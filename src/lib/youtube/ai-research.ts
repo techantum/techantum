@@ -3,8 +3,9 @@ import { parseModelJson } from '../ai/json';
 import { q } from '../finance/db';
 import { FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { listProjectChannels, listProjectVideos } from './projects';
+import { enrichComparisonVideos } from './thumbnail-read';
 import { assertYoutubeProject } from './scope';
-import { YOUTUBE_METRIC_NOTICE } from './parse';
+import { lengthLabel, YOUTUBE_METRIC_NOTICE } from './parse';
 
 export const ANALYTICS_UNAVAILABLE = 'Not available through the current YouTube integration.';
 export const ANALYTICS_HINT = 'Connect an authorized YouTube channel for additional audience insights.';
@@ -93,12 +94,17 @@ type EvidenceVideo = {
   topic_name: string | null;
   published_at: string | null;
   duration_label: string | null;
+  duration_seconds: number | null;
+  duration: string | null;
+  thumbnail_text: string | null;
+  thumbnail_scene: string | null;
   tags: string[];
   view_count: number | null;
   like_count: number | null;
   comment_count: number | null;
   watch_url: string | null;
   thumbnail_url: string | null;
+  thumbnail_caption: string | null;
   description: string | null;
 };
 
@@ -158,13 +164,18 @@ function compactVideo(row: Record<string, any>): EvidenceVideo {
     placement_label: row.placement_label || null,
     topic_name: row.topic_name || null,
     published_at: row.published_at ? String(row.published_at).slice(0, 10) : null,
-    duration_label: row.duration_label || null,
+    duration_label: lengthLabel(row) || null,
+    duration_seconds: row.duration_seconds == null ? null : Number(row.duration_seconds),
+    duration: row.duration || null,
+    thumbnail_text: row.thumbnail_text || null,
+    thumbnail_scene: row.thumbnail_scene || null,
     tags: Array.isArray(row.tags) ? row.tags.map(String).slice(0, 12) : [],
     view_count: row.view_count == null ? null : Number(row.view_count),
     like_count: row.like_count == null ? null : Number(row.like_count),
     comment_count: row.comment_count == null ? null : Number(row.comment_count),
     watch_url: row.watch_url || null,
     thumbnail_url: row.thumbnail_url || null,
+    thumbnail_caption: row.thumbnail_caption || null,
     description: row.description ? String(row.description).slice(0, 400) : null,
   };
 }
@@ -372,7 +383,8 @@ Rules:
 - Desired audience targets are goals, not measured facts.
 - Use may / potentially / worth testing for causal claims.
 - Separate Improve Existing Video (title, description, tags, thumbnail concept) from Create New Video.
-- Thumbnail ideas are concepts only; you did not see the image pixels.
+- thumbnail_text and thumbnail_scene were read from the thumbnail image. Do not add words that are not in those fields.
+- Thumbnail ideas beyond that reading are concepts only.
 - Return JSON only.`,
       },
       {
@@ -404,6 +416,9 @@ Rules:
             likes: video.like_count,
             comments: video.comment_count,
             description: video.description,
+            length: video.duration_label,
+            thumbnail_text: video.thumbnail_text,
+            thumbnail_scene: video.thumbnail_scene,
           })),
         }),
       },
@@ -510,6 +525,11 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
   const id = inserted.rows[0].id;
   try {
     const evidence = await collectEvidence(projectId, config);
+    try {
+      evidence.videos = await enrichComparisonVideos(evidence.videos);
+    } catch {
+      /* The public fields already collected are enough to save the analysis. */
+    }
     let result;
     let provider = null;
     let model = null;
@@ -577,6 +597,7 @@ export async function createResearchReport(projectId: string, body: Record<strin
       result: analysis.result,
       limitations: analysis.limitations,
     },
+    evidence: analysis.evidence,
     actions: analysis.actions,
     notice: AI_RESEARCH_NOTICE,
   };
@@ -601,5 +622,25 @@ export async function getResearchReport(projectId: string, id: string) {
   await assertYoutubeProject(projectId);
   const { rows } = await q(undefined, `SELECT * FROM youtube_research_reports WHERE project_id=$1 AND id=$2`, [projectId, id]);
   if (!rows[0]) throw new FinanceNotFoundError('Report not found');
-  return rows[0];
+  const report = rows[0];
+  const payload = report.payload || {};
+  let videos = payload.evidence?.videos || [];
+  if (!videos.length && report.analysis_id) {
+    const analysis = await getAiAnalysis(projectId, report.analysis_id);
+    videos = analysis.evidence?.videos || [];
+  }
+  if (videos.length) {
+    try {
+      const enriched = await enrichComparisonVideos(videos);
+      payload.evidence = { ...(payload.evidence || {}), videos: enriched };
+      report.payload = payload;
+      if (JSON.stringify(enriched) !== JSON.stringify(videos)) {
+        await q(undefined, `UPDATE youtube_research_reports SET payload=$3::jsonb WHERE project_id=$1 AND id=$2`, [projectId, id, JSON.stringify(payload)]);
+      }
+    } catch {
+      payload.evidence = { ...(payload.evidence || {}), videos };
+      report.payload = payload;
+    }
+  }
+  return report;
 }

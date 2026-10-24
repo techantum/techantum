@@ -79,17 +79,15 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
             <div key={item.href}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                  active && !youtube
-                    ? 'bg-secondary font-medium text-white shadow-sm'
-                    : active
-                      ? 'bg-orange-50 font-medium text-secondary'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+                className={`side-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                  active
+                    ? 'bg-orange-100 font-medium text-secondary'
+                    : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
                 }`}
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    active && !youtube ? 'bg-white/20 text-white' : active ? 'bg-secondary/10 text-secondary' : 'bg-slate-100 text-slate-500'
+                    active ? 'bg-orange-100 text-secondary' : 'bg-slate-100 text-slate-500'
                   }`}
                 >
                   <Icon name={item.icon as any} size={16} />
@@ -177,7 +175,7 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
                 <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-lg" role="menu">
                   <Link
                     href="/partner/profile"
-                    className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-secondary"
+                    className="menu-item flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
                   >
@@ -186,7 +184,7 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
                   </Link>
                   <Link
                     href="/partner/support"
-                    className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-secondary"
+                    className="menu-item flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
                   >
@@ -196,7 +194,7 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600"
+                    className="menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600"
                     role="menuitem"
                   >
                     <Icon name="ArrowRightOnRectangleIcon" size={16} />

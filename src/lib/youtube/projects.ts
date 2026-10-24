@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { q, withFinanceTx } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
-import { categoryLabel, contentLabel, isPaidPlacement, SHORT_MAX_SECONDS, YOUTUBE_METRIC_NOTICE } from './parse';
+import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE } from './parse';
 import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, performanceSummary, startImport } from './service';
 import { currentYoutubePartnerId } from './scope';
@@ -325,6 +325,10 @@ function shapeVideo(row: Record<string, unknown>) {
     relationship: row.relationship,
     category_label: categoryLabel(video.category_id),
     content_label: contentLabel(video.duration_seconds as number | null, video.title as string | null, Array.isArray(video.tags) ? video.tags as string[] : null),
+    duration_label: lengthLabel({
+      duration_seconds: video.duration_seconds as number | null,
+      duration: video.duration as string | null,
+    }) || null,
     placement_label: video.stale
       ? null
       : isPaidPlacement({
@@ -333,6 +337,36 @@ function shapeVideo(row: Record<string, unknown>) {
         description: video.description as string | null,
         tags: Array.isArray(video.tags) ? video.tags as string[] : null,
       }) ? 'Paid' : 'Organic',
+  };
+}
+
+export type VideoLibrarySummary = {
+  organic_videos: number;
+  paid_videos: number;
+  viewership: number | null;
+  watch_hours: null;
+  watch_hours_note: string;
+};
+
+async function videoLibrarySummary(filter: { values: unknown[]; where: string }): Promise<VideoLibrarySummary> {
+  const fresh = `v.fetched_at > NOW() - INTERVAL '30 days'`;
+  const { rows } = await q<{ organic: number; paid: number; viewership: string | null }>(
+    undefined,
+    `SELECT
+       COUNT(*) FILTER (WHERE ${fresh} AND NOT ${PAID_MATCH})::int AS organic,
+       COUNT(*) FILTER (WHERE ${fresh} AND ${PAID_MATCH})::int AS paid,
+       SUM(CASE WHEN ${fresh} THEN v.view_count ELSE NULL END) AS viewership
+     ${PROJECT_VIDEO_FROM}
+     WHERE ${filter.where}`,
+    filter.values,
+  );
+  const row = rows[0];
+  return {
+    organic_videos: Number(row?.organic || 0),
+    paid_videos: Number(row?.paid || 0),
+    viewership: numberCell(row?.viewership),
+    watch_hours: null,
+    watch_hours_note: WATCH_HOURS_NOTE,
   };
 }
 
@@ -345,8 +379,16 @@ export async function listProjectVideos(params: VideoQuery & { includeTotal?: bo
   const countQuery = params.includeTotal === false
     ? Promise.resolve({ rows: [{ count: String(pageSize) }] })
     : q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_VIDEO_FROM} WHERE ${filter.where}`, filter.values);
-  const [{ rows }, count] = await Promise.all([rowsQuery, countQuery]);
-  return { rows: rows.map((row) => shapeVideo(row)), total: Number(count.rows[0]?.count || 0), page, pageSize, notice: YOUTUBE_METRIC_NOTICE };
+  const summaryQuery = params.includeTotal === false ? Promise.resolve(null) : videoLibrarySummary(filter);
+  const [{ rows }, count, summary] = await Promise.all([rowsQuery, countQuery, summaryQuery]);
+  return {
+    rows: rows.map((row) => shapeVideo(row)),
+    total: Number(count.rows[0]?.count || 0),
+    page,
+    pageSize,
+    notice: YOUTUBE_METRIC_NOTICE,
+    summary,
+  };
 }
 
 export async function getProjectVideo(projectId: string, videoId: string) {

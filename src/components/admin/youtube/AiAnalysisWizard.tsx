@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
+import GapCards from '@/components/admin/youtube/GapCards';
 import PageLoader from '@/components/admin/youtube/PageLoader';
+import { buildGapCards } from '@/lib/youtube/gap-cards';
 import { metric, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
 import type { ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
@@ -315,6 +317,7 @@ export default function AiAnalysisWizard() {
   const result = current?.result || {};
   const observations = Array.isArray(result.observations) ? result.observations : [];
   const alternatives = result.alternatives || {};
+  const gapPair = buildGapCards(current?.evidence?.videos || []);
   const evidenceVideos: Record<string, any>[] = current?.evidence?.videos || [];
   const videoMap = Object.fromEntries(evidenceVideos.map((video) => [video.id, video]));
   const goalLabels = PRIMARY_GOALS.filter((item) => goals.includes(item.id));
@@ -373,7 +376,7 @@ export default function AiAnalysisWizard() {
               )) : (
                 <tr>
                   <td className="px-4 py-10 text-sm text-slate-500" colSpan={4}>
-                    No analyses yet. Select videos on the Videos page and click Summarise, or start a custom AI analysis.
+                    No analyses yet. Select videos on the Videos page and click Generate Summary, or start a custom AI analysis.
                   </td>
                 </tr>
               )}
@@ -754,7 +757,16 @@ export default function AiAnalysisWizard() {
               ))}
             </div>
           ) : null}
-          {current?.status === 'ready' ? (
+          {current?.status === 'ready' && gapPair ? (
+            <>
+              <section className="rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4">
+                <p className="inline-flex items-center gap-2 text-sm font-semibold text-secondary"><Icon name="SparklesIcon" size={18} /> Own video and competitor video</p>
+                <h3 className="mt-1 font-bricolage text-lg font-semibold text-slate-900">Gaps are scored on each video, using the other video in the pair.</h3>
+                <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">Views, viewership share, likes, comments, description, and title come from the public video record. Watch hours, geography, ages watched, and genders watched are not shared by YouTube for these videos.</p>
+              </section>
+              <GapCards videos={current?.evidence?.videos || []} actions={current.actions || []} onStatus={saveAction} />
+            </>
+          ) : current?.status === 'ready' ? (
             <>
               <section className="rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4">
                 <p className="inline-flex items-center gap-2 text-sm font-semibold text-secondary"><Icon name="SparklesIcon" size={18} /> AI-assisted summary</p>

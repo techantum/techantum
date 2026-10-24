@@ -120,11 +120,11 @@ const SECTION_HINT: Record<string, string> = {
   overview: 'Project snapshot for the selected research workspace.',
   channels: 'Add your own YouTube channel first, then competitor channels to compare.',
   import: 'Import public videos for the channels in this project.',
-  videos: 'Filter own and competitor videos, then summarise or download a report.',
+  videos: 'Filter own and competitor videos, then generate a summary or a report.',
   analysis: 'Open a saved analysis or run a custom AI analysis.',
   compare: 'Compare imported videos side by side.',
   'channel-compare': 'Compare own and competitor channels using public Data API values.',
-  reports: 'Download every research report generated for this project.',
+  reports: 'Open a saved comparison or download it as Excel.',
 };
 
 const SECTION_LABEL: Record<string, string> = {
@@ -301,8 +301,8 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
                         <Link
                           key={item.suffix}
                           href={`${base}${item.suffix}`}
-                          className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
-                            active ? 'bg-secondary font-medium text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+                          className={`side-nav-item flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                            active ? 'bg-orange-100 font-medium text-secondary' : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
                           }`}
                         >
                           <Icon name={item.icon} size={16} />

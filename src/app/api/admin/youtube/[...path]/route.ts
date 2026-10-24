@@ -268,7 +268,7 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
     if (path[0] === 'projects' && path[1] && path[2] === 'research-reports' && path[3] && path[4] === 'export') {
       const auth = await gate('youtube_research.reports.export');
       if ('error' in auth && auth.error) return auth.error;
-      const file = await exportResearchReport(path[1], path[3], url.searchParams.get('format') || 'pdf');
+      const file = await exportResearchReport(path[1], path[3]);
       return fileResponse(file.body, file.filename, file.mime);
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'research-reports' && path[3]) {

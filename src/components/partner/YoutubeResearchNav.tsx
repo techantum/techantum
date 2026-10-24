@@ -31,14 +31,14 @@ export default function YoutubeResearchNav() {
   };
 
   const itemClass = (active: boolean) =>
-    `block rounded-lg px-3 py-1.5 text-sm ${active ? 'bg-secondary font-medium text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-secondary'}`;
+    `side-nav-item block rounded-lg px-3 py-1.5 text-sm ${active ? 'bg-orange-100 font-medium text-secondary' : 'text-slate-500 hover:bg-orange-50/70 hover:text-secondary'}`;
 
   return (
     <div className="mt-1 space-y-0.5">
       <Link href={base} className={itemClass(onDashboard)}>
         Dashboard
       </Link>
-      <button type="button" className="block w-full rounded-lg px-3 py-1.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-secondary" onClick={() => setOpen((value) => !value)}>
+      <button type="button" className="side-nav-item block w-full rounded-lg px-3 py-1.5 text-left text-sm font-medium text-slate-600 hover:bg-orange-50/70 hover:text-secondary" onClick={() => setOpen((value) => !value)}>
         Projects
       </button>
       {open ? (

@@ -387,8 +387,7 @@
     }
 
     .ui-btn:not(:disabled):hover,
-    main a.rounded-full:hover,
-    main button:not(:disabled):not([aria-expanded]):hover {
+    main a.rounded-full:not(.side-nav-item):not(.menu-item):hover {
       transform: translateY(-1px);
       box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
     }
@@ -411,9 +410,15 @@
   header button:hover,
   aside button:hover,
   aside a:hover,
-  header a.rounded-full:hover {
+  nav a:hover,
+  nav button:hover,
+  header a.rounded-full:hover,
+  .side-nav-item,
+  .side-nav-item:hover,
+  .menu-item,
+  .menu-item:hover {
     transform: none;
-    box-shadow: inherit;
+    box-shadow: none;
   }
 
   /* Marquee */

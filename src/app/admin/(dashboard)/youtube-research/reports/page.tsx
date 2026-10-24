@@ -1,12 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { downloadResearchReport } from '@/components/admin/youtube/research-ui';
-import { ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 const REPORT_TYPES = [
   { id: 'performance', label: 'Existing Performance Report' },
@@ -25,6 +26,7 @@ function typeLabel(id: string) {
 
 function Reports() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [analyses, setAnalyses] = useState<Record<string, any>[]>([]);
   const [name, setName] = useState('');
@@ -32,7 +34,6 @@ function Reports() {
   const [analysisId, setAnalysisId] = useState('');
   const [q, setQ] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [preview, setPreview] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -87,25 +88,13 @@ function Reports() {
     }
   };
 
-  const download = async (id: string, format: 'pdf' | 'xlsx') => {
-    setPending(`${format}:${id}`);
+  const download = async (id: string) => {
+    setPending(`xlsx:${id}`);
     try {
       setError('');
-      await downloadResearchReport(projectId, id, format);
+      await downloadResearchReport(projectId, id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not export report');
-    } finally {
-      setPending('');
-    }
-  };
-
-  const openPreview = async (row: Record<string, any>) => {
-    setPending(`preview:${row.id}`);
-    try {
-      const report = await yt(`projects/${projectId}/research-reports/${row.id}`);
-      setPreview(report);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not preview report');
+      setError(err instanceof Error ? err.message : 'Could not download the report');
     } finally {
       setPending('');
     }
@@ -133,7 +122,7 @@ function Reports() {
           <table className="w-full min-w-[860px] text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">
-                {['Report name', 'Type', 'Generated on', 'Status', 'Download'].map((heading) => (
+                {['Report name', 'Type', 'Generated on', 'Status', 'Actions'].map((heading) => (
                   <th key={heading} className="whitespace-nowrap px-4 py-3 font-semibold">{heading}</th>
                 ))}
               </tr>
@@ -147,15 +136,14 @@ function Reports() {
                   <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : 'default'}>{row.status}</AdminBadge></td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <AdminButton size="sm" loading={pending === `preview:${row.id}`} onClick={() => openPreview(row)}>Preview</AdminButton>
-                      <AdminButton size="sm" loading={pending === `pdf:${row.id}`} onClick={() => download(row.id, 'pdf')}>PDF</AdminButton>
-                      <AdminButton size="sm" loading={pending === `xlsx:${row.id}`} onClick={() => download(row.id, 'xlsx')}>Excel</AdminButton>
+                      <Link href={`${base}/reports/${row.id}`} className="menu-item inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 hover:text-slate-900">View</Link>
+                      <AdminButton size="sm" variant="primary" loading={pending === `xlsx:${row.id}`} onClick={() => download(row.id)}>Download</AdminButton>
                       <AdminButton size="sm" variant="ghost" loading={pending === `archive:${row.id}`} onClick={() => archive(row.id)}>Archive</AdminButton>
                     </div>
                   </td>
                 </tr>
               )) : (
-                <tr><td className="px-4 py-10 text-sm text-slate-500" colSpan={5}>No reports yet. Select videos and click Download report, or generate one below from a saved AI Analysis.</td></tr>
+                <tr><td className="px-4 py-10 text-sm text-slate-500" colSpan={5}>No reports yet. Select videos and click Generate Report, or generate one below from a saved summary.</td></tr>
               )}
             </tbody>
           </table>
@@ -189,23 +177,6 @@ function Reports() {
         </div>
       </section>
 
-      {preview ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="font-bricolage text-[15px] font-semibold text-slate-900">{preview.name}</h2>
-              <p className="mt-1 text-sm text-slate-500">{preview.payload?.analysis?.result?.summary?.headline}</p>
-            </div>
-            <AdminButton size="sm" onClick={() => setPreview(null)}>Close</AdminButton>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-slate-600">{preview.payload?.analysis?.result?.summary?.body}</p>
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
-            {(preview.payload?.analysis?.result?.observations || []).slice(0, 6).map((item: Record<string, string>) => (
-              <li key={item.headline}>{item.headline}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </div>
   );
 }

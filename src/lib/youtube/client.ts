@@ -132,7 +132,7 @@ function stat(source: Record<string, string> | undefined, key: string) {
 
 function thumbnail(snippet: { thumbnails?: Record<string, { url?: string }> } | undefined) {
   const thumbs = snippet?.thumbnails || {};
-  return thumbs.medium?.url || thumbs.high?.url || thumbs.default?.url || null;
+  return thumbs.maxres?.url || thumbs.standard?.url || thumbs.high?.url || thumbs.medium?.url || thumbs.default?.url || null;
 }
 
 function mapChannel(item: Record<string, any>): ResolvedChannel | null {

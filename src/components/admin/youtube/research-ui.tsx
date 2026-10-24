@@ -285,7 +285,7 @@ export function VideoMiniTable({
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">
-                {['Video', 'Channel', 'Published', 'Views', 'Likes', 'Comments'].map((heading) => <th key={heading} className="px-2 py-2">{heading}</th>)}
+                {['Title', 'Content on thumbnail', 'Channel', 'Organic or paid', 'Viewership', 'Watch hours'].map((heading) => <th key={heading} className="px-2 py-2">{heading}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -293,18 +293,18 @@ export function VideoMiniTable({
                 <tr key={video.id} className="border-t border-slate-100">
                   <td className="px-2 py-2">
                     <span className="flex items-center gap-2">
-                      {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="h-9 w-14 rounded object-cover" /> : <span className="h-9 w-14 rounded bg-slate-100" />}
+                      {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" loading="lazy" className="h-9 w-14 rounded object-cover" /> : <span className="h-9 w-14 rounded bg-slate-100" />}
                       <span className="max-w-[240px] truncate font-medium">{video.title || (video.stale ? 'Refresh required' : video.youtube_video_id)}</span>
                     </span>
                   </td>
+                  <td className="max-w-[180px] truncate px-2 py-2 text-slate-600">{video.thumbnail_caption || 'Not recorded'}</td>
                   <td className="px-2 py-2">
                     <AdminBadge variant={video.relationship === 'own' ? 'indigo' : 'default'}>{video.relationship === 'own' ? 'Own' : 'Competitor'}</AdminBadge>
                     <span className="ml-2 text-slate-600">{video.channel_name || '—'}</span>
                   </td>
-                  <td className="px-2 py-2 text-slate-500">{video.published_at ? String(video.published_at).slice(0, 10) : '—'}</td>
+                  <td className="px-2 py-2">{video.placement_label || '—'}</td>
                   <td className="px-2 py-2">{metric(video.view_count)}</td>
-                  <td className="px-2 py-2">{metric(video.like_count)}</td>
-                  <td className="px-2 py-2">{metric(video.comment_count)}</td>
+                  <td className="px-2 py-2" title="YouTube Data API does not return watch hours.">—</td>
                 </tr>
               ))}
             </tbody>
@@ -329,8 +329,8 @@ export function mergeMonths(channels: { id: string; channel_name?: string | null
   });
 }
 
-export async function downloadResearchReport(projectId: string, reportId: string, format: 'pdf' | 'xlsx') {
-  const response = await fetch(`/api/admin/youtube/projects/${projectId}/research-reports/${reportId}/export?format=${format}`, {
+export async function downloadResearchReport(projectId: string, reportId: string) {
+  const response = await fetch(`/api/admin/youtube/projects/${projectId}/research-reports/${reportId}/export`, {
     headers: youtubePortalHeader(),
   });
   if (!response.ok) {
@@ -342,7 +342,7 @@ export async function downloadResearchReport(projectId: string, reportId: string
   const link = document.createElement('a');
   const match = response.headers.get('content-disposition')?.match(/filename="([^"]+)"/);
   link.href = url;
-  link.download = match?.[1] || `youtube-research-report.${format}`;
+  link.download = match?.[1] || 'youtube-research-report.xlsx';
   link.click();
   URL.revokeObjectURL(url);
 }

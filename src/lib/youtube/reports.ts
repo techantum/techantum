@@ -14,13 +14,13 @@ import {
 } from 'docx';
 import PDFDocument from 'pdfkit';
 import { buildWorkbook } from '../finance/excel';
-import { csvCell, YOUTUBE_METRIC_NOTICE } from './parse';
+import { csvCell, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE } from './parse';
 import { projectExportRows } from './projects';
 import { rowsForExport } from './service';
 import { assertYoutubeProject, currentYoutubePartnerId } from './scope';
 import { FinanceNotFoundError } from '../finance/errors';
 
-const SOURCE = 'YouTube Data API public data. Not YouTube Analytics.';
+const SOURCE = `YouTube Data API public data. Not YouTube Analytics. ${WATCH_HOURS_NOTE}`;
 
 function textCell(value: unknown) {
   if (value == null || value === '') return '';
@@ -43,6 +43,7 @@ function exportRow(row: Record<string, unknown>) {
     tags: row.tags === null ? '' : tags || 'No tags available',
     thumbnail: textCell(row.thumbnail_url),
     caption: textCell(row.thumbnail_caption),
+    watch_hours: '',
     title: textCell(row.title) || textCell(row.youtube_video_id),
     url: textCell(row.watch_url),
     published: textCell(row.published_at).slice(0, 10),
@@ -65,14 +66,15 @@ const COLUMNS = [
   { header: 'Research Topic', key: 'topic', width: 24 },
   { header: 'YouTube Tags', key: 'tags', width: 36 },
   { header: 'Thumbnail URL', key: 'thumbnail', width: 42 },
-  { header: 'Thumbnail Caption', key: 'caption', width: 28 },
+  { header: 'Content on thumbnail', key: 'caption', width: 28 },
   { header: 'Video Title', key: 'title', width: 42 },
   { header: 'Video URL', key: 'url', width: 42 },
   { header: 'Publish Date', key: 'published', width: 16 },
   { header: 'Duration', key: 'duration', width: 12 },
   { header: 'Content', key: 'content', width: 12 },
-  { header: 'Placement', key: 'placement', width: 12 },
-  { header: 'Views', key: 'views', width: 14 },
+  { header: 'Organic or paid', key: 'placement', width: 16 },
+  { header: 'Video viewership', key: 'views', width: 16 },
+  { header: 'Watch hours', key: 'watch_hours', width: 14 },
   { header: 'Likes', key: 'likes', width: 12 },
   { header: 'Comments', key: 'comments', width: 12 },
   { header: 'Description', key: 'description', width: 48 },
@@ -139,7 +141,7 @@ export async function pdfFile(title: string, rows: Record<string, string | numbe
       { key: 'relationship', label: 'Role', width: 62 },
       { key: 'published', label: 'Published', width: 64 },
       { key: 'duration', label: 'Length', width: 48 },
-      { key: 'views', label: 'Views', width: 54 },
+      { key: 'views', label: 'Viewership', width: 54 },
       { key: 'likes', label: 'Likes', width: 44 },
       { key: 'comments', label: 'Comments', width: 58 },
       { key: 'topic', label: 'Topic', width: 78 },
@@ -251,7 +253,7 @@ function wordCell(text: string, opts?: { bold?: boolean; color?: string; size?: 
 export async function wordFile(title: string, rows: Record<string, string | number>[]) {
   const shown = rows.slice(0, 200);
   const keys = ['title', 'channel', 'relationship', 'content', 'placement', 'published', 'views', 'likes', 'comments', 'topic'] as const;
-  const labels = ['Video', 'Channel', 'Role', 'Content', 'Placement', 'Published', 'Views', 'Likes', 'Comments', 'Topic'];
+  const labels = ['Video title', 'Channel', 'Role', 'Content', 'Organic or paid', 'Published', 'Video viewership', 'Likes', 'Comments', 'Topic'];
   const header = new TableRow({
     children: labels.map((label) => wordCell(label, { bold: true, color: '0F172A' })),
   });

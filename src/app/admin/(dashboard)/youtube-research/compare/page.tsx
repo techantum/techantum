@@ -57,14 +57,14 @@ function CompareVideos() {
     { label: 'Channel', render: (video) => video.channel_name || '—' },
     { label: 'Published', render: (video) => video.published_at ? String(video.published_at).slice(0, 10) : '—' },
     { label: 'Duration', render: (video) => video.duration || '—' },
-    { label: 'Content', render: (video) => video.content_label || '—' },
-    { label: 'Placement', render: (video) => <PlacementBadge value={video.placement_label} /> },
-    { label: 'Views', render: (video) => metric(video.view_count) },
+    { label: 'Content on thumbnail', render: (video) => video.thumbnail_caption || 'Not recorded' },
+    { label: 'Organic or paid', render: (video) => <PlacementBadge value={video.placement_label} /> },
+    { label: 'Video viewership', render: (video) => metric(video.view_count) },
+    { label: 'Watch hours', render: () => '—' },
     { label: 'Likes', render: (video) => metric(video.like_count) },
     { label: 'Comments', render: (video) => metric(video.comment_count) },
     { label: 'Tags', render: (video) => video.stale ? 'Refresh required' : (video.tags?.length ? video.tags.join(', ') : 'No tags available') },
     { label: 'Topic', render: (video) => video.topic_name || '—' },
-    { label: 'Caption', render: (video) => video.thumbnail_caption || '—' },
     { label: 'Category', render: (video) => video.category_label || '—' },
   ];
   const chart = videos.map((video) => ({

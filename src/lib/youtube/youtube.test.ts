@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { classifyYoutubeError, createYoutube, normalizeYoutubeApiKey, YOUTUBE_CONNECTED_MESSAGE } from './client.ts';
 import { presentVideo } from './mask.ts';
 import { readFileSync } from 'node:fs';
-import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, parseChannelInput, publishingBuckets, shortsPlaylistId, YOUTUBE_METRIC_NOTICE } from './parse.ts';
+import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, lengthLabel, parseChannelInput, publishingBuckets, shortsPlaylistId, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE } from './parse.ts';
 import { hasYoutubePermission, permissionsForRole, YOUTUBE_PERMISSIONS } from './permissions.ts';
 import { partnerYoutubeAccess, youtubePortalFrom } from './scope.ts';
 import { visibleAdminNav } from '../cms/admin-nav.ts';
@@ -12,6 +12,8 @@ import { pdfFile, wordFile } from './reports.ts';
 import { actionsPerThousandViews, ANALYSIS_LENSES, clockDuration, contrastNotes, engagementActions, insightCards, parseAnalysisLens, performanceNote } from './analysis.ts';
 import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
 import { ANALYTICS_UNAVAILABLE, buildFallbackObservations, classifyVideos, parseAiResearchConfig } from './ai-research.ts';
+import { COMPARISON_UNAVAILABLE, buildGapCards, comparisonTable, thumbnailContent } from './gap-cards.ts';
+import { parseThumbnailReading } from './thumbnail-read.ts';
 import { FinanceValidationError } from '../finance/errors.ts';
 
 const CHANNEL_ID = 'UC1234567890123456789012';
@@ -220,6 +222,7 @@ describe('analytics policy', () => {
     assert.equal(summary.officialAnalytics, false);
     assert.equal('engagementRate' in summary, false);
     assert.match(YOUTUBE_METRIC_NOTICE, /not YouTube Analytics/i);
+    assert.match(WATCH_HOURS_NOTE, /Watch hours are not returned/);
     assert.deepEqual(publishingBuckets(['2026-01-02', '2026-01-20', null]), [{ month: '2026-01', count: 2 }]);
     const projects = readFileSync(new URL('./projects.ts', import.meta.url), 'utf8');
     assert.match(projects, /historicalGrowth: false/);
@@ -381,5 +384,37 @@ describe('AI research configuration', () => {
     const observations = buildFallbackObservations(videos, parseAiResearchConfig({ goals: ['views', 'retention'] }));
     assert.ok(observations.some((item) => item.category === 'Audience Retention' && item.observation === ANALYTICS_UNAVAILABLE));
     assert.ok(observations.every((item) => !/will increase views/i.test(`${item.headline} ${item.observation}`)));
+    const pair = buildGapCards([
+      { id: 'own', title: 'Clinic update', relationship: 'own', channel_name: 'Own', view_count: 120, like_count: 2, comment_count: 0, description: 'Short', thumbnail_caption: null },
+      { id: 'comp', title: 'How hernia repair actually works', relationship: 'competitor', channel_name: 'Rival', view_count: 4000, like_count: 80, comment_count: 12, description: 'A longer public description that states the outcome and the next step for the viewer.', thumbnail_caption: 'Hernia repair' },
+    ]);
+    assert.equal(pair?.left.roleLabel, 'Own video');
+    assert.equal(pair?.right.roleLabel, 'Competitor video');
+    assert.match(pair?.left.segments.find((item) => item.id === 'views')?.negative || '', /lower than the other video/);
+    assert.match(pair?.right.segments.find((item) => item.id === 'views')?.positive || '', /higher than the other video/);
+    assert.equal(pair?.left.segments.find((item) => item.id === 'watch_hours')?.value, 'Not shared');
+    assert.match(pair?.left.segments.find((item) => item.id === 'ages')?.negative || '', /does not share the ages/);
+    assert.match(pair?.left.segments.find((item) => item.id === 'genders')?.negative || '', /does not share the genders/);
+    assert.match(pair?.left.segments.find((item) => item.id === 'geography')?.negative || '', /does not share where/);
+    assert.ok(pair?.left.alternatives.titles.length);
+    assert.ok(pair?.right.actions.length);
+    assert.doesNotMatch(JSON.stringify(pair), /18–24|male viewers|watch hours are \d/i);
+    const table = comparisonTable([
+      { id: 'own', title: 'Clinic update', relationship: 'own', view_count: 120, duration_seconds: 125, thumbnail_text: 'Clinic hours', thumbnail_scene: 'A clinic doorway' },
+      { id: 'comp', title: 'How hernia repair works', relationship: 'competitor', view_count: 4000, duration: 'PT8M12S' },
+    ]);
+    assert.equal(table.videos.length, 2);
+    assert.equal(lengthLabel({ duration_seconds: 125 }), '2:05');
+    assert.equal(lengthLabel({ duration: 'PT1H2M3S' }), '1:02:03');
+    assert.equal(table.rows.find((row) => row.label === 'Length')?.values[0], '2:05');
+    assert.equal(table.rows.find((row) => row.label === 'Length')?.values[1], '8:12');
+    assert.match(table.rows.find((row) => row.label === 'Content on thumbnail')?.values[0] || '', /Clinic hours/);
+    assert.equal(thumbnailContent({ thumbnail_caption: 'Saved line' }), 'Saved line');
+    assert.equal(parseThumbnailReading('{"text":"Hello","scene":"A doctor in a clinic"}').text, 'Hello');
+    assert.equal(parseThumbnailReading('{"text":"watch hours are 12","scene":"demographic chart"}').text, '');
+    assert.equal(table.rows.find((row) => row.label === 'Watch hours')?.values[0], COMPARISON_UNAVAILABLE);
+    assert.equal(table.rows.find((row) => row.label === 'Geography')?.values[1], COMPARISON_UNAVAILABLE);
+    assert.equal(table.rows.find((row) => row.label === 'Ages watched')?.values[0], COMPARISON_UNAVAILABLE);
+    assert.equal(table.rows.find((row) => row.label === 'Genders watched')?.values[0], COMPARISON_UNAVAILABLE);
   });
 });

@@ -167,7 +167,13 @@ function ChannelCompare() {
                     <div><p className="text-[10px] uppercase text-slate-400">Public videos</p><p className="font-semibold">{metric(channel.video_count)}</p></div>
                     <div><p className="text-[10px] uppercase text-slate-400">Channel views</p><p className="font-semibold">{metric(channel.view_count)}</p></div>
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">{metric(channel.insights?.imported)} imported videos match the filters · {metric(channel.insights?.views)} public views on those imported rows</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
+                    <div><p className="text-[10px] uppercase text-slate-400">Organic videos</p><p className="font-semibold">{metric(channel.insights?.organic)}</p></div>
+                    <div><p className="text-[10px] uppercase text-slate-400">Paid videos</p><p className="font-semibold">{metric(channel.insights?.paid)}</p></div>
+                    <div><p className="text-[10px] uppercase text-slate-400">Video viewership</p><p className="font-semibold">{metric(channel.insights?.views)}</p></div>
+                    <div title="YouTube Data API does not return watch hours."><p className="text-[10px] uppercase text-slate-400">Watch hours</p><p className="font-semibold">—</p></div>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">{metric(channel.insights?.imported)} imported videos match the filters.</p>
                 </div>
               ))}
             </div>
