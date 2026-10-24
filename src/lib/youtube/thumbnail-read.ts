@@ -8,7 +8,7 @@ import { readApiKey } from './service';
 
 export type ThumbnailReading = { text: string; scene: string };
 
-const IMAGE_HOST = /^https:\/\/(i\.ytimg\.com|i\.ytimg\.com|img\.youtube\.com|yt3\.ggpht\.com|yt3\.googleusercontent\.com)\//i;
+const IMAGE_HOST = /^https:\/\/(i\.ytimg\.com|i[0-9]*\.ytimg\.com|img\.youtube\.com|yt3\.ggpht\.com|yt3\.googleusercontent\.com|ytimg\.l\.googleusercontent\.com)\//i;
 const AUDIENCE_CLAIM = /watch hours|viewer percentage|ages? watched|genders? watched|demographic/i;
 
 export function thumbnailSources(videoId: string | null | undefined, stored: string | null | undefined) {
@@ -41,32 +41,53 @@ export function parseThumbnailReading(raw: string): ThumbnailReading {
   };
 }
 
+export function imageMimeFromBytes(bytes: Buffer, headerMime?: string | null) {
+  const header = String(headerMime || '').split(';')[0].trim().toLowerCase();
+  if (header === 'image/jpg') return 'image/jpeg';
+  if (/^image\/(jpeg|png|webp)$/.test(header)) return header;
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50) return 'image/png';
+  if (bytes.length >= 12 && bytes.slice(0, 4).toString('ascii') === 'RIFF' && bytes.slice(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  return '';
+}
+
 async function downloadThumbnail(urls: string[]) {
+  let best: { url: string; bytes: Buffer; mime: string } | null = null;
   for (const url of urls) {
     if (!IMAGE_HOST.test(url)) continue;
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
       if (!response.ok) continue;
       const bytes = Buffer.from(await response.arrayBuffer());
-      if (bytes.length < 2500 || bytes.length > 4_000_000) continue;
-      const mime = String(response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
-      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(mime)) continue;
-      return { url, bytes, mime: mime === 'image/jpg' ? 'image/jpeg' : mime };
+      if (bytes.length < 2000 || bytes.length > 4_000_000) continue;
+      const mime = imageMimeFromBytes(bytes, response.headers.get('content-type'));
+      if (!mime) continue;
+      if (!best || bytes.length > best.bytes.length) best = { url, bytes, mime };
     } catch {
       /* try the next size */
     }
   }
-  return null;
+  return best;
+}
+
+function visionProvider(provider: ResolvedProvider): ResolvedProvider {
+  if (provider.id === 'openai' && !/(gpt-4o|gpt-4\.1|gpt-5|o4-|vision|4-turbo)/i.test(provider.model)) {
+    return { ...provider, model: 'gpt-4o-mini' };
+  }
+  return provider;
 }
 
 const PROMPT = `Read this YouTube thumbnail image. Return JSON only:
 {"text":"exact words visible on the image, or an empty string","scene":"one sentence describing what the picture shows"}
 Copy only words you can see. Do not invent viewer age, gender, country, watch hours, or a title that is not printed on the image.`;
 
-async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }) {
-  const data = image.bytes.toString('base64');
-  const timeout = AbortSignal.timeout(20000);
-  if (provider.id === 'gemini') {
+async function askGemini(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }, data: string, timeout: AbortSignal) {
+  const parts = [
+    [{ text: PROMPT }, { inline_data: { mime_type: image.mime, data } }],
+    [{ text: PROMPT }, { inlineData: { mimeType: image.mime, data } }],
+  ];
+  let last = 'Gemini could not read the thumbnail';
+  for (const contentParts of parts) {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(provider.model)}:generateContent?key=${encodeURIComponent(provider.apiKey)}`,
       {
@@ -74,24 +95,35 @@ async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; m
         headers: { 'Content-Type': 'application/json' },
         signal: timeout,
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: PROMPT }, { inline_data: { mime_type: image.mime, data } }] }],
+          contents: [{ role: 'user', parts: contentParts }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 400, responseMimeType: 'application/json' },
         }),
       },
     );
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error?.message || 'Gemini could not read the thumbnail');
+    if (!response.ok) {
+      last = body?.error?.message || last;
+      continue;
+    }
     return body?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || '').join('') || '';
   }
-  if (provider.id === 'openai') {
-    const headers: Record<string, string> = { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' };
-    if (provider.organizationId) headers['OpenAI-Organization'] = provider.organizationId;
+  throw new Error(last);
+}
+
+async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }) {
+  const used = visionProvider(provider);
+  const data = image.bytes.toString('base64');
+  const timeout = AbortSignal.timeout(20000);
+  if (used.id === 'gemini') return askGemini(used, image, data, timeout);
+  if (used.id === 'openai') {
+    const headers: Record<string, string> = { Authorization: `Bearer ${used.apiKey}`, 'Content-Type': 'application/json' };
+    if (used.organizationId) headers['OpenAI-Organization'] = used.organizationId;
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers,
       signal: timeout,
       body: JSON.stringify({
-        model: provider.model,
+        model: used.model,
         temperature: 0.1,
         max_tokens: 400,
         response_format: { type: 'json_object' },
@@ -112,12 +144,12 @@ async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; m
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': provider.apiKey,
+      'x-api-key': used.apiKey,
       'anthropic-version': '2023-06-01',
     },
     signal: timeout,
     body: JSON.stringify({
-      model: provider.model,
+      model: used.model,
       max_tokens: 400,
       temperature: 0.1,
       messages: [{
@@ -177,21 +209,49 @@ type MediaVideo = {
   thumbnail_checked?: boolean | null;
 };
 
-export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[]) {
+type StoredVideo = {
+  id: string;
+  youtube_video_id: string | null;
+  duration: string | null;
+  duration_seconds: number | null;
+  thumbnail_url: string | null;
+  thumbnail_text?: string | null;
+  thumbnail_scene?: string | null;
+};
+
+async function persistReading(projectId: string | undefined, videoId: string, reading: ThumbnailReading) {
+  const caption = [reading.text, reading.scene].filter(Boolean).join(' · ');
+  if (!caption) return;
+  await q(
+    undefined,
+    `UPDATE youtube_videos SET thumbnail_text=$2, thumbnail_scene=$3 WHERE id=$1`,
+    [videoId, reading.text || null, reading.scene || null],
+  ).catch(() => undefined);
+  if (!projectId) return;
+  await q(
+    undefined,
+    `INSERT INTO youtube_project_video_research (project_id, video_id, thumbnail_caption)
+     VALUES ($1,$2,$3)
+     ON CONFLICT (project_id, video_id) DO UPDATE SET
+       thumbnail_caption = COALESCE(NULLIF(youtube_project_video_research.thumbnail_caption, ''), EXCLUDED.thumbnail_caption),
+       updated_at = NOW()`,
+    [projectId, videoId, caption],
+  ).catch(() => undefined);
+}
+
+export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[], projectId?: string) {
   const list = videos.filter((video) => video?.id);
   if (!list.length) return videos;
   const ids = list.map((video) => String(video.id));
-  const stored = await q<{
-    id: string;
-    youtube_video_id: string | null;
-    duration: string | null;
-    duration_seconds: number | null;
-    thumbnail_url: string | null;
-  }>(
+  const stored = await q<StoredVideo>(
+    undefined,
+    `SELECT id, youtube_video_id, duration, duration_seconds, thumbnail_url, thumbnail_text, thumbnail_scene FROM youtube_videos WHERE id = ANY($1::uuid[])`,
+    [ids],
+  ).catch(async () => q<StoredVideo>(
     undefined,
     `SELECT id, youtube_video_id, duration, duration_seconds, thumbnail_url FROM youtube_videos WHERE id = ANY($1::uuid[])`,
     [ids],
-  ).catch(() => ({ rows: [] as { id: string; youtube_video_id: string | null; duration: string | null; duration_seconds: number | null; thumbnail_url: string | null }[] }));
+  )).catch(() => ({ rows: [] as StoredVideo[] }));
   const byId = new Map(stored.rows.map((row) => [row.id, row]));
   const missingIds = list
     .map((video) => byId.get(String(video.id)) || video)
@@ -223,6 +283,8 @@ export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[]) 
     const durationSeconds = video.duration_seconds ?? row?.duration_seconds ?? null;
     const youtubeId = video.youtube_video_id || row?.youtube_video_id || null;
     const storedThumb = video.thumbnail_url || row?.thumbnail_url || null;
+    const storedText = String(video.thumbnail_text || row?.thumbnail_text || '').trim();
+    const storedScene = String(video.thumbnail_scene || row?.thumbnail_scene || '').trim();
     const next = {
       ...video,
       youtube_video_id: youtubeId,
@@ -230,16 +292,20 @@ export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[]) 
       duration_seconds: durationSeconds,
       duration_label: lengthLabel({ duration_label: video.duration_label, duration_seconds: durationSeconds, duration }) || null,
       thumbnail_url: thumbnailSources(youtubeId, storedThumb)[0] || storedThumb,
+      thumbnail_text: storedText || null,
+      thumbnail_scene: storedScene || null,
     };
-    if (video.thumbnail_checked || String(video.thumbnail_text || '').trim() || String(video.thumbnail_scene || '').trim()) return next;
+    if (video.thumbnail_checked || storedText || storedScene) return next;
     const image = await downloadThumbnail(thumbnailSources(youtubeId, storedThumb));
-    if (!image) return next;
+    if (!image) return { ...next, thumbnail_checked: true };
     const reading = await readImage(image);
+    if (reading.text || reading.scene) await persistReading(projectId, String(video.id), reading);
     return {
       ...next,
       thumbnail_url: image.url,
       thumbnail_text: reading.text || null,
       thumbnail_scene: reading.scene || null,
+      thumbnail_caption: video.thumbnail_caption || [reading.text, reading.scene].filter(Boolean).join(' · ') || null,
       thumbnail_checked: true,
     };
   });

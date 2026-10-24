@@ -1,13 +1,14 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import { EMPTY_FILTERS, PlacementBadge, ResearchFilters, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { PartnerStatTile } from '@/components/partner/PartnerUi';
-import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { thumbnailContent } from '@/lib/youtube/gap-cards';
 import { lengthLabel, WATCH_HOURS_NOTE } from '@/lib/youtube/parse';
 
 function VideoCard({
@@ -36,7 +37,7 @@ function VideoCard({
         </button>
         <p className="mt-1 line-clamp-2 text-xs text-slate-500">
           <span className="font-medium text-slate-600">Content on thumbnail: </span>
-          {video.thumbnail_caption || 'Not recorded'}
+          {thumbnailContent(video) || 'Not recorded'}
         </p>
         <p className="mt-1 truncate text-xs text-slate-500">{video.channel_name || '—'} · {video.published_at ? String(video.published_at).slice(0, 10) : '—'}</p>
         <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
@@ -190,7 +191,7 @@ function Explorer() {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 12)));
   };
 
-  const runComparison = async (report: boolean) => {
+  const runComparison = useCallback(async (report: boolean) => {
     if (!selected.length) {
       setError('Select at least one video to summarise. Two videos (own + competitor) work best for a comparison report.');
       return;
@@ -227,7 +228,7 @@ function Explorer() {
     } finally {
       setBusy('');
     }
-  };
+  }, [base, projectId, router, selected]);
 
   const totalPages = Math.max(1, Math.ceil(Math.max(ownTotal, competitorTotal) / 24));
   const applyFilters = (used: typeof filters) => {
@@ -240,23 +241,49 @@ function Explorer() {
     ? null
     : Number(ownSummary?.viewership || 0) + Number(competitorSummary?.viewership || 0);
 
+  const railActions = useMemo(() => (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="space-y-2">
+        <AdminButton
+          variant="secondary"
+          className="w-full"
+          loading={busy === 'summary'}
+          disabled={!selected.length || Boolean(busy)}
+          onClick={() => runComparison(false)}
+        >
+          Generate Summary
+        </AdminButton>
+        <AdminButton
+          variant="primary"
+          className="w-full"
+          loading={busy === 'report'}
+          disabled={!selected.length || Boolean(busy)}
+          onClick={() => runComparison(true)}
+        >
+          Generate Report
+        </AdminButton>
+      </div>
+      <p className="mt-2 text-[11px] leading-4 text-slate-500">
+        {selected.length
+          ? `${selected.length} selected`
+          : 'Select videos, then generate.'}
+      </p>
+    </div>
+  ), [busy, runComparison, selected.length]);
+
+  useYoutubeRailActions(railActions);
+
   if (loading) return <PageLoader label="Loading videos…" />;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        {canImport ? (
+      {canImport ? (
+        <div className="flex justify-start">
           <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}>
             Fetch videos from channels
           </AdminButton>
-        ) : null}
-        <AdminButton variant="secondary" loading={busy === 'summary'} disabled={!selected.length || Boolean(busy)} onClick={() => runComparison(false)}>
-          Generate Summary
-        </AdminButton>
-        <AdminButton variant="primary" loading={busy === 'report'} disabled={!selected.length || Boolean(busy)} onClick={() => runComparison(true)}>
-          Generate Report
-        </AdminButton>
-      </div>
+        </div>
+      ) : null}
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
       {fetching ? <PageLoader label="Fetching videos from YouTube…" /> : null}

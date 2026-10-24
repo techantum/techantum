@@ -13,7 +13,7 @@ import { actionsPerThousandViews, ANALYSIS_LENSES, clockDuration, contrastNotes,
 import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
 import { ANALYTICS_UNAVAILABLE, buildFallbackObservations, buildVideoBriefs, classifyVideos, parseAiResearchConfig } from './ai-research.ts';
 import { COMPARISON_UNAVAILABLE, buildGapCards, comparisonTable, thumbnailContent } from './gap-cards.ts';
-import { parseThumbnailReading } from './thumbnail-read.ts';
+import { imageMimeFromBytes, parseThumbnailReading } from './thumbnail-read.ts';
 import { clipSpokenText, enrichSpokenContent, parseTimedText } from './video-content.ts';
 import { FinanceValidationError } from '../finance/errors.ts';
 
@@ -413,6 +413,8 @@ describe('AI research configuration', () => {
     assert.equal(thumbnailContent({ thumbnail_caption: 'Saved line' }), 'Saved line');
     assert.equal(parseThumbnailReading('{"text":"Hello","scene":"A doctor in a clinic"}').text, 'Hello');
     assert.equal(parseThumbnailReading('{"text":"watch hours are 12","scene":"demographic chart"}').text, '');
+    assert.equal(imageMimeFromBytes(Buffer.from([0xff, 0xd8, 0xff, 0x00])), 'image/jpeg');
+    assert.equal(imageMimeFromBytes(Buffer.from([0x00, 0x01]), 'image/jpg'), 'image/jpeg');
     assert.equal(parseTimedText('<transcript><text>Hello</text><text>clinic hours</text></transcript>'), 'Hello clinic hours');
     assert.equal(parseTimedText('{"events":[{"segs":[{"utf8":"How "},{"utf8":"hernia repair works"}]}]}'), 'How hernia repair works');
     assert.equal(clipSpokenText('a'.repeat(20), 10).length, 10);

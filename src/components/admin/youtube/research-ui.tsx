@@ -297,7 +297,7 @@ export function VideoMiniTable({
                       <span className="max-w-[240px] truncate font-medium">{video.title || (video.stale ? 'Refresh required' : video.youtube_video_id)}</span>
                     </span>
                   </td>
-                  <td className="max-w-[180px] truncate px-2 py-2 text-slate-600">{video.thumbnail_caption || 'Not recorded'}</td>
+                  <td className="max-w-[180px] truncate px-2 py-2 text-slate-600">{video.thumbnail_text || video.thumbnail_scene || video.thumbnail_caption || 'Not recorded'}</td>
                   <td className="px-2 py-2">
                     <AdminBadge variant={video.relationship === 'own' ? 'indigo' : 'default'}>{video.relationship === 'own' ? 'Own' : 'Competitor'}</AdminBadge>
                     <span className="ml-2 text-slate-600">{video.channel_name || '—'}</span>

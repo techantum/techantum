@@ -587,7 +587,7 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
   try {
     const evidence = await collectEvidence(projectId, config);
     try {
-      evidence.videos = await enrichComparisonVideos(evidence.videos);
+      evidence.videos = await enrichComparisonVideos(evidence.videos, projectId);
     } catch {
       /* Thumbnail reading is best-effort; public fields are still enough to save. */
     }
@@ -697,7 +697,7 @@ export async function getResearchReport(projectId: string, id: string) {
   }
   if (videos.length) {
     try {
-      const enriched = await enrichComparisonVideos(videos);
+      const enriched = await enrichComparisonVideos(videos, projectId);
       payload.evidence = { ...(payload.evidence || {}), videos: enriched };
       report.payload = payload;
       if (JSON.stringify(enriched) !== JSON.stringify(videos)) {

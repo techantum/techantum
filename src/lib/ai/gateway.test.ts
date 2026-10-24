@@ -79,6 +79,20 @@ describe('fallback eligibility', () => {
     );
   });
 
+  it('falls back when the primary API key is rejected', () => {
+    assert.equal(
+      isFallbackEligible(
+        new AIProviderError({
+          provider: 'openai',
+          status: 401,
+          code: 'invalid_api_key',
+          message: 'Incorrect API key provided',
+        })
+      ),
+      true
+    );
+  });
+
   it('does not fall back on bad requests', () => {
     assert.equal(
       isFallbackEligible(

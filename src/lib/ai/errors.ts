@@ -30,6 +30,8 @@ const BILLING_CODES = new Set([
   'billing_hard_limit_reached',
 ]);
 
+const AUTH_CODES = new Set(['invalid_api_key', 'invalid_key', 'authentication_error', 'unauthorized']);
+
 const UNAVAILABLE_CODES = new Set([
   'econnreset',
   'etimedout',
@@ -52,6 +54,7 @@ export function isFallbackEligible(error: unknown) {
   }
 
   if (BILLING_CODES.has(error.code) || BILLING_CODES.has(error.type)) return true;
+  if (AUTH_CODES.has(error.code) || AUTH_CODES.has(error.type) || error.status === 401) return true;
   if (UNAVAILABLE_CODES.has(error.code) || UNAVAILABLE_CODES.has(error.type)) return true;
   if ([500, 502, 503, 504].includes(error.status)) return true;
   if (/timeout|aborted|network|fetch failed|high demand|try again later|overloaded|spikes in demand/i.test(error.message)) {

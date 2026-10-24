@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import Icon from '@/components/ui/AppIcon';
@@ -12,6 +12,15 @@ import { YOUTUBE_PROJECT_PAGES } from '@/lib/youtube/workspace-nav';
 
 const YoutubeAccessContext = createContext<string[]>([]);
 const YoutubeProjectContext = createContext('');
+const YoutubeRailSetContext = createContext<(node: ReactNode | null) => void>(() => undefined);
+
+export function useYoutubeRailActions(node: ReactNode | null) {
+  const setRail = useContext(YoutubeRailSetContext);
+  useLayoutEffect(() => {
+    setRail(node);
+    return () => setRail(null);
+  }, [node, setRail]);
+}
 
 export function useYoutubeAccess() {
   return useContext(YoutubeAccessContext);
@@ -177,6 +186,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
   const [project, setProject] = useState<{ name: string; status: string; objective: string; brand_name: string; industry: string; thumbnail: string } | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [stickyTop, setStickyTop] = useState(176);
+  const [railActions, setRailActions] = useState<ReactNode | null>(null);
   const workspace = isWorkspace(pathname);
   const section = sectionOf(pathname);
   const crumbSection = section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : section;
@@ -291,28 +301,33 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
         <YoutubeAccessContext.Provider value={access}>
           <YoutubeProjectContext.Provider value={projectId}>
             {workspace ? (
-              <div className="flex flex-col gap-4 lg:flex-row">
-                <div className="min-w-0 flex-1">{children}</div>
-                <aside className="order-first lg:order-none lg:w-56">
-                  <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:sticky lg:top-24 lg:block lg:space-y-1 lg:p-3" aria-label="Project pages">
-                    {YOUTUBE_PROJECT_PAGES.map((item) => {
-                      const active = crumbSection === item.section || (item.section === 'channels' && (section === 'import' || section === 'channel-compare')) || (item.section === 'videos' && section === 'compare');
-                      return (
-                        <Link
-                          key={item.suffix}
-                          href={`${base}${item.suffix}`}
-                          className={`side-nav-item flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                            active ? 'bg-orange-100 font-medium text-secondary' : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
-                          }`}
-                        >
-                          <Icon name={item.icon} size={16} />
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                </aside>
-              </div>
+              <YoutubeRailSetContext.Provider value={setRailActions}>
+                <div className="flex flex-col gap-4 lg:flex-row">
+                  <div className="min-w-0 flex-1">{children}</div>
+                  <aside className="order-first self-start lg:order-none lg:w-60">
+                    <div className="z-30 space-y-3 lg:sticky" style={{ top: 'var(--yt-sticky)' }}>
+                      <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:block lg:space-y-1 lg:p-3" aria-label="Project pages">
+                        {YOUTUBE_PROJECT_PAGES.map((item) => {
+                          const active = crumbSection === item.section || (item.section === 'channels' && (section === 'import' || section === 'channel-compare')) || (item.section === 'videos' && section === 'compare');
+                          return (
+                            <Link
+                              key={item.suffix}
+                              href={`${base}${item.suffix}`}
+                              className={`side-nav-item flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                                active ? 'bg-orange-100 font-medium text-secondary' : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
+                              }`}
+                            >
+                              <Icon name={item.icon} size={16} />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </nav>
+                      {railActions}
+                    </div>
+                  </aside>
+                </div>
+              </YoutubeRailSetContext.Provider>
             ) : (
               children
             )}
