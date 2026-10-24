@@ -49,6 +49,8 @@ export type GapCard = {
   channelName: string;
   thumbnailUrl: string | null;
   thumbnailCaption: string | null;
+  thumbnailText: string | null;
+  thumbnailScene: string | null;
   watchUrl: string | null;
   description: string | null;
   segments: GapSegment[];
@@ -262,6 +264,8 @@ function card(video: GapVideo, other: GapVideo): GapCard {
     channelName: video.channel_name || '—',
     thumbnailUrl: video.thumbnail_url || null,
     thumbnailCaption: thumbnailContent(video) || null,
+    thumbnailText: String(video.thumbnail_text || '').trim() || null,
+    thumbnailScene: String(video.thumbnail_scene || '').trim() || null,
     watchUrl: video.watch_url || null,
     description: video.description || null,
     segments: segments(video, other),
@@ -290,7 +294,8 @@ export function comparisonTable(videos: GapVideo[] | null | undefined) {
     { label: 'Channel', values: list.map((video) => video.channel_name || '—') },
     { label: 'Title', values: list.map((video) => video.title || '—') },
     { label: 'Thumbnail', values: list.map((video) => video.thumbnail_url || 'No thumbnail') },
-    { label: 'Content on thumbnail', values: list.map((video) => thumbnailContent(video) || 'Not recorded') },
+    { label: 'Text on thumbnail', values: list.map((video) => String(video.thumbnail_text || '').trim() || 'Not recorded') },
+    { label: 'Image on thumbnail', values: list.map((video) => String(video.thumbnail_scene || '').trim() || 'Not recorded') },
     { label: 'Published', values: list.map((video) => video.published_at ? String(video.published_at).slice(0, 10) : '—') },
     { label: 'Length', values: list.map((video) => lengthLabel(video) || '—') },
     { label: 'Views', values: list.map((video) => fmt(num(video.view_count))) },

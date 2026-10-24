@@ -30,9 +30,13 @@ function Card({
           {side.watchUrl ? <a className="mt-1 inline-block text-xs font-semibold text-secondary" href={side.watchUrl} target="_blank" rel="noreferrer">Open on YouTube</a> : null}
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-500">
-        <span className="font-medium text-slate-600">Content on thumbnail: </span>
-        {side.thumbnailCaption || 'Not recorded'}
+      <p className="mt-3 text-xs leading-5 text-slate-600">
+        <span className="font-semibold text-slate-800">Text on thumbnail: </span>
+        {side.thumbnailText || 'Not recorded'}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-slate-600">
+        <span className="font-semibold text-slate-800">Image: </span>
+        {side.thumbnailScene || 'Not recorded'}
       </p>
       <div className="mt-4 space-y-3">
         {side.segments.map((segment) => (

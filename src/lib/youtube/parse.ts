@@ -131,6 +131,12 @@ export function formatDuration(iso: string | null | undefined) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+export function savedThumbnailUrl(file?: string | null) {
+  const clean = String(file || '').replace(/^\/+/, '').replace(/^uploads\//, '');
+  if (!clean.startsWith('youtube-thumbnails/')) return null;
+  return `/uploads/${clean}`;
+}
+
 export function lengthLabel(input: {
   duration_label?: string | null;
   duration_seconds?: number | null;

@@ -8,7 +8,6 @@ import { EMPTY_FILTERS, PlacementBadge, ResearchFilters, type ResearchFilterOpti
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { PartnerStatTile } from '@/components/partner/PartnerUi';
 import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
-import { thumbnailContent } from '@/lib/youtube/gap-cards';
 import { lengthLabel, WATCH_HOURS_NOTE } from '@/lib/youtube/parse';
 
 function VideoCard({
@@ -35,9 +34,13 @@ function VideoCard({
         <button type="button" className="line-clamp-2 text-left text-sm font-semibold text-slate-900" onClick={onToggle}>
           {video.title || (video.stale ? 'Refresh required' : video.youtube_video_id)}
         </button>
-        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-          <span className="font-medium text-slate-600">Content on thumbnail: </span>
-          {thumbnailContent(video) || 'Not recorded'}
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          <span className="font-medium text-slate-600">Text on thumbnail: </span>
+          {video.thumbnail_text || video.thumbnail_caption || 'Not recorded'}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          <span className="font-medium text-slate-600">Image: </span>
+          {video.thumbnail_scene || 'Not recorded'}
         </p>
         <p className="mt-1 truncate text-xs text-slate-500">{video.channel_name || '—'} · {video.published_at ? String(video.published_at).slice(0, 10) : '—'}</p>
         <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">

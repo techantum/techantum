@@ -409,9 +409,21 @@ describe('AI research configuration', () => {
     assert.equal(lengthLabel({ duration: 'PT1H2M3S' }), '1:02:03');
     assert.equal(table.rows.find((row) => row.label === 'Length')?.values[0], '2:05');
     assert.equal(table.rows.find((row) => row.label === 'Length')?.values[1], '8:12');
-    assert.match(table.rows.find((row) => row.label === 'Content on thumbnail')?.values[0] || '', /Clinic hours/);
+    assert.match(table.rows.find((row) => row.label === 'Text on thumbnail')?.values[0] || '', /Clinic hours/);
+    assert.match(table.rows.find((row) => row.label === 'Image on thumbnail')?.values[0] || '', /clinic doorway/);
     assert.equal(thumbnailContent({ thumbnail_caption: 'Saved line' }), 'Saved line');
     assert.equal(parseThumbnailReading('{"text":"Hello","scene":"A doctor in a clinic"}').text, 'Hello');
+    const multilingual = parseThumbnailReading(JSON.stringify({
+      languages: [
+        { name: 'English', text: 'Clinic hours' },
+        { name: 'Hindi', text: 'क्लिनिक' },
+        { name: 'Telugu', text: 'క్లినిక్ సమయాలు' },
+      ],
+      scene: 'A clinic doorway',
+    }));
+    assert.match(multilingual.text, /Clinic hours/);
+    assert.match(multilingual.text, /क्लिनिक/);
+    assert.match(multilingual.text, /క్లినిక్ సమయాలు/);
     assert.equal(parseThumbnailReading('{"text":"watch hours are 12","scene":"demographic chart"}').text, '');
     assert.equal(imageMimeFromBytes(Buffer.from([0xff, 0xd8, 0xff, 0x00])), 'image/jpeg');
     assert.equal(imageMimeFromBytes(Buffer.from([0x00, 0x01]), 'image/jpg'), 'image/jpeg');

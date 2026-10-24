@@ -1,12 +1,18 @@
+import { mkdir, readFile, writeFile } from 'fs/promises';
+import path from 'path';
 import { buildProviderChain, getGatewayConfig } from '../ai/config';
 import { extractJsonText } from '../ai/json';
 import { q } from '../finance/db';
-import type { ResolvedProvider } from '../ai/types';
+import { getUploadRoot } from '../storage/local';
+import { geminiModelRetryChain, type ResolvedProvider } from '../ai/types';
 import { createYoutube } from './client';
-import { lengthLabel } from './parse';
+import { lengthLabel, savedThumbnailUrl } from './parse';
 import { readApiKey } from './service';
 
 export type ThumbnailReading = { text: string; scene: string };
+
+/** Bump when the thumbnail prompt changes so saved readings are read again. */
+export const THUMBNAIL_READ_VERSION = 2;
 
 const IMAGE_HOST = /^https:\/\/(i\.ytimg\.com|i[0-9]*\.ytimg\.com|img\.youtube\.com|yt3\.ggpht\.com|yt3\.googleusercontent\.com|ytimg\.l\.googleusercontent\.com)\//i;
 const AUDIENCE_CLAIM = /watch hours|viewer percentage|ages? watched|genders? watched|demographic/i;
@@ -33,8 +39,16 @@ export function parseThumbnailReading(raw: string): ThumbnailReading {
     parsed = {};
   }
   const clean = (value: unknown, max: number) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
-  const text = clean(parsed.text || parsed.words, 300);
-  const scene = clean(parsed.scene || parsed.description, 240);
+  const languageLines = Array.isArray(parsed.languages)
+    ? parsed.languages.map((item) => {
+      const row = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      const name = clean(row.name, 40);
+      const value = clean(row.text, 500);
+      return value ? (name ? `${name}: ${value}` : value) : '';
+    }).filter(Boolean)
+    : [];
+  const text = clean(languageLines.join(' | ') || parsed.text || parsed.words, 1500);
+  const scene = clean(parsed.scene || parsed.description, 500);
   return {
     text: AUDIENCE_CLAIM.test(text) ? '' : text,
     scene: AUDIENCE_CLAIM.test(scene) ? '' : scene,
@@ -78,34 +92,32 @@ function visionProvider(provider: ResolvedProvider): ResolvedProvider {
 }
 
 const PROMPT = `Read this YouTube thumbnail image. Return JSON only:
-{"text":"exact words visible on the image, or an empty string","scene":"one sentence describing what the picture shows"}
-Copy only words you can see. Do not invent viewer age, gender, country, watch hours, or a title that is not printed on the image.`;
+{"languages":[{"name":"English","text":""},{"name":"Hindi","text":""},{"name":"Telugu","text":""},{"name":"Other","text":""}],"scene":"one sentence describing what the picture shows"}
+Copy every language printed on the image in its own script. Include Telugu when Telugu letters are visible, even if English and Hindi are also visible. Do not translate Telugu into English or Hindi, and do not leave Telugu out. Leave a language text empty only when that script is not on the image. Do not invent viewer age, gender, country, or watch hours.`;
 
-async function askGemini(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }, data: string, timeout: AbortSignal) {
-  const parts = [
-    [{ text: PROMPT }, { inline_data: { mime_type: image.mime, data } }],
-    [{ text: PROMPT }, { inlineData: { mimeType: image.mime, data } }],
-  ];
+async function askGemini(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }, data: string) {
   let last = 'Gemini could not read the thumbnail';
-  for (const contentParts of parts) {
+  for (const model of geminiModelRetryChain(provider.model).slice(0, 4)) {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(provider.model)}:generateContent?key=${encodeURIComponent(provider.apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: timeout,
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
+        signal: AbortSignal.timeout(20000),
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: contentParts }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 400, responseMimeType: 'application/json' },
+          contents: [{ role: 'user', parts: [{ text: PROMPT }, { inlineData: { mimeType: image.mime, data } }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1200, responseMimeType: 'application/json' },
         }),
       },
     );
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    if (response.status === 429 || response.status === 503) {
       last = body?.error?.message || last;
       continue;
     }
-    return body?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || '').join('') || '';
+    if (!response.ok) throw new Error(body?.error?.message || last);
+    const text = body?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || '').join('') || '';
+    if (text) return text;
   }
   throw new Error(last);
 }
@@ -114,7 +126,7 @@ async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; m
   const used = visionProvider(provider);
   const data = image.bytes.toString('base64');
   const timeout = AbortSignal.timeout(20000);
-  if (used.id === 'gemini') return askGemini(used, image, data, timeout);
+  if (used.id === 'gemini') return askGemini(used, image, data);
   if (used.id === 'openai') {
     const headers: Record<string, string> = { Authorization: `Bearer ${used.apiKey}`, 'Content-Type': 'application/json' };
     if (used.organizationId) headers['OpenAI-Organization'] = used.organizationId;
@@ -125,7 +137,7 @@ async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; m
       body: JSON.stringify({
         model: used.model,
         temperature: 0.1,
-        max_tokens: 400,
+        max_tokens: 1200,
         response_format: { type: 'json_object' },
         messages: [{
           role: 'user',
@@ -150,7 +162,7 @@ async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; m
     signal: timeout,
     body: JSON.stringify({
       model: used.model,
-      max_tokens: 400,
+      max_tokens: 1200,
       temperature: 0.1,
       messages: [{
         role: 'user',
@@ -167,7 +179,10 @@ async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; m
 }
 
 async function readImage(image: { bytes: Buffer; mime: string }) {
-  const chain = buildProviderChain(await getGatewayConfig());
+  const chain = buildProviderChain(await getGatewayConfig()).slice().sort((a, b) => {
+    const rank = (id: string) => (id === 'gemini' ? 0 : id === 'claude' ? 1 : 2);
+    return rank(a.id) - rank(b.id);
+  });
   let last = '';
   for (const provider of chain) {
     try {
@@ -215,19 +230,46 @@ type StoredVideo = {
   duration: string | null;
   duration_seconds: number | null;
   thumbnail_url: string | null;
+  thumbnail_file?: string | null;
   thumbnail_text?: string | null;
   thumbnail_scene?: string | null;
+  thumbnail_read_version?: number | null;
 };
 
-async function persistReading(projectId: string | undefined, videoId: string, reading: ThumbnailReading) {
-  const caption = [reading.text, reading.scene].filter(Boolean).join(' · ');
-  if (!caption) return;
+async function saveThumbnailFile(videoId: string, image: { bytes: Buffer; mime: string }) {
+  const extension = image.mime.includes('png') ? 'png' : image.mime.includes('webp') ? 'webp' : 'jpg';
+  const relative = `youtube-thumbnails/${videoId}.${extension}`;
+  const dir = path.join(getUploadRoot(), 'youtube-thumbnails');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(getUploadRoot(), relative), image.bytes);
+  return relative;
+}
+
+async function savedImage(file: string | null | undefined) {
+  const relative = String(file || '');
+  if (!relative.startsWith('youtube-thumbnails/')) return null;
+  try {
+    const bytes = await readFile(path.join(getUploadRoot(), relative));
+    const mime = imageMimeFromBytes(bytes);
+    return mime ? { url: savedThumbnailUrl(relative) || '', bytes, mime } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function persistThumbnail(projectId: string | undefined, videoId: string, file: string | null, reading: ThumbnailReading) {
   await q(
     undefined,
-    `UPDATE youtube_videos SET thumbnail_text=$2, thumbnail_scene=$3 WHERE id=$1`,
-    [videoId, reading.text || null, reading.scene || null],
-  ).catch(() => undefined);
-  if (!projectId) return;
+    `UPDATE youtube_videos
+     SET thumbnail_file = COALESCE($2, thumbnail_file),
+         thumbnail_text = COALESCE($3, thumbnail_text),
+         thumbnail_scene = COALESCE($4, thumbnail_scene),
+         thumbnail_read_version = $5
+     WHERE id=$1`,
+    [videoId, file, reading.text || null, reading.scene || null, reading.text || reading.scene ? THUMBNAIL_READ_VERSION : null],
+  );
+  const caption = [reading.text, reading.scene].filter(Boolean).join(' · ');
+  if (!projectId || !caption) return;
   await q(
     undefined,
     `INSERT INTO youtube_project_video_research (project_id, video_id, thumbnail_caption)
@@ -236,7 +278,7 @@ async function persistReading(projectId: string | undefined, videoId: string, re
        thumbnail_caption = COALESCE(NULLIF(youtube_project_video_research.thumbnail_caption, ''), EXCLUDED.thumbnail_caption),
        updated_at = NOW()`,
     [projectId, videoId, caption],
-  ).catch(() => undefined);
+  );
 }
 
 export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[], projectId?: string) {
@@ -245,7 +287,7 @@ export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[], 
   const ids = list.map((video) => String(video.id));
   const stored = await q<StoredVideo>(
     undefined,
-    `SELECT id, youtube_video_id, duration, duration_seconds, thumbnail_url, thumbnail_text, thumbnail_scene FROM youtube_videos WHERE id = ANY($1::uuid[])`,
+    `SELECT id, youtube_video_id, duration, duration_seconds, thumbnail_url, thumbnail_file, thumbnail_text, thumbnail_scene, thumbnail_read_version FROM youtube_videos WHERE id = ANY($1::uuid[])`,
     [ids],
   ).catch(async () => q<StoredVideo>(
     undefined,
@@ -282,29 +324,43 @@ export async function enrichComparisonVideos<T extends MediaVideo>(videos: T[], 
     const duration = video.duration || row?.duration || null;
     const durationSeconds = video.duration_seconds ?? row?.duration_seconds ?? null;
     const youtubeId = video.youtube_video_id || row?.youtube_video_id || null;
-    const storedThumb = video.thumbnail_url || row?.thumbnail_url || null;
+    const storedThumb = row?.thumbnail_url || (String(video.thumbnail_url || '').startsWith('/uploads/') ? null : video.thumbnail_url) || null;
+    const storedFile = savedThumbnailUrl(row?.thumbnail_file);
     const storedText = String(video.thumbnail_text || row?.thumbnail_text || '').trim();
     const storedScene = String(video.thumbnail_scene || row?.thumbnail_scene || '').trim();
+    const currentRead = Number(row?.thumbnail_read_version || 0) >= THUMBNAIL_READ_VERSION;
     const next = {
       ...video,
       youtube_video_id: youtubeId,
       duration,
       duration_seconds: durationSeconds,
       duration_label: lengthLabel({ duration_label: video.duration_label, duration_seconds: durationSeconds, duration }) || null,
-      thumbnail_url: thumbnailSources(youtubeId, storedThumb)[0] || storedThumb,
+      thumbnail_url: storedFile || thumbnailSources(youtubeId, storedThumb)[0] || storedThumb,
       thumbnail_text: storedText || null,
       thumbnail_scene: storedScene || null,
     };
-    if (video.thumbnail_checked || storedText || storedScene) return next;
-    const image = await downloadThumbnail(thumbnailSources(youtubeId, storedThumb));
-    if (!image) return { ...next, thumbnail_checked: true };
-    const reading = await readImage(image);
-    if (reading.text || reading.scene) await persistReading(projectId, String(video.id), reading);
+    if (storedFile && storedText && storedScene && currentRead) return next;
+    const image = await savedImage(row?.thumbnail_file) || await downloadThumbnail(thumbnailSources(youtubeId, storedThumb));
+    if (!image) return next;
+    let file = row?.thumbnail_file || null;
+    if (!storedFile) {
+      try {
+        file = await saveThumbnailFile(String(video.id), image);
+      } catch (error) {
+        console.warn('[youtube thumbnail] save failed', error instanceof Error ? error.message : error);
+      }
+    }
+    const reading = storedText && storedScene && currentRead ? { text: storedText, scene: storedScene } : await readImage(image);
+    if (file || reading.text || reading.scene) {
+      await persistThumbnail(projectId, String(video.id), file, reading).catch((error) => {
+        console.warn('[youtube thumbnail] persist failed', error instanceof Error ? error.message : error);
+      });
+    }
     return {
       ...next,
-      thumbnail_url: image.url,
-      thumbnail_text: reading.text || null,
-      thumbnail_scene: reading.scene || null,
+      thumbnail_url: savedThumbnailUrl(file) || image.url,
+      thumbnail_text: reading.text || storedText || null,
+      thumbnail_scene: reading.scene || storedScene || null,
       thumbnail_caption: video.thumbnail_caption || [reading.text, reading.scene].filter(Boolean).join(' · ') || null,
       thumbnail_checked: true,
     };
