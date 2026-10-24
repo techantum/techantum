@@ -7,6 +7,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import { PartnerPageHero, PartnerStatTile, partnerBtnPrimary, partnerCard, partnerInput } from '@/components/partner/PartnerUi';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { allow, rememberProject, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function ResearchProjectsPage() {
@@ -20,6 +21,10 @@ export default function ResearchProjectsPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [paging, setPaging] = useState<'prev' | 'next' | ''>('');
+  const [archiving, setArchiving] = useState('');
 
   const load = async (nextPage = page) => {
     const params = new URLSearchParams({ q, status, page: String(nextPage), pageSize: '20' });
@@ -29,7 +34,7 @@ export default function ResearchProjectsPage() {
   };
 
   useEffect(() => {
-    load(1).catch((err) => setError(err.message));
+    load(1).catch((err) => setError(err.message)).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -58,16 +63,16 @@ export default function ResearchProjectsPage() {
         <PartnerStatTile label="Competitor channels" value={competitorTotal} icon="UserGroupIcon" />
         <PartnerStatTile label="Imported videos" value={videoTotal} icon="FilmIcon" />
       </div>
-      <form className="flex flex-col gap-2 xl:flex-row" onSubmit={(event) => { event.preventDefault(); setPage(1); load(1).catch((err) => setError(err.message)); }}>
+      <form className="flex flex-col gap-2 xl:flex-row" onSubmit={(event) => { event.preventDefault(); setSearching(true); setPage(1); load(1).catch((err) => setError(err.message)).finally(() => setSearching(false)); }}>
         <input className={`${partnerInput} xl:flex-1`} placeholder="Search projects" value={q} onChange={(event) => setQ(event.target.value)} />
         <select className={partnerInput} value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="all">All statuses</option>
           <option value="active">Active</option>
           <option value="archived">Archived</option>
         </select>
-        <AdminButton type="submit" variant="primary">Search</AdminButton>
+        <AdminButton type="submit" variant="primary" loading={searching}>Search</AdminButton>
       </form>
-      <section className={`overflow-hidden ${partnerCard}`}>
+      {loading ? <PageLoader label="Loading projects…" /> : <section className={`overflow-hidden ${partnerCard}`}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead>
@@ -84,7 +89,7 @@ export default function ResearchProjectsPage() {
                   </td>
                   <td className="px-3 py-3">
                     <span className="flex items-center gap-2">
-                      {row.own_thumbnail_url ? <img src={row.own_thumbnail_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : null}
+                      {row.own_thumbnail_url ? <img src={row.own_thumbnail_url} alt="" loading="lazy" className="h-8 w-8 rounded-full object-cover" /> : null}
                       <span className="min-w-0">
                         <span className="block truncate">{row.own_channel_name || (row.own_youtube_channel_id ? 'Refresh required' : 'Not added')}</span>
                         {row.own_channel_handle ? <span className="block truncate text-xs text-slate-400">@{String(row.own_channel_handle).replace(/^@/, '')}</span> : null}
@@ -99,7 +104,7 @@ export default function ResearchProjectsPage() {
                     <div className="flex flex-wrap gap-2 text-xs font-semibold">
                       <button type="button" className="text-sky-700" onClick={() => openProject(row.id)}>Open</button>
                       {manage ? <Link className="text-slate-600" href={`${base}/projects/${row.id}/edit`}>Edit</Link> : null}
-                      {manage && row.status === 'active' && !row.legacy ? <button type="button" className="text-rose-600" onClick={() => { if (window.confirm(`Archive ${row.name}? Its channels and notes stay saved.`)) yt(`projects/${row.id}`, { method: 'DELETE' }).then(() => load()).catch((err) => setError(err.message)); }}>Archive</button> : null}
+                      {manage && row.status === 'active' && !row.legacy ? <button type="button" className="inline-flex items-center gap-1 text-rose-600 disabled:opacity-50" disabled={archiving === row.id} onClick={() => { if (window.confirm(`Archive ${row.name}? Its channels and notes stay saved.`)) { setArchiving(row.id); yt(`projects/${row.id}`, { method: 'DELETE' }).then(() => load()).catch((err) => setError(err.message)).finally(() => setArchiving('')); } }}>{archiving === row.id ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}Archive</button> : null}
                     </div>
                   </td>
                 </tr>
@@ -111,12 +116,12 @@ export default function ResearchProjectsPage() {
         <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
           <span>{total} projects</span>
           <span className="flex gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); load(next); }}>Previous</button>
+            <button type="button" className="inline-flex items-center gap-1 disabled:opacity-50" disabled={page <= 1 || Boolean(paging)} onClick={() => { const next = page - 1; setPage(next); setPaging('prev'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>{paging === 'prev' ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}Previous</button>
             <span>{page} / {pages}</span>
-            <button type="button" disabled={page >= pages} onClick={() => { const next = page + 1; setPage(next); load(next); }}>Next</button>
+            <button type="button" className="inline-flex items-center gap-1 disabled:opacity-50" disabled={page >= pages || Boolean(paging)} onClick={() => { const next = page + 1; setPage(next); setPaging('next'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>{paging === 'next' ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}Next</button>
           </span>
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

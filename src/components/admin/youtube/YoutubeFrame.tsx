@@ -7,6 +7,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import Icon from '@/components/ui/AppIcon';
 import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { YOUTUBE_PROJECT_PAGES } from '@/lib/youtube/workspace-nav';
 
 const YoutubeAccessContext = createContext<string[]>([]);
@@ -75,7 +76,7 @@ export function ProjectRequired({ children }: { children: React.ReactNode }) {
   const base = useYoutubePageBase();
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
-  if (!ready) return <p className="text-sm text-slate-500">Loading project...</p>;
+  if (!ready) return <PageLoader label="Loading project…" />;
   if (!projectId) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
@@ -318,7 +319,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
           </YoutubeProjectContext.Provider>
         </YoutubeAccessContext.Provider>
       ) : null}
-      {access === null && !error ? <p className="text-sm text-slate-500">Loading YouTube Research...</p> : null}
+      {access === null && !error ? <PageLoader label="Loading YouTube Research…" /> : null}
     </div>
   );
 }

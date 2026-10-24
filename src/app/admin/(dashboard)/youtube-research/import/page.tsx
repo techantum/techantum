@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function ImportScreen() {
@@ -15,35 +16,51 @@ function ImportScreen() {
   const [form, setForm] = useState({ date_from: '', date_to: '', limit: '50', mode: 'available' });
   const [result, setResult] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState<'selected' | 'all' | ''>('');
 
   useEffect(() => {
     if (!projectId) return;
-    yt(`projects/${projectId}/channels`).then((rows) => {
+    let cancelled = false;
+    Promise.all([
+      yt(`projects/${projectId}/channels`),
+      yt('settings').catch(() => null),
+    ]).then(([rows, settings]) => {
+      if (cancelled) return;
       setChannels(rows);
       if (!preset) setSelected(rows.map((row: { id: string }) => row.id));
-    }).catch((err) => setError(err.message));
-    yt('settings').then((settings) => setForm((current) => ({ ...current, limit: String(settings.defaultImportLimit || 50) }))).catch(() => undefined);
+      if (settings?.defaultImportLimit) setForm((current) => ({ ...current, limit: String(settings.defaultImportLimit) }));
+    }).catch((err) => {
+      if (!cancelled) setError(err.message);
+    }).finally(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [projectId, preset]);
 
-  const run = async (ids: string[]) => {
-    setBusy(true);
+  const run = async (ids: string[], mode: 'selected' | 'all') => {
+    setBusy(mode);
     setError('');
     try {
       setResult(await yt(`projects/${projectId}/import`, { method: 'POST', body: JSON.stringify({ ...form, channel_ids: ids }) }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
 
   const own = channels.find((channel) => channel.relationship === 'own');
 
+  if (!ready && !error) return <PageLoader label="Loading import…" />;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">Imports run when you start them. Each channel uses the maximum you set, up to the limit in Settings.</p>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+      {busy ? <PageLoader label="Importing videos…" /> : null}
       <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
         <p>Own channel: <span className="font-semibold">{own?.channel_name || own?.youtube_channel_id || 'Not added'}</span></p>
         <p className="mt-1">Competitors: {channels.filter((channel) => channel.relationship === 'competitor').length}</p>
@@ -67,8 +84,8 @@ function ImportScreen() {
           </select>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <AdminButton variant="primary" disabled={busy} onClick={() => run(selected)}>{busy ? 'Importing...' : 'Import Videos'}</AdminButton>
-          <AdminButton disabled={busy} onClick={() => run(channels.map((channel) => channel.id))}>Import All Project Channels</AdminButton>
+          <AdminButton variant="primary" loading={busy === 'selected'} disabled={Boolean(busy)} onClick={() => run(selected, 'selected')}>Import Videos</AdminButton>
+          <AdminButton loading={busy === 'all'} disabled={Boolean(busy)} onClick={() => run(channels.map((channel) => channel.id), 'all')}>Import All Project Channels</AdminButton>
         </div>
       </section>
       {result ? (
@@ -86,5 +103,5 @@ function ImportScreen() {
 }
 
 export default function ImportPage() {
-  return <ProjectRequired><Suspense fallback={<p className="text-sm text-slate-500">Loading import...</p>}><ImportScreen /></Suspense></ProjectRequired>;
+  return <ProjectRequired><Suspense fallback={<PageLoader label="Loading import…" />}><ImportScreen /></Suspense></ProjectRequired>;
 }

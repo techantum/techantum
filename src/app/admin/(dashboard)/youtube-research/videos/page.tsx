@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import { EMPTY_FILTERS, PlacementBadge, ResearchFilters, downloadResearchReport, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function VideoCard({
@@ -23,7 +24,7 @@ function VideoCard({
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </label>
       {video.thumbnail_url ? (
-        <img src={video.thumbnail_url} alt="" className="h-20 w-32 shrink-0 rounded-xl object-cover" />
+        <img src={video.thumbnail_url} alt="" loading="lazy" className="h-20 w-32 shrink-0 rounded-xl object-cover" />
       ) : (
         <span className="flex h-20 w-32 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">No thumbnail</span>
       )}
@@ -61,6 +62,9 @@ function Explorer() {
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS, channelIds: search?.get('channel') || '', sort: 'published_at' });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [filtering, setFiltering] = useState(false);
+  const [paging, setPaging] = useState<'prev' | 'next' | ''>('');
   const [fetching, setFetching] = useState(false);
   const [busy, setBusy] = useState('');
 
@@ -163,6 +167,8 @@ function Explorer() {
         setFilterOptions(options);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not load videos');
+      } finally {
+        setLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,24 +215,32 @@ function Explorer() {
   };
 
   const totalPages = Math.max(1, Math.ceil(Math.max(ownTotal, competitorTotal) / 24));
+  const applyFilters = (used: typeof filters) => {
+    setFiltering(true);
+    setPage(1);
+    load(1, used).catch((err) => setError(err.message)).finally(() => setFiltering(false));
+  };
+
+  if (loading) return <PageLoader label="Loading videos…" />;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-end gap-2">
         {canImport ? (
-          <AdminButton variant="secondary" disabled={fetching || !channels.length} onClick={() => fetchFromChannels(channels)}>
-            {fetching ? 'Fetching videos…' : 'Fetch videos from channels'}
+          <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}>
+            Fetch videos from channels
           </AdminButton>
         ) : null}
-        <AdminButton variant="secondary" disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(false)}>
-          {busy === 'summary' ? 'Summarising…' : 'Summarise'}
+        <AdminButton variant="secondary" loading={busy === 'summary'} disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(false)}>
+          Summarise
         </AdminButton>
-        <AdminButton variant="primary" disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(true)}>
-          {busy === 'report' ? 'Preparing report…' : 'Download report'}
+        <AdminButton variant="primary" loading={busy === 'report'} disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(true)}>
+          Download report
         </AdminButton>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      {fetching ? <PageLoader label="Fetching videos from YouTube…" /> : null}
       <ResearchFilters
         value={filters}
         options={{
@@ -237,17 +251,16 @@ function Explorer() {
           })),
         }}
         onChange={(next) => setFilters({ ...filters, ...next })}
+        searching={filtering}
         onApply={(next) => {
           const used = { ...filters, ...(next || {}) };
           setFilters(used);
-          setPage(1);
-          load(1, used).catch((err) => setError(err.message));
+          applyFilters(used);
         }}
         onReset={() => {
           const next = { ...EMPTY_FILTERS, sort: 'published_at' };
           setFilters(next);
-          setPage(1);
-          load(1, next).catch((err) => setError(err.message));
+          applyFilters(next);
         }}
         selectedCount={selected.length}
       />
@@ -293,9 +306,9 @@ function Explorer() {
       <div className="flex items-center justify-between text-sm text-slate-500">
         <span>{ownTotal + competitorTotal} videos across both columns</span>
         <span className="flex gap-2">
-          <button type="button" disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); load(next); }}>Previous</button>
+          <button type="button" className="inline-flex items-center gap-1 disabled:opacity-50" disabled={page <= 1 || Boolean(paging)} onClick={() => { const next = page - 1; setPage(next); setPaging('prev'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>{paging === 'prev' ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}Previous</button>
           <span>{page} / {totalPages}</span>
-          <button type="button" disabled={page >= totalPages} onClick={() => { const next = page + 1; setPage(next); load(next); }}>Next</button>
+          <button type="button" className="inline-flex items-center gap-1 disabled:opacity-50" disabled={page >= totalPages || Boolean(paging)} onClick={() => { const next = page + 1; setPage(next); setPaging('next'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>{paging === 'next' ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}Next</button>
         </span>
       </div>
     </div>
@@ -305,7 +318,7 @@ function Explorer() {
 export default function VideosPage() {
   return (
     <ProjectRequired>
-      <Suspense fallback={<p className="text-sm text-slate-500">Loading videos...</p>}>
+      <Suspense fallback={<PageLoader label="Loading videos…" />}>
         <Explorer />
       </Suspense>
     </ProjectRequired>

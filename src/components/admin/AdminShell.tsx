@@ -112,26 +112,41 @@ export default function AdminShell({
 
       if (item.id === 'youtube-research') {
         const active = itemTreeActive(pathname, item);
+        const nested = depth > 0;
+        const showChildren = !nested || Boolean(openNodes[key]);
         const settings = (item.children || []).filter((child) => child.id === 'youtube-research-settings' && child.href);
         return (
           <div key={key} className={depth === 0 ? 'overflow-hidden rounded-2xl' : undefined}>
-            <Link
-              href={item.href || '/admin/youtube-research'}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                active ? 'bg-orange-50 font-medium text-secondary' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
-              }`}
-              style={depth === 0 ? undefined : { paddingLeft: 8 + depth * 10 }}
-            >
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  active ? 'bg-secondary/10 text-secondary' : 'bg-slate-100 text-slate-500'
+            <div className="flex items-center">
+              <Link
+                href={item.href || '/admin/youtube-research'}
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl py-2 pr-2 text-sm transition-colors ${
+                  nested
+                    ? active
+                      ? 'border-l-2 border-secondary bg-secondary font-medium text-white shadow-sm'
+                      : 'border-l-2 border-transparent text-slate-600 hover:border-secondary/40 hover:bg-slate-50 hover:text-secondary'
+                    : active
+                      ? 'bg-orange-50 font-medium text-secondary'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
                 }`}
+                style={{ paddingLeft: nested ? 8 + depth * 10 : 12 }}
               >
-                <Icon name={item.icon} size={16} />
-              </span>
-              {item.label}
-            </Link>
-            <div className="ml-5 border-l border-slate-200 pl-3">
+                <Icon name={item.icon} size={15} className={`shrink-0 ${active && nested ? 'text-white' : active ? 'text-secondary' : 'text-slate-400'}`} />
+                <span className="truncate">{item.label}</span>
+              </Link>
+              {nested ? (
+                <button
+                  type="button"
+                  className="mr-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-secondary"
+                  aria-label="YouTube Research menu"
+                  aria-expanded={showChildren}
+                  onClick={() => setOpenNodes((prev) => ({ ...prev, [key]: !prev[key] }))}
+                >
+                  <Icon name="ChevronDownIcon" size={14} className={`transition-transform ${showChildren ? 'rotate-180' : ''}`} />
+                </button>
+              ) : null}
+            </div>
+            {showChildren ? <div className="ml-5 border-l border-slate-200 pl-3">
               <YoutubeResearchNav />
               {settings.map((child) => {
                 const settingsActive = isNavActive(pathname, child.href || '', child.exact, child.activePaths);
@@ -147,7 +162,7 @@ export default function AdminShell({
                   </Link>
                 );
               })}
-            </div>
+            </div> : null}
           </div>
         );
       }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { allow, useYoutubeAccess, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { YOUTUBE_PERMISSIONS } from '@/lib/youtube/permissions';
 
@@ -39,6 +40,8 @@ export default function YoutubeSettingsPage() {
   const [people, setPeople] = useState<Record<string, any>[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState('');
 
   const load = async () => {
     const body = await yt('settings');
@@ -47,13 +50,14 @@ export default function YoutubeSettingsPage() {
   };
 
   useEffect(() => {
-    load().catch((err) => setError(err.message));
+    load().catch((err) => setError(err.message)).finally(() => setReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manage]);
 
-  const save = async (extra: Record<string, unknown> = {}) => {
+  const save = async (extra: Record<string, unknown> = {}, action = 'save') => {
     setError('');
     setMessage('');
+    setPending(action);
     try {
       const saved = await yt('settings', {
         method: 'PATCH',
@@ -70,12 +74,15 @@ export default function YoutubeSettingsPage() {
       setMessage('Settings saved.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings');
+    } finally {
+      setPending('');
     }
   };
 
   const test = async () => {
     setError('');
     setMessage('');
+    setPending('test');
     try {
       const body = await yt('settings/test-connection', { method: 'POST', body: '{}' });
       setMessage(body.message);
@@ -83,6 +90,8 @@ export default function YoutubeSettingsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection test failed');
       await load().catch(() => undefined);
+    } finally {
+      setPending('');
     }
   };
 
@@ -95,6 +104,8 @@ export default function YoutubeSettingsPage() {
       setError(err instanceof Error ? err.message : 'Could not update access');
     }
   };
+
+  if (!ready && !error) return <PageLoader label="Loading settings…" />;
 
   return (
     <div className="space-y-4">
@@ -130,9 +141,9 @@ export default function YoutubeSettingsPage() {
           ) : <p className="mt-3 text-sm text-slate-500">You can view the connection status. Changing the key requires settings access.</p>}
           {manage ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              <AdminButton variant="primary" onClick={() => save()}>Save configuration</AdminButton>
-              <AdminButton onClick={test}>Test connection</AdminButton>
-              <AdminButton onClick={() => save({ clear_key: true, api_key: '' })}>Remove saved key</AdminButton>
+              <AdminButton variant="primary" loading={pending === 'save'} onClick={() => save()}>Save configuration</AdminButton>
+              <AdminButton loading={pending === 'test'} onClick={test}>Test connection</AdminButton>
+              <AdminButton loading={pending === 'clear'} onClick={() => save({ clear_key: true, api_key: '' }, 'clear')}>Remove saved key</AdminButton>
             </div>
           ) : null}
           <p className="mt-3 text-xs text-slate-500">{settings.notice} Remaining YouTube quota is not shown because the API does not provide it.</p>

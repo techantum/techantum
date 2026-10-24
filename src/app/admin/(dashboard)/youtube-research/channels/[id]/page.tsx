@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { allow, metric, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function ChannelDetailPage() {
@@ -19,6 +20,9 @@ export default function ChannelDetailPage() {
   const [classification, setClassification] = useState('other');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [ready, setReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = () => yt(`channels/${channelId}`).then((body) => {
     setData(body);
@@ -27,7 +31,8 @@ export default function ChannelDetailPage() {
   });
 
   useEffect(() => {
-    load().catch((err) => setError(err.message));
+    setReady(false);
+    load().catch((err) => setError(err.message)).finally(() => setReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
@@ -35,14 +40,32 @@ export default function ChannelDetailPage() {
 
   const save = async () => {
     setError('');
+    setSaving(true);
     try {
       await yt(`channels/${channelId}`, { method: 'PATCH', body: JSON.stringify({ classification, research_notes: notes }) });
       setMessage('Research details saved.');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const refresh = async () => {
+    setRefreshing(true);
+    setError('');
+    try {
+      await yt(`channels/${channelId}/refresh`, { method: 'POST', body: '{}' });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (!ready && !error) return <PageLoader label="Loading channel…" />;
 
   return (
     <div className="space-y-4">
@@ -52,14 +75,14 @@ export default function ChannelDetailPage() {
       {channel ? (
         <>
           <div className="flex flex-wrap gap-2">
-            {manage ? <AdminButton variant="primary" onClick={() => yt(`channels/${channel.id}/refresh`, { method: 'POST', body: '{}' }).then(() => load()).catch((err) => setError(err.message))}>Refresh Channel</AdminButton> : null}
+            {manage ? <AdminButton variant="primary" loading={refreshing} onClick={refresh}>Refresh Channel</AdminButton> : null}
             <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`${base}/import?channel=${channel.id}`}>Import Videos</Link>
             <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`${base}/videos?channel=${channel.id}`}>View Videos</Link>
             <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold" href={`${base}/compare?channels=${channel.id}`}>Compare Channel</Link>
           </div>
           <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2">
             <div className="text-sm text-slate-600">
-              {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" className="mb-3 h-16 w-16 rounded-xl object-cover" /> : null}
+              {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" loading="lazy" className="mb-3 h-16 w-16 rounded-xl object-cover" /> : null}
               <p>Handle: {channel.channel_handle ? `@${channel.channel_handle}` : '—'}</p>
               <p>Channel ID: {channel.youtube_channel_id}</p>
               <p>Subscribers {metric(channel.subscriber_count)} · Videos {metric(channel.video_count)} · Views {metric(channel.view_count)}</p>
@@ -78,7 +101,7 @@ export default function ChannelDetailPage() {
                 <label className="block text-sm font-medium">Research notes
                   <textarea className="mt-1 h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={notes} onChange={(event) => setNotes(event.target.value)} />
                 </label>
-                <AdminButton variant="primary" onClick={save}>Save research details</AdminButton>
+                <AdminButton variant="primary" loading={saving} onClick={save}>Save research details</AdminButton>
               </div>
             ) : null}
           </section>

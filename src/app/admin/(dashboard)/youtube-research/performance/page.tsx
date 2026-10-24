@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { useYoutubePageBase } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function PerformanceRedirect() {
@@ -10,5 +11,5 @@ export default function PerformanceRedirect() {
   useEffect(() => {
     router.replace(`${base}/videos`);
   }, [router, base]);
-  return <p className="text-sm text-slate-500">Opening Videos...</p>;
+  return <PageLoader label="Opening videos…" />;
 }

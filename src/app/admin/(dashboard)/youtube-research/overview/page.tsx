@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { useYoutubePageBase } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function OverviewRedirect() {
@@ -10,5 +11,5 @@ export default function OverviewRedirect() {
   useEffect(() => {
     router.replace(`${base}/channels`);
   }, [base, router]);
-  return <p className="text-sm text-slate-500">Opening project channels...</p>;
+  return <PageLoader label="Opening project channels…" />;
 }

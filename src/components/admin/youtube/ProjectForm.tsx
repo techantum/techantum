@@ -9,6 +9,7 @@ import AdminField, { adminInputClass, adminSelectClass, adminTextareaClass } fro
 import AdminFormGrid from '@/components/admin/AdminFormGrid';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { rememberProject, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export default function ProjectForm({ projectId = '' }: { projectId?: string }) {
@@ -17,6 +18,7 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
   const [form, setForm] = useState({ name: '', brand_name: '', objective: '', industry: '', description: '', status: 'active' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(!projectId);
 
   useEffect(() => {
     if (!projectId) return;
@@ -27,7 +29,7 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
       industry: body.industry || '',
       description: body.description || '',
       status: body.status || 'active',
-    })).catch((err) => setError(err.message));
+    })).catch((err) => setError(err.message)).finally(() => setReady(true));
   }, [projectId]);
 
   const save = async () => {
@@ -46,6 +48,8 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
   };
 
   const set = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
+
+  if (!ready && !error) return <PageLoader label="Loading project…" />;
 
   return (
     <div className="space-y-4">
@@ -79,7 +83,7 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
         </AdminFormGrid>
         <div className="mt-4 flex justify-end gap-2">
           <Link href={base} className="inline-flex items-center rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700">Cancel</Link>
-          <AdminButton variant="primary" disabled={busy} onClick={save}>{busy ? 'Saving...' : projectId ? 'Save Project' : 'Create Project'}</AdminButton>
+          <AdminButton variant="primary" loading={busy} onClick={save}>{projectId ? 'Save Project' : 'Create Project'}</AdminButton>
         </div>
       </AdminSection>
     </div>

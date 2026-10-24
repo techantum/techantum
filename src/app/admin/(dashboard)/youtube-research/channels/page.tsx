@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import Icon from '@/components/ui/AppIcon';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 const control = 'h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
@@ -36,20 +37,20 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
   );
 }
 
-function Action({ href, icon, label, tone = 'sky', onClick }: { href?: string; icon: string; label: string; tone?: 'sky' | 'accent' | 'rose'; onClick?: () => void }) {
+function Action({ href, icon, label, tone = 'sky', onClick, loading = false }: { href?: string; icon: string; label: string; tone?: 'sky' | 'accent' | 'rose'; onClick?: () => void; loading?: boolean }) {
   const color = tone === 'accent' ? 'text-secondary' : tone === 'rose' ? 'text-secondary' : 'text-sky-600';
-  const className = `inline-flex items-center gap-1.5 text-sm font-medium ${color} hover:opacity-80`;
+  const className = `inline-flex items-center gap-1.5 text-sm font-medium ${color} hover:opacity-80 disabled:opacity-50`;
   if (href) {
     return <Link href={href} className={className}><Icon name={icon} size={16} />{label}</Link>;
   }
-  return <button type="button" className={className} onClick={onClick}><Icon name={icon} size={16} />{label}</button>;
+  return <button type="button" className={className} disabled={loading} onClick={onClick}>{loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Icon name={icon} size={16} />}{label}</button>;
 }
 
 function ChannelCard({ row }: { row: Record<string, any> }) {
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
-        {row.thumbnail_url ? <img src={row.thumbnail_url} alt="" className="h-14 w-14 rounded-full object-cover" /> : <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">YT</span>}
+        {row.thumbnail_url ? <img src={row.thumbnail_url} alt="" loading="lazy" className="h-14 w-14 rounded-full object-cover" /> : <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">YT</span>}
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-slate-900">{row.channel_name || row.youtube_channel_id}</p>
           <p className="truncate text-sm text-slate-400">{handleOf(row)}</p>
@@ -85,27 +86,34 @@ function ChannelDraftForm({
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
+  const [pending, setPending] = useState<'fetch' | 'save' | ''>('');
 
   const fetchChannel = async () => {
     setError('');
     setPreview(null);
+    setPending('fetch');
     try {
       setPreview(await yt('channels/resolve', { method: 'POST', body: JSON.stringify({ input }) }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not fetch the channel');
+    } finally {
+      setPending('');
     }
   };
 
   const save = async () => {
     setError('');
+    if (relationship === 'own' && hasOwn && !window.confirm('Replace the current own channel? The previous one stays in the project as a competitor.')) return;
+    setPending('save');
     try {
-      if (relationship === 'own' && hasOwn && !window.confirm('Replace the current own channel? The previous one stays in the project as a competitor.')) return;
       const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input, relationship }) });
       setPreview(null);
       setInput('');
       await onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the channel');
+    } finally {
+      setPending('');
     }
   };
 
@@ -115,17 +123,17 @@ function ChannelDraftForm({
       {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
       <div className="mt-3 flex flex-col gap-3 sm:flex-row">
         <input className={control} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Channel URL, @handle, or ID" />
-        <AdminButton variant="primary" onClick={fetchChannel}>Fetch</AdminButton>
+        <AdminButton variant="primary" loading={pending === 'fetch'} onClick={fetchChannel}>Fetch</AdminButton>
         <AdminButton onClick={() => { setInput(''); setPreview(null); setError(''); onCancel?.(); }}>Cancel</AdminButton>
       </div>
       {preview ? (
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          {preview.thumbnailUrl ? <img src={preview.thumbnailUrl} alt="" className="h-10 w-10 rounded-full object-cover" /> : null}
+          {preview.thumbnailUrl ? <img src={preview.thumbnailUrl} alt="" loading="lazy" className="h-10 w-10 rounded-full object-cover" /> : null}
           <div className="min-w-0">
             <p className="font-semibold">{preview.channelName}</p>
             <p className="text-slate-500">{preview.channelHandle ? `@${preview.channelHandle}` : preview.youtubeChannelId} · {metric(preview.subscriberCount)} subscribers</p>
           </div>
-          <AdminButton variant="primary" onClick={save}>Save in project</AdminButton>
+          <AdminButton variant="primary" loading={pending === 'save'} onClick={save}>Save in project</AdminButton>
         </div>
       ) : null}
     </div>
@@ -162,11 +170,12 @@ function Channels() {
 
   const remove = async (row: Record<string, string>) => {
     if (!window.confirm(`Remove ${row.channel_name || row.youtube_channel_id} from this project? Videos and notes stay available to other projects.`)) return;
-    await yt(`projects/${projectId}/channels/${row.id}`, { method: 'DELETE' }).then(load).catch((err) => setError(err.message));
+    setBusy(`remove:${row.id}`);
+    await yt(`projects/${projectId}/channels/${row.id}`, { method: 'DELETE' }).then(load).catch((err) => setError(err.message)).finally(() => setBusy(''));
   };
 
   const refresh = async (row: Record<string, string>) => {
-    setBusy(row.id);
+    setBusy(`refresh:${row.id}`);
     try {
       await yt(`channels/${row.id}/refresh`, { method: 'POST', body: '{}' });
       await load();
@@ -176,6 +185,8 @@ function Channels() {
       setBusy('');
     }
   };
+
+  if (!loaded && !error) return <PageLoader label="Loading channels…" />;
 
   return (
     <div className="space-y-4">
@@ -210,7 +221,7 @@ function Channels() {
                 <Action href={`${base}/videos?channel=${own.id}`} icon="EyeIcon" label="View" />
                 <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
                 <Action href={`${base}/import?channel=${own.id}`} icon="ArrowDownTrayIcon" label="Import" />
-                {manage ? <Action icon="ArrowPathIcon" label={busy === own.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(own)} /> : null}
+                {manage ? <Action icon="ArrowPathIcon" label={busy === `refresh:${own.id}` ? 'Refreshing' : 'Refresh'} tone="accent" loading={busy === `refresh:${own.id}`} onClick={() => refresh(own)} /> : null}
                 {manage ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => setReplacingOwn(true)} /> : null}
               </div>
             </>
@@ -249,8 +260,8 @@ function Channels() {
                 <Action href={`${base}/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
                 <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
                 <Action href={`${base}/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
-                {manage ? <Action icon="ArrowPathIcon" label={busy === row.id ? 'Refreshing' : 'Refresh'} tone="accent" onClick={() => refresh(row)} /> : null}
-                {manage ? <Action icon="TrashIcon" label="Remove" tone="accent" onClick={() => remove(row)} /> : null}
+                {manage ? <Action icon="ArrowPathIcon" label={busy === `refresh:${row.id}` ? 'Refreshing' : 'Refresh'} tone="accent" loading={busy === `refresh:${row.id}`} onClick={() => refresh(row)} /> : null}
+                {manage ? <Action icon="TrashIcon" label="Remove" tone="accent" loading={busy === `remove:${row.id}`} onClick={() => remove(row)} /> : null}
               </div>
             </div>
           )) : <p className="text-sm text-slate-500">Add competitor channels to start comparing content.</p>}
@@ -292,7 +303,7 @@ function Channels() {
                 <tr key={row.id} className="border-t border-slate-100">
                   <td className="px-2 py-3">
                     <span className="flex items-center gap-3">
-                      {row.thumbnail_url ? <img src={row.thumbnail_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="h-9 w-9 rounded-full bg-slate-100" />}
+                      {row.thumbnail_url ? <img src={row.thumbnail_url} alt="" loading="lazy" className="h-9 w-9 rounded-full object-cover" /> : <span className="h-9 w-9 rounded-full bg-slate-100" />}
                       <span>
                         <span className="block font-semibold text-slate-900">{row.channel_name || row.youtube_channel_id}</span>
                         <span className="block text-xs text-slate-400">{handleOf(row)}</span>
@@ -307,9 +318,9 @@ function Channels() {
                       <Action href={`${base}/videos?channel=${row.id}`} icon="EyeIcon" label="View" />
                       <Action href={`${base}/channel-compare`} icon="ChartBarIcon" label="Compare" />
                       <Action href={`${base}/import?channel=${row.id}`} icon="ArrowDownTrayIcon" label="Import" />
-                      {manage ? <Action icon="ArrowPathIcon" label="Refresh" tone="accent" onClick={() => refresh(row)} /> : null}
+                      {manage ? <Action icon="ArrowPathIcon" label={busy === `refresh:${row.id}` ? 'Refreshing' : 'Refresh'} tone="accent" loading={busy === `refresh:${row.id}`} onClick={() => refresh(row)} /> : null}
                       {manage && row.relationship === 'own' ? <Action icon="ArrowsRightLeftIcon" label="Replace" tone="accent" onClick={() => setReplacingOwn(true)} /> : null}
-                      {manage && row.relationship !== 'own' ? <Action icon="TrashIcon" label="Remove" tone="accent" onClick={() => remove(row)} /> : null}
+                      {manage && row.relationship !== 'own' ? <Action icon="TrashIcon" label="Remove" tone="accent" loading={busy === `remove:${row.id}`} onClick={() => remove(row)} /> : null}
                     </span>
                   </td>
                 </tr>
@@ -326,7 +337,7 @@ function Channels() {
 export default function ChannelsPage() {
   return (
     <ProjectRequired>
-      <Suspense fallback={<p className="text-sm text-slate-500">Loading channels...</p>}>
+      <Suspense fallback={<PageLoader label="Loading channels…" />}>
         <Channels />
       </Suspense>
     </ProjectRequired>

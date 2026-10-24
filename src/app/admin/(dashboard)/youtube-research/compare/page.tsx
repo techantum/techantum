@@ -8,6 +8,7 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 import { CHANNEL_COLORS, ChartCard, MonthBarChart, PlacementBadge, downloadProjectExport } from '@/components/admin/youtube/research-ui';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { metric, ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function CompareVideos() {
@@ -20,20 +21,24 @@ function CompareVideos() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [exporting, setExporting] = useState<'xlsx' | 'docx' | ''>('');
 
   useEffect(() => {
-    if (!projectId || ids.split(',').filter(Boolean).length < 2) return;
+    if (!projectId || ids.split(',').filter(Boolean).length < 2) {
+      setReady(true);
+      return;
+    }
     Promise.all([yt(`projects/${projectId}`), yt(`projects/${projectId}/compare/videos?ids=${ids}`)]).then(([project, body]) => {
       setProjectName(project.name || '');
       setVideos(body.videos || []);
       setNotice(body.notice || '');
-    }).catch((err) => setError(err.message));
+    }).catch((err) => setError(err.message)).finally(() => setReady(true));
   }, [projectId, ids]);
 
   const exportFile = async (format: 'xlsx' | 'docx') => {
     try {
-      setBusy(true);
+      setExporting(format);
       await downloadProjectExport({
         type: 'comparison',
         format,
@@ -44,7 +49,7 @@ function CompareVideos() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not export');
     } finally {
-      setBusy(false);
+      setExporting('');
     }
   };
 
@@ -69,6 +74,8 @@ function CompareVideos() {
     Comments: video.comment_count,
   }));
 
+  if (!ready && !error) return <PageLoader label="Loading comparison…" />;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -80,8 +87,8 @@ function CompareVideos() {
         </div>
         {videos.length >= 2 ? (
           <span className="flex flex-wrap gap-2">
-            <AdminButton variant="primary" disabled={busy} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
-            <AdminButton disabled={busy} onClick={() => exportFile('docx')}>Word report</AdminButton>
+            <AdminButton variant="primary" loading={exporting === 'xlsx'} disabled={Boolean(exporting)} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
+            <AdminButton loading={exporting === 'docx'} disabled={Boolean(exporting)} onClick={() => exportFile('docx')}>Word report</AdminButton>
           </span>
         ) : null}
       </div>
@@ -93,7 +100,7 @@ function CompareVideos() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {videos.map((video) => (
               <div key={video.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="mb-2 h-28 w-full rounded-lg object-cover" /> : <div className="mb-2 h-28 rounded-lg bg-slate-100" />}
+                {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" loading="lazy" className="mb-2 h-28 w-full rounded-lg object-cover" /> : <div className="mb-2 h-28 rounded-lg bg-slate-100" />}
                 <p className="line-clamp-2 text-sm font-semibold">{video.title || video.youtube_video_id}</p>
                 <p className="mt-1 text-xs text-slate-500">{video.channel_name || '—'}</p>
                 <AdminBadge variant={video.relationship === 'own' ? 'indigo' : 'default'}>{video.relationship === 'own' ? 'Own' : 'Competitor'}</AdminBadge>
@@ -143,5 +150,5 @@ function CompareVideos() {
 }
 
 export default function ComparePage() {
-  return <ProjectRequired><Suspense fallback={<p className="text-sm text-slate-500">Loading comparison...</p>}><CompareVideos /></Suspense></ProjectRequired>;
+  return <ProjectRequired><Suspense fallback={<PageLoader label="Loading comparison…" />}><CompareVideos /></Suspense></ProjectRequired>;
 }

@@ -6,6 +6,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import { CHANNEL_COLORS, ChartCard, EMPTY_FILTERS, MonthBarChart, ResearchFilters, SimpleBars, VideoMiniTable, applyPreset, downloadProjectExport, handleLabel, mergeMonths, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { metric, ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 function ChannelCompare() {
@@ -19,7 +20,9 @@ function ChannelCompare() {
   const [tab, setTab] = useState('overview');
   const [data, setData] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState<'xlsx' | 'docx' | ''>('');
 
   useEffect(() => {
     if (!projectId) return;
@@ -28,7 +31,7 @@ function ChannelCompare() {
       setChannels(channelRows);
       setFilterOptions(options);
       setSelected(channelRows.slice(0, 6).map((channel: { id: string }) => channel.id));
-    }).catch((err) => setError(err.message));
+    }).catch((err) => setError(err.message)).finally(() => setReady(true));
   }, [projectId]);
 
   const compare = async (ids = selected, next = filters) => {
@@ -72,6 +75,7 @@ function ChannelCompare() {
   };
 
   const exportFile = async (format: 'xlsx' | 'docx') => {
+    setExporting(format);
     try {
       await downloadProjectExport({
         type: 'competitors',
@@ -83,8 +87,12 @@ function ChannelCompare() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not export');
+    } finally {
+      setExporting('');
     }
   };
+
+  if (!ready && !error) return <PageLoader label="Loading channel comparison…" />;
 
   return (
     <div className="space-y-4">
@@ -98,8 +106,8 @@ function ChannelCompare() {
         </div>
         <span className="flex flex-wrap gap-2">
           <Link href={`${base}/channels`} className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Back to Channels</Link>
-          <AdminButton variant="primary" disabled={!selected.length} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
-          <AdminButton disabled={!selected.length} onClick={() => exportFile('docx')}>Word report</AdminButton>
+          <AdminButton variant="primary" loading={exporting === 'xlsx'} disabled={!selected.length || Boolean(exporting)} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
+          <AdminButton loading={exporting === 'docx'} disabled={!selected.length || Boolean(exporting)} onClick={() => exportFile('docx')}>Word report</AdminButton>
         </span>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
@@ -117,7 +125,7 @@ function ChannelCompare() {
           {channels.map((channel) => (
             <label key={channel.id} className={`flex cursor-pointer gap-3 rounded-xl border p-3 ${selected.includes(channel.id) ? 'border-secondary bg-orange-50/40' : 'border-slate-200'}`}>
               <input type="checkbox" className="mt-1" checked={selected.includes(channel.id)} onChange={() => toggle(channel.id)} />
-              {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xs">YT</span>}
+              {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" loading="lazy" className="h-10 w-10 rounded-full object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xs">YT</span>}
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{channel.channel_name || channel.youtube_channel_id}</span>
                 <span className="block truncate text-xs text-slate-500">{handleLabel(channel.channel_handle) || channel.youtube_channel_id}</span>
@@ -195,7 +203,7 @@ function ChannelCompare() {
             <VideoMiniTable title="Recent imported videos" href={`${base}/videos`} rows={compared.flatMap((channel: Record<string, any>) => channel.insights?.recentVideos || []).sort((a: Record<string, any>, b: Record<string, any>) => String(b.published_at || '').localeCompare(String(a.published_at || ''))).slice(0, 8)} empty="No imported videos match these filters." />
           </div>
         </>
-      ) : busy ? <p className="text-sm text-slate-500">Loading comparison...</p> : null}
+      ) : busy ? <PageLoader label="Loading comparison…" /> : null}
     </div>
   );
 }

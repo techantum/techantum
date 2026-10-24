@@ -115,6 +115,7 @@ export function ResearchFilters({
   compareDisabled,
   onCompare,
   selectedCount = 0,
+  searching = false,
 }: {
   value: ResearchFilterState;
   options?: ResearchFilterOptions;
@@ -125,6 +126,7 @@ export function ResearchFilters({
   compareDisabled?: boolean;
   onCompare?: () => void;
   selectedCount?: number;
+  searching?: boolean;
 }) {
   const set = (patch: Partial<ResearchFilterState>) => {
     const next = { ...value, ...patch };
@@ -195,7 +197,7 @@ export function ResearchFilters({
         ))}
         <span className="ml-auto flex flex-wrap items-center gap-2">
           {extra}
-          <AdminButton variant="primary" onClick={() => onApply(value)}>Search</AdminButton>
+          <AdminButton variant="primary" loading={searching} onClick={() => onApply(value)}>Search</AdminButton>
           <AdminButton onClick={onReset}>Clear</AdminButton>
           {onCompare ? (
             <AdminButton variant="primary" disabled={compareDisabled} onClick={onCompare}>Compare selected{selectedCount ? ` (${selectedCount})` : ''}</AdminButton>

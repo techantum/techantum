@@ -3,6 +3,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline-dan
 interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: 'sm' | 'md';
+  loading?: boolean;
 }
 
 const variants: Record<ButtonVariant, string> = {
@@ -24,16 +25,20 @@ export default function AdminButton({
   size = 'md',
   className = '',
   disabled,
+  loading = false,
   children,
+  type = 'button',
   ...props
 }: AdminButtonProps) {
   return (
     <button
-      type="button"
-      disabled={disabled}
-      className={`ui-btn inline-flex items-center justify-center gap-2 rounded-full font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
+      type={type}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={`ui-btn inline-flex items-center justify-center gap-2 rounded-full font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
     >
+      {loading ? <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden /> : null}
       {children}
     </button>
   );

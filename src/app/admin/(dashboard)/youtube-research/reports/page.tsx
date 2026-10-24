@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { downloadResearchReport } from '@/components/admin/youtube/research-ui';
 import { ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
 
@@ -35,6 +36,8 @@ function Reports() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState('');
 
   const load = async () => {
     const [listed, analysisRows] = await Promise.all([
@@ -48,7 +51,7 @@ function Reports() {
 
   useEffect(() => {
     if (!projectId) return;
-    load().catch((err) => setError(err.message));
+    load().catch((err) => setError(err.message)).finally(() => setReady(true));
   }, [projectId]);
 
   const visible = useMemo(() => rows.filter((row) => {
@@ -73,31 +76,42 @@ function Reports() {
   };
 
   const archive = async (id: string) => {
+    setPending(`archive:${id}`);
     try {
       await yt(`projects/${projectId}/research-reports/${id}/archive`, { method: 'POST', body: '{}' });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not archive report');
+    } finally {
+      setPending('');
     }
   };
 
   const download = async (id: string, format: 'pdf' | 'xlsx') => {
+    setPending(`${format}:${id}`);
     try {
       setError('');
       await downloadResearchReport(projectId, id, format);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not export report');
+    } finally {
+      setPending('');
     }
   };
 
   const openPreview = async (row: Record<string, any>) => {
+    setPending(`preview:${row.id}`);
     try {
       const report = await yt(`projects/${projectId}/research-reports/${row.id}`);
       setPreview(report);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not preview report');
+    } finally {
+      setPending('');
     }
   };
+
+  if (!ready && !error) return <PageLoader label="Loading reports…" />;
 
   return (
     <div className="space-y-4">
@@ -133,10 +147,10 @@ function Reports() {
                   <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : 'default'}>{row.status}</AdminBadge></td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <AdminButton size="sm" onClick={() => openPreview(row)}>Preview</AdminButton>
-                      <AdminButton size="sm" onClick={() => download(row.id, 'pdf')}>PDF</AdminButton>
-                      <AdminButton size="sm" onClick={() => download(row.id, 'xlsx')}>Excel</AdminButton>
-                      <AdminButton size="sm" variant="ghost" onClick={() => archive(row.id)}>Archive</AdminButton>
+                      <AdminButton size="sm" loading={pending === `preview:${row.id}`} onClick={() => openPreview(row)}>Preview</AdminButton>
+                      <AdminButton size="sm" loading={pending === `pdf:${row.id}`} onClick={() => download(row.id, 'pdf')}>PDF</AdminButton>
+                      <AdminButton size="sm" loading={pending === `xlsx:${row.id}`} onClick={() => download(row.id, 'xlsx')}>Excel</AdminButton>
+                      <AdminButton size="sm" variant="ghost" loading={pending === `archive:${row.id}`} onClick={() => archive(row.id)}>Archive</AdminButton>
                     </div>
                   </td>
                 </tr>
@@ -170,7 +184,7 @@ function Reports() {
             </select>
           </label>
           <div className="flex items-end">
-            <AdminButton variant="primary" className="h-11 w-full" disabled={busy || !analysisId} onClick={create}>{busy ? 'Saving…' : 'Generate Report'}</AdminButton>
+            <AdminButton variant="primary" className="h-11 w-full" loading={busy} disabled={!analysisId} onClick={create}>Generate Report</AdminButton>
           </div>
         </div>
       </section>

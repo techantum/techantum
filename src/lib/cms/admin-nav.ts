@@ -22,21 +22,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     ],
   },
   {
-    id: 'youtube-research',
-    href: '/admin/youtube-research',
-    label: 'YouTube Research',
-    icon: 'PlayCircleIcon',
-    activePaths: ['/admin/youtube-research'],
-    children: [
-      {
-        id: 'youtube-research-settings',
-        href: '/admin/youtube-research/settings',
-        label: 'Settings',
-        icon: 'Cog6ToothIcon',
-      },
-    ],
-  },
-  {
     label: 'Analytics',
     icon: 'ChartBarIcon',
     children: [
@@ -284,6 +269,21 @@ export const ADMIN_NAV: AdminNavItem[] = [
           { href: '/admin/partners', label: 'Partners', icon: 'UsersIcon' },
           { href: '/admin/partner-catalog', label: 'Service Catalog', icon: 'Squares2X2Icon' },
           { href: '/admin/partner-requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
+        ],
+      },
+      {
+        id: 'youtube-research',
+        href: '/admin/youtube-research',
+        label: 'YouTube Research',
+        icon: 'PlayCircleIcon',
+        activePaths: ['/admin/youtube-research'],
+        children: [
+          {
+            id: 'youtube-research-settings',
+            href: '/admin/youtube-research/settings',
+            label: 'Settings',
+            icon: 'Cog6ToothIcon',
+          },
         ],
       },
       {

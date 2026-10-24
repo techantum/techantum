@@ -11,7 +11,7 @@ export default function YoutubeResearchNav() {
   const base = youtubePageBase(pathname);
   const inYoutube = pathname.startsWith(base);
   const onDashboard = pathname === base || pathname === `${base}/`;
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[] | null>(null);
   const [open, setOpen] = useState(true);
   const [currentId, setCurrentId] = useState('');
 
@@ -43,7 +43,9 @@ export default function YoutubeResearchNav() {
       </button>
       {open ? (
         <div className="ml-2 space-y-0.5 border-l border-slate-100 pl-2">
-          {projects.length ? projects.map((project) => (
+          {projects === null ? (
+            <p className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400"><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-secondary" /> Loading projects…</p>
+          ) : projects.length ? projects.map((project) => (
             <button
               key={project.id}
               type="button"

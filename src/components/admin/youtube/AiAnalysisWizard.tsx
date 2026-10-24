@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
+import PageLoader from '@/components/admin/youtube/PageLoader';
 import { metric, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
 import type { ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
@@ -164,7 +165,9 @@ export default function AiAnalysisWizard() {
   const [current, setCurrent] = useState<Record<string, any> | null>(null);
   const [openCard, setOpenCard] = useState('');
   const [error, setError] = useState('');
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [opening, setOpening] = useState('');
 
   const loadVideos = async () => {
     const params = new URLSearchParams({ page: '1', pageSize: '80', sort: 'view_count', q, topicId, categoryId, from, to, content: includeShorts ? '' : 'video' });
@@ -191,7 +194,7 @@ export default function AiAnalysisWizard() {
       } else {
         setScreen('list');
       }
-    }).catch((err) => setError(err.message));
+    }).catch((err) => setError(err.message)).finally(() => setReady(true));
   }, [projectId]);
 
   useEffect(() => {
@@ -270,11 +273,14 @@ export default function AiAnalysisWizard() {
   };
 
   const openAnalysis = async (id: string) => {
+    setOpening(id);
     try {
       setCurrent(await yt(`projects/${projectId}/ai-analyses/${id}`));
       setScreen('results');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not open analysis');
+    } finally {
+      setOpening('');
     }
   };
 
@@ -314,9 +320,12 @@ export default function AiAnalysisWizard() {
   const goalLabels = PRIMARY_GOALS.filter((item) => goals.includes(item.id));
   const focusLabels = FOCUS.filter((item) => focus.includes(item.id));
 
+  if (!ready && !error) return <PageLoader label="Loading AI analysis…" />;
+
   return (
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+      {busy ? <PageLoader label="Generating analysis…" /> : null}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -358,7 +367,7 @@ export default function AiAnalysisWizard() {
                   <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : row.status === 'failed' ? 'rose' : 'default'}>{row.status}</AdminBadge></td>
                   <td className="px-4 py-3 text-slate-500">{String(row.created_at || '').slice(0, 16).replace('T', ' ')}</td>
                   <td className="px-4 py-3">
-                    <AdminButton size="sm" onClick={() => openAnalysis(row.id)}>View details</AdminButton>
+                    <AdminButton size="sm" loading={opening === row.id} onClick={() => openAnalysis(row.id)}>View details</AdminButton>
                   </td>
                 </tr>
               )) : (
@@ -730,7 +739,7 @@ export default function AiAnalysisWizard() {
               {step > 1 ? <AdminButton onClick={() => setStep(step - 1)}>← Back</AdminButton> : null}
               {step === 1 ? <AdminButton variant="primary" onClick={nextFromStep1}>Next: Select Content →</AdminButton> : null}
               {step === 3 ? <AdminButton variant="primary" onClick={() => setStep(4)}>Next: Review & Generate →</AdminButton> : null}
-              {step === 4 ? <AdminButton variant="primary" disabled={busy} onClick={generate}><Icon name="SparklesIcon" size={16} /> {busy ? 'Generating analysis…' : 'Generate AI Analysis'}</AdminButton> : null}
+              {step === 4 ? <AdminButton variant="primary" loading={busy} onClick={generate}><Icon name="SparklesIcon" size={16} /> Generate AI Analysis</AdminButton> : null}
             </div>
           ) : null}
         </>
