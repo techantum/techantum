@@ -11,9 +11,10 @@ import { canAccessAdminPath } from '../admin/roles.ts';
 import { pdfFile, wordFile } from './reports.ts';
 import { actionsPerThousandViews, ANALYSIS_LENSES, clockDuration, contrastNotes, engagementActions, insightCards, parseAnalysisLens, performanceNote } from './analysis.ts';
 import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
-import { ANALYTICS_UNAVAILABLE, buildFallbackObservations, classifyVideos, parseAiResearchConfig } from './ai-research.ts';
+import { ANALYTICS_UNAVAILABLE, buildFallbackObservations, buildVideoBriefs, classifyVideos, parseAiResearchConfig } from './ai-research.ts';
 import { COMPARISON_UNAVAILABLE, buildGapCards, comparisonTable, thumbnailContent } from './gap-cards.ts';
 import { parseThumbnailReading } from './thumbnail-read.ts';
+import { clipSpokenText, enrichSpokenContent, parseTimedText } from './video-content.ts';
 import { FinanceValidationError } from '../finance/errors.ts';
 
 const CHANNEL_ID = 'UC1234567890123456789012';
@@ -346,7 +347,7 @@ describe('permissions and exports', () => {
 });
 
 describe('AI research configuration', () => {
-  it('requires a goal and keeps desired audience as a user target', () => {
+  it('requires a goal and keeps desired audience as a user target', async () => {
     assert.throws(() => parseAiResearchConfig({}), (err: unknown) => err instanceof FinanceValidationError);
     const config = parseAiResearchConfig({
       goals: ['views', 'retention', 'views'],
@@ -373,7 +374,7 @@ describe('AI research configuration', () => {
     assert.equal(wizard.targetGeography, 'India, Telangana');
   });
 
-  it('classifies public counts without inventing retention and labels missing analytics', () => {
+  it('classifies public counts without inventing retention and labels missing analytics', async () => {
     const videos = [
       { id: 'a', youtube_video_id: 'aaaaaaaaaaa', title: 'How hernia repair actually works', channel_name: 'Own', relationship: 'own', content_label: 'Video', placement_label: 'Organic', topic_name: 'Surgery', published_at: '2026-01-01', duration_label: '08:12', tags: ['hernia'], view_count: 4000, like_count: 80, comment_count: 12, watch_url: null, thumbnail_url: null, description: 'Walkthrough' },
       { id: 'b', youtube_video_id: 'bbbbbbbbbbb', title: 'Clinic update', channel_name: 'Own', relationship: 'own', content_label: 'Video', placement_label: 'Organic', topic_name: null, published_at: '2026-02-01', duration_label: '03:10', tags: [], view_count: 120, like_count: 0, comment_count: 0, watch_url: null, thumbnail_url: null, description: null },
@@ -412,6 +413,51 @@ describe('AI research configuration', () => {
     assert.equal(thumbnailContent({ thumbnail_caption: 'Saved line' }), 'Saved line');
     assert.equal(parseThumbnailReading('{"text":"Hello","scene":"A doctor in a clinic"}').text, 'Hello');
     assert.equal(parseThumbnailReading('{"text":"watch hours are 12","scene":"demographic chart"}').text, '');
+    assert.equal(parseTimedText('<transcript><text>Hello</text><text>clinic hours</text></transcript>'), 'Hello clinic hours');
+    assert.equal(parseTimedText('{"events":[{"segs":[{"utf8":"How "},{"utf8":"hernia repair works"}]}]}'), 'How hernia repair works');
+    assert.equal(clipSpokenText('a'.repeat(20), 10).length, 10);
+    const withCaptions = await enrichSpokenContent(
+      [{ youtube_video_id: 'abcdefghijk', description: 'Published blurb' }],
+      async (url: string) => {
+        if (String(url).includes('youtubei/v1/player')) {
+          return new Response(JSON.stringify({
+            captions: { playerCaptionsTracklistRenderer: { captionTracks: [{ languageCode: 'en', baseUrl: 'https://www.youtube.com/api/timedtext?v=abcdefghijk' }] } },
+          }), { status: 200 });
+        }
+        return new Response('<transcript><text>Spoken from captions</text></transcript>', { status: 200 });
+      },
+    );
+    assert.equal(withCaptions[0].spoken_source, 'captions');
+    assert.match(withCaptions[0].spoken_text || '', /Spoken from captions/);
+    const briefs = buildVideoBriefs([{
+      id: 'own',
+      youtube_video_id: 'abcdefghijk',
+      title: 'Clinic update',
+      channel_name: 'Own',
+      relationship: 'own',
+      content_label: 'Video',
+      placement_label: 'Organic',
+      topic_name: null,
+      published_at: null,
+      duration_label: '2:05',
+      duration_seconds: 125,
+      duration: null,
+      thumbnail_text: 'Clinic hours',
+      thumbnail_scene: 'A clinic doorway',
+      tags: [],
+      view_count: 120,
+      like_count: 2,
+      comment_count: 0,
+      watch_url: null,
+      thumbnail_url: 'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg',
+      thumbnail_caption: null,
+      description: 'Come in this week.',
+      spoken_text: 'Spoken from captions',
+      spoken_source: 'captions',
+    }]);
+    assert.match(briefs[0].thumbnail_summary, /Clinic hours/);
+    assert.match(briefs[0].thumbnail_summary, /clinic doorway/i);
+    assert.equal(briefs[0].content_source, 'captions');
     assert.equal(table.rows.find((row) => row.label === 'Watch hours')?.values[0], COMPARISON_UNAVAILABLE);
     assert.equal(table.rows.find((row) => row.label === 'Geography')?.values[1], COMPARISON_UNAVAILABLE);
     assert.equal(table.rows.find((row) => row.label === 'Ages watched')?.values[0], COMPARISON_UNAVAILABLE);

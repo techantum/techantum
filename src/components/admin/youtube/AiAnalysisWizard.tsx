@@ -724,9 +724,9 @@ export default function AiAnalysisWizard() {
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-sm text-slate-700">
                   <p className="font-semibold text-secondary">What happens next?</p>
                   <ol className="mt-2 list-decimal space-y-1 pl-4">
-                    <li>AI will analyse the selected videos using public YouTube data and your settings.</li>
-                    <li>You will get insights, comparisons and recommendations with an action plan.</li>
-                    <li>The analysis will be saved and available in Reports after completion.</li>
+                    <li>Each selected thumbnail image is read first (on-image words and what the picture shows).</li>
+                    <li>Then public title, description, and captions (when available) are summarised. The video file is not downloaded.</li>
+                    <li>You get insights, comparisons, and an action plan, saved under Analysis and Reports.</li>
                   </ol>
                 </div>
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-xs leading-5 text-emerald-800">
@@ -773,6 +773,23 @@ export default function AiAnalysisWizard() {
                 <h3 className="mt-1 font-bricolage text-lg font-semibold text-slate-900">{result.summary?.headline}</h3>
                 <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">{result.summary?.body}</p>
               </section>
+              {Array.isArray(result.video_briefs) && result.video_briefs.length ? (
+                <section className="grid gap-3 md:grid-cols-2">
+                  {result.video_briefs.map((brief: Record<string, any>) => (
+                    <article key={brief.video_id || brief.title} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex gap-3">
+                        {brief.thumbnail_url ? <img src={brief.thumbnail_url} alt="" loading="lazy" className="h-16 w-28 shrink-0 rounded-xl object-cover" /> : <span className="flex h-16 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">No thumbnail</span>}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">{brief.title}</p>
+                          <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">{brief.content_source === 'captions' ? 'Captions' : brief.content_source === 'description' ? 'Description' : 'No spoken text'}</p>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-slate-600"><span className="font-semibold text-slate-800">Image: </span>{brief.thumbnail_summary}</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-600"><span className="font-semibold text-slate-800">Content: </span>{brief.content_summary}</p>
+                    </article>
+                  ))}
+                </section>
+              ) : null}
               <div className="grid gap-3 md:grid-cols-2">
                 {observations.map((card: Record<string, any>, index: number) => {
                   const key = `${card.headline}-${index}`;

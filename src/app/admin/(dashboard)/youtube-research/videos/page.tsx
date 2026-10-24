@@ -191,8 +191,8 @@ function Explorer() {
   };
 
   const runComparison = async (report: boolean) => {
-    if (selected.length < 2) {
-      setError('Select at least two videos, ideally one own and one competitor.');
+    if (!selected.length) {
+      setError('Select at least one video to summarise. Two videos (own + competitor) work best for a comparison report.');
       return;
     }
     setBusy(report ? 'report' : 'summary');
@@ -250,10 +250,10 @@ function Explorer() {
             Fetch videos from channels
           </AdminButton>
         ) : null}
-        <AdminButton variant="secondary" loading={busy === 'summary'} disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(false)}>
+        <AdminButton variant="secondary" loading={busy === 'summary'} disabled={!selected.length || Boolean(busy)} onClick={() => runComparison(false)}>
           Generate Summary
         </AdminButton>
-        <AdminButton variant="primary" loading={busy === 'report'} disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(true)}>
+        <AdminButton variant="primary" loading={busy === 'report'} disabled={!selected.length || Boolean(busy)} onClick={() => runComparison(true)}>
           Generate Report
         </AdminButton>
       </div>
@@ -292,8 +292,8 @@ function Explorer() {
       />
       <p className="text-xs text-slate-500">
         {selected.length
-          ? `${selected.length} video${selected.length === 1 ? '' : 's'} selected. Generate Summary opens the side-by-side comparison. Generate Report saves it under Reports.`
-          : 'Select videos from both columns, then generate a summary or a report.'}
+          ? `${selected.length} video${selected.length === 1 ? '' : 's'} selected. Summary reads each thumbnail image first, then public text and captions when available. The video file is not downloaded.`
+          : 'Select videos, then generate a summary or a report. Own + competitor pairs work best for comparison.'}
       </p>
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">

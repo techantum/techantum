@@ -4,6 +4,7 @@ import { q } from '../finance/db';
 import { FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { listProjectChannels, listProjectVideos } from './projects';
 import { enrichComparisonVideos } from './thumbnail-read';
+import { enrichSpokenContent } from './video-content';
 import { assertYoutubeProject } from './scope';
 import { lengthLabel, YOUTUBE_METRIC_NOTICE } from './parse';
 
@@ -106,6 +107,8 @@ type EvidenceVideo = {
   thumbnail_url: string | null;
   thumbnail_caption: string | null;
   description: string | null;
+  spoken_text: string | null;
+  spoken_source: 'captions' | 'description' | null;
 };
 
 function listText(value: unknown, extra?: unknown, max = 12, size = 60) {
@@ -176,8 +179,32 @@ function compactVideo(row: Record<string, any>): EvidenceVideo {
     watch_url: row.watch_url || null,
     thumbnail_url: row.thumbnail_url || null,
     thumbnail_caption: row.thumbnail_caption || null,
-    description: row.description ? String(row.description).slice(0, 400) : null,
+    description: row.description ? String(row.description).slice(0, 2500) : null,
+    spoken_text: row.spoken_text ? String(row.spoken_text).slice(0, 8000) : null,
+    spoken_source: row.spoken_source === 'captions' || row.spoken_source === 'description' ? row.spoken_source : null,
   };
+}
+
+export function buildVideoBriefs(videos: EvidenceVideo[]) {
+  return videos.slice(0, 12).map((video) => {
+    const imageBits = [
+      video.thumbnail_text ? `On-image text: ${video.thumbnail_text}` : '',
+      video.thumbnail_scene ? `Image: ${video.thumbnail_scene}` : '',
+    ].filter(Boolean);
+    const fromCaptions = video.spoken_source === 'captions' && video.spoken_text;
+    return {
+      video_id: video.id,
+      title: video.title || video.youtube_video_id,
+      thumbnail_url: video.thumbnail_url,
+      thumbnail_summary: imageBits.join('. ') || 'The thumbnail image could not be read for this video.',
+      content_summary: fromCaptions
+        ? video.spoken_text!.slice(0, 500)
+        : video.description
+          ? video.description.slice(0, 500)
+          : 'No public description or captions were available, so spoken video content was not summarised.',
+      content_source: video.spoken_source || (video.description ? 'description' : null),
+    };
+  });
 }
 
 function median(values: number[]) {
@@ -338,11 +365,14 @@ function fallbackResult(videos: EvidenceVideo[], config: AiResearchConfig) {
   const observations = buildFallbackObservations(videos, config);
   const actions = buildFallbackActions(videos, config);
   const focus = videos.find((video) => video.relationship === 'own') || videos[0];
+  const readThumbs = videos.filter((video) => video.thumbnail_text || video.thumbnail_scene);
+  const captioned = videos.filter((video) => video.spoken_source === 'captions');
   return {
     summary: {
       headline: 'Public Data API counts can rank videos, but they cannot prove why they performed.',
       body: 'Use the observations below as tests. Desired audience targets are goals, not measured demographics.',
     },
+    video_briefs: buildVideoBriefs(videos),
     observations,
     recommendations: actions,
     alternatives: {
@@ -351,18 +381,29 @@ function fallbackResult(videos: EvidenceVideo[], config: AiResearchConfig) {
         `How ${focus.title || 'this treatment'} actually works`,
         `${focus.title || 'Clinic update'} in 60 seconds`,
       ].slice(0, 3) : [],
-      thumbnail_concepts: [
-        { concept: 'One face, one short outcome line, high contrast', note: 'Concept only. Thumbnail pixels were not visually analysed.' },
-        { concept: 'Before/after still with a single readable word', note: 'Concept only. Thumbnail pixels were not visually analysed.' },
-      ],
-      description: focus ? `In this video we cover ${focus.title || 'the topic'} and what to do next. This draft is based on the public title and description, not a transcript.` : '',
+      thumbnail_concepts: readThumbs.length
+        ? [
+          { concept: `Keep the on-image words “${readThumbs[0].thumbnail_text || 'one short outcome'}” large and high contrast`, note: 'Based on the thumbnail image reading.' },
+          { concept: readThumbs[0].thumbnail_scene ? `Keep this scene: ${readThumbs[0].thumbnail_scene}` : 'One face, one short outcome line', note: 'Based on the thumbnail image reading.' },
+        ]
+        : [
+          { concept: 'One face, one short outcome line, high contrast', note: 'Concept only. The thumbnail image could not be read.' },
+          { concept: 'Before/after still with a single readable word', note: 'Concept only. The thumbnail image could not be read.' },
+        ],
+      description: focus
+        ? `In this video we cover ${focus.title || 'the topic'} and what to do next. This draft uses the public title, description${captioned.length ? ', and available captions' : ''}.`
+        : '',
       future_ideas: ['A FAQ follow-up on the highest-view topic', 'A short answering the most specific competitor title'],
     },
     limitations: [
       AI_RESEARCH_NOTICE,
       ANALYTICS_UNAVAILABLE,
-      'Thumbnail concepts are ideas only; image pixels were not analysed.',
-      'Spoken-content advice is unavailable without a transcript or script.',
+      readThumbs.length
+        ? 'Thumbnail summaries describe the image and any words printed on it. They are not click-through measurements.'
+        : 'Thumbnail images could not be read for this run, so image summaries were skipped.',
+      captioned.length
+        ? 'Spoken content was summarised from public captions when they were available. The video file and audio were not downloaded.'
+        : 'The video file and audio were not downloaded. Text summaries use the public title, description, and tags.',
     ],
   };
 }
@@ -383,8 +424,9 @@ Rules:
 - Desired audience targets are goals, not measured facts.
 - Use may / potentially / worth testing for causal claims.
 - Separate Improve Existing Video (title, description, tags, thumbnail concept) from Create New Video.
+- Work in this order for every video: (1) thumbnail image using thumbnail_text and thumbnail_scene, (2) then text using title, description, tags, and spoken_text.
 - thumbnail_text and thumbnail_scene were read from the thumbnail image. Do not add words that are not in those fields.
-- Thumbnail ideas beyond that reading are concepts only.
+- If spoken_source is captions, spoken_text is public caption text. If it is description, only the published description was available. Never claim you watched or transcribed the video file.
 - Return JSON only.`,
       },
       {
@@ -419,6 +461,8 @@ Rules:
             length: video.duration_label,
             thumbnail_text: video.thumbnail_text,
             thumbnail_scene: video.thumbnail_scene,
+            spoken_text: video.spoken_text ? String(video.spoken_text).slice(0, 2500) : null,
+            spoken_source: video.spoken_source,
           })),
         }),
       },
@@ -426,19 +470,36 @@ Rules:
         role: 'user',
         content: `Return JSON:
 {
+  "video_briefs": [{ "video_id": "", "thumbnail_summary": "what the thumbnail image shows and any on-image text", "content_summary": "summary of description and captions if present", "content_source": "captions|description|null" }],
   "summary": { "headline": "", "body": "" },
   "observations": [{ "category": "", "headline": "", "observation": "", "evidence": "", "implication": "", "action": "", "video_ids": [] }],
   "recommendations": [{ "title": "", "category": "", "kind": "existing|new", "priority": "high|medium|low", "description": "", "metric": "", "review_period": "", "video_id": null }],
   "alternatives": { "titles": [], "thumbnail_concepts": [{ "concept": "", "note": "" }], "description": "", "future_ideas": [] },
   "limitations": []
 }
-Limit observations to 6. Limit recommendations to 8.`,
+Write one video_brief per video. Limit observations to 6. Limit recommendations to 8.`,
       },
     ],
   });
   const parsed = parseModelJson<Record<string, any>>(generated.text);
   const fallback = fallbackResult(evidence.videos, config);
+  const briefs = Array.isArray(parsed.video_briefs) && parsed.video_briefs.length
+    ? parsed.video_briefs.slice(0, 12).map((item: Record<string, unknown>, index: number) => {
+      const base = fallback.video_briefs[index] || fallback.video_briefs[0];
+      return {
+        video_id: String(item.video_id || base?.video_id || ''),
+        title: String(item.title || base?.title || ''),
+        thumbnail_url: base?.thumbnail_url || null,
+        thumbnail_summary: String(item.thumbnail_summary || base?.thumbnail_summary || ''),
+        content_summary: String(item.content_summary || base?.content_summary || ''),
+        content_source: item.content_source === 'captions' || item.content_source === 'description' || item.content_source == null
+          ? item.content_source || base?.content_source || null
+          : base?.content_source || null,
+      };
+    })
+    : fallback.video_briefs;
   return {
+    video_briefs: briefs,
     summary: {
       headline: String(parsed.summary?.headline || fallback.summary.headline),
       body: String(parsed.summary?.body || fallback.summary.body),
@@ -471,7 +532,7 @@ Limit observations to 6. Limit recommendations to 8.`,
       thumbnail_concepts: Array.isArray(parsed.alternatives?.thumbnail_concepts)
         ? parsed.alternatives.thumbnail_concepts.map((item: Record<string, unknown>) => ({
           concept: String(item.concept || item),
-          note: String(item.note || 'Concept only. Thumbnail pixels were not visually analysed.'),
+          note: String(item.note || fallback.alternatives.thumbnail_concepts[0]?.note || 'Thumbnail concept.'),
         })).slice(0, 2)
         : fallback.alternatives.thumbnail_concepts,
       description: String(parsed.alternatives?.description || fallback.alternatives.description),
@@ -528,7 +589,12 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
     try {
       evidence.videos = await enrichComparisonVideos(evidence.videos);
     } catch {
-      /* The public fields already collected are enough to save the analysis. */
+      /* Thumbnail reading is best-effort; public fields are still enough to save. */
+    }
+    try {
+      evidence.videos = await enrichSpokenContent(evidence.videos);
+    } catch {
+      /* Captions are optional; title and description still feed the text summary. */
     }
     let result;
     let provider = null;

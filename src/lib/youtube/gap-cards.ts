@@ -195,7 +195,11 @@ function plan(video: GapVideo, other: GapVideo, role: GapCard['role']) {
           `Own-video test: answer one question left open by “${clip(title, 60)}”`,
           `60-second version of the angle in “${short}”`,
         ],
-        thumbnail: ['Put one outcome word from this competitor title on the own thumbnail. Image pixels were not analysed.'],
+        thumbnail: [
+          video.thumbnail_scene
+            ? `Own-thumbnail test: keep a similar scene (${clip(video.thumbnail_scene, 80)}) and one outcome word from this title.`
+            : 'Put one outcome word from this competitor title on the own thumbnail.',
+        ],
         description: `Open the own description with the promise in “${clip(title, 80)}”, then the viewer’s next step. This uses the public title only.`,
       },
       actions: [
@@ -222,9 +226,9 @@ function plan(video: GapVideo, other: GapVideo, role: GapCard['role']) {
         `${short} in 60 seconds`,
       ],
       thumbnail: [
-        video.thumbnail_caption
-          ? `Keep the recorded thumbnail line “${clip(video.thumbnail_caption, 80)}” readable at small size.`
-          : 'Add one short outcome line on the thumbnail. The current image text is not recorded.',
+        thumbnailContent(video)
+          ? `Keep “${clip(video.thumbnail_text || video.thumbnail_caption, 80) || 'the on-image words'}” readable${video.thumbnail_scene ? ` on this scene: ${clip(video.thumbnail_scene, 80)}` : ''}.`
+          : 'Add one short outcome line on the thumbnail. The current image could not be read.',
       ],
       description: video.description
         ? `Lead with the outcome, then keep this fact from the current description: ${clip(video.description, 140)}`
@@ -233,7 +237,7 @@ function plan(video: GapVideo, other: GapVideo, role: GapCard['role']) {
     actions: [
       { title: `Rewrite the title for “${clip(title, 70)}”`, detail: own ? 'Test a more specific outcome line on this own upload. YouTube allows a title edit; the video file stays.' : 'Test a more specific outcome line. A title edit does not replace the video file.' },
       { title: video.description ? 'Tighten the first line of the description' : 'Add a public description', detail: 'State the viewer outcome in the first sentence, then one next step.' },
-      { title: 'Record the thumbnail text', detail: 'Write the words that appear on the thumbnail so the next comparison can score them. The image itself was not analysed.' },
+      { title: video.thumbnail_scene ? 'Keep the thumbnail scene and shorten the on-image words' : 'Record the thumbnail text', detail: video.thumbnail_scene ? `The image shows: ${clip(video.thumbnail_scene, 140)}` : 'Write the words that appear on the thumbnail so the next comparison can score them.' },
     ],
     suggestions: [
       num(video.view_count) != null && num(other.view_count) != null && Number(video.view_count) < Number(other.view_count)
@@ -257,7 +261,7 @@ function card(video: GapVideo, other: GapVideo): GapCard {
     title: video.title || video.id,
     channelName: video.channel_name || '—',
     thumbnailUrl: video.thumbnail_url || null,
-    thumbnailCaption: video.thumbnail_caption || null,
+    thumbnailCaption: thumbnailContent(video) || null,
     watchUrl: video.watch_url || null,
     description: video.description || null,
     segments: segments(video, other),
