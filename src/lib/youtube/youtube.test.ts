@@ -14,7 +14,7 @@ import { performanceSummary, VIDEO_UPSERT_SQL } from './service.ts';
 import { ANALYTICS_UNAVAILABLE, buildFallbackObservations, buildVideoBriefs, classifyVideos, parseAiResearchConfig } from './ai-research.ts';
 import { COMPARISON_UNAVAILABLE, buildGapCards, comparisonTable, thumbnailContent } from './gap-cards.ts';
 import { imageMimeFromBytes, parseThumbnailReading } from './thumbnail-read.ts';
-import { clipSpokenText, enrichSpokenContent, parseTimedText } from './video-content.ts';
+import { captionLanguageNames, clipSpokenText, enrichSpokenContent, formatSpokenCaptions, parseTimedText, selectCaptionTracks } from './video-content.ts';
 import { FinanceValidationError } from '../finance/errors.ts';
 
 const CHANNEL_ID = 'UC1234567890123456789012';
@@ -428,10 +428,26 @@ describe('AI research configuration', () => {
     assert.equal(imageMimeFromBytes(Buffer.from([0xff, 0xd8, 0xff, 0x00])), 'image/jpeg');
     assert.equal(imageMimeFromBytes(Buffer.from([0x00, 0x01]), 'image/jpg'), 'image/jpeg');
     assert.equal(parseTimedText('<transcript><text>Hello</text><text>clinic hours</text></transcript>'), 'Hello clinic hours');
+    assert.match(parseTimedText('<transcript><text>&#3077; &#3128;&#3120;&#3149;&#3093;&#3120;&#3136;</text></transcript>'), /అ/);
     assert.equal(parseTimedText('{"events":[{"segs":[{"utf8":"How "},{"utf8":"hernia repair works"}]}]}'), 'How hernia repair works');
     assert.equal(clipSpokenText('a'.repeat(20), 10).length, 10);
+    const picked = selectCaptionTracks([
+      { languageCode: 'en', kind: 'asr', baseUrl: 'https://www.youtube.com/api/timedtext?lang=en-asr' },
+      { languageCode: 'en-US', baseUrl: 'https://www.youtube.com/api/timedtext?lang=en' },
+      { languageCode: 'te', baseUrl: 'https://www.youtube.com/api/timedtext?lang=te' },
+      { languageCode: 'hi', kind: 'asr', baseUrl: 'https://www.youtube.com/api/timedtext?lang=hi' },
+      { languageCode: 'fr', baseUrl: 'https://www.youtube.com/api/timedtext?lang=fr' },
+      { languageCode: 'te', baseUrl: 'https://evil.example/timedtext' },
+    ]);
+    assert.deepEqual(picked.map((track) => track.name), ['Telugu', 'Hindi', 'English']);
+    assert.match(picked.find((track) => track.name === 'English')?.url || '', /lang=en$/);
+    assert.equal(formatSpokenCaptions([
+      { name: 'Telugu', text: 'ఏ సర్జరీ బెటర్' },
+      { name: 'Hindi', text: '' },
+      { name: 'English', text: 'Which surgery is better' },
+    ]), 'Telugu: ఏ సర్జరీ బెటర్\n\nEnglish: Which surgery is better');
     const withCaptions = await enrichSpokenContent(
-      [{ youtube_video_id: 'abcdefghijk', description: 'Published blurb' }],
+      [{ youtube_video_id: 'abcdefghijk', description: 'Published blurb', spoken_text: 'Old English only', spoken_source: 'captions' }],
       async (url: string) => {
         if (String(url).includes('youtubei/v1/player')) {
           return new Response(JSON.stringify({
@@ -442,7 +458,43 @@ describe('AI research configuration', () => {
       },
     );
     assert.equal(withCaptions[0].spoken_source, 'captions');
-    assert.match(withCaptions[0].spoken_text || '', /Spoken from captions/);
+    assert.match(withCaptions[0].spoken_text || '', /English: Spoken from captions/);
+    const multilingualCaptions = await enrichSpokenContent(
+      [{ youtube_video_id: 'bbcdefghijk', description: 'Published blurb' }],
+      async (url: string) => {
+        const target = String(url);
+        if (target.includes('youtubei/v1/player')) {
+          return new Response(JSON.stringify({
+            captions: {
+              playerCaptionsTracklistRenderer: {
+                captionTracks: [
+                  { languageCode: 'te', baseUrl: 'https://www.youtube.com/api/timedtext?v=bbcdefghijk&lang=te' },
+                  { languageCode: 'hi', baseUrl: 'https://www.youtube.com/api/timedtext?v=bbcdefghijk&lang=hi' },
+                  { languageCode: 'en', baseUrl: 'https://www.youtube.com/api/timedtext?v=bbcdefghijk&lang=en' },
+                  { languageCode: 'fr', baseUrl: 'https://www.youtube.com/api/timedtext?v=bbcdefghijk&lang=fr' },
+                ],
+              },
+            },
+          }), { status: 200 });
+        }
+        if (target.includes('lang=te')) return new Response('{"events":[{"segs":[{"utf8":"ఏ సర్జరీ బెటర్"}]}]}', { status: 200 });
+        if (target.includes('lang=hi')) return new Response('<transcript><text>कौन सी सर्जरी बेहतर है</text></transcript>', { status: 200 });
+        if (target.includes('lang=en')) return new Response('<transcript><text>Which surgery is better</text></transcript>', { status: 200 });
+        return new Response('<transcript><text>French only</text></transcript>', { status: 200 });
+      },
+    );
+    assert.equal(multilingualCaptions[0].spoken_source, 'captions');
+    assert.match(multilingualCaptions[0].spoken_text || '', /Telugu: ఏ సర్జరీ బెటర్/);
+    assert.match(multilingualCaptions[0].spoken_text || '', /Hindi: कौन सी सर्जरी बेहतर है/);
+    assert.match(multilingualCaptions[0].spoken_text || '', /English: Which surgery is better/);
+    assert.doesNotMatch(multilingualCaptions[0].spoken_text || '', /French/);
+    assert.deepEqual(captionLanguageNames(multilingualCaptions[0].spoken_text), ['Telugu', 'Hindi', 'English']);
+    const described = await enrichSpokenContent(
+      [{ youtube_video_id: 'cbcdefghijk', description: 'Published blurb only' }],
+      async () => new Response(JSON.stringify({ captions: {} }), { status: 200 }),
+    );
+    assert.equal(described[0].spoken_source, 'description');
+    assert.match(described[0].spoken_text || '', /Published blurb only/);
     const briefs = buildVideoBriefs([{
       id: 'own',
       youtube_video_id: 'abcdefghijk',
@@ -466,12 +518,22 @@ describe('AI research configuration', () => {
       thumbnail_url: 'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg',
       thumbnail_caption: null,
       description: 'Come in this week.',
-      spoken_text: 'Spoken from captions',
+      spoken_text: 'Telugu: ఏ సర్జరీ బెటర్\n\nHindi: कौन सी सर्जरी\n\nEnglish: Which surgery is better',
       spoken_source: 'captions',
     }]);
     assert.match(briefs[0].thumbnail_summary, /Clinic hours/);
     assert.match(briefs[0].thumbnail_summary, /clinic doorway/i);
     assert.equal(briefs[0].content_source, 'captions');
+    assert.match(briefs[0].content_summary, /Telugu: ఏ సర్జరీ బెటర్/);
+    assert.match(briefs[0].content_summary, /Hindi: कौन सी सर्जरी/);
+    assert.match(briefs[0].content_summary, /English: Which surgery is better/);
+    const captionGap = buildGapCards([
+      { id: 'own', title: 'Own', relationship: 'own', spoken_source: 'captions', spoken_text: 'Telugu: ఏ సర్జరీ బెటర్\n\nHindi: कौन सी सर्जरी\n\nEnglish: Which surgery is better' },
+      { id: 'comp', title: 'Other', relationship: 'competitor', spoken_source: 'description', description: 'A public description' },
+    ]);
+    assert.equal(captionGap?.left.spokenSource, 'captions');
+    assert.deepEqual(captionGap?.left.captionLanguages, ['Telugu', 'Hindi', 'English']);
+    assert.equal(captionGap?.right.spokenSource, 'description');
     assert.equal(table.rows.find((row) => row.label === 'Watch hours')?.values[0], COMPARISON_UNAVAILABLE);
     assert.equal(table.rows.find((row) => row.label === 'Geography')?.values[1], COMPARISON_UNAVAILABLE);
     assert.equal(table.rows.find((row) => row.label === 'Ages watched')?.values[0], COMPARISON_UNAVAILABLE);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
@@ -8,7 +8,7 @@ import AdminButton from '@/components/admin/AdminButton';
 import GapCards from '@/components/admin/youtube/GapCards';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { buildGapCards } from '@/lib/youtube/gap-cards';
-import { metric, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
 import type { ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 
@@ -141,6 +141,8 @@ function TagField({
 
 export default function AiAnalysisWizard() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
+  const router = useRouter();
   const search = useSearchParams();
   const [step, setStep] = useState(1);
   const [screen, setScreen] = useState<'list' | 'wizard' | 'results'>('list');
@@ -286,6 +288,25 @@ export default function AiAnalysisWizard() {
     }
   };
 
+  const removeAnalysis = async (id: string, name: string) => {
+    if (!window.confirm(`Delete “${name || 'this summary'}”? Reports already saved from it stay in Reports.`)) return;
+    setOpening(`delete:${id}`);
+    try {
+      setError('');
+      await yt(`projects/${projectId}/ai-analyses/${id}`, { method: 'DELETE' });
+      setHistory((rows) => rows.filter((row) => row.id !== id));
+      if (current?.id === id) {
+        setCurrent(null);
+        setScreen('list');
+        router.replace(`${base}/analysis`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete summary');
+    } finally {
+      setOpening('');
+    }
+  };
+
   const saveAction = async (id: string, status: string) => {
     try {
       await yt(`projects/${projectId}/ai-actions/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
@@ -347,6 +368,11 @@ export default function AiAnalysisWizard() {
               <Icon name="QueueListIcon" size={16} /> All analyses
             </AdminButton>
           ) : null}
+          {screen === 'results' && current?.id ? (
+            <AdminButton variant="outline-danger" loading={opening === `delete:${current.id}`} onClick={() => removeAnalysis(current.id, current.name)}>
+              Delete summary
+            </AdminButton>
+          ) : null}
           <AdminButton variant="primary" onClick={() => { setStep(1); setScreen('wizard'); setCurrent(null); }}>
             <Icon name="SparklesIcon" size={16} /> Custom AI analysis
           </AdminButton>
@@ -370,7 +396,10 @@ export default function AiAnalysisWizard() {
                   <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : row.status === 'failed' ? 'rose' : 'default'}>{row.status}</AdminBadge></td>
                   <td className="px-4 py-3 text-slate-500">{String(row.created_at || '').slice(0, 16).replace('T', ' ')}</td>
                   <td className="px-4 py-3">
-                    <AdminButton size="sm" loading={opening === row.id} onClick={() => openAnalysis(row.id)}>View details</AdminButton>
+                    <div className="flex flex-wrap gap-2">
+                      <AdminButton size="sm" loading={opening === row.id} onClick={() => openAnalysis(row.id)}>View details</AdminButton>
+                      <AdminButton size="sm" variant="outline-danger" loading={opening === `delete:${row.id}`} onClick={() => removeAnalysis(row.id, row.name)}>Delete</AdminButton>
+                    </div>
                   </td>
                 </tr>
               )) : (
@@ -764,7 +793,7 @@ export default function AiAnalysisWizard() {
                 <h3 className="mt-1 font-bricolage text-lg font-semibold text-slate-900">Gaps are scored on each video, using the other video in the pair.</h3>
                 <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">Views, viewership share, likes, comments, description, and title come from the public video record. Watch hours, geography, ages watched, and genders watched are not shared by YouTube for these videos.</p>
               </section>
-              <GapCards videos={current?.evidence?.videos || []} actions={current.actions || []} onStatus={saveAction} />
+              <GapCards videos={current?.evidence?.videos || []} actions={current.actions || []} onStatus={saveAction} briefs={Array.isArray(result.video_briefs) ? result.video_briefs : []} />
             </>
           ) : current?.status === 'ready' ? (
             <>

@@ -4,7 +4,7 @@ import { q } from '../finance/db';
 import { FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { listProjectChannels, listProjectVideos } from './projects';
 import { enrichComparisonVideos } from './thumbnail-read';
-import { enrichSpokenContent } from './video-content';
+import { captionLanguageNames, enrichSpokenContent } from './video-content';
 import { assertYoutubeProject } from './scope';
 import { lengthLabel, YOUTUBE_METRIC_NOTICE } from './parse';
 
@@ -180,9 +180,20 @@ function compactVideo(row: Record<string, any>): EvidenceVideo {
     thumbnail_url: row.thumbnail_url || null,
     thumbnail_caption: row.thumbnail_caption || null,
     description: row.description ? String(row.description).slice(0, 2500) : null,
-    spoken_text: row.spoken_text ? String(row.spoken_text).slice(0, 8000) : null,
+    spoken_text: row.spoken_text ? String(row.spoken_text).slice(0, 14000) : null,
     spoken_source: row.spoken_source === 'captions' || row.spoken_source === 'description' ? row.spoken_source : null,
   };
+}
+
+function clipCaptionSummary(spoken: string) {
+  return spoken
+    .split(/\n\n(?=(?:Telugu|Hindi|English):)/)
+    .map((block) => {
+      const text = block.replace(/\s+/g, ' ').trim();
+      return text.length > 500 ? `${text.slice(0, 499).trim()}…` : text;
+    })
+    .filter(Boolean)
+    .join(' ');
 }
 
 export function buildVideoBriefs(videos: EvidenceVideo[]) {
@@ -192,17 +203,19 @@ export function buildVideoBriefs(videos: EvidenceVideo[]) {
       video.thumbnail_scene ? `Image: ${video.thumbnail_scene}` : '',
     ].filter(Boolean);
     const fromCaptions = video.spoken_source === 'captions' && video.spoken_text;
+    const languages = captionLanguageNames(video.spoken_text);
     return {
       video_id: video.id,
       title: video.title || video.youtube_video_id,
       thumbnail_url: video.thumbnail_url,
       thumbnail_summary: imageBits.join('. ') || 'The thumbnail image could not be read for this video.',
       content_summary: fromCaptions
-        ? video.spoken_text!.slice(0, 500)
+        ? `Captions${languages.length ? ` in ${languages.join(', ')}` : ''}. ${clipCaptionSummary(video.spoken_text || '')}`
         : video.description
           ? video.description.slice(0, 500)
           : 'No public description or captions were available, so spoken video content was not summarised.',
       content_source: video.spoken_source || (video.description ? 'description' : null),
+      caption_languages: languages,
     };
   });
 }
@@ -413,7 +426,7 @@ async function runModel(config: AiResearchConfig, evidence: Awaited<ReturnType<t
     purpose: 'youtube_research_ai_analysis',
     json: true,
     temperature: 0.25,
-    maxTokens: 2200,
+    maxTokens: 3200,
     timeoutMs: 50000,
     messages: [
       {
@@ -426,7 +439,7 @@ Rules:
 - Separate Improve Existing Video (title, description, tags, thumbnail concept) from Create New Video.
 - Work in this order for every video: (1) thumbnail image using thumbnail_text and thumbnail_scene, (2) then text using title, description, tags, and spoken_text.
 - thumbnail_text and thumbnail_scene were read from the thumbnail image. Do not add words that are not in those fields.
-- If spoken_source is captions, spoken_text is public caption text. If it is description, only the published description was available. Never claim you watched or transcribed the video file.
+- If spoken_source is captions, spoken_text is public caption text. It may contain Telugu, Hindi, and English sections labeled "Telugu:", "Hindi:", and "English:". Summarise every section that is present. Keep short quotes in the original script. Do not translate Telugu away. A language with no section was not on a caption track. Set content_source to captions. If spoken_source is description, only the published description was available. Never claim you watched or transcribed the video file.
 - Return JSON only.`,
       },
       {
@@ -461,7 +474,7 @@ Rules:
             length: video.duration_label,
             thumbnail_text: video.thumbnail_text,
             thumbnail_scene: video.thumbnail_scene,
-            spoken_text: video.spoken_text ? String(video.spoken_text).slice(0, 2500) : null,
+            spoken_text: video.spoken_text ? String(video.spoken_text).slice(0, 14000) : null,
             spoken_source: video.spoken_source,
           })),
         }),
@@ -470,7 +483,7 @@ Rules:
         role: 'user',
         content: `Return JSON:
 {
-  "video_briefs": [{ "video_id": "", "thumbnail_summary": "what the thumbnail image shows and any on-image text", "content_summary": "summary of description and captions if present", "content_source": "captions|description|null" }],
+  "video_briefs": [{ "video_id": "", "thumbnail_summary": "what the thumbnail image shows and any on-image text", "content_summary": "summary of every caption language that is present, or the description when no captions were found", "content_source": "captions|description|null" }],
   "summary": { "headline": "", "body": "" },
   "observations": [{ "category": "", "headline": "", "observation": "", "evidence": "", "implication": "", "action": "", "video_ids": [] }],
   "recommendations": [{ "title": "", "category": "", "kind": "existing|new", "priority": "high|medium|low", "description": "", "metric": "", "review_period": "", "video_id": null }],
@@ -483,18 +496,23 @@ Write one video_brief per video. Limit observations to 6. Limit recommendations 
   });
   const parsed = parseModelJson<Record<string, any>>(generated.text);
   const fallback = fallbackResult(evidence.videos, config);
+  const briefsById = new Map(fallback.video_briefs.map((brief) => [brief.video_id, brief]));
   const briefs = Array.isArray(parsed.video_briefs) && parsed.video_briefs.length
     ? parsed.video_briefs.slice(0, 12).map((item: Record<string, unknown>, index: number) => {
-      const base = fallback.video_briefs[index] || fallback.video_briefs[0];
+      const base = briefsById.get(String(item.video_id || '')) || fallback.video_briefs[index] || fallback.video_briefs[0];
+      const contentSource = base?.content_source === 'captions'
+        ? 'captions'
+        : item.content_source === 'captions' || item.content_source === 'description'
+          ? item.content_source
+          : base?.content_source || null;
       return {
         video_id: String(item.video_id || base?.video_id || ''),
         title: String(item.title || base?.title || ''),
         thumbnail_url: base?.thumbnail_url || null,
         thumbnail_summary: String(item.thumbnail_summary || base?.thumbnail_summary || ''),
         content_summary: String(item.content_summary || base?.content_summary || ''),
-        content_source: item.content_source === 'captions' || item.content_source === 'description' || item.content_source == null
-          ? item.content_source || base?.content_source || null
-          : base?.content_source || null,
+        content_source: contentSource,
+        caption_languages: base?.caption_languages || [],
       };
     })
     : fallback.video_briefs;
@@ -628,6 +646,14 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
   }
 }
 
+export async function deleteAiAnalysis(projectId: string, id: string, userId: string) {
+  await assertYoutubeProject(projectId);
+  const { rows } = await q(undefined, `DELETE FROM youtube_ai_analyses WHERE id=$1 AND project_id=$2 RETURNING id`, [id, projectId]);
+  if (!rows[0]) throw new FinanceNotFoundError('Summary not found');
+  await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube AI Analysis Deleted','youtube_ai_analysis',$2,$3::jsonb)`, [userId, id, JSON.stringify({ projectId })]);
+  return { ok: true };
+}
+
 export async function updateAiAction(projectId: string, actionId: string, body: Record<string, unknown>, userId: string) {
   await assertYoutubeProject(projectId);
   const status = String(body.status || '');
@@ -681,6 +707,14 @@ export async function archiveResearchReport(projectId: string, id: string, userI
   const { rows } = await q(undefined, `UPDATE youtube_research_reports SET status='archived', archived_at=NOW() WHERE id=$1 AND project_id=$2 RETURNING id`, [id, projectId]);
   if (!rows[0]) throw new FinanceNotFoundError('Report not found');
   await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube Research Report Archived','youtube_research_report',$2,'{}'::jsonb)`, [userId, id]);
+  return { ok: true };
+}
+
+export async function deleteResearchReport(projectId: string, id: string, userId: string) {
+  await assertYoutubeProject(projectId);
+  const { rows } = await q(undefined, `DELETE FROM youtube_research_reports WHERE id=$1 AND project_id=$2 RETURNING id`, [id, projectId]);
+  if (!rows[0]) throw new FinanceNotFoundError('Report not found');
+  await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube Research Report Deleted','youtube_research_report',$2,$3::jsonb)`, [userId, id, JSON.stringify({ projectId })]);
   return { ok: true };
 }
 

@@ -1,5 +1,15 @@
+const CAPTION_LANGUAGES = [
+  { code: 'te', name: 'Telugu' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'en', name: 'English' },
+] as const;
+
+type CaptionTrack = { languageCode?: string; baseUrl?: string; kind?: string };
+
 function decodeXml(value: string) {
   return value
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -36,7 +46,34 @@ export function clipSpokenText(value: string, max = 8000) {
   return `${text.slice(0, max - 1).trim()}…`;
 }
 
-async function captionUrlFromPlayer(videoId: string, fetchImpl: typeof fetch) {
+export function selectCaptionTracks(tracks: CaptionTrack[] | null | undefined) {
+  const list = Array.isArray(tracks) ? tracks : [];
+  const picked: { name: string; url: string }[] = [];
+  for (const language of CAPTION_LANGUAGES) {
+    const matches = list.filter((track) => {
+      const code = String(track.languageCode || '').toLowerCase().split('-')[0];
+      return code === language.code && /^https:\/\/www\.youtube\.com\//i.test(String(track.baseUrl || ''));
+    });
+    const track = matches.find((item) => item.kind !== 'asr') || matches[0];
+    if (track?.baseUrl) picked.push({ name: language.name, url: String(track.baseUrl) });
+  }
+  return picked;
+}
+
+export function formatSpokenCaptions(parts: { name: string; text: string }[]) {
+  return parts
+    .map((part) => ({ name: part.name, text: clipSpokenText(part.text, 4000) }))
+    .filter((part) => part.text)
+    .map((part) => `${part.name}: ${part.text}`)
+    .join('\n\n');
+}
+
+export function captionLanguageNames(spoken: string | null | undefined) {
+  const text = String(spoken || '');
+  return CAPTION_LANGUAGES.map((language) => language.name).filter((name) => new RegExp(`(?:^|\\n)${name}:`, 'm').test(text));
+}
+
+async function captionTracksFromPlayer(videoId: string, fetchImpl: typeof fetch) {
   const response = await fetchImpl('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
@@ -46,24 +83,30 @@ async function captionUrlFromPlayer(videoId: string, fetchImpl: typeof fetch) {
       videoId,
     }),
   });
-  if (!response.ok) return '';
+  if (!response.ok) return [];
   const body = await response.json().catch(() => ({}));
   const tracks = body?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-  if (!Array.isArray(tracks) || !tracks.length) return '';
-  const preferred = tracks.find((track: { languageCode?: string }) => String(track.languageCode || '').startsWith('en')) || tracks[0];
-  return String(preferred?.baseUrl || '');
+  return selectCaptionTracks(tracks);
+}
+
+async function readTrack(url: string, fetchImpl: typeof fetch) {
+  const trackUrl = url.includes('fmt=') ? url : `${url}${url.includes('?') ? '&' : '?'}fmt=json3`;
+  const response = await fetchImpl(trackUrl, { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!response.ok) return '';
+  return parseTimedText(await response.text());
 }
 
 export async function fetchPublicCaptions(videoId: string, fetchImpl: typeof fetch = fetch) {
   const id = String(videoId || '');
   if (!/^[\w-]{11}$/.test(id)) return '';
   try {
-    const trackUrl = await captionUrlFromPlayer(id, fetchImpl);
-    if (!trackUrl || !/^https:\/\/www\.youtube\.com\//i.test(trackUrl)) return '';
-    const url = trackUrl.includes('fmt=') ? trackUrl : `${trackUrl}${trackUrl.includes('?') ? '&' : '?'}fmt=json3`;
-    const response = await fetchImpl(url, { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!response.ok) return '';
-    return clipSpokenText(parseTimedText(await response.text()));
+    const tracks = await captionTracksFromPlayer(id, fetchImpl);
+    const parts: { name: string; text: string }[] = [];
+    for (const track of tracks) {
+      const text = await readTrack(track.url, fetchImpl);
+      if (text) parts.push({ name: track.name, text });
+    }
+    return formatSpokenCaptions(parts);
   } catch {
     return '';
   }
@@ -92,9 +135,9 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
 
 export async function enrichSpokenContent<T extends ContentVideo>(videos: T[], fetchImpl?: typeof fetch) {
   return mapPool(videos, 2, async (video) => {
-    if (String(video.spoken_text || '').trim()) return video;
     const captions = video.youtube_video_id ? await fetchPublicCaptions(video.youtube_video_id, fetchImpl || fetch) : '';
     if (captions) return { ...video, spoken_text: captions, spoken_source: 'captions' as const };
+    if (String(video.spoken_text || '').trim()) return video;
     const description = String(video.description || '').trim();
     if (description) return { ...video, spoken_text: clipSpokenText(description, 2500), spoken_source: 'description' as const };
     return { ...video, spoken_text: null, spoken_source: null };

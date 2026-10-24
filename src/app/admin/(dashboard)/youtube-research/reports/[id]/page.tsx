@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
@@ -15,12 +15,14 @@ function ReportView() {
   const reportId = params?.id || '';
   const projectId = useProjectId();
   const base = useYoutubePageBase();
+  const router = useRouter();
   const [name, setName] = useState('');
   const [generatedAt, setGeneratedAt] = useState('');
   const [videos, setVideos] = useState<GapVideo[]>([]);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!projectId || !reportId) return;
@@ -48,6 +50,19 @@ function ReportView() {
     };
   }, [projectId, reportId]);
 
+  const remove = async () => {
+    if (!window.confirm(`Delete “${name || 'this report'}”?`)) return;
+    setDeleting(true);
+    setError('');
+    try {
+      await yt(`projects/${projectId}/research-reports/${reportId}`, { method: 'DELETE' });
+      router.push(`${base}/reports`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete report');
+      setDeleting(false);
+    }
+  };
+
   const download = async () => {
     setDownloading(true);
     setError('');
@@ -72,7 +87,10 @@ function ReportView() {
           <h2 className="mt-2 font-bricolage text-xl font-bold text-slate-900">{name}</h2>
           <p className="mt-1 text-sm text-slate-500">{generatedAt ? `Generated ${generatedAt}` : 'Video comparison'}</p>
         </div>
-        <AdminButton variant="primary" loading={downloading} onClick={download}>Download</AdminButton>
+        <div className="flex flex-wrap gap-2">
+          <AdminButton variant="outline-danger" loading={deleting} onClick={remove}>Delete</AdminButton>
+          <AdminButton variant="primary" loading={downloading} onClick={download}>Download</AdminButton>
+        </div>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       <p className="text-xs text-slate-500">Length is the video duration. Thumbnail words are read from the image. YouTube does not publish watch hours, geography, ages watched, or genders watched for these videos, so those rows stay {COMPARISON_UNAVAILABLE.toLowerCase()}.</p>

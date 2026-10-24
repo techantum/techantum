@@ -7,13 +7,17 @@ const STATUSES = ['proposed', 'approved', 'in_progress', 'implemented', 'under_r
 
 function Card({
   side,
+  brief,
   actions,
   onStatus,
 }: {
   side: GapCard;
+  brief?: { content_summary?: string; content_source?: string | null };
   actions: Record<string, any>[];
   onStatus: (id: string, status: string) => void;
 }) {
+  const source = brief?.content_source || side.spokenSource;
+  const contentLine = source === 'captions' ? 'Captions' : source === 'description' ? 'Description' : 'No spoken text';
   const tone = side.role === 'own' ? 'indigo' : side.role === 'competitor' ? 'amber' : 'default';
   return (
     <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -38,6 +42,13 @@ function Card({
         <span className="font-semibold text-slate-800">Image: </span>
         {side.thumbnailScene || 'Not recorded'}
       </p>
+      <p className="mt-2 text-[11px] uppercase tracking-wide text-slate-400">{contentLine}{side.captionLanguages.length ? ` · ${side.captionLanguages.join(', ')}` : ''}</p>
+      {brief?.content_summary ? (
+        <p className="mt-1 text-xs leading-5 text-slate-600">
+          <span className="font-semibold text-slate-800">Content: </span>
+          {brief.content_summary}
+        </p>
+      ) : null}
       <div className="mt-4 space-y-3">
         {side.segments.map((segment) => (
           <section key={segment.id} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
@@ -95,17 +106,20 @@ export default function GapCards({
   videos,
   actions,
   onStatus,
+  briefs,
 }: {
   videos: GapVideo[];
   actions: Record<string, any>[];
   onStatus: (id: string, status: string) => void;
+  briefs?: { video_id?: string; content_summary?: string; content_source?: string | null }[];
 }) {
   const pair = buildGapCards(videos);
   if (!pair) return null;
+  const briefFor = (videoId: string) => (briefs || []).find((item) => item.video_id === videoId);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card side={pair.left} actions={actions.filter((item) => item.video_id === pair.left.videoId)} onStatus={onStatus} />
-      <Card side={pair.right} actions={actions.filter((item) => item.video_id === pair.right.videoId)} onStatus={onStatus} />
+      <Card side={pair.left} brief={briefFor(pair.left.videoId)} actions={actions.filter((item) => item.video_id === pair.left.videoId)} onStatus={onStatus} />
+      <Card side={pair.right} brief={briefFor(pair.right.videoId)} actions={actions.filter((item) => item.video_id === pair.right.videoId)} onStatus={onStatus} />
     </div>
   );
 }

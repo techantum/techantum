@@ -1,3 +1,6 @@
+import { lengthLabel } from './parse';
+import { captionLanguageNames } from './video-content';
+
 export type GapVideo = {
   id: string;
   title?: string | null;
@@ -18,9 +21,9 @@ export type GapVideo = {
   youtube_video_id?: string | null;
   thumbnail_text?: string | null;
   thumbnail_scene?: string | null;
+  spoken_text?: string | null;
+  spoken_source?: 'captions' | 'description' | null;
 };
-
-import { lengthLabel } from './parse';
 
 export const COMPARISON_UNAVAILABLE = 'Not available yet';
 
@@ -51,6 +54,8 @@ export type GapCard = {
   thumbnailCaption: string | null;
   thumbnailText: string | null;
   thumbnailScene: string | null;
+  spokenSource: 'captions' | 'description' | null;
+  captionLanguages: string[];
   watchUrl: string | null;
   description: string | null;
   segments: GapSegment[];
@@ -266,6 +271,8 @@ function card(video: GapVideo, other: GapVideo): GapCard {
     thumbnailCaption: thumbnailContent(video) || null,
     thumbnailText: String(video.thumbnail_text || '').trim() || null,
     thumbnailScene: String(video.thumbnail_scene || '').trim() || null,
+    spokenSource: video.spoken_source === 'captions' || video.spoken_source === 'description' ? video.spoken_source : null,
+    captionLanguages: video.spoken_source === 'captions' ? captionLanguageNames(video.spoken_text) : [],
     watchUrl: video.watch_url || null,
     description: video.description || null,
     segments: segments(video, other),

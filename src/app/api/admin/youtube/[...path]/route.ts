@@ -36,6 +36,8 @@ import {
   archiveResearchReport,
   createAiAnalysis,
   createResearchReport,
+  deleteAiAnalysis,
+  deleteResearchReport,
   getAiAnalysis,
   getResearchReport,
   listAiAnalyses,
@@ -578,6 +580,16 @@ async function handleDelete(context: { params: Promise<{ path?: string[] }> }) {
   try {
     const path = (await context.params).path || [];
     await protectPartnerScope('DELETE', path);
+    if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses' && path[3]) {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await deleteAiAnalysis(path[1], path[3], auth.user.id));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'research-reports' && path[3]) {
+      const auth = await gate('youtube_research.reports.export');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await deleteResearchReport(path[1], path[3], auth.user.id));
+    }
     if (path[0] === 'projects' && path[1] && path[2] === 'channels' && path[3]) {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;

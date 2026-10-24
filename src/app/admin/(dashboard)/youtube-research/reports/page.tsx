@@ -76,6 +76,21 @@ function Reports() {
     }
   };
 
+  const remove = async (id: string, name: string) => {
+    if (!window.confirm(`Delete “${name || 'this report'}”?`)) return;
+    setPending(`delete:${id}`);
+    try {
+      setError('');
+      await yt(`projects/${projectId}/research-reports/${id}`, { method: 'DELETE' });
+      setMessage('Report deleted.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete report');
+    } finally {
+      setPending('');
+    }
+  };
+
   const archive = async (id: string) => {
     setPending(`archive:${id}`);
     try {
@@ -139,6 +154,7 @@ function Reports() {
                       <Link href={`${base}/reports/${row.id}`} className="menu-item inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 hover:text-slate-900">View</Link>
                       <AdminButton size="sm" variant="primary" loading={pending === `xlsx:${row.id}`} onClick={() => download(row.id)}>Download</AdminButton>
                       <AdminButton size="sm" variant="ghost" loading={pending === `archive:${row.id}`} onClick={() => archive(row.id)}>Archive</AdminButton>
+                      <AdminButton size="sm" variant="outline-danger" loading={pending === `delete:${row.id}`} onClick={() => remove(row.id, row.name)}>Delete</AdminButton>
                     </div>
                   </td>
                 </tr>
