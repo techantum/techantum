@@ -35,12 +35,16 @@ async function audit(userId: string, action: string, entityId: string | null, me
   await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,$2,'youtube_project',$3,$4::jsonb)`, [userId, action, entityId, JSON.stringify(metadata)]);
 }
 
-const requireProject = cache(async (id: string) => {
+const loadProject = cache(async (id: string, partnerKey: string) => {
   const { rows } = await q(undefined, `SELECT * FROM youtube_research_projects WHERE id=$1`, [id]);
-  const partnerId = currentYoutubePartnerId();
+  const partnerId = partnerKey || null;
   if (!rows[0] || (partnerId && rows[0].partner_id !== partnerId)) throw new FinanceNotFoundError('Research project not found');
   return rows[0];
 });
+
+function requireProject(id: string) {
+  return loadProject(id, currentYoutubePartnerId() || '');
+}
 
 export async function listProjects(params: { q?: string; status?: string; page?: number; pageSize?: number }) {
   const page = Math.max(1, Number(params.page) || 1);

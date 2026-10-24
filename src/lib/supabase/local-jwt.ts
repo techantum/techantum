@@ -14,17 +14,22 @@ export function isAuthUserId(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value);
 }
 
-export function mintServiceRoleJwt() {
+export const SERVICE_ROLE_JWT_SECONDS = 60 * 60 * 12;
+
+export function serviceJwtStillValid(expiresAt: number, now = Math.floor(Date.now() / 1000), skewSeconds = 120) {
+  return expiresAt - now > skewSeconds;
+}
+
+export function mintServiceRoleJwt(now = Math.floor(Date.now() / 1000)) {
   const secret = process.env.POSTGREST_JWT_SECRET?.trim();
   if (!secret) {
     throw new Error('POSTGREST_JWT_SECRET is not set');
   }
-  const now = Math.floor(Date.now() / 1000);
   const payload = {
     role: 'service_role',
     iss: 'techantum-local-rest',
     iat: now,
-    exp: now + 60 * 60 * 12,
+    exp: now + SERVICE_ROLE_JWT_SECONDS,
   };
   const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const body = b64url(JSON.stringify(payload));

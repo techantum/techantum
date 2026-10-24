@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { resolveAdminAuth } from '@/lib/admin/auth';
 import AdminLoginForm from '@/components/admin/AdminLoginForm';
 import { getBranding } from '@/lib/cms';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { query } from '@/lib/db/postgres';
 
 export default async function AdminLoginPage() {
   const auth = await resolveAdminAuth();
@@ -10,9 +10,8 @@ export default async function AdminLoginPage() {
   const branding = await getBranding();
   let needsSetup = false;
   try {
-    const supabase = createAdminClient();
-    const { count } = await supabase.from('admin_users').select('*', { count: 'exact', head: true });
-    needsSetup = (count ?? 0) === 0;
+    const { rows } = await query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM public.admin_users`);
+    needsSetup = Number(rows[0]?.count || 0) === 0;
   } catch {
     needsSetup = false;
   }

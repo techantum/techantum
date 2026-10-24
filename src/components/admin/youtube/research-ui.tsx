@@ -6,7 +6,7 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
 import Icon from '@/components/ui/AppIcon';
-import { metric } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, youtubePortalHeader } from '@/components/admin/youtube/YoutubeFrame';
 
 export const CHANNEL_COLORS = ['#EA580C', '#0F766E', '#2563EB', '#7C3AED', '#BE123C', '#0F172A'];
 
@@ -315,7 +315,9 @@ export function mergeMonths(channels: { id: string; channel_name?: string | null
 }
 
 export async function downloadResearchReport(projectId: string, reportId: string, format: 'pdf' | 'xlsx') {
-  const response = await fetch(`/api/admin/youtube/projects/${projectId}/research-reports/${reportId}/export?format=${format}`);
+  const response = await fetch(`/api/admin/youtube/projects/${projectId}/research-reports/${reportId}/export?format=${format}`, {
+    headers: youtubePortalHeader(),
+  });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || 'Could not export report');
@@ -333,7 +335,7 @@ export async function downloadResearchReport(projectId: string, reportId: string
 export async function downloadProjectExport(body: Record<string, unknown>) {
   const response = await fetch('/api/admin/youtube/reports/export', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...youtubePortalHeader() },
     body: JSON.stringify(body),
   });
   if (!response.ok) {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getAuthSupabaseUrl, getLocalRestUrl, isAuthUserId } from './local-jwt.ts';
+import { getAuthSupabaseUrl, getLocalRestUrl, isAuthUserId, serviceJwtStillValid } from './local-jwt.ts';
 
 describe('Supabase Auth Admin URL', () => {
   it('uses the real Supabase URL even when LOCAL_REST_URL is set', () => {
@@ -17,6 +17,13 @@ describe('Supabase Auth Admin URL', () => {
       if (previousUrl === undefined) delete process.env.SUPABASE_URL;
       else process.env.SUPABASE_URL = previousUrl;
     }
+  });
+
+  it('replaces a service token before it expires', () => {
+    const now = 1_700_000_000;
+    assert.equal(serviceJwtStillValid(now + 300, now), true);
+    assert.equal(serviceJwtStillValid(now + 60, now), false);
+    assert.equal(serviceJwtStillValid(now - 1, now), false);
   });
 
   it('accepts only a UUID as an Auth user id', () => {

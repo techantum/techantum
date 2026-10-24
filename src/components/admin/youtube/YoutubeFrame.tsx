@@ -18,11 +18,17 @@ export function allow(access: string[], key: string) {
   return access.includes(key);
 }
 
+export function youtubePortalHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  return { 'x-techantum-portal': window.location.pathname.startsWith('/partner/') ? 'partner' : 'admin' };
+}
+
 export async function yt(path: string, init?: RequestInit) {
   const response = await fetch(`/api/admin/youtube/${path}`, {
     ...init,
     headers: {
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...youtubePortalHeader(),
       ...(init?.headers || {}),
     },
   });

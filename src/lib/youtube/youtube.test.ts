@@ -5,7 +5,7 @@ import { presentVideo } from './mask.ts';
 import { readFileSync } from 'node:fs';
 import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, parseChannelInput, publishingBuckets, shortsPlaylistId, YOUTUBE_METRIC_NOTICE } from './parse.ts';
 import { hasYoutubePermission, permissionsForRole, YOUTUBE_PERMISSIONS } from './permissions.ts';
-import { partnerYoutubeAccess } from './scope.ts';
+import { partnerYoutubeAccess, youtubePortalFrom } from './scope.ts';
 import { visibleAdminNav } from '../cms/admin-nav.ts';
 import { canAccessAdminPath } from '../admin/roles.ts';
 import { pdfFile, wordFile } from './reports.ts';
@@ -264,8 +264,17 @@ describe('permissions and exports', () => {
     assert.equal(partnerYoutubeAccess('GET', ['projects', 'project-1', 'videos']), 'project');
     assert.equal(partnerYoutubeAccess('POST', ['channels', 'resolve']), 'allow');
     assert.equal(partnerYoutubeAccess('GET', ['channels']), 'deny');
+    assert.equal(partnerYoutubeAccess('GET', ['channels', 'channel-1']), 'channel');
+    assert.equal(partnerYoutubeAccess('PATCH', ['channels', 'channel-1']), 'channel');
+    assert.equal(partnerYoutubeAccess('POST', ['channels', 'channel-1', 'refresh']), 'channel');
+    assert.equal(partnerYoutubeAccess('DELETE', ['channels', 'channel-1']), 'deny');
+    assert.equal(partnerYoutubeAccess('POST', ['videos', 'refresh']), 'videos');
     assert.equal(partnerYoutubeAccess('POST', ['settings', 'test-connection']), 'deny');
     assert.equal(partnerYoutubeAccess('GET', ['access']), 'deny');
+    assert.equal(youtubePortalFrom('partner', 'https://techantum.com/admin/youtube-research'), 'partner');
+    assert.equal(youtubePortalFrom(null, 'https://techantum.com/partner/youtube-research/videos'), 'partner');
+    assert.equal(youtubePortalFrom(null, 'https://techantum.com/admin/youtube-research'), 'admin');
+    assert.equal(youtubePortalFrom(null, ''), '');
   });
 
   it('hides YouTube Research settings from partner and admin sessions', () => {

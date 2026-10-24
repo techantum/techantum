@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getLocalRestUrl, getAuthSupabaseUrl, isAuthUserId, mintServiceRoleJwt } from '@/lib/supabase/local-jwt';
+import { getLocalRestUrl, getAuthSupabaseUrl, isAuthUserId, mintServiceRoleJwt, SERVICE_ROLE_JWT_SECONDS, serviceJwtStillValid } from '@/lib/supabase/local-jwt';
 
 export { isAuthUserId };
 
@@ -21,10 +21,19 @@ export function getAuthSecretKey() {
 }
 
 let adminClient: ReturnType<typeof createClient> | null = null;
+let adminClientExpiresAt = 0;
+
+function usesMintedServiceJwt() {
+  return Boolean(getLocalRestUrl() && process.env.POSTGREST_JWT_SECRET?.trim());
+}
 
 export function createAdminClient() {
-  if (!adminClient) {
-    adminClient = createClient(getSupabaseUrl(), getSecretKey(), {
+  const minted = usesMintedServiceJwt();
+  const now = Math.floor(Date.now() / 1000);
+  if (!adminClient || (minted && !serviceJwtStillValid(adminClientExpiresAt, now))) {
+    const key = minted ? mintServiceRoleJwt(now) : getSecretKey();
+    adminClientExpiresAt = minted ? now + SERVICE_ROLE_JWT_SECONDS : Number.MAX_SAFE_INTEGER;
+    adminClient = createClient(getSupabaseUrl(), key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }

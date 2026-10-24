@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { financeErrorResponse, fileResponse } from '@/lib/finance/http';
@@ -6,7 +7,7 @@ import { requirePartner } from '@/lib/partner/auth';
 import { partnerHasNavAccess } from '@/lib/partner/nav';
 import { YoutubeApiError } from '@/lib/youtube/client';
 import { hasYoutubePermission, permissionsForRole, type YoutubePermission } from '@/lib/youtube/permissions';
-import { currentYoutubePartnerId, protectPartnerScope, withYoutubePartner } from '@/lib/youtube/scope';
+import { currentYoutubePartnerId, protectPartnerScope, withYoutubePartner, youtubePortalFrom } from '@/lib/youtube/scope';
 import { projectAnalysis, summarizeAnalysisVideo, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
 import {
   addProjectChannel,
@@ -111,16 +112,32 @@ function fail(err: unknown) {
   return financeErrorResponse(err);
 }
 
+async function readYoutubePortal() {
+  try {
+    const headerStore = await headers();
+    return youtubePortalFrom(headerStore.get('x-techantum-portal'), headerStore.get('referer'));
+  } catch {
+    return '' as const;
+  }
+}
+
 const resolveYoutubeActor = cache(async () => {
-  const admin = await requireAdmin();
-  if (!('error' in admin)) {
-    const access = await sessionAccess(admin.role, admin.user.id);
-    return {
-      user: admin.user,
-      role: admin.role as string,
-      permissions: access.permissions,
-      partnerId: null as string | null,
-    };
+  const portal = await readYoutubePortal();
+  if (portal !== 'partner') {
+    try {
+      const admin = await requireAdmin();
+      if (!('error' in admin)) {
+        const access = await sessionAccess(admin.role, admin.user.id);
+        return {
+          user: admin.user,
+          role: admin.role as string,
+          permissions: access.permissions,
+          partnerId: null as string | null,
+        };
+      }
+    } catch (err) {
+      if (portal === 'admin') throw err;
+    }
   }
   const partner = await requirePartner();
   if ('error' in partner) return { error: partner.error };
@@ -147,10 +164,14 @@ async function gate(permission: YoutubePermission) {
 
 async function enterPartnerScope<T>(run: () => Promise<T>) {
   if (currentYoutubePartnerId()) return run();
-  const actor = await resolveYoutubeActor();
-  if ('error' in actor) return actor.error as T;
-  if (actor.partnerId) return withYoutubePartner(actor.partnerId, run);
-  return run();
+  try {
+    const actor = await resolveYoutubeActor();
+    if ('error' in actor) return actor.error as T;
+    if (actor.partnerId) return withYoutubePartner(actor.partnerId, run);
+    return run();
+  } catch (err) {
+    return fail(err) as T;
+  }
 }
 
 async function readBody(request: Request) {
@@ -520,7 +541,8 @@ async function handlePatch(request: Request, context: { params: Promise<{ path?:
     if (path[0] === 'channels' && path[1]) {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await updateChannel(path[1], body, auth.user.id));
+      const patch = currentYoutubePartnerId() ? { ...body, status: undefined } : body;
+      return NextResponse.json(await updateChannel(path[1], patch, auth.user.id));
     }
     if (path[0] === 'videos' && path[1] && path[2] === 'research') {
       const auth = await gate('youtube_research.research.edit');
