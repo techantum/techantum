@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import Icon from '@/components/ui/AppIcon';
@@ -78,7 +79,7 @@ function ChannelDraftForm({
   relationship: 'own' | 'competitor';
   projectId: string;
   hasOwn: boolean;
-  onSaved: () => Promise<void>;
+  onSaved: (result?: Record<string, any>) => Promise<void>;
   onCancel?: () => void;
 }) {
   const [input, setInput] = useState('');
@@ -99,10 +100,10 @@ function ChannelDraftForm({
     setError('');
     try {
       if (relationship === 'own' && hasOwn && !window.confirm('Replace the current own channel? The previous one stays in the project as a competitor.')) return;
-      await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input, relationship }) });
+      const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input, relationship }) });
       setPreview(null);
       setInput('');
-      await onSaved();
+      await onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the channel');
     }
@@ -134,6 +135,8 @@ function ChannelDraftForm({
 function Channels() {
   const projectId = useProjectId();
   const base = useYoutubePageBase();
+  const router = useRouter();
+  const search = useSearchParams();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
@@ -141,8 +144,8 @@ function Channels() {
   const [message, setMessage] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState('');
-  const [competitorOpen, setCompetitorOpen] = useState(false);
-  const [replacingOwn, setReplacingOwn] = useState(false);
+  const [competitorOpen, setCompetitorOpen] = useState(search?.get('add') === 'competitor');
+  const [replacingOwn, setReplacingOwn] = useState(search?.get('add') === 'own');
 
   const load = () => yt(`projects/${projectId}/channels`).then((next) => {
     setRows(next);
@@ -218,10 +221,13 @@ function Channels() {
                 relationship="own"
                 projectId={projectId}
                 hasOwn={Boolean(own)}
-                onSaved={async () => {
+                onSaved={async (saved) => {
                   setReplacingOwn(false);
                   setMessage('Own channel saved in this project.');
                   await load();
+                  if (search?.get('next') === 'videos') {
+                    router.push(`${base}/videos${saved?.channel_id ? `?channel=${saved.channel_id}` : ''}`);
+                  }
                 }}
                 onCancel={own ? () => setReplacingOwn(false) : undefined}
               />
@@ -254,10 +260,13 @@ function Channels() {
                 relationship="competitor"
                 projectId={projectId}
                 hasOwn={Boolean(own)}
-                onSaved={async () => {
+                onSaved={async (saved) => {
                   setCompetitorOpen(false);
                   setMessage('Competitor channel saved in this project.');
                   await load();
+                  if (search?.get('next') === 'videos') {
+                    router.push(`${base}/videos${saved?.channel_id ? `?channel=${saved.channel_id}` : ''}`);
+                  }
                 }}
                 onCancel={() => setCompetitorOpen(false)}
               />
@@ -315,5 +324,11 @@ function Channels() {
 }
 
 export default function ChannelsPage() {
-  return <ProjectRequired><Channels /></ProjectRequired>;
+  return (
+    <ProjectRequired>
+      <Suspense fallback={<p className="text-sm text-slate-500">Loading channels...</p>}>
+        <Channels />
+      </Suspense>
+    </ProjectRequired>
+  );
 }

@@ -104,6 +104,50 @@ function Reports() {
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
 
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
+          <h2 className="font-bricolage text-[15px] font-semibold text-slate-900">Generated reports</h2>
+          <div className="flex flex-wrap gap-2">
+            <input className="h-10 rounded-xl border border-slate-200 px-3 text-sm" placeholder="Search" value={q} onChange={(event) => setQ(event.target.value)} />
+            <select className="h-10 rounded-xl border border-slate-200 px-3 text-sm" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="">All types</option>
+              {REPORT_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[860px] text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">
+                {['Report name', 'Type', 'Generated on', 'Status', 'Download'].map((heading) => (
+                  <th key={heading} className="whitespace-nowrap px-4 py-3 font-semibold">{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.length ? visible.map((row) => (
+                <tr key={row.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{typeLabel(row.report_type)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{String(row.generated_at || '').slice(0, 16).replace('T', ' ')}</td>
+                  <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : 'default'}>{row.status}</AdminBadge></td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      <AdminButton size="sm" onClick={() => openPreview(row)}>Preview</AdminButton>
+                      <AdminButton size="sm" onClick={() => download(row.id, 'pdf')}>PDF</AdminButton>
+                      <AdminButton size="sm" onClick={() => download(row.id, 'xlsx')}>Excel</AdminButton>
+                      <AdminButton size="sm" variant="ghost" onClick={() => archive(row.id)}>Archive</AdminButton>
+                    </div>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td className="px-4 py-10 text-sm text-slate-500" colSpan={5}>No reports yet. Select videos and click Download report, or generate one below from a saved AI Analysis.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-bricolage text-[15px] font-semibold text-slate-900">Create report</h2>
         <p className="mt-0.5 text-xs text-slate-400">Reports reuse a saved AI Analysis. They do not invent extra analytics.</p>
@@ -128,50 +172,6 @@ function Reports() {
           <div className="flex items-end">
             <AdminButton variant="primary" className="h-11 w-full" disabled={busy || !analysisId} onClick={create}>{busy ? 'Saving…' : 'Generate Report'}</AdminButton>
           </div>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
-          <h2 className="font-bricolage text-[15px] font-semibold text-slate-900">Existing reports</h2>
-          <div className="flex flex-wrap gap-2">
-            <input className="h-10 rounded-xl border border-slate-200 px-3 text-sm" placeholder="Search" value={q} onChange={(event) => setQ(event.target.value)} />
-            <select className="h-10 rounded-xl border border-slate-200 px-3 text-sm" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-              <option value="">All types</option>
-              {REPORT_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="overflow-auto">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">
-                {['Report name', 'Type', 'Generated on', 'Status', 'Actions'].map((heading) => (
-                  <th key={heading} className="whitespace-nowrap px-4 py-3 font-semibold">{heading}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.length ? visible.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{typeLabel(row.report_type)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{String(row.generated_at || '').slice(0, 16).replace('T', ' ')}</td>
-                  <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : 'default'}>{row.status}</AdminBadge></td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <AdminButton size="sm" onClick={() => openPreview(row)}>Preview</AdminButton>
-                      <AdminButton size="sm" onClick={() => download(row.id, 'pdf')}>PDF</AdminButton>
-                      <AdminButton size="sm" onClick={() => download(row.id, 'xlsx')}>Excel</AdminButton>
-                      <AdminButton size="sm" variant="ghost" onClick={() => archive(row.id)}>Archive</AdminButton>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr><td className="px-4 py-10 text-sm text-slate-500" colSpan={5}>No reports yet. Generate an AI Analysis, then create a report from it.</td></tr>
-              )}
-            </tbody>
-          </table>
         </div>
       </section>
 

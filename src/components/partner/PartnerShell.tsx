@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import PartnerBrandMark from '@/components/partner/PartnerBrandMark';
 import { firstAllowedPartnerHref, visiblePartnerNavItems } from '@/lib/partner/nav';
+import YoutubeResearchNav from '@/components/partner/YoutubeResearchNav';
 import type { Partner, PartnerUser } from '@/lib/partner/types';
 
 interface PartnerShellProps {
@@ -72,26 +73,35 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
     <div className="flex h-full flex-col overflow-hidden bg-white text-slate-800">
       <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {visiblePartnerNavItems(partnerUser, partner).map((item) => {
-          const active = isActive(item.href);
+          const youtube = item.key === 'youtube-research';
+          const active = youtube ? Boolean(pathname?.startsWith('/partner/youtube-research')) : isActive(item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                active
-                  ? 'bg-secondary font-medium text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
-              }`}
-            >
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                  active && !youtube
+                    ? 'bg-secondary font-medium text-white shadow-sm'
+                    : active
+                      ? 'bg-orange-50 font-medium text-secondary'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
                 }`}
               >
-                <Icon name={item.icon as any} size={16} />
-              </span>
-              {item.label}
-            </Link>
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    active && !youtube ? 'bg-white/20 text-white' : active ? 'bg-secondary/10 text-secondary' : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  <Icon name={item.icon as any} size={16} />
+                </span>
+                {item.label}
+              </Link>
+              {youtube ? (
+                <div className="ml-5 border-l border-slate-200 pl-3">
+                  <YoutubeResearchNav />
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </nav>

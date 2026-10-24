@@ -22,6 +22,21 @@ export const ADMIN_NAV: AdminNavItem[] = [
     ],
   },
   {
+    id: 'youtube-research',
+    href: '/admin/youtube-research',
+    label: 'YouTube Research',
+    icon: 'PlayCircleIcon',
+    activePaths: ['/admin/youtube-research'],
+    children: [
+      {
+        id: 'youtube-research-settings',
+        href: '/admin/youtube-research/settings',
+        label: 'Settings',
+        icon: 'Cog6ToothIcon',
+      },
+    ],
+  },
+  {
     label: 'Analytics',
     icon: 'ChartBarIcon',
     children: [
@@ -272,37 +287,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
         ],
       },
       {
-        id: 'youtube-research',
-        label: 'YouTube Research',
-        icon: 'PlayCircleIcon',
-        children: [
-          {
-            href: '/admin/youtube-research',
-            label: 'Research Projects',
-            icon: 'RectangleStackIcon',
-            exact: true,
-            activePaths: [
-              '/admin/youtube-research/projects',
-              '/admin/youtube-research/overview',
-              '/admin/youtube-research/channels',
-              '/admin/youtube-research/import',
-              '/admin/youtube-research/videos',
-              '/admin/youtube-research/analysis',
-              '/admin/youtube-research/compare',
-              '/admin/youtube-research/channel-compare',
-              '/admin/youtube-research/reports',
-              '/admin/youtube-research/performance',
-            ],
-          },
-          {
-            id: 'youtube-research-settings',
-            href: '/admin/youtube-research/settings',
-            label: 'Settings',
-            icon: 'Cog6ToothIcon',
-          },
-        ],
-      },
-      {
         id: 'sales',
         href: '/admin/lead-discovery',
         label: 'Lead Discovery',
@@ -339,7 +323,10 @@ function filterTree(items: AdminNavItem[], role: string | null | undefined): Adm
   return items.flatMap((item) => {
     if (item.id && filterNavGroups([{ id: item.id }], role).length === 0) return [];
     const children = item.children ? filterTree(item.children, role) : undefined;
-    if (item.children && !children?.length) return [];
+    if (item.children && !children?.length) {
+      if (!item.href) return [];
+      return [{ ...item, children: undefined }];
+    }
     return [{ ...item, children }];
   });
 }

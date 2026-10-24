@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ADMIN_NAV, visibleAdminNav, type AdminNavItem } from '@/lib/cms/admin-nav';
+import YoutubeResearchNav from '@/components/partner/YoutubeResearchNav';
 import type { AdminRole } from '@/lib/admin/roles';
 import Icon from '@/components/ui/AppIcon';
 
@@ -16,6 +17,7 @@ function isNavActive(pathname: string, href: string, exact?: boolean, activePath
 
 function itemTreeActive(pathname: string, item: AdminNavItem): boolean {
   if (item.href && isNavActive(pathname, item.href, item.exact, item.activePaths)) return true;
+  if (!item.href && item.activePaths?.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return true;
   return item.children?.some((child) => itemTreeActive(pathname, child)) ?? false;
 }
 
@@ -107,6 +109,49 @@ export default function AdminShell({
   const renderNodes = (items: AdminNavItem[], trail: string[], depth: number) =>
     items.map((item) => {
       const key = nodeKey(trail, item);
+
+      if (item.id === 'youtube-research') {
+        const active = itemTreeActive(pathname, item);
+        const settings = (item.children || []).filter((child) => child.id === 'youtube-research-settings' && child.href);
+        return (
+          <div key={key} className={depth === 0 ? 'overflow-hidden rounded-2xl' : undefined}>
+            <Link
+              href={item.href || '/admin/youtube-research'}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                active ? 'bg-orange-50 font-medium text-secondary' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+              }`}
+              style={depth === 0 ? undefined : { paddingLeft: 8 + depth * 10 }}
+            >
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                  active ? 'bg-secondary/10 text-secondary' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                <Icon name={item.icon} size={16} />
+              </span>
+              {item.label}
+            </Link>
+            <div className="ml-5 border-l border-slate-200 pl-3">
+              <YoutubeResearchNav />
+              {settings.map((child) => {
+                const settingsActive = isNavActive(pathname, child.href || '', child.exact, child.activePaths);
+                return (
+                  <Link
+                    key={child.id}
+                    href={child.href || '/admin/youtube-research/settings'}
+                    className={`block rounded-lg px-3 py-1.5 text-sm ${
+                      settingsActive ? 'bg-secondary font-medium text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-secondary'
+                    }`}
+                  >
+                    {child.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
       const nextTrail = [...trail, item.id || item.label];
 
       if (item.children?.length) {

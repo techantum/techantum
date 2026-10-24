@@ -77,7 +77,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function videoQuery(projectId: string, url: URL) {
   return {

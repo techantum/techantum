@@ -31,6 +31,22 @@ function statusOf(value: unknown) {
   return status;
 }
 
+function channelIdFilter(channelIds: string[] | undefined, values: unknown[]) {
+  if (!channelIds?.length) return '';
+  const uuids = channelIds.filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const youtubeIds = channelIds.filter((id) => !/^[0-9a-f-]{36}$/i.test(id));
+  const parts: string[] = [];
+  if (uuids.length) {
+    values.push(uuids);
+    parts.push(`v.channel_id = ANY($${values.length}::uuid[])`);
+  }
+  if (youtubeIds.length) {
+    values.push(youtubeIds);
+    parts.push(`c.youtube_channel_id = ANY($${values.length}::text[])`);
+  }
+  return parts.length ? `(${parts.join(' OR ')})` : '';
+}
+
 async function audit(userId: string, action: string, entityId: string | null, metadata: Record<string, unknown>) {
   await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,$2,'youtube_project',$3,$4::jsonb)`, [userId, action, entityId, JSON.stringify(metadata)]);
 }
@@ -240,6 +256,7 @@ const SORTS: Record<string, string> = {
   view_count: 'v.view_count DESC NULLS LAST',
   like_count: 'v.like_count DESC NULLS LAST',
   comment_count: 'v.comment_count DESC NULLS LAST',
+  duration_seconds: 'v.duration_seconds DESC NULLS LAST',
   title: 'v.title ASC NULLS LAST',
 };
 
@@ -252,10 +269,8 @@ function videoWhere(params: VideoQuery) {
     const n = values.length;
     where.push(`(v.youtube_video_id ILIKE $${n} OR (${fresh} AND (v.title ILIKE $${n} OR v.description ILIKE $${n} OR EXISTS (SELECT 1 FROM unnest(v.tags) tag WHERE tag ILIKE $${n}))))`);
   }
-  if (params.channelIds?.length) {
-    values.push(params.channelIds);
-    where.push(`v.channel_id = ANY($${values.length}::uuid[])`);
-  }
+  const channelFilter = channelIdFilter(params.channelIds, values);
+  if (channelFilter) where.push(channelFilter);
   if (params.topicId === 'none') where.push(`r.topic_id IS NULL`);
   else if (params.topicId) {
     values.push(params.topicId);
@@ -476,7 +491,8 @@ export async function projectVideoInsights(params: VideoQuery) {
 export async function projectFilterOptions(projectId: string, channelIds?: string[]) {
   await requireProject(projectId);
   const values: unknown[] = [projectId];
-  const channelClause = channelIds?.length ? (values.push(channelIds), ` AND v.channel_id = ANY($${values.length}::uuid[])`) : '';
+  const channelMatch = channelIdFilter(channelIds, values);
+  const channelClause = channelMatch ? ` AND ${channelMatch}` : '';
   const fresh = `v.fetched_at > NOW() - INTERVAL '30 days'`;
   const base = `${PROJECT_VIDEO_FROM} WHERE c.status='active'${channelClause}`;
   const [channels, topics, counts, categories, tags] = await Promise.all([
@@ -605,8 +621,11 @@ export async function projectOverview(projectId: string) {
 
 export async function importProject(projectId: string, body: Record<string, unknown>, userId: string) {
   const channels = await listProjectChannels(projectId);
-  const requested = Array.isArray(body.channel_ids) ? body.channel_ids.map(String) : [];
-  const targets = (requested.length ? channels.filter((channel) => requested.includes(String(channel.id))) : channels).map((channel) => String(channel.id));
+  const requested = Array.isArray(body.channel_ids) ? body.channel_ids.map(String).filter(Boolean) : [];
+  const targets = (requested.length
+    ? channels.filter((channel) => requested.includes(String(channel.id)) || requested.includes(String(channel.youtube_channel_id)))
+    : channels
+  ).map((channel) => String(channel.id));
   if (!targets.length) throw new FinanceValidationError('Add a channel before importing videos.');
   const results = [];
   for (const channelId of targets) {

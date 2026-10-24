@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
@@ -137,8 +138,9 @@ function TagField({
 
 export default function AiAnalysisWizard() {
   const projectId = useProjectId();
+  const search = useSearchParams();
   const [step, setStep] = useState(1);
-  const [screen, setScreen] = useState<'wizard' | 'results'>('wizard');
+  const [screen, setScreen] = useState<'list' | 'wizard' | 'results'>('list');
   const [goals, setGoals] = useState<string[]>(['views']);
   const [focus, setFocus] = useState<string[]>([]);
   const [picked, setPicked] = useState<Record<string, any>>({});
@@ -176,10 +178,19 @@ export default function AiAnalysisWizard() {
       yt(`projects/${projectId}/channels`),
       yt(`projects/${projectId}/filters`),
       yt(`projects/${projectId}/ai-analyses`),
-    ]).then(([channelRows, filterRows, analysisRows]) => {
+    ]).then(async ([channelRows, filterRows, analysisRows]) => {
       setChannels(channelRows || []);
       setOptions(filterRows || {});
       setHistory(analysisRows || []);
+      const openId = search?.get('id');
+      if (openId) {
+        setCurrent(await yt(`projects/${projectId}/ai-analyses/${openId}`));
+        setScreen('results');
+      } else if (search?.get('custom') === '1') {
+        setScreen('wizard');
+      } else {
+        setScreen('list');
+      }
     }).catch((err) => setError(err.message));
   }, [projectId]);
 
@@ -312,14 +323,55 @@ export default function AiAnalysisWizard() {
           <h2 className="inline-flex items-center gap-2 font-bricolage text-xl font-semibold text-slate-900">
             <Icon name="SparklesIcon" size={20} className="text-secondary" /> AI Analysis
           </h2>
-          <p className="mt-1 text-sm text-slate-500">Set your goals, choose content, define audience and generate an evidence-based analysis.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {screen === 'list'
+              ? 'Open a saved analysis or run a custom AI analysis for a deeper comparison.'
+              : 'Set your goals, choose content, define audience and generate an evidence-based analysis.'}
+          </p>
         </div>
-        {history.length ? (
-          <AdminButton onClick={() => (screen === 'results' ? setScreen('wizard') : openAnalysis(history[0].id))}>
-            <Icon name="ClockIcon" size={16} /> {screen === 'results' ? 'New analysis' : 'View past analyses'}
+        <div className="flex flex-wrap gap-2">
+          {screen !== 'list' ? (
+            <AdminButton onClick={() => setScreen('list')}>
+              <Icon name="QueueListIcon" size={16} /> All analyses
+            </AdminButton>
+          ) : null}
+          <AdminButton variant="primary" onClick={() => { setStep(1); setScreen('wizard'); setCurrent(null); }}>
+            <Icon name="SparklesIcon" size={16} /> Custom AI analysis
           </AdminButton>
-        ) : null}
+        </div>
       </div>
+
+      {screen === 'list' ? (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">
+                {['Analysis', 'Status', 'Created', 'Actions'].map((heading) => (
+                  <th key={heading} className="px-4 py-3 font-semibold">{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.length ? history.map((row) => (
+                <tr key={row.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
+                  <td className="px-4 py-3"><AdminBadge variant={row.status === 'ready' ? 'green' : row.status === 'failed' ? 'rose' : 'default'}>{row.status}</AdminBadge></td>
+                  <td className="px-4 py-3 text-slate-500">{String(row.created_at || '').slice(0, 16).replace('T', ' ')}</td>
+                  <td className="px-4 py-3">
+                    <AdminButton size="sm" onClick={() => openAnalysis(row.id)}>View details</AdminButton>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td className="px-4 py-10 text-sm text-slate-500" colSpan={4}>
+                    No analyses yet. Select videos on the Videos page and click Summarise, or start a custom AI analysis.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
 
       {screen === 'wizard' ? (
         <>
@@ -682,7 +734,7 @@ export default function AiAnalysisWizard() {
             </div>
           ) : null}
         </>
-      ) : (
+      ) : screen === 'results' ? (
         <div className="space-y-4">
           {history.length > 1 ? (
             <div className="flex flex-wrap gap-2">
@@ -753,7 +805,7 @@ export default function AiAnalysisWizard() {
             </>
           ) : <p className="text-sm text-slate-500">No saved analysis yet.</p>}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

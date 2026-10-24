@@ -25,6 +25,10 @@ export const PARTNER_NAV_ITEMS = [
   { key: 'support', href: '/partner/support', label: 'Partner Support', icon: 'LifebuoyIcon', area: 'account' },
 ] as const;
 
+export const PARTNER_YOUTUBE_NAV = [
+  { href: '/partner/youtube-research', label: 'Dashboard', exact: true },
+] as const;
+
 export type PartnerNavKey = (typeof PARTNER_NAV_ITEMS)[number]['key'];
 export type PartnerNavAccess = Record<PartnerNavKey, boolean>;
 

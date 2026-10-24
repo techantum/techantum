@@ -6,16 +6,12 @@ import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import { PartnerPageHero, partnerBtnPrimary, partnerCard, partnerInput } from '@/components/partner/PartnerUi';
+import { PartnerPageHero, PartnerStatTile, partnerBtnPrimary, partnerCard, partnerInput } from '@/components/partner/PartnerUi';
 import { allow, rememberProject, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
-
-const control = 'h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm';
 
 export default function ResearchProjectsPage() {
   const router = useRouter();
   const base = useYoutubePageBase();
-  const isPartner = base.startsWith('/partner');
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [rows, setRows] = useState<Record<string, any>[]>([]);
@@ -39,38 +35,39 @@ export default function ResearchProjectsPage() {
 
   const openProject = (id: string) => {
     rememberProject(id);
-    router.push(`${base}/overview`);
+    router.push(`${base}/channels`);
   };
+
+  const videoTotal = rows.reduce((sum, row) => sum + Number(row.video_count || 0), 0);
+  const competitorTotal = rows.reduce((sum, row) => sum + Number(row.competitor_count || 0), 0);
+  const ownTotal = rows.filter((row) => row.own_youtube_channel_id).length;
 
   const pages = Math.max(1, Math.ceil(total / 20));
 
   return (
     <div className="space-y-4">
-      {isPartner ? (
-        <PartnerPageHero
-          title="YouTube Research"
-          description="Manage your YouTube research projects, competitor channels, and content analysis."
-          action={manage ? <Link href={`${base}/projects/new`} className={partnerBtnPrimary}>+ New Project</Link> : null}
-        />
-      ) : (
-        <AdminPageHeader
-          kicker="YouTube Research"
-          title="Research Projects"
-          description="Manage your YouTube research projects, competitor channels, and content analysis."
-          action={manage ? <Link href={`${base}/projects/new`} className="inline-flex rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white">+ New Project</Link> : null}
-        />
-      )}
+      <PartnerPageHero
+        title="Dashboard"
+        description="Your research projects and public video stats. Open a project to manage channels, videos, analysis, and reports."
+        action={manage ? <Link href={`${base}/projects/new`} className={partnerBtnPrimary}>+ New Project</Link> : null}
+      />
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <PartnerStatTile label="Projects" value={total} icon="RectangleStackIcon" />
+        <PartnerStatTile label="Own channels added" value={ownTotal} icon="PlayCircleIcon" />
+        <PartnerStatTile label="Competitor channels" value={competitorTotal} icon="UserGroupIcon" />
+        <PartnerStatTile label="Imported videos" value={videoTotal} icon="FilmIcon" />
+      </div>
       <form className="flex flex-col gap-2 xl:flex-row" onSubmit={(event) => { event.preventDefault(); setPage(1); load(1).catch((err) => setError(err.message)); }}>
-        <input className={`${isPartner ? partnerInput : control} xl:flex-1`} placeholder="Search projects" value={q} onChange={(event) => setQ(event.target.value)} />
-        <select className={isPartner ? partnerInput : control} value={status} onChange={(event) => setStatus(event.target.value)}>
+        <input className={`${partnerInput} xl:flex-1`} placeholder="Search projects" value={q} onChange={(event) => setQ(event.target.value)} />
+        <select className={partnerInput} value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="all">All statuses</option>
           <option value="active">Active</option>
           <option value="archived">Archived</option>
         </select>
         <AdminButton type="submit" variant="primary">Search</AdminButton>
       </form>
-      <section className={`overflow-hidden ${isPartner ? partnerCard : 'rounded-2xl border border-slate-200 bg-white shadow-sm'}`}>
+      <section className={`overflow-hidden ${partnerCard}`}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead>

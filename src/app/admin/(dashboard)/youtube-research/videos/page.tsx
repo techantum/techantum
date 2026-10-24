@@ -1,20 +1,46 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
-import AdminStatCard from '@/components/admin/AdminStatCard';
-import { ChartCard, EMPTY_FILTERS, MonthBarChart, PlacementBadge, ResearchFilters, applyPreset, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import { EMPTY_FILTERS, PlacementBadge, ResearchFilters, downloadResearchReport, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 import { allow, metric, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 
-const control = 'h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
-
-function tagText(video: Record<string, any>) {
-  if (video.stale) return 'Refresh required';
-  if (!video.tags?.length) return 'No tags available';
-  return video.tags.join(', ');
+function VideoCard({
+  video,
+  selected,
+  onToggle,
+}: {
+  video: Record<string, any>;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <article className={`flex gap-3 rounded-2xl border bg-white p-3 ${selected ? 'border-secondary ring-1 ring-secondary/20' : 'border-slate-200'}`}>
+      <label className="mt-1 shrink-0">
+        <span className="sr-only">Select video</span>
+        <input type="checkbox" checked={selected} onChange={onToggle} />
+      </label>
+      {video.thumbnail_url ? (
+        <img src={video.thumbnail_url} alt="" className="h-20 w-32 shrink-0 rounded-xl object-cover" />
+      ) : (
+        <span className="flex h-20 w-32 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">No thumbnail</span>
+      )}
+      <div className="min-w-0 flex-1">
+        <button type="button" className="line-clamp-2 text-left text-sm font-semibold text-slate-900" onClick={onToggle}>
+          {video.title || (video.stale ? 'Refresh required' : video.youtube_video_id)}
+        </button>
+        <p className="mt-1 truncate text-xs text-slate-500">{video.channel_name || '—'} · {video.published_at ? String(video.published_at).slice(0, 10) : '—'}</p>
+        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+          <span>{metric(video.view_count)} views</span>
+          <span>{metric(video.like_count)} likes</span>
+          <span>{metric(video.comment_count)} comments</span>
+          <PlacementBadge value={video.placement_label} />
+        </p>
+      </div>
+    </article>
+  );
 }
 
 function Explorer() {
@@ -23,26 +49,99 @@ function Explorer() {
   const router = useRouter();
   const search = useSearchParams();
   const access = useYoutubeAccess();
-  const canEdit = allow(access, 'youtube_research.research.edit');
+  const canImport = allow(access, 'youtube_research.videos.import');
   const [channels, setChannels] = useState<Record<string, any>[]>([]);
-  const [topics, setTopics] = useState<Record<string, string>[]>([]);
   const [filterOptions, setFilterOptions] = useState<ResearchFilterOptions>({});
-  const [rows, setRows] = useState<Record<string, any>[]>([]);
-  const [total, setTotal] = useState(0);
+  const [ownRows, setOwnRows] = useState<Record<string, any>[]>([]);
+  const [competitorRows, setCompetitorRows] = useState<Record<string, any>[]>([]);
+  const [ownTotal, setOwnTotal] = useState(0);
+  const [competitorTotal, setCompetitorTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS, channelIds: search?.get('channel') || '', sort: 'published_at' });
-  const [detail, setDetail] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [insights, setInsights] = useState<Record<string, any> | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const [busy, setBusy] = useState('');
 
-  const load = async (nextPage = 1, next = filters) => {
-    const params = new URLSearchParams({ ...next, page: String(nextPage), pageSize: '20' });
-    const [body, insightRows] = await Promise.all([yt(`projects/${projectId}/videos?${params}`), yt(`projects/${projectId}/insights?${new URLSearchParams(next)}`)]);
-    setRows(body.rows || []);
-    setTotal(body.total || 0);
-    setInsights(insightRows);
+  const ownChannels = channels.filter((channel) => channel.relationship === 'own');
+  const competitorChannels = channels.filter((channel) => channel.relationship === 'competitor');
+
+  const videoQuery = (nextPage: number, next: typeof filters, channelIds: string[]) => {
+    const params = new URLSearchParams({
+      q: next.q || '',
+      channelIds: channelIds.join(','),
+      topicId: next.topicId || '',
+      tag: next.tag || '',
+      categoryId: next.categoryId || '',
+      from: next.from || '',
+      to: next.to || '',
+      content: next.content || '',
+      placement: next.placement || '',
+      sort: next.sort || 'published_at',
+      page: String(nextPage),
+      pageSize: '24',
+    });
+    return params.toString();
+  };
+
+  const idsFor = (kind: 'own' | 'competitor', next = filters, channelRows = channels) => {
+    const pool = channelRows.filter((channel) => (kind === 'own' ? channel.relationship === 'own' : channel.relationship === 'competitor'));
+    if (next.channelIds) return pool.filter((channel) => channel.id === next.channelIds).map((channel) => channel.id);
+    return pool.map((channel) => channel.id);
+  };
+
+  const load = async (nextPage = 1, next = filters, channelRows = channels) => {
+    const ownIds = idsFor('own', next, channelRows);
+    const competitorIds = idsFor('competitor', next, channelRows);
+    const [ownBody, competitorBody] = await Promise.all([
+      ownIds.length ? yt(`projects/${projectId}/videos?${videoQuery(nextPage, next, ownIds)}`) : { rows: [], total: 0 },
+      competitorIds.length ? yt(`projects/${projectId}/videos?${videoQuery(nextPage, next, competitorIds)}`) : { rows: [], total: 0 },
+    ]);
+    setOwnRows(ownBody.rows || []);
+    setCompetitorRows(competitorBody.rows || []);
+    setOwnTotal(ownBody.total || 0);
+    setCompetitorTotal(competitorBody.total || 0);
+    return { own: ownBody, competitor: competitorBody };
+  };
+
+  const fetchFromChannels = async (channelRows: Record<string, any>[], next = filters) => {
+    if (!canImport || !channelRows.length) return null;
+    setFetching(true);
+    setError('');
+    setMessage('Fetching public videos from the channels in this project…');
+    try {
+      const imported = await yt(`projects/${projectId}/import`, {
+        method: 'POST',
+        body: JSON.stringify({
+          mode: 'available',
+          channel_ids: channelRows.map((channel) => channel.id).filter(Boolean),
+        }),
+      });
+      const failed = (imported.results || []).filter((job: { error?: string | null }) => job.error);
+      const running = failed.filter((job: { error?: string | null }) => /already running/i.test(String(job.error || '')));
+      if (running.length) {
+        setMessage('Videos are still being fetched from these channels…');
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        return load(1, next, channelRows);
+      }
+      if (failed.length && failed.length === (imported.results || []).length) {
+        throw new Error(failed[0].error || 'Could not fetch videos from these channels');
+      }
+      const body = await load(1, next, channelRows);
+      const added = (imported.results || []).reduce((sum: number, job: { inserted_count?: number; updated_count?: number }) => sum + Number(job.inserted_count || 0) + Number(job.updated_count || 0), 0);
+      setMessage(added ? `Fetched ${added} video${added === 1 ? '' : 's'} from added channels.` : 'No new public videos were returned for these channels.');
+      return body;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not fetch videos from these channels');
+      try {
+        return await load(1, next, channelRows);
+      } catch {
+        return null;
+      }
+    } finally {
+      setFetching(false);
+    }
   };
 
   useEffect(() => {
@@ -50,13 +149,16 @@ function Explorer() {
     const channelIds = search?.get('channel') || '';
     (async () => {
       try {
-        const [channelRows, topicRows] = await Promise.all([
-          yt(`projects/${projectId}/channels`),
-          yt(`projects/${projectId}/topics`),
-        ]);
+        const channelRows = await yt(`projects/${projectId}/channels`);
         setChannels(channelRows);
-        setTopics(topicRows);
-        await load(1);
+        const listed = await load(1, filters, channelRows);
+        const empty = !(listed.own.total || listed.own.rows?.length || listed.competitor.total || listed.competitor.rows?.length);
+        if (canImport && channelRows.length && empty) {
+          const targets = channelIds
+            ? channelRows.filter((channel: Record<string, any>) => channel.id === channelIds || channel.youtube_channel_id === channelIds)
+            : channelRows;
+          await fetchFromChannels(targets.length ? targets : channelRows);
+        }
         const options = await yt(`projects/${projectId}/filters${channelIds ? `?channelIds=${channelIds}` : ''}`);
         setFilterOptions(options);
       } catch (err) {
@@ -66,51 +168,65 @@ function Explorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  const open = async (id: string) => {
-    setDetail(await yt(`projects/${projectId}/videos/${id}`));
+  const toggle = (id: string) => {
+    setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 12)));
   };
 
-  const saveResearch = async () => {
-    if (!detail) return;
-    await yt(`projects/${projectId}/videos/${detail.id}/research`, { method: 'PATCH', body: JSON.stringify(detail) });
-    setMessage('Research saved for this project.');
-    setDetail(null);
-    await load(page);
+  const runComparison = async (download: boolean) => {
+    if (selected.length < 2) {
+      setError('Select at least two videos to summarise, ideally one own and one competitor.');
+      return;
+    }
+    setBusy(download ? 'report' : 'summary');
+    setError('');
+    try {
+      const analysis = await yt(`projects/${projectId}/ai-analyses`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: download ? 'Selected video comparison report' : 'Selected video comparison',
+          goals: ['views', 'engagement'],
+          source: 'selected',
+          videoIds: selected,
+          contentFocus: ['titles', 'thumbnails', 'competitor_insights'],
+          outputs: ['improve_existing', 'gap_report'],
+        }),
+      });
+      if (download) {
+        const report = await yt(`projects/${projectId}/research-reports`, {
+          method: 'POST',
+          body: JSON.stringify({ name: 'Own vs competitor video comparison', report_type: 'competitor', analysis_id: analysis.id }),
+        });
+        await downloadResearchReport(projectId, report.id, 'pdf');
+        setMessage('Report downloaded. You can also open it from Reports.');
+        return;
+      }
+      router.push(`${base}/analysis?id=${analysis.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not summarise the selected videos');
+    } finally {
+      setBusy('');
+    }
   };
 
-  const pages = Math.max(1, Math.ceil(total / 20));
+  const totalPages = Math.max(1, Math.ceil(Math.max(ownTotal, competitorTotal) / 24));
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <AdminButton
-          variant="primary"
-          disabled={selected.length < 2}
-          onClick={() => router.push(`${base}/compare?ids=${selected.join(',')}`)}
-        >
-          Compare videos{selected.length ? ` (${selected.length})` : ''}
+      <div className="flex flex-wrap justify-end gap-2">
+        {canImport ? (
+          <AdminButton variant="secondary" disabled={fetching || !channels.length} onClick={() => fetchFromChannels(channels)}>
+            {fetching ? 'Fetching videos…' : 'Fetch videos from channels'}
+          </AdminButton>
+        ) : null}
+        <AdminButton variant="secondary" disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(false)}>
+          {busy === 'summary' ? 'Summarising…' : 'Summarise'}
+        </AdminButton>
+        <AdminButton variant="primary" disabled={selected.length < 2 || Boolean(busy)} onClick={() => runComparison(true)}>
+          {busy === 'report' ? 'Preparing report…' : 'Download report'}
         </AdminButton>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
-      {insights ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <AdminStatCard label="Matching videos" value={metric(insights.imported)} icon="FilmIcon" />
-          <AdminStatCard label="Public views" value={metric(insights.views)} hint="Sum of current public views on matching imported rows" icon="ChartBarIcon" />
-          <AdminStatCard label="Shorts" value={metric(insights.shorts)} icon="PlayCircleIcon" />
-          <AdminStatCard label="Categorized" value={metric(insights.categorized)} icon="TagIcon" />
-        </div>
-      ) : null}
-      {insights?.months?.length ? (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <ChartCard title="Matching videos by month" hint="Publish months of imported videos that match these filters.">
-            <MonthBarChart data={insights.months.map((item: Record<string, any>) => ({ month: item.month, Imported: item.imported }))} bars={[{ key: 'Imported', color: '#EA580C' }]} />
-          </ChartCard>
-          <ChartCard title="Public views of matching videos" hint="Current lifetime public views for videos published that month.">
-            <MonthBarChart data={insights.months.map((item: Record<string, any>) => ({ month: item.month, Views: item.views }))} bars={[{ key: 'Views', color: '#2563EB' }]} />
-          </ChartCard>
-        </div>
-      ) : null}
       <ResearchFilters
         value={filters}
         options={{
@@ -120,14 +236,9 @@ function Explorer() {
             label: `${channel.relationship === 'own' ? 'Own · ' : ''}${channel.channel_name || channel.youtube_channel_id}`,
           })),
         }}
-        onChange={(next) => {
-          setFilters({ ...filters, ...next, sort: filters.sort });
-          if (next.channelIds !== filters.channelIds) {
-            yt(`projects/${projectId}/filters${next.channelIds ? `?channelIds=${next.channelIds}` : ''}`).then(setFilterOptions).catch(() => undefined);
-          }
-        }}
+        onChange={(next) => setFilters({ ...filters, ...next })}
         onApply={(next) => {
-          const used = { ...filters, ...(next || {}), sort: filters.sort };
+          const used = { ...filters, ...(next || {}) };
           setFilters(used);
           setPage(1);
           load(1, used).catch((err) => setError(err.message));
@@ -139,77 +250,64 @@ function Explorer() {
           load(1, next).catch((err) => setError(err.message));
         }}
         selectedCount={selected.length}
-        compareDisabled={selected.length < 2}
-        onCompare={() => router.push(`${base}/compare?ids=${selected.join(',')}`)}
       />
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead><tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">{['Select to compare', 'Video', 'Channel', 'Type', 'Placement', 'Topic', 'Published', 'Views', 'Likes', 'Comments', 'Details'].map((heading) => <th key={heading} className="px-3 py-3">{heading === 'Details' ? '' : heading}</th>)}</tr></thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100">
-                  <td className="px-3 py-3"><input type="checkbox" title="Select to compare" aria-label="Select to compare" checked={selected.includes(row.id)} onChange={() => setSelected((current) => current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id].slice(0, 6))} /></td>
-                  <td className="px-3 py-3"><button type="button" className="max-w-[240px] truncate text-left font-medium" title={row.title || row.youtube_video_id} onClick={() => open(row.id)}>{row.title || (row.stale ? 'Refresh required' : row.youtube_video_id)}</button></td>
-                  <td className="px-3 py-3"><span className={`mr-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${row.relationship === 'own' ? 'bg-orange-50 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>{row.relationship === 'own' ? 'Own' : 'Competitor'}</span>{row.channel_name || '—'}</td>
-                  <td className="px-3 py-3">{row.content_label || '—'}</td>
-                  <td className="px-3 py-3"><PlacementBadge value={row.placement_label} /></td>
-                  <td className="px-3 py-3">{row.topic_name || '—'}</td>
-                  <td className="px-3 py-3">{row.published_at ? String(row.published_at).slice(0, 10) : '—'}</td>
-                  <td className="px-3 py-3">{metric(row.view_count)}</td>
-                  <td className="px-3 py-3">{metric(row.like_count)}</td>
-                  <td className="px-3 py-3">{metric(row.comment_count)}</td>
-                  <td className="px-3 py-3 text-xs font-semibold"><button type="button" className="text-sky-700" onClick={() => open(row.id)}>Details</button></td>
-                </tr>
-              ))}
-              {!rows.length ? <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">No videos match these filters.</td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
-          <span>{total} videos · Select at least two rows to compare</span>
-          <span className="flex gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); load(next); }}>Previous</button>
-            <span>{page} / {pages}</span>
-            <button type="button" disabled={page >= pages} onClick={() => { const next = page + 1; setPage(next); load(next); }}>Next</button>
-          </span>
-        </div>
-      </section>
-      {detail ? (
-        <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/30" onClick={() => setDetail(null)}>
-          <div className="h-full w-full max-w-xl overflow-y-auto bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-lg font-semibold">{detail.title || detail.youtube_video_id}</h2>
-            <p className="mt-1 text-sm text-slate-500">{detail.channel_name || '—'} · {detail.content_label || 'Length not supplied'} · {detail.placement_label || 'Placement not retrieved'} · {detail.published_at ? String(detail.published_at).slice(0, 10) : '—'} · {detail.category_label || 'Category not supplied'}</p>
-            {detail.watch_url ? <a className="mt-2 inline-block text-sm text-sky-700" href={detail.watch_url} target="_blank" rel="noreferrer">Open YouTube</a> : null}
-            <section className="mt-4 space-y-2 text-sm">
-              <h3 className="font-semibold">YouTube metadata</h3>
-              <p className="whitespace-pre-wrap text-slate-600">{detail.description || 'No description supplied.'}</p>
-              <p>Tags: {tagText(detail)}</p>
-              <p>Language: {detail.default_language || detail.default_audio_language || 'Not supplied'}</p>
-              <p>Views {metric(detail.view_count)} · Likes {metric(detail.like_count)} · Comments {metric(detail.comment_count)}</p>
-              <p className="text-xs text-slate-400">Missing counts are left blank. They are not zero.</p>
-            </section>
-            {canEdit ? (
-              <section className="mt-4 space-y-3">
-                <h3 className="text-sm font-semibold">Research details</h3>
-                <select className={control} value={detail.topic_id || ''} onChange={(event) => setDetail({ ...detail, topic_id: event.target.value })}>
-                  <option value="">No topic</option>
-                  {topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
-                </select>
-                <input className={control} placeholder="Thumbnail caption" value={detail.thumbnail_caption || ''} onChange={(event) => setDetail({ ...detail, thumbnail_caption: event.target.value })} />
-                <textarea className="h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Research notes" value={detail.research_notes || ''} onChange={(event) => setDetail({ ...detail, research_notes: event.target.value })} />
-                <AdminButton variant="primary" onClick={() => saveResearch().catch((err) => setError(err.message))}>Save research</AdminButton>
-              </section>
-            ) : null}
-            <div className="mt-4"><Link className="text-sm font-semibold text-slate-600" href={`${base}/compare?ids=${detail.id}`}>Add to comparison from the list</Link></div>
-            <AdminButton className="mt-4" onClick={() => setDetail(null)}>Close</AdminButton>
+      <p className="text-xs text-slate-500">
+        {selected.length
+          ? `${selected.length} video${selected.length === 1 ? '' : 's'} selected. Summarise compares the selection and explains why stronger videos outperform weaker ones.`
+          : 'Select videos from both columns, then summarise or download a report.'}
+      </p>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-bricolage text-base font-semibold text-slate-900">Own videos</h2>
+            <span className="text-xs text-slate-400">{ownTotal} matching</span>
           </div>
-        </div>
-      ) : null}
+          <div className="space-y-3">
+            {ownRows.map((row) => (
+              <VideoCard key={row.id} video={row} selected={selected.includes(row.id)} onToggle={() => toggle(row.id)} />
+            ))}
+            {!ownChannels.length ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Add your own channel from Dashboard to see its videos here.</p>
+            ) : !ownRows.length ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">{fetching ? 'Fetching public videos…' : 'No own videos match these filters.'}</p>
+            ) : null}
+          </div>
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-bricolage text-base font-semibold text-slate-900">Competitor videos</h2>
+            <span className="text-xs text-slate-400">{competitorTotal} matching</span>
+          </div>
+          <div className="space-y-3">
+            {competitorRows.map((row) => (
+              <VideoCard key={row.id} video={row} selected={selected.includes(row.id)} onToggle={() => toggle(row.id)} />
+            ))}
+            {!competitorChannels.length ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Add competitor channels to compare performance beside your videos.</p>
+            ) : !competitorRows.length ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">{fetching ? 'Fetching public videos…' : 'No competitor videos match these filters.'}</p>
+            ) : null}
+          </div>
+        </section>
+      </div>
+      <div className="flex items-center justify-between text-sm text-slate-500">
+        <span>{ownTotal + competitorTotal} videos across both columns</span>
+        <span className="flex gap-2">
+          <button type="button" disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); load(next); }}>Previous</button>
+          <span>{page} / {totalPages}</span>
+          <button type="button" disabled={page >= totalPages} onClick={() => { const next = page + 1; setPage(next); load(next); }}>Next</button>
+        </span>
+      </div>
     </div>
   );
 }
 
 export default function VideosPage() {
-  return <ProjectRequired><Suspense fallback={<p className="text-sm text-slate-500">Loading videos...</p>}><Explorer /></Suspense></ProjectRequired>;
+  return (
+    <ProjectRequired>
+      <Suspense fallback={<p className="text-sm text-slate-500">Loading videos...</p>}>
+        <Explorer />
+      </Suspense>
+    </ProjectRequired>
+  );
 }

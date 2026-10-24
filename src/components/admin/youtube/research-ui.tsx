@@ -29,9 +29,19 @@ export type ResearchFilterState = {
   content: string;
   placement: string;
   channelIds?: string;
+  sort?: string;
 };
 
-export const EMPTY_FILTERS: ResearchFilterState = { from: '', to: '', topicId: '', categoryId: '', q: '', tag: '', content: '', placement: '', channelIds: '' };
+export const EMPTY_FILTERS: ResearchFilterState = { from: '', to: '', topicId: '', categoryId: '', q: '', tag: '', content: '', placement: '', channelIds: '', sort: 'published_at' };
+
+export const VIDEO_SORTS = [
+  { id: 'published_at', label: 'Newest' },
+  { id: 'view_count', label: 'Most viewed' },
+  { id: 'like_count', label: 'Most liked' },
+  { id: 'comment_count', label: 'Most commented' },
+  { id: 'duration_seconds', label: 'Longest' },
+  { id: 'title', label: 'Title A–Z' },
+];
 
 export type ResearchFilterOptions = {
   channels?: { id: string; label: string }[];
@@ -166,6 +176,9 @@ export function ResearchFilters({
         <FilterSelect label="Tags" value={value.tag} onChange={(tag) => apply({ tag })}>
           <option value="">All tags</option>
           {tags.map((item) => <option key={item.tag} value={item.tag}>{item.tag}</option>)}
+        </FilterSelect>
+        <FilterSelect label="Sort by" value={value.sort || 'published_at'} onChange={(sort) => apply({ sort })}>
+          {VIDEO_SORTS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </FilterSelect>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">

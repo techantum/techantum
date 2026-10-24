@@ -7,8 +7,10 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import Icon from '@/components/ui/AppIcon';
 import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
+import { YOUTUBE_PROJECT_PAGES } from '@/lib/youtube/workspace-nav';
 
 const YoutubeAccessContext = createContext<string[]>([]);
+const YoutubeProjectContext = createContext('');
 
 export function useYoutubeAccess() {
   return useContext(YoutubeAccessContext);
@@ -60,11 +62,12 @@ export function currentProjectId() {
 }
 
 export function useProjectId() {
+  const fromFrame = useContext(YoutubeProjectContext);
   const [id, setId] = useState('');
   useEffect(() => {
     setId(currentProjectId());
-  }, []);
-  return id;
+  }, [fromFrame]);
+  return fromFrame || id;
 }
 
 export function ProjectRequired({ children }: { children: React.ReactNode }) {
@@ -112,27 +115,19 @@ export function Bars({ rows }: { rows: { label: string; value: number | null }[]
   );
 }
 
-const WORKSPACE = [
-  { suffix: '/overview', label: 'Overview', section: 'overview', icon: 'HomeIcon' },
-  { suffix: '/channels', label: 'Channels', section: 'channels', icon: 'UserGroupIcon' },
-  { suffix: '/videos', label: 'Videos', section: 'videos', icon: 'PlayCircleIcon' },
-  { suffix: '/reports', label: 'Reports', section: 'reports', icon: 'DocumentChartBarIcon' },
-  { suffix: '/analysis', label: 'AI Analysis', section: 'analysis', icon: 'LightBulbIcon' },
-];
-
 const SECTION_HINT: Record<string, string> = {
-  overview: 'Analyze your channel and competitors using public YouTube Data API values.',
-  channels: 'Manage your own channel and competitor channels for this project.',
+  overview: 'Project snapshot for the selected research workspace.',
+  channels: 'Add your own YouTube channel first, then competitor channels to compare.',
   import: 'Import public videos for the channels in this project.',
-  videos: 'Search and review imported videos for this project.',
-  analysis: 'Find improvement opportunities and get AI-powered recommendations for better performing videos.',
+  videos: 'Filter own and competitor videos, then summarise or download a report.',
+  analysis: 'Open a saved analysis or run a custom AI analysis.',
   compare: 'Compare imported videos side by side.',
   'channel-compare': 'Compare own and competitor channels using public Data API values.',
-  reports: 'Preview, save, and export AI research reports for this project.',
+  reports: 'Download every research report generated for this project.',
 };
 
 const SECTION_LABEL: Record<string, string> = {
-  overview: 'Overview',
+  overview: 'Project',
   channels: 'Channels',
   import: 'Import Videos',
   videos: 'Videos',
@@ -172,26 +167,6 @@ function Crumbs({ items }: { items: { href?: string; label: string }[] }) {
   );
 }
 
-function ProjectNav({ activeSection, base }: { activeSection: string; base: string }) {
-  return (
-    <nav className="flex gap-1 overflow-x-auto" aria-label="Project">
-      {WORKSPACE.map((item) => {
-        const active = activeSection === item.section;
-        return (
-          <Link
-            key={item.suffix}
-            href={`${base}${item.suffix}`}
-            className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition ${active ? 'border-secondary text-secondary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-          >
-            <Icon name={item.icon} size={16} />
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 export default function YoutubeFrame({ children, initialAccess }: { children: React.ReactNode; initialAccess?: string[] }) {
   const pathname = usePathname() || '';
   const base = youtubePageBase(pathname);
@@ -203,7 +178,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
   const [stickyTop, setStickyTop] = useState(176);
   const workspace = isWorkspace(pathname);
   const section = sectionOf(pathname);
-  const activeSection = section === 'import' || section === 'channel-compare' ? 'channels' : section === 'compare' ? 'videos' : section;
+  const crumbSection = section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : section;
 
   useEffect(() => {
     if (initialAccess) return;
@@ -211,39 +186,56 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
   }, [initialAccess]);
 
   useEffect(() => {
-    const id = currentProjectId();
-    setProjectId(id);
-    if (!id || !isWorkspace(pathname)) {
-      setProject(null);
-      return;
-    }
-    yt(`projects/${id}`).then((body) => {
-      const own = (body.channels || []).find((channel: { relationship: string }) => channel.relationship === 'own');
-      setProject({
-        name: body.name || 'Project',
-        status: body.status || 'active',
-        objective: body.objective || '',
-        brand_name: body.brand_name || '',
-        industry: body.industry || '',
-        thumbnail: own?.thumbnail_url || '',
-      });
-    }).catch(() => setProject(null));
+    let cancelled = false;
+    (async () => {
+      let id = currentProjectId();
+      if (!id) {
+        try {
+          const listed = await yt('projects?status=active&page=1&pageSize=1');
+          id = listed.rows?.[0]?.id || '';
+          if (id) rememberProject(id);
+        } catch {
+          id = '';
+        }
+      }
+      if (cancelled) return;
+      setProjectId(id);
+      if (!id || !isWorkspace(pathname)) {
+        setProject(null);
+        return;
+      }
+      try {
+        const body = await yt(`projects/${id}`);
+        if (cancelled) return;
+        const own = (body.channels || []).find((channel: { relationship: string }) => channel.relationship === 'own');
+        setProject({
+          name: body.name || 'Project',
+          status: body.status || 'active',
+          objective: body.objective || '',
+          brand_name: body.brand_name || '',
+          industry: body.industry || '',
+          thumbnail: own?.thumbnail_url || '',
+        });
+      } catch {
+        if (!cancelled) setProject(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
 
   const crumbs = workspace
     ? [
-        { href: base, label: 'YouTube Research' },
-        { href: base, label: 'Research Projects' },
-        { href: `${base}/overview`, label: project?.name || 'Project' },
-        ...(SECTION_LABEL[section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : activeSection]
-          ? [{ label: SECTION_LABEL[section === 'import' ? 'import' : section === 'compare' ? 'compare' : section === 'channel-compare' ? 'channel-compare' : activeSection] }]
-          : []),
+        { href: base, label: 'Dashboard' },
+        { href: `${base}/channels`, label: project?.name || 'Project' },
+        ...(SECTION_LABEL[crumbSection] ? [{ label: SECTION_LABEL[crumbSection] }] : []),
       ]
     : pathname.startsWith(`${base}/settings`)
       ? [{ href: base, label: 'YouTube Research' }, { label: 'Settings' }]
       : pathname.startsWith(`${base}/projects/new`)
-        ? [{ href: base, label: 'YouTube Research' }, { href: base, label: 'Research Projects' }, { label: 'Create Project' }]
-        : [{ href: base, label: 'YouTube Research' }, { label: 'Research Projects' }];
+        ? [{ href: base, label: 'Dashboard' }, { label: 'Create Project' }]
+        : [{ href: base, label: 'YouTube Research' }, { label: 'Dashboard' }];
 
   const manage = access?.includes('youtube_research.channels.manage');
 
@@ -264,7 +256,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
   return (
     <div className="space-y-4" style={{ ['--yt-sticky' as string]: `${stickyTop}px` }}>
       {workspace ? (
-        <div ref={headerRef} className="sticky top-16 z-40 -mx-4 -mt-5 bg-white px-4 pb-0 pt-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div ref={headerRef} className="sticky top-16 z-40 -mx-4 -mt-5 border-b border-slate-200 bg-white px-4 pb-4 pt-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <Crumbs items={crumbs} />
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
@@ -274,7 +266,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
                   <h1 className="font-bricolage text-2xl font-bold tracking-tight text-slate-900">{project?.name || 'Project'}</h1>
                   <AdminBadge variant={project?.status === 'archived' ? 'default' : 'green'}>{project?.status || 'active'}</AdminBadge>
                 </div>
-                <p className="mt-1 max-w-3xl text-sm text-slate-500">{SECTION_HINT[section] || SECTION_HINT[activeSection] || [project?.industry, project?.brand_name, project?.objective].filter(Boolean).join(' · ')}</p>
+                <p className="mt-1 max-w-3xl text-sm text-slate-500">{SECTION_HINT[section] || SECTION_HINT[crumbSection] || [project?.industry, project?.brand_name, project?.objective].filter(Boolean).join(' · ')}</p>
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
@@ -284,12 +276,9 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
                 </Link>
               ) : null}
               <Link className={partnerBtnPrimary} href={base}>
-                <Icon name="ArrowLeftIcon" size={16} /> Back to Projects
+                <Icon name="ArrowLeftIcon" size={16} /> Dashboard
               </Link>
             </div>
-          </div>
-          <div className="mt-4 border-b border-slate-200">
-            <ProjectNav activeSection={activeSection} base={base} />
           </div>
         </div>
       ) : <Crumbs items={crumbs} />}
@@ -299,7 +288,34 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
       ) : null}
       {access?.includes('youtube_research.view') ? (
         <YoutubeAccessContext.Provider value={access}>
-          {children}
+          <YoutubeProjectContext.Provider value={projectId}>
+            {workspace ? (
+              <div className="flex flex-col gap-4 lg:flex-row">
+                <div className="min-w-0 flex-1">{children}</div>
+                <aside className="order-first lg:order-none lg:w-56">
+                  <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:sticky lg:top-24 lg:block lg:space-y-1 lg:p-3" aria-label="Project pages">
+                    {YOUTUBE_PROJECT_PAGES.map((item) => {
+                      const active = crumbSection === item.section || (item.section === 'channels' && (section === 'import' || section === 'channel-compare')) || (item.section === 'videos' && section === 'compare');
+                      return (
+                        <Link
+                          key={item.suffix}
+                          href={`${base}${item.suffix}`}
+                          className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
+                            active ? 'bg-secondary font-medium text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-secondary'
+                          }`}
+                        >
+                          <Icon name={item.icon} size={16} />
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </aside>
+              </div>
+            ) : (
+              children
+            )}
+          </YoutubeProjectContext.Provider>
         </YoutubeAccessContext.Provider>
       ) : null}
       {access === null && !error ? <p className="text-sm text-slate-500">Loading YouTube Research...</p> : null}
