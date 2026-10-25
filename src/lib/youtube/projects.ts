@@ -4,7 +4,9 @@ import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } fr
 import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE } from './parse';
 import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, performanceSummary, startImport } from './service';
+import { presentListedProject } from './home-display';
 import { currentYoutubePartnerId } from './scope';
+import { MAX_PROJECT_COMPETITORS } from './workspace-nav';
 
 export const LEGACY_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';
 
@@ -62,55 +64,94 @@ function requireProject(id: string) {
   return loadProject(id, currentYoutubePartnerId() || '');
 }
 
-export async function listProjects(params: { q?: string; status?: string; page?: number; pageSize?: number }) {
+const PROJECT_LIST_FROM = `FROM youtube_research_projects p
+     LEFT JOIN youtube_project_channels opc ON opc.project_id=p.id AND opc.relationship='own'
+     LEFT JOIN youtube_channels own ON own.id=opc.channel_id`;
+
+const PROJECT_LIST_SELECT = `SELECT p.*,
+       own.channel_name AS own_channel_name, own.channel_handle AS own_channel_handle, own.thumbnail_url AS own_thumbnail_url,
+       own.youtube_channel_id AS own_youtube_channel_id, own.last_refreshed_at AS own_refreshed_at,
+       (SELECT COUNT(*) FROM youtube_project_channels pc WHERE pc.project_id=p.id AND pc.relationship='competitor') AS competitor_count,
+       (SELECT COALESCE(json_agg(x), '[]'::json)
+          FROM (
+            SELECT c.channel_name AS name, c.thumbnail_url
+            FROM youtube_project_channels pc
+            JOIN youtube_channels c ON c.id=pc.channel_id
+            WHERE pc.project_id=p.id AND pc.relationship='competitor'
+            ORDER BY pc.created_at
+            LIMIT 3
+          ) x
+       ) AS competitor_avatars,
+       (SELECT COUNT(*) FROM youtube_videos v JOIN youtube_project_channels pc ON pc.channel_id=v.channel_id WHERE pc.project_id=p.id) AS video_count,
+       (SELECT COUNT(*) FROM youtube_ai_analyses a WHERE a.project_id=p.id AND a.status='ready') AS analysis_count,
+       (SELECT COUNT(*) FROM youtube_research_reports r WHERE r.project_id=p.id AND r.status <> 'archived') AS report_count
+     ${PROJECT_LIST_FROM}`;
+
+export async function listProjects(params: { q?: string; status?: string; bucket?: string; page?: number; pageSize?: number }) {
   const page = Math.max(1, Number(params.page) || 1);
   const pageSize = Math.min(50, Math.max(1, Number(params.pageSize) || 20));
   const values: unknown[] = [];
   const where = ['1=1'];
+  const countWhere = ['1=1'];
   const partnerId = currentYoutubePartnerId();
   if (partnerId) {
     values.push(partnerId);
     where.push(`p.partner_id=$${values.length}`);
+    countWhere.push(`p.partner_id=$${values.length}`);
   } else {
     where.push('p.partner_id IS NULL');
-  }
-  if (params.status === 'active' || params.status === 'archived') {
-    values.push(params.status);
-    where.push(`p.status=$${values.length}`);
+    countWhere.push('p.partner_id IS NULL');
   }
   if (params.q?.trim()) {
     values.push(`%${params.q.trim()}%`);
-    where.push(`(p.name ILIKE $${values.length} OR p.brand_name ILIKE $${values.length} OR p.industry ILIKE $${values.length})`);
+    const search = `(p.name ILIKE $${values.length} OR p.brand_name ILIKE $${values.length} OR p.industry ILIKE $${values.length})`;
+    where.push(search);
+    countWhere.push(search);
   }
-  const [listed, count] = await Promise.all([
-    q(
+  const bucket = String(params.bucket || '');
+  const status = String(params.status || '');
+  if (bucket === 'archived' || (!bucket && status === 'archived')) {
+    where.push(`p.status='archived'`);
+  } else if (bucket === 'setup') {
+    where.push(`p.status='active' AND own.youtube_channel_id IS NULL`);
+  } else if (bucket === 'active') {
+    where.push(`p.status='active' AND own.youtube_channel_id IS NOT NULL`);
+  } else if (bucket === 'all') {
+    /* all workspace projects */
+  } else if (status === 'active' || (!bucket && !status)) {
+    where.push(`p.status='active'`);
+  }
+  const [listed, count, buckets] = await Promise.all([
+    q(undefined, `${PROJECT_LIST_SELECT} WHERE ${where.join(' AND ')} ORDER BY p.updated_at DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`, values),
+    q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_LIST_FROM} WHERE ${where.join(' AND ')}`, values),
+    q<{ total_all: string; live: string; setup: string; archived: string }>(
       undefined,
-      `SELECT p.*,
-       own.channel_name AS own_channel_name, own.channel_handle AS own_channel_handle, own.thumbnail_url AS own_thumbnail_url,
-       own.youtube_channel_id AS own_youtube_channel_id, own.last_refreshed_at AS own_refreshed_at,
-       (SELECT COUNT(*) FROM youtube_project_channels pc WHERE pc.project_id=p.id AND pc.relationship='competitor') AS competitor_count,
-       (SELECT COUNT(*) FROM youtube_videos v JOIN youtube_project_channels pc ON pc.channel_id=v.channel_id WHERE pc.project_id=p.id) AS video_count
-     FROM youtube_research_projects p
-     LEFT JOIN youtube_project_channels opc ON opc.project_id=p.id AND opc.relationship='own'
-     LEFT JOIN youtube_channels own ON own.id=opc.channel_id
-     WHERE ${where.join(' AND ')}
-     ORDER BY p.updated_at DESC
-     LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
-      values
+      `SELECT COUNT(*)::text AS total_all,
+              COUNT(*) FILTER (WHERE p.status='active' AND own.youtube_channel_id IS NOT NULL)::text AS live,
+              COUNT(*) FILTER (WHERE p.status='active' AND own.youtube_channel_id IS NULL)::text AS setup,
+              COUNT(*) FILTER (WHERE p.status='archived')::text AS archived
+       ${PROJECT_LIST_FROM}
+       WHERE ${countWhere.join(' AND ')}`,
+      values,
     ),
-    q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM youtube_research_projects p WHERE ${where.join(' AND ')}`, values),
   ]);
-  const { rows } = listed;
   return {
-    rows: rows.map((row) => ({
-      ...row,
-      own_channel_name: isFresh(row.own_refreshed_at) ? row.own_channel_name : null,
-      own_channel_handle: isFresh(row.own_refreshed_at) ? row.own_channel_handle : null,
-      own_thumbnail_url: isFresh(row.own_refreshed_at) ? row.own_thumbnail_url : null,
-      competitor_count: Number(row.competitor_count || 0),
-      video_count: Number(row.video_count || 0),
-    })),
+    rows: listed.rows.map((row) => {
+      const fresh = isFresh(row.own_refreshed_at);
+      return presentListedProject({
+        ...row,
+        own_channel_name: fresh ? row.own_channel_name : null,
+        own_channel_handle: fresh ? row.own_channel_handle : null,
+        own_thumbnail_url: fresh ? row.own_thumbnail_url : null,
+      });
+    }),
     total: Number(count.rows[0]?.count || 0),
+    counts: {
+      all: Number(buckets.rows[0]?.total_all || 0),
+      active: Number(buckets.rows[0]?.live || 0),
+      setup: Number(buckets.rows[0]?.setup || 0),
+      archived: Number(buckets.rows[0]?.archived || 0),
+    },
     page,
     pageSize,
   };
@@ -136,16 +177,40 @@ export async function createProject(body: Record<string, unknown>, userId: strin
 }
 
 export async function updateProject(id: string, body: Record<string, unknown>, userId: string) {
-  await requireProject(id);
-  const name = clean(body.name, 120);
+  const project = await requireProject(id);
+  const name = clean(body.name !== undefined ? body.name : project.name, 120);
   if (!name || name.length < 2) throw new FinanceValidationError('Project name is required.');
+  const brand = body.brand_name !== undefined || body.brandName !== undefined ? clean(body.brand_name ?? body.brandName, 120) : project.brand_name;
+  const objective = body.objective !== undefined ? clean(body.objective, 2000) : project.objective;
+  const industry = body.industry !== undefined ? clean(body.industry, 120) : project.industry;
+  const description = body.description !== undefined ? clean(body.description, 5000) : project.description;
+  const status = body.status !== undefined ? statusOf(body.status) : project.status;
   const { rows } = await q(
     undefined,
     `UPDATE youtube_research_projects SET name=$2, brand_name=$3, objective=$4, industry=$5, description=$6, status=$7 WHERE id=$1 RETURNING *`,
-    [id, name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status)]
+    [id, name, brand, objective, industry, description, status]
   );
   await audit(userId, 'YouTube Project Updated', id, { name });
   return rows[0];
+}
+
+export async function duplicateProject(id: string, userId: string) {
+  const project = await requireProject(id);
+  const name = `${String(project.name || 'Project').slice(0, 110)} copy`;
+  const created = await q(
+    undefined,
+    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id)
+     VALUES ($1,$2,$3,$4,$5,'active',$6,$7) RETURNING *`,
+    [name, project.brand_name, project.objective, project.industry, project.description, userId, project.partner_id || currentYoutubePartnerId()]
+  );
+  await q(
+    undefined,
+    `INSERT INTO youtube_project_channels (project_id, channel_id, relationship)
+     SELECT $2, channel_id, relationship FROM youtube_project_channels WHERE project_id=$1`,
+    [id, created.rows[0].id]
+  );
+  await audit(userId, 'YouTube Project Created', created.rows[0].id, { name, duplicatedFrom: id });
+  return created.rows[0];
 }
 
 export async function archiveProject(id: string, userId: string) {
@@ -179,6 +244,12 @@ export async function addProjectChannel(projectId: string, input: string, relati
   const channelId = await ensureChannel(input, userId);
   const existing = await q(undefined, `SELECT relationship FROM youtube_project_channels WHERE project_id=$1 AND channel_id=$2`, [projectId, channelId]);
   if (existing.rows[0]) throw new FinanceConflictError('This channel is already in the project.');
+  if (kind === 'competitor') {
+    const counted = await q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count FROM youtube_project_channels WHERE project_id=$1 AND relationship='competitor'`, [projectId]);
+    if (Number(counted.rows[0]?.count || 0) >= MAX_PROJECT_COMPETITORS) {
+      throw new FinanceValidationError(`This project already has ${MAX_PROJECT_COMPETITORS} competitors.`);
+    }
+  }
   await withFinanceTx(async (client) => {
     if (kind === 'own') {
       await q(client, `UPDATE youtube_project_channels SET relationship='competitor' WHERE project_id=$1 AND relationship='own'`, [projectId]);
@@ -452,20 +523,51 @@ function numberCell(value: unknown) {
   return Number.isFinite(number) ? number : null;
 }
 
+function insightTrunc(params: VideoQuery) {
+  if (!params.from || !params.to) return 'month';
+  const days = (new Date(params.to).getTime() - new Date(params.from).getTime()) / 86_400_000;
+  return days <= 120 ? 'week' : 'month';
+}
+
 export async function projectVideoInsights(params: VideoQuery) {
   await requireProject(params.projectId);
   const filter = videoWhere(params);
-  const [months, topics, categories, totals, top, recent] = await Promise.all([
+  const grain = insightTrunc(params);
+  const trunc = grain === 'week' ? "date_trunc('week', v.published_at)" : "date_trunc('month', v.published_at)";
+  const bucketSql = grain === 'week' ? `to_char(${trunc}, 'YYYY-MM-DD')` : `to_char(${trunc}, 'YYYY-MM')`;
+  const fresh = `v.fetched_at > NOW() - INTERVAL '30 days'`;
+  const [months, series, formats, topics, categories, totals, top, recent] = await Promise.all([
     q<{ month: string; imported: number; shorts: number; long_videos: number; views: string | null }>(
       undefined,
-      `SELECT to_char(date_trunc('month', v.published_at), 'YYYY-MM') AS month,
+      `SELECT ${bucketSql} AS month,
        COUNT(*)::int AS imported,
-       COUNT(*) FILTER (WHERE v.fetched_at > NOW() - INTERVAL '30 days' AND ${SHORT_MATCH})::int AS shorts,
-       COUNT(*) FILTER (WHERE v.fetched_at > NOW() - INTERVAL '30 days' AND NOT ${SHORT_MATCH})::int AS long_videos,
-       SUM(CASE WHEN v.fetched_at > NOW() - INTERVAL '30 days' THEN v.view_count ELSE NULL END) AS views
+       COUNT(*) FILTER (WHERE ${fresh} AND ${SHORT_MATCH})::int AS shorts,
+       COUNT(*) FILTER (WHERE ${fresh} AND NOT ${SHORT_MATCH})::int AS long_videos,
+       SUM(CASE WHEN ${fresh} THEN v.view_count ELSE NULL END) AS views
      ${PROJECT_VIDEO_FROM}
      WHERE ${filter.where} AND v.published_at IS NOT NULL
      GROUP BY 1 ORDER BY 1`,
+      filter.values
+    ),
+    q<{ relationship: string; bucket: string; imported: number; views: string | null }>(
+      undefined,
+      `SELECT pc.relationship, ${bucketSql} AS bucket,
+       COUNT(*)::int AS imported,
+       SUM(CASE WHEN ${fresh} THEN v.view_count ELSE NULL END) AS views
+     ${PROJECT_VIDEO_FROM}
+     WHERE ${filter.where} AND v.published_at IS NOT NULL
+     GROUP BY 1, 2 ORDER BY 2`,
+      filter.values
+    ),
+    q<{ format: string; count: number; views: string | null; avg_views: string | null }>(
+      undefined,
+      `SELECT CASE WHEN ${SHORT_MATCH} THEN 'short' ELSE 'video' END AS format,
+       COUNT(*)::int AS count,
+       SUM(CASE WHEN ${fresh} THEN v.view_count ELSE NULL END) AS views,
+       AVG(CASE WHEN ${fresh} THEN v.view_count ELSE NULL END) AS avg_views
+     ${PROJECT_VIDEO_FROM}
+     WHERE ${filter.where} AND ${fresh}
+     GROUP BY 1 ORDER BY avg_views DESC NULLS LAST`,
       filter.values
     ),
     q<{ topic: string; count: number }>(
@@ -504,6 +606,7 @@ export async function projectVideoInsights(params: VideoQuery) {
     notice: YOUTUBE_METRIC_NOTICE,
     officialAnalytics: false,
     historicalGrowth: false,
+    grain,
     imported: Number(row?.imported || 0),
     categorized: Number(row?.categorized || 0),
     shorts: Number(row?.shorts || 0),
@@ -519,6 +622,19 @@ export async function projectVideoInsights(params: VideoQuery) {
       shorts: Number(item.shorts || 0),
       long_videos: Number(item.long_videos || 0),
       views: numberCell(item.views),
+    })),
+    series: series.rows.map((item) => ({
+      relationship: item.relationship,
+      bucket: item.bucket,
+      imported: Number(item.imported || 0),
+      views: numberCell(item.views),
+    })),
+    formats: formats.rows.map((item) => ({
+      id: item.format,
+      label: item.format === 'short' ? 'Shorts' : 'Videos',
+      count: Number(item.count || 0),
+      views: numberCell(item.views),
+      avg_views: numberCell(item.avg_views),
     })),
     topics: topics.rows.map((item) => ({ topic: item.topic, count: Number(item.count || 0) })),
     categories: categories.rows.map((item) => ({

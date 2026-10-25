@@ -5,6 +5,7 @@ import { presentVideo } from './mask.ts';
 import { readFileSync } from 'node:fs';
 import { categoryLabel, contentLabel, csvCell, durationSeconds, isPaidPlacement, lengthLabel, parseChannelInput, publishingBuckets, shortsPlaylistId, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE } from './parse.ts';
 import { hasYoutubePermission, permissionsForRole, YOUTUBE_PERMISSIONS } from './permissions.ts';
+import { firstNameFrom, greetingForHour, nextStepFor, projectInitials } from './home-display.ts';
 import { partnerYoutubeAccess, youtubePortalFrom } from './scope.ts';
 import { visibleAdminNav } from '../cms/admin-nav.ts';
 import { canAccessAdminPath } from '../admin/roles.ts';
@@ -264,6 +265,7 @@ describe('permissions and exports', () => {
     assert.equal(hasYoutubePermission('partner_user', [], 'youtube_research.view'), true);
     assert.equal(permissionsForRole('partner_admin', []).includes('youtube_research.settings.manage'), false);
     assert.equal(YOUTUBE_PERMISSIONS.length, 9);
+    assert.equal(partnerYoutubeAccess('GET', ['home']), 'allow');
     assert.equal(partnerYoutubeAccess('GET', ['projects']), 'allow');
     assert.equal(partnerYoutubeAccess('GET', ['projects', 'project-1', 'videos']), 'project');
     assert.equal(partnerYoutubeAccess('POST', ['channels', 'resolve']), 'allow');
@@ -279,6 +281,13 @@ describe('permissions and exports', () => {
     assert.equal(youtubePortalFrom(null, 'https://techantum.com/partner/youtube-research/videos'), 'partner');
     assert.equal(youtubePortalFrom(null, 'https://techantum.com/admin/youtube-research'), 'admin');
     assert.equal(youtubePortalFrom(null, ''), '');
+    assert.equal(firstNameFrom('Sridhar Kumar', 'x@y.com'), 'Sridhar');
+    assert.equal(projectInitials('Existing research'), 'ER');
+    assert.equal(nextStepFor({ id: 'p1' }).key, 'own');
+    assert.equal(nextStepFor({ status: 'archived', own_youtube_channel_id: 'UC1' }).label, 'Archived');
+    assert.equal(nextStepFor({ id: 'p1', own_youtube_channel_id: 'UC1', competitor_count: 1, video_count: 3 }).key, 'analysis');
+    const morning = new Date('2026-10-25T08:00:00');
+    assert.equal(greetingForHour(morning), 'Good morning');
   });
 
   it('hides YouTube Research settings from partner and admin sessions', () => {

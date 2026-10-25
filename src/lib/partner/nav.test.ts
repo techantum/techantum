@@ -65,7 +65,7 @@ describe('partner nav access', () => {
     assert.equal(partnerNavKeyForPath('/partner/requirements/abc'), 'requirements');
     assert.equal(partnerNavKeyForPath('/partner/lead-discovery/run-1'), 'lead-discovery');
     assert.equal(partnerNavKeyForPath('/partner/youtube-research/overview'), 'youtube-research');
-    assert.deepEqual(PARTNER_YOUTUBE_NAV.map((item) => item.label), ['Dashboard']);
+    assert.deepEqual(PARTNER_YOUTUBE_NAV.map((item) => item.label), ['Dashboard', 'Projects']);
     assert.equal(partnerNavKeyForPath('/partner/dashboard'), 'dashboard');
     assert.equal(partnerNavKeyForPath('/partner/profile'), 'profile');
   });

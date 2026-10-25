@@ -1,15 +1,20 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { ProjectRequired, useProjectId, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { ProjectRequired, useProjectId, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { partnerBtnPrimary } from '@/components/partner/PartnerUi';
 
 function ImportScreen() {
   const projectId = useProjectId();
+  const base = useYoutubePageBase();
   const search = useSearchParams();
+  const back = useMemo(() => <Link className={partnerBtnPrimary} href={`${base}/videos`}>Done</Link>, [base]);
+  useYoutubeRailActions(back);
   const preset = search?.get('channel') || '';
   const [channels, setChannels] = useState<Record<string, any>[]>([]);
   const [selected, setSelected] = useState<string[]>(preset ? [preset] : []);
@@ -58,7 +63,8 @@ function ImportScreen() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">Imports run when you start them. Each channel uses the maximum you set, up to the limit in Settings.</p>
+      <p className="text-sm text-slate-500">Imports run when you start them. Each channel uses the maximum you set, up to the limit in Settings. You can also fetch from Research.</p>
+      <Link href={`${base}/videos`} className="text-sm font-semibold text-secondary">← Back to research</Link>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {busy ? <PageLoader label="Importing videos…" /> : null}
       <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">

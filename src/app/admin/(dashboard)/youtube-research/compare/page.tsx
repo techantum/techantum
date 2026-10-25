@@ -81,7 +81,7 @@ function CompareVideos() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link href={`${base}/videos`} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
-            ← Back to Videos
+            ← Back to research
           </Link>
           <p className="mt-2 text-sm text-slate-500">Public counts sit side by side. A higher number is not a claim that the title or thumbnail caused it.</p>
         </div>
@@ -144,7 +144,7 @@ function CompareVideos() {
           </section>
         </>
       ) : null}
-      <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`${base}/videos`}>Back to Videos</Link>
+      <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`${base}/videos`}>Back to research</Link>
     </div>
   );
 }

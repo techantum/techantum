@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ADMIN_NAV, visibleAdminNav, type AdminNavItem } from '@/lib/cms/admin-nav';
-import YoutubeResearchNav from '@/components/partner/YoutubeResearchNav';
+import YoutubeResearchNav, { youtubeChildNavClass } from '@/components/partner/YoutubeResearchNav';
 import type { AdminRole } from '@/lib/admin/roles';
 import Icon from '@/components/ui/AppIcon';
 
@@ -154,9 +154,7 @@ export default function AdminShell({
                   <Link
                     key={child.id}
                     href={child.href || '/admin/youtube-research/settings'}
-                    className={`side-nav-item block rounded-lg px-3 py-1.5 text-sm ${
-                      settingsActive ? 'bg-orange-100 font-medium text-secondary' : 'text-slate-500 hover:bg-orange-50/70 hover:text-secondary'
-                    }`}
+                    className={youtubeChildNavClass(settingsActive)}
                   >
                     {child.label}
                   </Link>

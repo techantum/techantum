@@ -27,6 +27,7 @@ export const PARTNER_NAV_ITEMS = [
 
 export const PARTNER_YOUTUBE_NAV = [
   { href: '/partner/youtube-research', label: 'Dashboard', exact: true },
+  { href: '/partner/youtube-research/projects', label: 'Projects', exact: false },
 ] as const;
 
 export type PartnerNavKey = (typeof PARTNER_NAV_ITEMS)[number]['key'];

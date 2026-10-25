@@ -6,6 +6,7 @@ import { financeErrorResponse, fileResponse } from '@/lib/finance/http';
 import { requirePartner } from '@/lib/partner/auth';
 import { partnerHasNavAccess } from '@/lib/partner/nav';
 import { YoutubeApiError } from '@/lib/youtube/client';
+import { firstNameFrom, researchHome } from '@/lib/youtube/home';
 import { hasYoutubePermission, permissionsForRole, type YoutubePermission } from '@/lib/youtube/permissions';
 import { currentYoutubePartnerId, protectPartnerScope, withYoutubePartner, youtubePortalFrom } from '@/lib/youtube/scope';
 import { projectAnalysis, summarizeAnalysisVideo, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
@@ -31,6 +32,7 @@ import {
   saveProjectTopic,
   setPrimaryChannel,
   updateProject,
+  duplicateProject,
 } from '@/lib/youtube/projects';
 import {
   archiveResearchReport,
@@ -135,6 +137,10 @@ const resolveYoutubeActor = cache(async () => {
           role: admin.role as string,
           permissions: access.permissions,
           partnerId: null as string | null,
+          displayName: firstNameFrom(
+            String(admin.user.user_metadata?.full_name || admin.user.user_metadata?.name || ''),
+            admin.email || admin.user.email,
+          ),
         };
       }
     } catch (err) {
@@ -152,6 +158,7 @@ const resolveYoutubeActor = cache(async () => {
     role: partner.partnerUser.role,
     permissions,
     partnerId: partner.partner.id,
+    displayName: firstNameFrom(partner.partnerUser.full_name, partner.partnerUser.email),
   };
 });
 
@@ -194,7 +201,7 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
     if (path[0] === 'session') {
       const auth = await resolveYoutubeActor();
       if ('error' in auth) return auth.error;
-      return NextResponse.json({ role: auth.role, permissions: auth.permissions });
+      return NextResponse.json({ role: auth.role, permissions: auth.permissions, firstName: auth.displayName });
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'overview') {
       const auth = await gate('youtube_research.view');
@@ -239,6 +246,10 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
         categoryId: query.categoryId,
         content: query.content,
         placement: query.placement,
+        minViews: query.minViews,
+        maxViews: query.maxViews,
+        minDuration: query.minDuration,
+        maxDuration: query.maxDuration,
       }));
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'insights') {
@@ -291,9 +302,11 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
     if (path[0] === 'projects') {
       const auth = await gate('youtube_research.view');
       if ('error' in auth && auth.error) return auth.error;
+      const bucket = url.searchParams.get('bucket') || '';
       return NextResponse.json(await listProjects({
         q: url.searchParams.get('q') || '',
-        status: url.searchParams.get('status') || 'active',
+        status: url.searchParams.get('status') || (bucket ? '' : 'active'),
+        bucket,
         page: Number(url.searchParams.get('page') || 1),
         pageSize: Number(url.searchParams.get('pageSize') || 20),
       }));
@@ -341,6 +354,11 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
       const auth = await gate('youtube_research.view');
       if ('error' in auth && auth.error) return auth.error;
       return NextResponse.json(await listTopics(url.searchParams.get('all') === '1'));
+    }
+    if (path[0] === 'home') {
+      const auth = await gate('youtube_research.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await researchHome());
     }
     if (path[0] === 'dashboard') {
       const auth = await gate('youtube_research.view');
@@ -427,6 +445,11 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
       const auth = await gate('youtube_research.analytics.view');
       if ('error' in auth && auth.error) return auth.error;
       return NextResponse.json(await createResearchReport(path[1], body, auth.user.id));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'duplicate') {
+      const auth = await gate('youtube_research.channels.manage');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await duplicateProject(path[1], auth.user.id));
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'import') {
       const auth = await gate('youtube_research.videos.import');

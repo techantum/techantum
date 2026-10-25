@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
@@ -264,6 +264,49 @@ export function SimpleBars({ rows, color = '#EA580C' }: { rows: { label: string;
         <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} {...CHART_MOTION} />
       </BarChart>
     </ResponsiveContainer>
+  );
+}
+
+export function TimeViewsChart({ data }: { data: { label: string; own: number; competitors: number }[] }) {
+  if (!data.length) return <EmptyChart text="No imported videos match these filters." />;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ left: 8, right: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="label" fontSize={11} />
+        <YAxis fontSize={11} />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey="competitors" name="Competitors" fill="#CBD5E1" radius={[4, 4, 0, 0]} {...CHART_MOTION} />
+        <Line dataKey="own" name="Your channel" type="monotone" stroke="#EA580C" strokeWidth={2} dot={{ r: 3, fill: '#EA580C' }} {...CHART_MOTION} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function HorizontalMetricBars({
+  rows,
+  color = '#EA580C',
+  formatValue,
+}: {
+  rows: { label: string; value: number }[];
+  color?: string;
+  formatValue?: (value: number) => string;
+}) {
+  const max = Math.max(0, ...rows.map((row) => row.value));
+  if (!rows.length) return <EmptyChart text="No values for this view." />;
+  return (
+    <ul className="space-y-3">
+      {rows.map((row) => (
+        <li key={row.label} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-sm">
+          <span className="truncate text-slate-600">{row.label}</span>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-2 rounded-full" style={{ width: `${max ? Math.max(6, (row.value / max) * 100) : 0}%`, background: color }} />
+          </div>
+          <span className="tabular-nums text-slate-500">{formatValue ? formatValue(row.value) : row.value.toLocaleString('en-IN')}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
