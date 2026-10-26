@@ -8,7 +8,8 @@ import { partnerHasNavAccess } from '@/lib/partner/nav';
 import { YoutubeApiError } from '@/lib/youtube/client';
 import { firstNameFrom, researchHome } from '@/lib/youtube/home';
 import { hasYoutubePermission, permissionsForRole, type YoutubePermission } from '@/lib/youtube/permissions';
-import { currentYoutubePartnerId, protectPartnerScope, withYoutubePartner, youtubePortalFrom } from '@/lib/youtube/scope';
+import { entitlementsFor, getSaasActor } from '@/lib/saas/session';
+import { currentSaasAccountId, currentYoutubePartnerId, protectPartnerScope, withYoutubeContext, withYoutubePartner, youtubePortalFrom } from '@/lib/youtube/scope';
 import { projectAnalysis, summarizeAnalysisVideo, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
 import {
   addProjectChannel,
@@ -127,6 +128,22 @@ async function readYoutubePortal() {
 
 const resolveYoutubeActor = cache(async () => {
   const portal = await readYoutubePortal();
+  if (portal === 'saas') {
+    const actor = await getSaasActor();
+    if (!actor) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    const access = entitlementsFor(actor.account);
+    if (!access.youtube) {
+      return { error: NextResponse.json({ error: 'YouTube Research is on Growth and Scale plans. Open Billing to upgrade.' }, { status: 402 }) };
+    }
+    return {
+      user: { id: actor.userId, email: actor.email } as { id: string; email?: string },
+      role: actor.role === 'owner' ? 'owner' : 'member',
+      permissions: permissionsForRole(actor.role, []),
+      partnerId: null as string | null,
+      saasAccountId: actor.account.id as string | null,
+      displayName: firstNameFrom(actor.name, actor.email),
+    };
+  }
   if (portal !== 'partner') {
     try {
       const admin = await requireAdmin();
@@ -137,6 +154,7 @@ const resolveYoutubeActor = cache(async () => {
           role: admin.role as string,
           permissions: access.permissions,
           partnerId: null as string | null,
+          saasAccountId: null as string | null,
           displayName: firstNameFrom(
             String(admin.user.user_metadata?.full_name || admin.user.user_metadata?.name || ''),
             admin.email || admin.user.email,
@@ -158,6 +176,7 @@ const resolveYoutubeActor = cache(async () => {
     role: partner.partnerUser.role,
     permissions,
     partnerId: partner.partner.id,
+    saasAccountId: null as string | null,
     displayName: firstNameFrom(partner.partnerUser.full_name, partner.partnerUser.email),
   };
 });
@@ -172,10 +191,11 @@ async function gate(permission: YoutubePermission) {
 }
 
 async function enterPartnerScope<T>(run: () => Promise<T>) {
-  if (currentYoutubePartnerId()) return run();
+  if (currentYoutubePartnerId() || currentSaasAccountId()) return run();
   try {
     const actor = await resolveYoutubeActor();
     if ('error' in actor) return actor.error as T;
+    if (actor.saasAccountId) return withYoutubeContext({ partnerId: actor.partnerId, saasAccountId: actor.saasAccountId }, run);
     if (actor.partnerId) return withYoutubePartner(actor.partnerId, run);
     return run();
   } catch (err) {

@@ -87,13 +87,15 @@ export async function runLeadSearch(input: LeadSearchFilters): Promise<LeadSearc
 export async function saveLeadSearchRun(
   search: LeadSearchResponse,
   createdBy?: string,
-  name?: string
+  name?: string,
+  saasAccountId?: string
 ): Promise<{ run: LeadDiscoveryRun; results: LeadDiscoveryResultRow[] }> {
   const supabase = createAdminClient();
   const { data: run, error: runError } = await supabase
     .from('lead_discovery_runs')
     .insert({
       created_by: createdBy ?? null,
+      saas_account_id: saasAccountId ?? null,
       name: (name || '').trim() || defaultSearchName(search.filters),
       country: search.filters.country || null,
       state: search.filters.state || null,
@@ -147,13 +149,15 @@ export async function saveLeadSearchRun(
   return { run: run as LeadDiscoveryRun, results: (saved ?? []) as LeadDiscoveryResultRow[] };
 }
 
-export async function listLeadDiscoveryRuns(limit = 50, createdBy?: string) {
+export async function listLeadDiscoveryRuns(limit = 50, createdBy?: string, saasAccountId?: string) {
   let query = createAdminClient()
     .from('lead_discovery_runs')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (createdBy) query = query.eq('created_by', createdBy);
+  if (saasAccountId) query = query.eq('saas_account_id', saasAccountId);
+  else if (createdBy) query = query.eq('created_by', createdBy);
+  else query = query.is('saas_account_id', null);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as LeadDiscoveryRun[];

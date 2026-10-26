@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
+    "dev:scout": "npm run dev --prefix apps/scout",
+    "build:scout": "npm run build --prefix apps/scout",
     "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3005",
     "build": "next build",
     "start": "next start -p 4028",

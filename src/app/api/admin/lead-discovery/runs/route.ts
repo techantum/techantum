@@ -9,7 +9,11 @@ export async function GET() {
 
   try {
     return NextResponse.json(
-      await listLeadDiscoveryRuns(50, auth.actor === 'partner' ? auth.user.id : undefined)
+      await listLeadDiscoveryRuns(
+        50,
+        auth.actor === 'partner' ? auth.user.id : undefined,
+        auth.actor === 'saas' ? auth.saasAccountId : undefined
+      )
     );
   } catch (err) {
     return NextResponse.json(
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
     const name = typeof body.name === 'string' ? body.name : '';
 
     if (body.search) {
-      const saved = await saveLeadSearchRun(body.search, auth.user.id, name);
+      const saved = await saveLeadSearchRun(body.search, auth.user.id, name, auth.actor === 'saas' ? auth.saasAccountId : undefined);
       return NextResponse.json(saved);
     }
 
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
       hasPhone: (body.hasPhone as PhoneFilter) || 'any',
     });
 
-    const saved = await saveLeadSearchRun(search, auth.user.id, name);
+    const saved = await saveLeadSearchRun(search, auth.user.id, name, auth.actor === 'saas' ? auth.saasAccountId : undefined);
     return NextResponse.json(saved);
   } catch (err) {
     return NextResponse.json(

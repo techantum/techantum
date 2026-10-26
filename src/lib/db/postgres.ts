@@ -2,8 +2,51 @@ import { Pool, type QueryResultRow } from 'pg';
 
 const globalForPg = globalThis as typeof globalThis & { techantumPgPool?: Pool };
 
+function trimEnv(name: string) {
+  return (process.env[name] || '').trim();
+}
+
+function portOf(connectionString: string) {
+  try {
+    return Number(new URL(connectionString).port || '5432');
+  } catch {
+    return 0;
+  }
+}
+
+function isSupabasePooler(connectionString: string) {
+  return /pooler\.supabase\.com/i.test(connectionString) || /pgbouncer=true/i.test(connectionString);
+}
+
+/** Session-mode pooler (Supabase port 5432) allows about 15 clients total — not per app. */
+function isSessionPooler(connectionString: string) {
+  return /pooler\.supabase\.com/i.test(connectionString) && portOf(connectionString) === 5432;
+}
+
+function isTransactionPooler(connectionString: string) {
+  return portOf(connectionString) === 6543 || /pgbouncer=true/i.test(connectionString);
+}
+
+/**
+ * App traffic must use the transaction pooler (DATABASE_URL, port 6543).
+ * DIRECT_URL on *.pooler.supabase.com:5432 is session mode and is why EMAXCONNSESSION appears.
+ */
 function getConnectionString() {
-  return (process.env.DIRECT_URL || process.env.DATABASE_URL || '').trim();
+  const pooled = trimEnv('DATABASE_URL');
+  const direct = trimEnv('DIRECT_URL');
+  if (pooled && isTransactionPooler(pooled)) return pooled;
+  if (direct && !isSessionPooler(direct)) return direct;
+  if (pooled) return pooled;
+  return direct;
+}
+
+function poolMax(connectionString: string) {
+  const configured = Number(process.env.PG_POOL_MAX);
+  const hardCap = isSessionPooler(connectionString) ? 2 : 3;
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.min(hardCap, Math.max(1, configured));
+  }
+  return isSupabasePooler(connectionString) ? Math.min(3, hardCap) : 4;
 }
 
 export function getPool(): Pool {
@@ -11,10 +54,7 @@ export function getPool(): Pool {
   if (!connectionString) {
     throw new Error('DIRECT_URL or DATABASE_URL is not set');
   }
-  const configured = Number(process.env.PG_POOL_MAX);
-  const pgbouncer = /:6543\b|pgbouncer|pooler\.supabase/i.test(connectionString);
-  const fallback = pgbouncer ? 3 : 8;
-  const max = Math.min(12, Math.max(1, Number.isFinite(configured) && configured > 0 ? configured : fallback));
+  const max = poolMax(connectionString);
   if (globalForPg.techantumPgPool && globalForPg.techantumPgPool.options.max !== max) {
     void globalForPg.techantumPgPool.end().catch(() => undefined);
     globalForPg.techantumPgPool = undefined;
@@ -23,7 +63,7 @@ export function getPool(): Pool {
     globalForPg.techantumPgPool = new Pool({
       connectionString,
       max,
-      idleTimeoutMillis: 30_000,
+      idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 8_000,
       allowExitOnIdle: true,
       ssl: /supabase\.com/i.test(connectionString) ? { rejectUnauthorized: false } : undefined,

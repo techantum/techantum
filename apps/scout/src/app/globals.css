@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-bricolage: ui-sans-serif, system-ui, sans-serif;
+  --font-inter: ui-sans-serif, system-ui, sans-serif;
+  --color-secondary: #4f46e5;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.font-bricolage {
+  font-family: var(--font-bricolage), sans-serif;
+}

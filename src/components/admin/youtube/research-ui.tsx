@@ -6,7 +6,7 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
 import Icon from '@/components/ui/AppIcon';
-import { metric, youtubePortalHeader, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, youtubeApiPrefix, youtubePortalHeader, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export const CHANNEL_COLORS = ['#EA580C', '#0F766E', '#2563EB', '#7C3AED', '#BE123C', '#0F172A'];
 
@@ -373,7 +373,7 @@ export function mergeMonths(channels: { id: string; channel_name?: string | null
 }
 
 export async function downloadResearchReport(projectId: string, reportId: string) {
-  const response = await fetch(`/api/admin/youtube/projects/${projectId}/research-reports/${reportId}/export`, {
+  const response = await fetch(`${youtubeApiPrefix()}/projects/${projectId}/research-reports/${reportId}/export`, {
     headers: youtubePortalHeader(),
   });
   if (!response.ok) {
@@ -408,7 +408,7 @@ export async function saveAndDownloadAnalysisReport(projectId: string, analysis:
 }
 
 export async function downloadProjectExport(body: Record<string, unknown>) {
-  const response = await fetch('/api/admin/youtube/reports/export', {
+  const response = await fetch(`${youtubeApiPrefix()}/reports/export`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...youtubePortalHeader() },
     body: JSON.stringify(body),

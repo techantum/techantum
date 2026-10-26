@@ -1,0 +1,60 @@
+import { NextResponse } from 'next/server';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
+import { listLeadDiscoveryRuns, runLeadSearch, saveLeadSearchRun } from '@/lib/places/service';
+import type { PhoneFilter, WebsiteFilter } from '@/lib/places/types';
+
+export async function GET() {
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
+
+  try {
+    return NextResponse.json(
+      await listLeadDiscoveryRuns(
+        50,
+        auth.actor === 'partner' ? auth.user.id : undefined,
+        auth.actor === 'saas' ? auth.saasAccountId : undefined
+      )
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to load runs' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
+
+  try {
+    const body = await request.json();
+
+    const name = typeof body.name === 'string' ? body.name : '';
+
+    if (body.search) {
+      const saved = await saveLeadSearchRun(body.search, auth.user.id, name, auth.actor === 'saas' ? auth.saasAccountId : undefined);
+      return NextResponse.json(saved);
+    }
+
+    const search = await runLeadSearch({
+      country: String(body.country || '').trim(),
+      state: String(body.state || '').trim(),
+      countryCode: String(body.countryCode || '').trim(),
+      city: String(body.city || '').trim(),
+      area: String(body.area || body.city || '').trim(),
+      segment: String(body.segment || '').trim(),
+      minRating: body.minRating != null && body.minRating !== '' ? Number(body.minRating) : null,
+      hasWebsite: (body.hasWebsite as WebsiteFilter) || 'any',
+      hasPhone: (body.hasPhone as PhoneFilter) || 'any',
+    });
+
+    const saved = await saveLeadSearchRun(search, auth.user.id, name, auth.actor === 'saas' ? auth.saasAccountId : undefined);
+    return NextResponse.json(saved);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Save failed' },
+      { status: 400 }
+    );
+  }
+}

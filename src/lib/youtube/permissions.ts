@@ -23,7 +23,7 @@ function canManageYoutubeSettings(role: string | null | undefined) {
 export function hasYoutubePermission(role: string | null | undefined, grants: readonly string[], key: YoutubePermission) {
   if (key === 'youtube_research.settings.manage') return canManageYoutubeSettings(role);
   if (role === 'SUPER_ADMIN') return true;
-  if (role === 'partner' || role === 'partner_admin' || role === 'partner_user') {
+  if (role === 'owner' || role === 'partner' || role === 'partner_admin' || role === 'partner_user') {
     return key !== 'youtube_research.settings.manage';
   }
   return grants.includes(key);
@@ -31,7 +31,7 @@ export function hasYoutubePermission(role: string | null | undefined, grants: re
 
 export function permissionsForRole(role: string | null | undefined, grants: readonly string[]) {
   if (role === 'SUPER_ADMIN') return [...YOUTUBE_PERMISSIONS];
-  const allowed = role === 'partner' || role === 'partner_admin' || role === 'partner_user'
+  const allowed = role === 'owner' || role === 'member' || role === 'partner' || role === 'partner_admin' || role === 'partner_user'
     ? YOUTUBE_PERMISSIONS.filter((key) => key !== 'youtube_research.settings.manage')
     : YOUTUBE_PERMISSIONS.filter((key) => grants.includes(key) && key !== 'youtube_research.settings.manage');
   return allowed;

@@ -1,14 +1,16 @@
 import { q } from '../finance/db';
 import { presentListedProject, type HomeProject } from './home-display';
-import { currentYoutubePartnerId } from './scope';
+import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
 
 export { firstNameFrom, formatAgo, greetingForHour, nextStepFor, projectInitials } from './home-display';
 export type { HomeProject, ProjectNextStep } from './home-display';
 
 function scopeSql(alias = 'p') {
+  const saasId = currentSaasAccountId();
+  if (saasId) return { sql: `${alias}.saas_account_id=$1`, values: [saasId] as unknown[] };
   const partnerId = currentYoutubePartnerId();
   if (partnerId) return { sql: `${alias}.partner_id=$1`, values: [partnerId] as unknown[] };
-  return { sql: `${alias}.partner_id IS NULL`, values: [] as unknown[] };
+  return { sql: `${alias}.partner_id IS NULL AND ${alias}.saas_account_id IS NULL`, values: [] as unknown[] };
 }
 
 function shapeProject(row: Record<string, any>): HomeProject {

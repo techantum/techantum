@@ -32,11 +32,20 @@ export function allow(access: string[], key: string) {
 
 export function youtubePortalHeader(): Record<string, string> {
   if (typeof window === 'undefined') return {};
-  return { 'x-techantum-portal': window.location.pathname.startsWith('/partner/') ? 'partner' : 'admin' };
+  const path = window.location.pathname;
+  const portal = path.startsWith('/partner/') ? 'partner' : path.startsWith('/youtube') || path.startsWith('/leads') || path.startsWith('/home') || path.startsWith('/billing') ? 'saas' : 'admin';
+  return { 'x-techantum-portal': portal };
+}
+
+export function youtubeApiPrefix() {
+  if (typeof window === 'undefined') return '/api/admin/youtube';
+  const path = window.location.pathname;
+  if (path.startsWith('/youtube') || path.startsWith('/home') || path.startsWith('/leads')) return '/api/youtube';
+  return '/api/admin/youtube';
 }
 
 export async function yt(path: string, init?: RequestInit) {
-  const response = await fetch(`/api/admin/youtube/${path}`, {
+  const response = await fetch(`${youtubeApiPrefix()}/${path}`, {
     ...init,
     headers: {
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
@@ -50,7 +59,9 @@ export async function yt(path: string, init?: RequestInit) {
 }
 
 export function youtubePageBase(pathname: string) {
-  return pathname.startsWith('/partner/youtube-research') ? '/partner/youtube-research' : '/admin/youtube-research';
+  if (pathname.startsWith('/partner/youtube-research')) return '/partner/youtube-research';
+  if (pathname === '/youtube' || pathname.startsWith('/youtube/')) return '/youtube';
+  return '/admin/youtube-research';
 }
 
 export function useYoutubePageBase() {
@@ -59,7 +70,9 @@ export function useYoutubePageBase() {
 
 function projectCookieName() {
   const path = typeof window !== 'undefined' ? window.location.pathname : '';
-  return path.startsWith('/partner/') ? 'ta_yt_partner_project' : 'ta_yt_project';
+  if (path.startsWith('/partner/')) return 'ta_yt_partner_project';
+  if (path.startsWith('/youtube') || path.startsWith('/home')) return 'saas_yt_project';
+  return 'ta_yt_project';
 }
 
 export function rememberProject(id: string) {

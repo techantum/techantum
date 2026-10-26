@@ -1,0 +1,30 @@
+import { NextResponse } from 'next/server';
+import { requireLeadDiscoveryAccess } from '@/lib/places/lead-discovery-access';
+import { runLeadSearch } from '@/lib/places/service';
+import type { PhoneFilter, WebsiteFilter } from '@/lib/places/types';
+
+export async function POST(request: Request) {
+  const auth = await requireLeadDiscoveryAccess();
+  if ('error' in auth) return auth.error;
+
+  try {
+    const body = await request.json();
+    const search = await runLeadSearch({
+      country: String(body.country || '').trim(),
+      state: String(body.state || '').trim(),
+      countryCode: String(body.countryCode || '').trim(),
+      city: String(body.city || '').trim(),
+      area: String(body.area || body.city || '').trim(),
+      segment: String(body.segment || '').trim(),
+      minRating: body.minRating != null && body.minRating !== '' ? Number(body.minRating) : null,
+      hasWebsite: (body.hasWebsite as WebsiteFilter) || 'any',
+      hasPhone: (body.hasPhone as PhoneFilter) || 'any',
+    });
+    return NextResponse.json(search);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Search failed' },
+      { status: 400 }
+    );
+  }
+}

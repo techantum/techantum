@@ -5,7 +5,7 @@ import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, savedThumbna
 import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, performanceSummary, startImport } from './service';
 import { presentListedProject } from './home-display';
-import { currentYoutubePartnerId } from './scope';
+import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
 import { MAX_PROJECT_COMPETITORS } from './workspace-nav';
 
 export const LEGACY_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';
@@ -53,15 +53,18 @@ async function audit(userId: string, action: string, entityId: string | null, me
   await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,$2,'youtube_project',$3,$4::jsonb)`, [userId, action, entityId, JSON.stringify(metadata)]);
 }
 
-const loadProject = cache(async (id: string, partnerKey: string) => {
+const loadProject = cache(async (id: string, partnerKey: string, saasKey: string) => {
   const { rows } = await q(undefined, `SELECT * FROM youtube_research_projects WHERE id=$1`, [id]);
   const partnerId = partnerKey || null;
-  if (!rows[0] || (partnerId && rows[0].partner_id !== partnerId)) throw new FinanceNotFoundError('Research project not found');
+  const saasId = saasKey || null;
+  if (!rows[0]) throw new FinanceNotFoundError('Research project not found');
+  if (saasId && rows[0].saas_account_id !== saasId) throw new FinanceNotFoundError('Research project not found');
+  if (partnerId && rows[0].partner_id !== partnerId) throw new FinanceNotFoundError('Research project not found');
   return rows[0];
 });
 
 function requireProject(id: string) {
-  return loadProject(id, currentYoutubePartnerId() || '');
+  return loadProject(id, currentYoutubePartnerId() || '', currentSaasAccountId() || '');
 }
 
 const PROJECT_LIST_FROM = `FROM youtube_research_projects p
@@ -94,13 +97,18 @@ export async function listProjects(params: { q?: string; status?: string; bucket
   const where = ['1=1'];
   const countWhere = ['1=1'];
   const partnerId = currentYoutubePartnerId();
-  if (partnerId) {
+  const saasId = currentSaasAccountId();
+  if (saasId) {
+    values.push(saasId);
+    where.push(`p.saas_account_id=$${values.length}`);
+    countWhere.push(`p.saas_account_id=$${values.length}`);
+  } else if (partnerId) {
     values.push(partnerId);
     where.push(`p.partner_id=$${values.length}`);
     countWhere.push(`p.partner_id=$${values.length}`);
   } else {
-    where.push('p.partner_id IS NULL');
-    countWhere.push('p.partner_id IS NULL');
+    where.push('p.partner_id IS NULL AND p.saas_account_id IS NULL');
+    countWhere.push('p.partner_id IS NULL AND p.saas_account_id IS NULL');
   }
   if (params.q?.trim()) {
     values.push(`%${params.q.trim()}%`);
@@ -168,9 +176,9 @@ export async function createProject(body: Record<string, unknown>, userId: strin
   if (!name || name.length < 2) throw new FinanceValidationError('Project name is required.');
   const { rows } = await q(
     undefined,
-    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-    [name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status), userId, currentYoutubePartnerId()]
+    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status), userId, currentYoutubePartnerId(), currentSaasAccountId()]
   );
   await audit(userId, 'YouTube Project Created', rows[0].id, { name });
   return rows[0];
@@ -199,9 +207,9 @@ export async function duplicateProject(id: string, userId: string) {
   const name = `${String(project.name || 'Project').slice(0, 110)} copy`;
   const created = await q(
     undefined,
-    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id)
-     VALUES ($1,$2,$3,$4,$5,'active',$6,$7) RETURNING *`,
-    [name, project.brand_name, project.objective, project.industry, project.description, userId, project.partner_id || currentYoutubePartnerId()]
+    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id)
+     VALUES ($1,$2,$3,$4,$5,'active',$6,$7,$8) RETURNING *`,
+    [name, project.brand_name, project.objective, project.industry, project.description, userId, project.partner_id || currentYoutubePartnerId(), project.saas_account_id || currentSaasAccountId()]
   );
   await q(
     undefined,
