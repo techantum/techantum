@@ -84,7 +84,7 @@ export function nextStepFor(row: {
     return { key: 'import', label: 'Import videos', href: `/videos`, action: 'Import', progress: 3 };
   }
   if (Number(row.analysis_count || 0) < 1) {
-    return { key: 'analysis', label: 'Run AI analysis', href: `/analysis`, action: 'Analyse', progress: 4 };
+    return { key: 'analysis', label: 'Run analysis', href: `/videos`, action: 'Analyse', progress: 4 };
   }
   if (Number(row.report_count || 0) < 1) {
     return { key: 'report', label: 'Generate report', href: `/reports`, action: 'Generate', progress: 5 };

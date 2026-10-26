@@ -1,16 +1,25 @@
 'use client';
 
-import { Suspense } from 'react';
-import AiAnalysisWizard from '@/components/admin/youtube/AiAnalysisWizard';
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { ProjectRequired } from '@/components/admin/youtube/YoutubeFrame';
+import { useYoutubePageBase } from '@/components/admin/youtube/YoutubeFrame';
+
+function RedirectToAnalysis() {
+  const router = useRouter();
+  const base = useYoutubePageBase();
+  const search = useSearchParams();
+  const id = search?.get('id') || '';
+  useEffect(() => {
+    router.replace(id ? `${base}/channel-compare?id=${id}` : `${base}/channel-compare`);
+  }, [base, id, router]);
+  return <PageLoader label="Opening analysis…" />;
+}
 
 export default function Page() {
   return (
-    <ProjectRequired>
-      <Suspense fallback={<PageLoader label="Loading AI analysis…" />}>
-        <AiAnalysisWizard />
-      </Suspense>
-    </ProjectRequired>
+    <Suspense fallback={<PageLoader label="Opening analysis…" />}>
+      <RedirectToAnalysis />
+    </Suspense>
   );
 }

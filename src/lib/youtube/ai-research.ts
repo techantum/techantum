@@ -584,7 +584,22 @@ function presentAnalysis(row: Record<string, any>) {
 
 export async function listAiAnalyses(projectId: string) {
   await assertYoutubeProject(projectId);
-  const { rows } = await q(undefined, `SELECT id, project_id, name, status, config, provider, model, created_at, updated_at FROM youtube_ai_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 40`, [projectId]);
+  const { rows } = await q(undefined, `SELECT id, project_id, name, status, config, provider, model, created_at, updated_at,
+    COALESCE(jsonb_array_length(evidence->'videos'), 0)::int AS video_count,
+    (
+      SELECT jsonb_agg(jsonb_build_object(
+        'id', item->>'id',
+        'title', item->>'title',
+        'thumbnail_url', item->>'thumbnail_url',
+        'view_count', item->>'view_count',
+        'like_count', item->>'like_count',
+        'comment_count', item->>'comment_count',
+        'published_at', item->>'published_at',
+        'relationship', item->>'relationship'
+      ))
+      FROM jsonb_array_elements(COALESCE(evidence->'videos', '[]'::jsonb)) AS item
+    ) AS videos
+    FROM youtube_ai_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 40`, [projectId]);
   return rows;
 }
 

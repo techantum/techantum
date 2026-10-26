@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
+import AnalyseModal, { type AnalyseConfig } from '@/components/admin/youtube/AnalyseModal';
 import ChannelDraftForm from '@/components/admin/youtube/ChannelDraftForm';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
@@ -46,6 +47,8 @@ function Explorer() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
+  const [picked, setPicked] = useState<Record<string, any>>({});
+  const [analyseOpen, setAnalyseOpen] = useState(false);
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS, channelIds: search?.get('channel') || '', sort: 'published_at' });
   const [range, setRange] = useState('all');
   const [adding, setAdding] = useState<'own' | 'competitor' | ''>(search?.get('add') === 'own' ? 'own' : search?.get('add') === 'competitor' ? 'competitor' : '');
@@ -163,48 +166,63 @@ function Explorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  const toggle = (id: string) => {
-    setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 12)));
+  const toggle = (id: string, video?: Record<string, any>) => {
+    setSelected((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 12);
+      return next;
+    });
+    setPicked((current) => {
+      if (current[id]) {
+        const { [id]: _removed, ...rest } = current;
+        return rest;
+      }
+      const row = video || rows.find((item) => item.id === id);
+      if (!row) return current;
+      const entries = Object.entries({ ...current, [id]: row }).slice(-12);
+      return Object.fromEntries(entries);
+    });
   };
 
-  const runComparison = useCallback(async (report: boolean) => {
+  const openAnalyse = () => {
     if (!selected.length) {
-      setError('Select at least one video to analyse. Own + competitor pairs work best.');
+      setError('Select at least one video to analyse.');
       return;
     }
-    setBusy(report ? 'report' : 'summary');
+    setError('');
+    setAnalyseOpen(true);
+  };
+
+  const runAnalysis = async (config: AnalyseConfig) => {
+    setBusy('summary');
     setError('');
     try {
       const analysis = await yt(`projects/${projectId}/ai-analyses`, {
         method: 'POST',
         body: JSON.stringify({
-          name: report ? `Video comparison · ${selected.length} videos` : 'Selected video comparison',
-          goals: ['views', 'engagement'],
+          name: `Video analysis · ${selected.length} videos`,
+          goals: config.goals,
           source: 'selected',
           videoIds: selected,
           contentFocus: ['titles', 'thumbnails', 'competitor_insights'],
+          targetAges: config.targetAges,
+          targetGenders: config.targetGenders,
+          geographies: config.geographies,
+          languages: config.languages,
+          interests: config.interests,
+          devices: config.devices,
+          audienceNotes: config.audienceNotes,
           outputs: ['improve_existing', 'gap_report'],
         }),
       });
-      if (report) {
-        await yt(`projects/${projectId}/research-reports`, {
-          method: 'POST',
-          body: JSON.stringify({
-            name: `Video comparison · ${selected.length} videos`,
-            report_type: 'competitor',
-            analysis_id: analysis.id,
-          }),
-        });
-        router.push(`${base}/reports`);
-        return;
-      }
-      router.push(`${base}/analysis?id=${analysis.id}`);
+      setAnalyseOpen(false);
+      router.push(`${base}/channel-compare?id=${analysis.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : report ? 'Could not generate the report' : 'Could not generate the summary');
+      setError(err instanceof Error ? err.message : 'Could not generate the analysis');
     } finally {
       setBusy('');
     }
-  }, [base, projectId, router, selected]);
+  };
+
 
   const headerAction = useMemo(() => (
     <>
@@ -217,12 +235,12 @@ function Explorer() {
         type="button"
         className={partnerBtnPrimary}
         disabled={Boolean(busy)}
-        onClick={() => { if (selected.length) runComparison(false); else router.push(`${base}/analysis`); }}
+        onClick={() => { if (selected.length) setAnalyseOpen(true); else router.push(`${base}/channel-compare`); }}
       >
         <Icon name="LightBulbIcon" size={16} /> Analyse results
       </button>
     </>
-  ), [base, busy, manage, router, runComparison, selected.length]);
+  ), [base, busy, manage, router, selected.length]);
 
   useYoutubeRailActions(headerAction);
 
@@ -390,9 +408,6 @@ function Explorer() {
             <button type="button" className={partnerBtnSecondary} onClick={() => applyFilters(filters)}>Search</button>
             <button type="button" className={partnerBtnSecondary} onClick={resetFilters}>Reset filters</button>
             {canImport ? <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}><Icon name="ArrowDownTrayIcon" size={16} /> Fetch videos</AdminButton> : null}
-            <AdminButton variant="primary" loading={busy === 'summary'} disabled={!selected.length || Boolean(busy)} onClick={() => runComparison(false)}>
-              <Icon name="LightBulbIcon" size={16} /> Analyse
-            </AdminButton>
           </div>
         </div>
       </section>
@@ -402,11 +417,16 @@ function Explorer() {
           <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} results`}</span>
           <Chip className="bg-slate-100 text-slate-600">YouTube</Chip>
         </div>
-        {selected.length ? (
-          <button type="button" className="text-sm font-semibold text-secondary" onClick={() => setSelected([])}>Clear selection ({selected.length})</button>
-        ) : (
-          <button type="button" className="text-sm font-semibold text-slate-400" onClick={resetFilters}>Clear all</button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {selected.length ? (
+            <button type="button" className="text-sm font-semibold text-secondary" onClick={() => { setSelected([]); setPicked({}); }}>Clear all</button>
+          ) : (
+            <button type="button" className="text-sm font-semibold text-slate-400" onClick={resetFilters}>Clear all</button>
+          )}
+          <AdminButton variant="primary" disabled={!selected.length || Boolean(busy)} onClick={openAnalyse}>
+            <Icon name="SparklesIcon" size={16} /> Analyse{selected.length ? ` (${selected.length})` : ''}
+          </AdminButton>
+        </div>
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -430,7 +450,7 @@ function Explorer() {
                 return (
                   <tr key={video.id} className={`border-t border-slate-50 ${selected.includes(video.id) ? 'bg-orange-50/40' : 'hover:bg-slate-50/80'}`}>
                     <td className="px-3 py-3">
-                      <input type="checkbox" checked={selected.includes(video.id)} onChange={() => toggle(video.id)} aria-label={`Select ${video.title || 'video'}`} />
+                      <input type="checkbox" checked={selected.includes(video.id)} onChange={() => toggle(video.id, video)} aria-label={`Select ${video.title || 'video'}`} />
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-start gap-3">
@@ -439,7 +459,7 @@ function Explorer() {
                           {duration ? <span className="absolute bottom-1 right-1 rounded bg-slate-900/80 px-1 text-[10px] font-semibold text-white">{duration}</span> : null}
                         </span>
                         <span>
-                          <button type="button" className="line-clamp-2 text-left font-semibold text-slate-900" onClick={() => toggle(video.id)}>{video.title || video.youtube_video_id}</button>
+                          <button type="button" className="line-clamp-2 text-left font-semibold text-slate-900" onClick={() => toggle(video.id, video)}>{video.title || video.youtube_video_id}</button>
                           <span className="mt-1 flex flex-wrap gap-1">
                             {video.content_label ? <Chip className="bg-slate-100 text-slate-600">{video.content_label}</Chip> : null}
                             <PlacementBadge value={video.placement_label} />
@@ -491,6 +511,16 @@ function Explorer() {
           </span>
         </div>
       </section>
+
+      {analyseOpen ? (
+        <AnalyseModal
+          videos={selected.map((id) => picked[id] || rows.find((row) => row.id === id)).filter(Boolean)}
+          busy={busy === 'summary'}
+          error={error}
+          onClose={() => { if (busy !== 'summary') setAnalyseOpen(false); }}
+          onGenerate={runAnalysis}
+        />
+      ) : null}
     </div>
   );
 }

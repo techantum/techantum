@@ -260,7 +260,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
                 ← All projects
               </Link>
               {railActions || nestedLabel ? railActions : (
-                <Link className={partnerBtnPrimary} href={`${base}/analysis`}>
+                <Link className={partnerBtnPrimary} href={`${base}/channel-compare`}>
                   <Icon name="LightBulbIcon" size={16} /> Analyse results
                 </Link>
               )}

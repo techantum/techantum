@@ -81,7 +81,7 @@ export default function ResearchProjectsPage() {
   const quick = useMemo(() => [
     { label: 'New project', hint: 'Benchmark a channel', href: `${base}/projects/new`, icon: 'PlusIcon', tint: 'bg-rose-50 text-rose-600', show: manage, projectId: '' },
     { label: 'Add competitor', hint: competitorProject ? `To ${competitorProject.name}` : 'To existing research', href: competitorProject ? projectPath(base, '/channels?from=research&add=competitor') : `${base}/projects/new`, icon: 'UserPlusIcon', tint: 'bg-sky-50 text-sky-700', show: manage, projectId: competitorProject?.id || '' },
-    { label: 'Run AI analysis', hint: home?.analysisReadyCount ? `${home.analysisReadyCount} project${home.analysisReadyCount === 1 ? '' : 's'} ready` : 'After videos are imported', href: analysisProject ? projectPath(base, '/analysis') : `${base}/projects/new`, icon: 'LightBulbIcon', tint: 'bg-amber-50 text-amber-700', show: true, projectId: analysisProject?.id || '' },
+    { label: 'Run analysis', hint: home?.analysisReadyCount ? `${home.analysisReadyCount} project${home.analysisReadyCount === 1 ? '' : 's'} ready` : 'After videos are imported', href: analysisProject ? projectPath(base, '/videos') : `${base}/projects/new`, icon: 'LightBulbIcon', tint: 'bg-amber-50 text-amber-700', show: true, projectId: analysisProject?.id || '' },
     { label: 'Generate report', hint: 'PDF or share link', href: reportProject ? projectPath(base, '/reports') : `${base}/projects/new`, icon: 'DocumentChartBarIcon', tint: 'bg-emerald-50 text-emerald-700', show: true, projectId: reportProject?.id || '' },
   ].filter((item) => item.show), [analysisProject, base, competitorProject, home?.analysisReadyCount, manage, reportProject]);
 

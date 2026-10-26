@@ -5,9 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
-import GapCards from '@/components/admin/youtube/GapCards';
+import AnalysisComplete from '@/components/admin/youtube/AnalysisComplete';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { buildGapCards } from '@/lib/youtube/gap-cards';
 import { metric, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
 import type { ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
@@ -167,7 +166,6 @@ export default function AiAnalysisWizard() {
   const [options, setOptions] = useState<ResearchFilterOptions>({});
   const [history, setHistory] = useState<Record<string, any>[]>([]);
   const [current, setCurrent] = useState<Record<string, any> | null>(null);
-  const [openCard, setOpenCard] = useState('');
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -335,12 +333,6 @@ export default function AiAnalysisWizard() {
     return cards.filter((card) => card.show).slice(0, 4);
   }, [goals, focus]);
 
-  const result = current?.result || {};
-  const observations = Array.isArray(result.observations) ? result.observations : [];
-  const alternatives = result.alternatives || {};
-  const gapPair = buildGapCards(current?.evidence?.videos || []);
-  const evidenceVideos: Record<string, any>[] = current?.evidence?.videos || [];
-  const videoMap = Object.fromEntries(evidenceVideos.map((video) => [video.id, video]));
   const goalLabels = PRIMARY_GOALS.filter((item) => goals.includes(item.id));
   const focusLabels = FOCUS.filter((item) => focus.includes(item.id));
 
@@ -349,7 +341,12 @@ export default function AiAnalysisWizard() {
   return (
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
-      {busy ? <PageLoader label="Generating analysis…" /> : null}
+      {busy ? (
+        <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-white/90">
+          <img src="/youtube/analysing.gif" alt="" className="h-40 w-40 object-contain" />
+          <p className="mt-4 font-bricolage text-2xl font-semibold text-slate-900">Your videos are being analysed</p>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -405,7 +402,7 @@ export default function AiAnalysisWizard() {
               )) : (
                 <tr>
                   <td className="px-4 py-10 text-sm text-slate-500" colSpan={4}>
-                    No analyses yet. Select videos on the Videos page and click Generate Summary, or start a custom AI analysis.
+                    No analysed videos yet. Select videos on Research and click Analyse.
                   </td>
                 </tr>
               )}
@@ -786,90 +783,8 @@ export default function AiAnalysisWizard() {
               ))}
             </div>
           ) : null}
-          {current?.status === 'ready' && gapPair ? (
-            <>
-              <section className="rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4">
-                <p className="inline-flex items-center gap-2 text-sm font-semibold text-secondary"><Icon name="SparklesIcon" size={18} /> Own video and competitor video</p>
-                <h3 className="mt-1 font-bricolage text-lg font-semibold text-slate-900">Gaps are scored on each video, using the other video in the pair.</h3>
-                <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">Views, viewership share, likes, comments, description, and title come from the public video record. Watch hours, geography, ages watched, and genders watched are not shared by YouTube for these videos.</p>
-              </section>
-              <GapCards videos={current?.evidence?.videos || []} actions={current.actions || []} onStatus={saveAction} briefs={Array.isArray(result.video_briefs) ? result.video_briefs : []} />
-            </>
-          ) : current?.status === 'ready' ? (
-            <>
-              <section className="rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4">
-                <p className="inline-flex items-center gap-2 text-sm font-semibold text-secondary"><Icon name="SparklesIcon" size={18} /> AI-assisted summary</p>
-                <h3 className="mt-1 font-bricolage text-lg font-semibold text-slate-900">{result.summary?.headline}</h3>
-                <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">{result.summary?.body}</p>
-              </section>
-              {Array.isArray(result.video_briefs) && result.video_briefs.length ? (
-                <section className="grid gap-3 md:grid-cols-2">
-                  {result.video_briefs.map((brief: Record<string, any>) => (
-                    <article key={brief.video_id || brief.title} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex gap-3">
-                        {brief.thumbnail_url ? <img src={brief.thumbnail_url} alt="" loading="lazy" className="h-16 w-28 shrink-0 rounded-xl object-cover" /> : <span className="flex h-16 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">No thumbnail</span>}
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">{brief.title}</p>
-                          <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">{brief.content_source === 'captions' ? 'Captions' : brief.content_source === 'description' ? 'Description' : 'No spoken text'}</p>
-                        </div>
-                      </div>
-                      <p className="mt-3 text-xs leading-5 text-slate-600"><span className="font-semibold text-slate-800">Image: </span>{brief.thumbnail_summary}</p>
-                      <p className="mt-2 text-xs leading-5 text-slate-600"><span className="font-semibold text-slate-800">Content: </span>{brief.content_summary}</p>
-                    </article>
-                  ))}
-                </section>
-              ) : null}
-              <div className="grid gap-3 md:grid-cols-2">
-                {observations.map((card: Record<string, any>, index: number) => {
-                  const key = `${card.headline}-${index}`;
-                  const open = openCard === key;
-                  return (
-                    <article key={key} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <AdminBadge variant="indigo">{card.category}</AdminBadge>
-                      <h3 className="mt-2 text-sm font-semibold text-slate-900">{card.headline}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{card.observation}</p>
-                      <button type="button" className="mt-2 text-xs font-semibold text-secondary" onClick={() => setOpenCard(open ? '' : key)}>{open ? 'Hide details' : 'Show evidence'}</button>
-                      {open ? (
-                        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-600">
-                          <p><span className="font-semibold text-slate-800">Evidence:</span> {card.evidence}</p>
-                          <p><span className="font-semibold text-slate-800">Implication:</span> {card.implication}</p>
-                          <p><span className="font-semibold text-slate-800">Next step:</span> {card.action}</p>
-                          {(card.video_ids || []).map((id: string) => videoMap[id] ? <a key={id} className="mr-2 font-semibold text-secondary" href={videoMap[id].watch_url || '#'} target="_blank" rel="noreferrer">{videoMap[id].title || id}</a> : null)}
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-              {alternatives.titles?.length ? (
-                <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h2 className="font-bricolage text-[15px] font-semibold text-slate-900">Proposed alternatives</h2>
-                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">{alternatives.titles.map((item: string) => <li key={item}>{item}</li>)}</ul>
-                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">{(alternatives.thumbnail_concepts || []).map((item: Record<string, string>) => <li key={item.concept}>{item.concept}</li>)}</ul>
-                  {alternatives.description ? <p className="mt-3 text-sm text-slate-600">{alternatives.description}</p> : null}
-                </section>
-              ) : null}
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-100 px-5 py-3.5">
-                  <h2 className="font-bricolage text-[15px] font-semibold text-slate-900">Improvement action plan</h2>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {(current.actions || []).map((item: Record<string, any>) => (
-                    <div key={item.id} className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_auto]">
-                      <div>
-                        <AdminBadge variant={item.kind === 'new' ? 'sky' : 'green'}>{item.kind === 'new' ? 'Create New Video' : 'Improve Existing Video'}</AdminBadge>
-                        <h3 className="mt-2 text-sm font-semibold text-slate-900">{item.title}</h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
-                        <p className="mt-1 text-xs text-slate-500">Monitor: {item.metric} · Review: {item.review_period}</p>
-                      </div>
-                      <select className="mt-1 h-11 rounded-xl border border-slate-200 px-3 text-sm" value={item.status} onChange={(event) => saveAction(item.id, event.target.value)}>
-                        {STATUSES.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </>
+          {current?.status === 'ready' ? (
+            <AnalysisComplete analysis={current} onStatus={saveAction} />
           ) : <p className="text-sm text-slate-500">No saved analysis yet.</p>}
         </div>
       ) : null}
