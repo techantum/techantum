@@ -27,6 +27,44 @@ export function perThousandViews(actions: number | null, views: number | null | 
   return Math.round((actions / views) * 1000 * 10) / 10;
 }
 
+export function likesCommentsShare(video: { view_count?: number | null; like_count?: number | null; comment_count?: number | null }) {
+  const views = Number(video.view_count);
+  const actions = likesPlusComments(video);
+  if (!Number.isFinite(views) || views <= 0 || actions == null) return null;
+  return Math.round((actions / views) * 1000) / 10;
+}
+
+export function pctDiff(yours: unknown, theirs: unknown) {
+  const a = Number(yours);
+  const b = Number(theirs);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a === 0) return null;
+  return Math.round(((b - a) / Math.abs(a)) * 100);
+}
+
+export function uniqueChannelCount(videos: { channel_name?: string | null; channel_id?: string | null }[]) {
+  return new Set(videos.map((video) => video.channel_id || video.channel_name || '').filter(Boolean)).size;
+}
+
+export function pickComparePair(videos: Record<string, any>[]) {
+  const own = videos.filter((video) => video.relationship === 'own');
+  const others = videos.filter((video) => video.relationship !== 'own');
+  if (own.length && others.length) {
+    const competitor = [...others].sort((a, b) => Number(b.view_count || 0) - Number(a.view_count || 0))[0];
+    return { yours: own[0], competitor, extras: videos.filter((video) => video !== own[0] && video !== competitor) };
+  }
+  return {
+    yours: videos[0] || null,
+    competitor: videos[1] || null,
+    extras: videos.slice(2),
+  };
+}
+
+export function analysisStatusMeta(status: string) {
+  if (status === 'ready') return { label: 'Completed', className: 'bg-emerald-50 text-emerald-700' };
+  if (status === 'failed') return { label: 'Failed', className: 'bg-rose-50 text-rose-700' };
+  return { label: 'Processing', className: 'bg-indigo-50 text-indigo-700' };
+}
+
 function median(values: number[]) {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);

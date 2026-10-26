@@ -88,7 +88,10 @@ type EvidenceVideo = {
   id: string;
   youtube_video_id: string;
   title: string | null;
+  channel_id: string | null;
   channel_name: string | null;
+  channel_handle: string | null;
+  subscriber_count: number | null;
   relationship: string | null;
   content_label: string | null;
   placement_label: string | null;
@@ -156,12 +159,16 @@ function cleanText(value: unknown, max: number) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function compactVideo(row: Record<string, any>): EvidenceVideo {
+function compactVideo(row: Record<string, any>, channels: { id: string; youtube_channel_id?: string; channel_handle?: string | null; subscriber_count?: number | null }[] = []): EvidenceVideo {
+  const channel = channels.find((item) => String(item.id) === String(row.channel_id) || item.youtube_channel_id === row.youtube_channel_id);
   return {
     id: String(row.id),
     youtube_video_id: String(row.youtube_video_id || ''),
     title: row.title || null,
+    channel_id: row.channel_id ? String(row.channel_id) : null,
     channel_name: row.channel_name || null,
+    channel_handle: channel?.channel_handle || row.channel_handle || null,
+    subscriber_count: channel?.subscriber_count == null && row.subscriber_count == null ? null : Number(channel?.subscriber_count ?? row.subscriber_count),
     relationship: row.relationship || null,
     content_label: row.content_label || null,
     placement_label: row.placement_label || null,
@@ -360,7 +367,7 @@ async function collectEvidence(projectId: string, config: AiResearchConfig) {
     includeTotal: false,
     sort: 'view_count',
   });
-  const videos = listed.rows.map((row) => compactVideo(row as Record<string, any>));
+  const videos = listed.rows.map((row) => compactVideo(row as Record<string, any>, channels));
   if (!videos.length) throw new FinanceValidationError('Import videos into this project before running AI Analysis.');
   return {
     notice: AI_RESEARCH_NOTICE,
@@ -591,6 +598,8 @@ export async function listAiAnalyses(projectId: string) {
         'id', item->>'id',
         'title', item->>'title',
         'thumbnail_url', item->>'thumbnail_url',
+        'channel_id', item->>'channel_id',
+        'channel_name', item->>'channel_name',
         'view_count', item->>'view_count',
         'like_count', item->>'like_count',
         'comment_count', item->>'comment_count',
@@ -599,7 +608,7 @@ export async function listAiAnalyses(projectId: string) {
       ))
       FROM jsonb_array_elements(COALESCE(evidence->'videos', '[]'::jsonb)) AS item
     ) AS videos
-    FROM youtube_ai_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 40`, [projectId]);
+    FROM youtube_ai_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100`, [projectId]);
   return rows;
 }
 

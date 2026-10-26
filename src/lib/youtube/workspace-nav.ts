@@ -5,7 +5,7 @@ export const YOUTUBE_PROJECT_PAGES = [
 ] as const;
 
 export const YOUTUBE_TAB_HINT: Record<string, string> = {
-  videos: 'Content from your channels and competitors on YouTube.',
+  videos: 'Competition Research',
   channels: 'Add your YouTube channel and competitors, then return to Research.',
   'channel-compare': 'Analysed videos from this project. Open a row for stats, goal gaps, and suggestions.',
   analysis: 'Open a saved analysis or run a custom AI analysis.',

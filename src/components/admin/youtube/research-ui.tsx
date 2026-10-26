@@ -6,7 +6,7 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
 import Icon from '@/components/ui/AppIcon';
-import { metric, youtubePortalHeader } from '@/components/admin/youtube/YoutubeFrame';
+import { metric, youtubePortalHeader, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export const CHANNEL_COLORS = ['#EA580C', '#0F766E', '#2563EB', '#7C3AED', '#BE123C', '#0F172A'];
 
@@ -388,6 +388,23 @@ export async function downloadResearchReport(projectId: string, reportId: string
   link.download = match?.[1] || 'youtube-research-report.xlsx';
   link.click();
   URL.revokeObjectURL(url);
+}
+
+export async function saveAnalysisAsReport(projectId: string, analysis: { id: string; name?: string | null }, reportType = 'competitor') {
+  return yt(`projects/${projectId}/research-reports`, {
+    method: 'POST',
+    body: JSON.stringify({
+      name: analysis.name || 'Video comparison',
+      report_type: reportType,
+      analysis_id: analysis.id,
+    }),
+  });
+}
+
+export async function saveAndDownloadAnalysisReport(projectId: string, analysis: { id: string; name?: string | null }, reportType = 'competitor') {
+  const report = await saveAnalysisAsReport(projectId, analysis, reportType);
+  await downloadResearchReport(projectId, report.id);
+  return report;
 }
 
 export async function downloadProjectExport(body: Record<string, unknown>) {

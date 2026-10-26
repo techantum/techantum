@@ -249,11 +249,14 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
         <div ref={headerRef} className="sticky top-16 z-40 -mx-4 -mt-5 border-b border-slate-200 bg-white px-4 pb-0 pt-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
+              <Link href={`${base}/projects`} className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-secondary">
+                <Icon name="ArrowLeftIcon" size={16} /> Back to projects
+              </Link>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">{project?.name || 'Project'}</h1>
                 <AdminBadge variant={project?.status === 'archived' ? 'default' : 'green'}>{project?.status === 'active' ? 'Active' : project?.status || 'active'}</AdminBadge>
               </div>
-              <p className="mt-1 max-w-3xl text-sm text-slate-500">{project?.objective || YOUTUBE_TAB_HINT[section] || YOUTUBE_TAB_HINT[activeTab] || 'Content from your channels and competitors on YouTube.'}</p>
+              <p className="mt-1 max-w-3xl text-sm text-slate-500">{project?.objective || YOUTUBE_TAB_HINT[section] || YOUTUBE_TAB_HINT[activeTab] || 'Competition Research'}</p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Link className={partnerBtnSecondary} href={`${base}/projects`}>

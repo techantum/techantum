@@ -16,7 +16,7 @@ const PROJECT_VIDEO_FROM = `FROM youtube_videos v
   LEFT JOIN youtube_project_video_research r ON r.video_id = v.id AND r.project_id = pc.project_id
   LEFT JOIN youtube_research_topics t ON t.id = r.topic_id AND t.project_id = pc.project_id`;
 
-const PROJECT_VIDEO_SELECT = `SELECT v.*, c.channel_name, c.youtube_channel_id, c.last_refreshed_at AS channel_refreshed_at,
+const PROJECT_VIDEO_SELECT = `SELECT v.*, c.channel_name, c.channel_handle, c.thumbnail_url AS channel_thumbnail_url, c.youtube_channel_id, c.last_refreshed_at AS channel_refreshed_at,
   pc.relationship, r.topic_id, r.thumbnail_caption, r.research_notes, t.name AS topic_name
   ${PROJECT_VIDEO_FROM}`;
 

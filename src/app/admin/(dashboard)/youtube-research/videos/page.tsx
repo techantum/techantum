@@ -2,19 +2,28 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AnalyseModal, { type AnalyseConfig } from '@/components/admin/youtube/AnalyseModal';
 import ChannelDraftForm from '@/components/admin/youtube/ChannelDraftForm';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, saveAndDownloadAnalysisReport, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 import { allow, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import { formatAgo } from '@/lib/youtube/home-display';
 import { lengthLabel } from '@/lib/youtube/parse';
 import { MAX_PROJECT_COMPETITORS } from '@/lib/youtube/workspace-nav';
+
+const AVATAR_TONES = [
+  'bg-orange-100 text-orange-700',
+  'bg-rose-100 text-rose-700',
+  'bg-sky-100 text-sky-700',
+  'bg-violet-100 text-violet-700',
+  'bg-emerald-100 text-emerald-700',
+];
 
 function compactMetric(value: unknown) {
   const number = Number(value);
@@ -31,6 +40,16 @@ function interactions(video: Record<string, any>) {
 
 function Chip({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${className}`}>{children}</span>;
+}
+
+function initials(name?: string | null) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || 'C') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function Avatar({ src, name, className = 'h-10 w-10', tone = 'bg-slate-800 text-white' }: { src?: string | null; name?: string | null; className?: string; tone?: string }) {
+  if (src) return <img src={src} alt="" className={`${className} rounded-full object-cover`} />;
+  return <span className={`inline-flex items-center justify-center rounded-full text-[11px] font-bold ${className} ${tone}`}>{initials(name)}</span>;
 }
 
 function Explorer() {
@@ -59,6 +78,9 @@ function Explorer() {
   const [paging, setPaging] = useState<'prev' | 'next' | ''>('');
   const [fetching, setFetching] = useState(false);
   const [busy, setBusy] = useState('');
+  const [menu, setMenu] = useState('');
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const own = channels.find((channel) => channel.relationship === 'own');
   const competitors = channels.filter((channel) => channel.relationship === 'competitor');
@@ -166,6 +188,14 @@ function Explorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  useEffect(() => {
+    const add = search?.get('add');
+    if (add === 'own' || add === 'competitor') {
+      setAdding(add);
+      router.replace(`${base}/videos`, { scroll: false });
+    }
+  }, [search, base, router]);
+
   const toggle = (id: string, video?: Record<string, any>) => {
     setSelected((current) => {
       const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 12);
@@ -183,6 +213,14 @@ function Explorer() {
     });
   };
 
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenu('');
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
   const openAnalyse = () => {
     if (!selected.length) {
       setError('Select at least one video to analyse.');
@@ -192,28 +230,30 @@ function Explorer() {
     setAnalyseOpen(true);
   };
 
+  const createAnalysis = async (config: AnalyseConfig, name: string) => yt(`projects/${projectId}/ai-analyses`, {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      goals: config.goals,
+      source: 'selected',
+      videoIds: selected,
+      contentFocus: ['titles', 'thumbnails', 'competitor_insights'],
+      targetAges: config.targetAges,
+      targetGenders: config.targetGenders,
+      geographies: config.geographies,
+      languages: config.languages,
+      interests: config.interests,
+      devices: config.devices,
+      audienceNotes: config.audienceNotes,
+      outputs: ['improve_existing', 'gap_report'],
+    }),
+  });
+
   const runAnalysis = async (config: AnalyseConfig) => {
     setBusy('summary');
     setError('');
     try {
-      const analysis = await yt(`projects/${projectId}/ai-analyses`, {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `Video analysis · ${selected.length} videos`,
-          goals: config.goals,
-          source: 'selected',
-          videoIds: selected,
-          contentFocus: ['titles', 'thumbnails', 'competitor_insights'],
-          targetAges: config.targetAges,
-          targetGenders: config.targetGenders,
-          geographies: config.geographies,
-          languages: config.languages,
-          interests: config.interests,
-          devices: config.devices,
-          audienceNotes: config.audienceNotes,
-          outputs: ['improve_existing', 'gap_report'],
-        }),
-      });
+      const analysis = await createAnalysis(config, `Video comparison · ${selected.length} videos`);
       setAnalyseOpen(false);
       router.push(`${base}/channel-compare?id=${analysis.id}`);
     } catch (err) {
@@ -222,7 +262,6 @@ function Explorer() {
       setBusy('');
     }
   };
-
 
   const headerAction = useMemo(() => (
     <>
@@ -271,88 +310,131 @@ function Explorer() {
     }
   };
 
+  const savedChannel = async () => {
+    setAdding('');
+    const next = await reloadChannels();
+    await fetchFromChannels(next);
+  };
+
+  const generateReport = async () => {
+    if (!selected.length) {
+      setError('Select at least one video to generate a report.');
+      return;
+    }
+    setBusy('report');
+    setAnalyseOpen(true);
+    setError('');
+    setMessage('');
+    try {
+      const analysis = await createAnalysis({
+        goals: ['views', 'likes', 'comments', 'engagement'],
+        targetAges: ['All ages'],
+        targetGenders: ['All audiences'],
+        geographies: [],
+        languages: [],
+        interests: [],
+        devices: ['All devices'],
+        audienceNotes: '',
+      }, `Video comparison · ${selected.length} videos`);
+      await saveAndDownloadAnalysisReport(projectId, analysis);
+      setAnalyseOpen(false);
+      setMessage('Report downloaded and saved to Reports.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not generate the report');
+      setAnalyseOpen(false);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const channelFor = (video: Record<string, any>) => channels.find((channel) => channel.id === video.channel_id || channel.channel_name === video.channel_name);
+
+  const openMenu = (id: string, event: MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setMenu(menu === id ? '' : id);
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / 20));
-  const selectClass = 'h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700';
+  const selectClass = 'h-10 min-w-[8.75rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700';
+  const pageIds = rows.map((row) => String(row.id));
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+  const menuVideo = rows.find((row) => String(row.id) === menu);
 
   if (loading) return <PageLoader label="Loading research…" />;
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${selected.length ? 'pb-24' : ''}`}>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
 
-      {manage && (!own || !competitors.length) ? (
-        <section className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">{!own ? 'Connect your YouTube channel to start research' : 'Add a competitor to compare against'}</p>
-            <p className="text-xs text-slate-600">Channel management keeps own and competitor channels for this project.</p>
-          </div>
-          <Link href={`${base}/channels?from=research${own ? '&add=competitor' : '&add=own'}`} className={partnerBtnPrimary}>
-            Open channel management
-          </Link>
-        </section>
-      ) : null}
-
-      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Platform</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
-              <span className="text-secondary">▶</span> YouTube
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform</span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-2.5 py-1 text-sm font-semibold text-slate-900">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#FF0000] text-[10px] font-black text-white">▶</span>
+              YouTube
             </span>
             <span className="text-xs text-slate-400">YouTube Research is YouTube-only</span>
           </div>
           <p className="text-xs font-medium text-slate-500">{channels.length} YouTube channel{channels.length === 1 ? '' : 's'} in this project</p>
         </div>
 
-        <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-start">
-          <div className="min-w-[16rem] flex-1">
+        <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(17rem,20rem)_1fr] xl:items-start">
+          <div>
             <p className="mb-2 text-xs font-semibold text-slate-500">Your YouTube channel</p>
             {own ? (
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
-                {own.thumbnail_url ? <img src={own.thumbnail_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-[10px] font-bold text-secondary">YT</span>}
-                <span className="min-w-0 truncate text-sm font-medium">{handleLabel(own.channel_handle) || own.channel_name || own.youtube_channel_id}</span>
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                <Avatar src={own.thumbnail_url} name={own.channel_name} className="h-11 w-11" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">{handleLabel(own.channel_handle) || own.channel_name || own.youtube_channel_id}</p>
+                  <p className="truncate text-xs text-slate-400">{own.channel_name || 'Your channel'}</p>
+                </div>
                 <Chip className="bg-emerald-50 text-emerald-700">Connected</Chip>
               </div>
             ) : manage ? (
-              adding === 'own' ? (
-                <ChannelDraftForm compact relationship="own" projectId={projectId} hasOwn={false} onSaved={async () => { setAdding(''); const next = await reloadChannels(); await fetchFromChannels(next); }} onCancel={() => setAdding('')} />
-              ) : (
-                <button type="button" className="rounded-xl border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-secondary" onClick={() => setAdding('own')}>Connect your channel</button>
-              )
+              <button type="button" className="flex w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 px-3 py-6 text-sm font-semibold text-secondary hover:border-secondary/50 hover:bg-orange-50/40" onClick={() => setAdding('own')}>
+                Connect your channel
+              </button>
             ) : (
-              <p className="text-sm text-slate-400">No own channel yet</p>
+              <p className="rounded-2xl border border-slate-100 px-3 py-6 text-sm text-slate-400">No own channel yet</p>
             )}
           </div>
-          <div className="min-w-0 flex-[2]">
+          <div className="min-w-0">
             <p className="mb-2 text-xs font-semibold text-slate-500">Competitor channels · {competitors.length}</p>
-            <div className="flex flex-wrap items-center gap-2">
-              {competitors.map((row) => (
-                <span key={row.id} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-2 text-sm">
-                  {row.thumbnail_url ? <img src={row.thumbnail_url} alt="" className="h-6 w-6 rounded-full object-cover" /> : <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold">{String(row.channel_name || 'C').slice(0, 2)}</span>}
-                  <span className="max-w-[10rem] truncate">{row.channel_name || handleLabel(row.channel_handle)}</span>
-                  {manage ? <button type="button" className="text-slate-400 hover:text-rose-600" aria-label="Remove competitor" disabled={busy === `remove:${row.id}`} onClick={() => removeChannel(row)}>×</button> : null}
-                </span>
+            <div className="flex flex-wrap items-stretch gap-3">
+              {competitors.map((row, index) => (
+                <div key={row.id} className="flex min-w-[13.5rem] flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 sm:max-w-[18rem]">
+                  <Avatar src={row.thumbnail_url} name={row.channel_name} className="h-11 w-11" tone={AVATAR_TONES[index % AVATAR_TONES.length]} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900">{row.channel_name || handleLabel(row.channel_handle)}</p>
+                    <p className="truncate text-xs text-slate-400">{handleLabel(row.channel_handle) || row.youtube_channel_id}</p>
+                  </div>
+                  {manage ? (
+                    <button type="button" className="rounded-full p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-600" aria-label={`Remove ${row.channel_name || 'competitor'}`} disabled={busy === `remove:${row.id}`} onClick={() => removeChannel(row)}>
+                      <Icon name="XMarkIcon" size={16} />
+                    </button>
+                  ) : null}
+                </div>
               ))}
               {manage && competitors.length < MAX_PROJECT_COMPETITORS ? (
-                adding === 'competitor' ? (
-                  <ChannelDraftForm compact relationship="competitor" projectId={projectId} hasOwn={Boolean(own)} onSaved={async () => { setAdding(''); const next = await reloadChannels(); await fetchFromChannels(next); }} onCancel={() => setAdding('')} />
-                ) : (
-                  <button type="button" className="rounded-full border border-dashed border-secondary px-3 py-1.5 text-sm font-semibold text-secondary" onClick={() => setAdding('competitor')}>+ Add competitor</button>
-                )
-              ) : manage && competitors.length >= MAX_PROJECT_COMPETITORS ? (
-                <Link href={`${base}/channels?from=research`} className="text-xs font-semibold text-slate-500">Manage competitors</Link>
+                <button type="button" className="inline-flex min-h-[4.25rem] min-w-[11rem] items-center justify-center gap-1.5 rounded-2xl border border-dashed border-secondary/70 px-4 text-sm font-semibold text-secondary hover:bg-orange-50/70" onClick={() => setAdding('competitor')}>
+                  <Icon name="PlusIcon" size={16} /> Add competitor
+                </button>
+              ) : manage ? (
+                <Link href={`${base}/channels?from=research`} className="self-center text-xs font-semibold text-slate-500">Manage competitors</Link>
               ) : null}
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <label className="relative min-w-[16rem] flex-1">
+        <div className="mt-5 flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label className="relative min-w-0 flex-1">
             <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              className={`${partnerInput} h-10 pl-9`}
-              placeholder="Search title, description or tags"
+              className={`${partnerInput} h-10 rounded-full pl-9`}
+              placeholder="Search videos by title, description or keywords…"
               value={filters.q}
               onChange={(event) => setFilters({ ...filters, q: event.target.value })}
               onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyFilters({ ...filters, q: event.currentTarget.value }); } }}
@@ -365,7 +447,7 @@ function Explorer() {
             setFilters(next);
             applyFilters(next);
           }}>
-            {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+            {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.id === 'all' ? 'All time' : preset.label}</option>)}
           </select>
           <select className={selectClass} value={filters.channelIds || ''} onChange={(event) => {
             const next = { ...filters, channelIds: event.target.value };
@@ -395,93 +477,96 @@ function Explorer() {
             <option value="organic">Organic</option>
             <option value="paid">Paid</option>
           </select>
-          <select className={`${selectClass} ml-auto`} value={filters.sort || 'published_at'} onChange={(event) => { const next = { ...filters, sort: event.target.value }; setFilters(next); applyFilters(next); }}>
+          <select className={selectClass} value={filters.sort || 'published_at'} onChange={(event) => { const next = { ...filters, sort: event.target.value }; setFilters(next); applyFilters(next); }}>
             <option value="published_at">Sort: Newest</option>
             <option value="view_count">Sort: Most viewed</option>
             <option value="like_count">Sort: Most liked</option>
             <option value="comment_count">Sort: Most commented</option>
           </select>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-slate-400">Set filters, then fetch the latest videos from YouTube.</p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={partnerBtnSecondary} onClick={() => applyFilters(filters)}>Search</button>
-            <button type="button" className={partnerBtnSecondary} onClick={resetFilters}>Reset filters</button>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button type="button" className={partnerBtnPrimary} onClick={() => applyFilters(filters)}>Search</button>
+            <button type="button" className="text-sm font-semibold text-slate-500 hover:text-slate-800" onClick={resetFilters}>Reset filters</button>
             {canImport ? <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}><Icon name="ArrowDownTrayIcon" size={16} /> Fetch videos</AdminButton> : null}
           </div>
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} results`}</span>
-          <Chip className="bg-slate-100 text-slate-600">YouTube</Chip>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {selected.length ? (
-            <button type="button" className="text-sm font-semibold text-secondary" onClick={() => { setSelected([]); setPicked({}); }}>Clear all</button>
-          ) : (
-            <button type="button" className="text-sm font-semibold text-slate-400" onClick={resetFilters}>Clear all</button>
-          )}
-          <AdminButton variant="primary" disabled={!selected.length || Boolean(busy)} onClick={openAnalyse}>
-            <Icon name="SparklesIcon" size={16} /> Analyse{selected.length ? ` (${selected.length})` : ''}
-          </AdminButton>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} results`}</span>
+        <Chip className="bg-slate-100 text-slate-600">YouTube</Chip>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead>
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                <th className="w-10 px-3 py-3" />
-                <th className="px-3 py-3">Research</th>
+                <th className="w-12 px-4 py-3">
+                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-secondary" checked={allPageSelected} onChange={() => {
+                    if (allPageSelected) {
+                      setSelected((current) => current.filter((id) => !pageIds.includes(id)));
+                      setPicked((current) => {
+                        const next = { ...current };
+                        pageIds.forEach((id) => { delete next[id]; });
+                        return next;
+                      });
+                    } else {
+                      setSelected((current) => [...new Set([...current, ...pageIds])].slice(0, 12));
+                      setPicked((current) => ({ ...current, ...Object.fromEntries(rows.map((video) => [video.id, video])) }));
+                    }
+                  }} aria-label="Select all on this page" />
+                </th>
+                <th className="px-3 py-3">Video</th>
                 <th className="px-3 py-3">Channel</th>
                 <th className="px-3 py-3">Published</th>
                 <th className="px-3 py-3 text-right">Views</th>
                 <th className="px-3 py-3 text-right" title="Public likes plus comments. This is not a YouTube Analytics engagement rate.">Likes + comments</th>
-                <th className="px-3 py-3 text-right"> </th>
+                <th className="px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((video) => {
+              {rows.map((video, index) => {
                 const duration = lengthLabel(video);
                 const ownRow = video.relationship === 'own';
+                const channel = channelFor(video);
+                const watch = video.watch_url || (video.youtube_video_id ? `https://www.youtube.com/watch?v=${video.youtube_video_id}` : '');
                 return (
-                  <tr key={video.id} className={`border-t border-slate-50 ${selected.includes(video.id) ? 'bg-orange-50/40' : 'hover:bg-slate-50/80'}`}>
-                    <td className="px-3 py-3">
-                      <input type="checkbox" checked={selected.includes(video.id)} onChange={() => toggle(video.id, video)} aria-label={`Select ${video.title || 'video'}`} />
+                  <tr key={video.id} className={`border-t border-slate-50 ${selected.includes(video.id) ? 'bg-slate-50/80' : 'hover:bg-slate-50/70'}`}>
+                    <td className="px-4 py-3">
+                      <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-secondary" checked={selected.includes(video.id)} onChange={() => toggle(video.id, video)} aria-label={`Select ${video.title || 'video'}`} />
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-start gap-3">
-                        <span className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                      <div className="flex items-center gap-3">
+                        <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100">
                           {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="h-full w-full object-cover" /> : null}
-                          {duration ? <span className="absolute bottom-1 right-1 rounded bg-slate-900/80 px-1 text-[10px] font-semibold text-white">{duration}</span> : null}
+                          {duration ? <span className="absolute inset-x-0 bottom-0 bg-slate-900/75 py-0.5 text-center text-[9px] font-semibold text-white">{duration}</span> : null}
                         </span>
                         <span>
-                          <button type="button" className="line-clamp-2 text-left font-semibold text-slate-900" onClick={() => toggle(video.id, video)}>{video.title || video.youtube_video_id}</button>
+                          <button type="button" className="line-clamp-2 text-left font-medium text-slate-900" onClick={() => toggle(video.id, video)}>{video.title || video.youtube_video_id}</button>
                           <span className="mt-1 flex flex-wrap gap-1">
                             {video.content_label ? <Chip className="bg-slate-100 text-slate-600">{video.content_label}</Chip> : null}
                             <PlacementBadge value={video.placement_label} />
-                            {video.topic_name ? <Chip className="bg-violet-50 text-violet-700">{video.topic_name}</Chip> : null}
                           </span>
                         </span>
                       </div>
                     </td>
                     <td className="px-3 py-3">
                       <span className="flex items-center gap-2">
-                        <span className="text-secondary">▶</span>
-                        <span className="truncate">{video.channel_name || '—'}</span>
+                        <Avatar src={video.channel_thumbnail_url || channel?.thumbnail_url} name={video.channel_name} className="h-8 w-8" tone={AVATAR_TONES[index % AVATAR_TONES.length]} />
+                        <span className="truncate font-medium text-slate-800">{video.channel_name || '—'}</span>
                         {ownRow ? <Chip className="bg-rose-50 text-secondary">You</Chip> : null}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-slate-500">{formatAgo(video.published_at)}</td>
                     <td className="px-3 py-3 text-right font-medium">{compactMetric(video.view_count)}</td>
                     <td className="px-3 py-3 text-right text-slate-600">{interactions(video)}</td>
-                    <td className="px-3 py-3 text-right">
-                      {video.watch_url || video.youtube_video_id ? (
-                        <a className="font-semibold text-secondary" href={video.watch_url || `https://www.youtube.com/watch?v=${video.youtube_video_id}`} target="_blank" rel="noreferrer">View</a>
-                      ) : null}
+                    <td className="px-3 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        {watch ? <a className="px-2 font-semibold text-secondary" href={watch} target="_blank" rel="noreferrer">View</a> : null}
+                        <button type="button" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label="More actions" onClick={(event) => openMenu(String(video.id), event)}>
+                          <Icon name="EllipsisVerticalIcon" size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -492,8 +577,10 @@ function Explorer() {
         {!rows.length ? (
           <div className="px-4 py-12 text-center">
             <p className="text-sm font-semibold text-slate-800">{fetching ? 'Fetching public videos…' : channels.length ? 'No videos match these filters' : 'No YouTube channels in this project yet'}</p>
-            <p className="mt-1 text-sm text-slate-500">{fetching ? 'This can take a minute.' : channels.length ? 'Fetch from YouTube or reset filters.' : 'Add your channel and competitors, then fetch videos.'}</p>
-            {!channels.length && manage ? <Link href={`${base}/channels?from=research`} className={`${partnerBtnPrimary} mt-4`}>Open channel management</Link> : null}
+            <p className="mt-1 text-sm text-slate-500">{fetching ? 'This can take a minute.' : channels.length ? 'Fetch from YouTube or reset filters.' : 'Connect your channel, add competitors, then fetch videos.'}</p>
+            {!channels.length && manage ? (
+              <button type="button" className={`${partnerBtnPrimary} mt-4`} onClick={() => setAdding('own')}>Connect your channel</button>
+            ) : null}
             {channels.length && !fetching ? (
               <div className="mt-4 flex justify-center gap-2">
                 {canImport ? <AdminButton variant="primary" onClick={() => fetchFromChannels(channels)}>Fetch videos</AdminButton> : null}
@@ -504,20 +591,74 @@ function Explorer() {
         ) : null}
         <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
           <span>{total} videos</span>
-          <span className="flex gap-2">
-            <button type="button" className={`${partnerBtnSecondary} !px-3 !py-1.5 text-xs disabled:opacity-50`} disabled={page <= 1 || Boolean(paging)} onClick={() => { const next = page - 1; setPage(next); setPaging('prev'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>Previous</button>
-            <span className="self-center">{page} / {totalPages}</span>
-            <button type="button" className={`${partnerBtnSecondary} !px-3 !py-1.5 text-xs disabled:opacity-50`} disabled={page >= totalPages || Boolean(paging)} onClick={() => { const next = page + 1; setPage(next); setPaging('next'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>Next</button>
+          <span className="flex items-center gap-3">
+            <button type="button" className="font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-40" disabled={page <= 1 || Boolean(paging)} onClick={() => { const next = page - 1; setPage(next); setPaging('prev'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>Previous</button>
+            <span>{page} / {totalPages}</span>
+            <button type="button" className="font-semibold text-secondary hover:text-secondary/80 disabled:opacity-40" disabled={page >= totalPages || Boolean(paging)} onClick={() => { const next = page + 1; setPage(next); setPaging('next'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>Next</button>
           </span>
         </div>
       </section>
 
+      {adding ? (
+        <ChannelDraftForm
+          modal
+          relationship={adding}
+          projectId={projectId}
+          hasOwn={Boolean(own)}
+          competitorCount={competitors.length}
+          competitorLimit={MAX_PROJECT_COMPETITORS}
+          onSaved={savedChannel}
+          onCancel={() => setAdding('')}
+        />
+      ) : null}
+
+      {selected.length ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
+          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+            <span className="inline-flex items-center gap-2 pl-2 text-sm font-semibold text-slate-700">
+              {selected.length} selected
+              <button type="button" className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Clear selection" onClick={() => { setSelected([]); setPicked({}); }}>
+                <Icon name="XMarkIcon" size={16} />
+              </button>
+            </span>
+            <button type="button" className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50" disabled={Boolean(busy)} onClick={openAnalyse}>
+              <Icon name="ChartBarIcon" size={16} /> Compare Selected ({selected.length})
+            </button>
+            <button type="button" className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50" disabled={Boolean(busy)} onClick={generateReport}>
+              <Icon name="DocumentChartBarIcon" size={16} /> Generate Report ({selected.length})
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {menu && menuVideo && typeof document !== 'undefined'
+        ? createPortal(
+          <div ref={menuRef} className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
+            {menuVideo.watch_url || menuVideo.youtube_video_id ? (
+              <a className="block px-3 py-2 hover:bg-slate-50" href={menuVideo.watch_url || `https://www.youtube.com/watch?v=${menuVideo.youtube_video_id}`} target="_blank" rel="noreferrer" onClick={() => setMenu('')}>Open on YouTube</a>
+            ) : null}
+            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
+              setSelected((current) => (current.includes(menuVideo.id) ? current : [...current, menuVideo.id].slice(0, 12)));
+              setPicked((current) => ({ ...current, [menuVideo.id]: menuVideo }));
+              setMenu('');
+              setAnalyseOpen(true);
+            }}>Analyse</button>
+            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
+              const url = menuVideo.watch_url || `https://www.youtube.com/watch?v=${menuVideo.youtube_video_id}`;
+              navigator.clipboard?.writeText(url).catch(() => undefined);
+              setMenu('');
+            }}>Copy link</button>
+          </div>,
+          document.body,
+        )
+        : null}
+
       {analyseOpen ? (
         <AnalyseModal
           videos={selected.map((id) => picked[id] || rows.find((row) => row.id === id)).filter(Boolean)}
-          busy={busy === 'summary'}
+          busy={busy === 'summary' || busy === 'report'}
           error={error}
-          onClose={() => { if (busy !== 'summary') setAnalyseOpen(false); }}
+          onClose={() => { if (busy !== 'summary' && busy !== 'report') setAnalyseOpen(false); }}
           onGenerate={runAnalysis}
         />
       ) : null}
