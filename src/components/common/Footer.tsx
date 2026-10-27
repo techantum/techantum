@@ -3,13 +3,21 @@ import Icon from '@/components/ui/AppIcon';
 import { defaultBranding } from '@/lib/cms/default-content';
 import type { SiteBranding } from '@/lib/cms/types';
 import WhatsAppChatLink from '@/components/common/WhatsAppChatLink';
+import SafeImage from '@/components/ui/SafeImage';
 import { getDivisionPath, serviceDivisions } from '@/lib/service-packages-data';
+import type { ServiceDivision } from '@/lib/service-packages-data';
 
-export default function Footer({ branding = defaultBranding }: { branding?: SiteBranding }) {
+export default function Footer({
+  branding = defaultBranding,
+  services = serviceDivisions,
+}: {
+  branding?: SiteBranding;
+  services?: Pick<ServiceDivision, 'slug' | 'shortName' | 'name'>[];
+}) {
   const footerLogo = branding.footer_logo_url || branding.logo_url;
-  const serviceLinks = serviceDivisions.map((division) => ({
+  const serviceLinks = services.map((division) => ({
     id: division.slug,
-    label: division.shortName,
+    label: division.shortName || division.name,
     href: getDivisionPath(division.slug),
   }));
 
@@ -34,13 +42,17 @@ export default function Footer({ branding = defaultBranding }: { branding?: Site
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5">
           <div className="md:col-span-4">
             {footerLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SafeImage
                 src={footerLogo}
                 alt={branding.company_name}
                 className="h-12 w-auto object-contain mb-4"
                 loading="lazy"
                 decoding="async"
+                fallback={
+                  <h3 className="font-bricolage font-bold text-xl text-foreground mb-4">
+                    {branding.company_name}
+                  </h3>
+                }
               />
             ) : (
               <h3 className="font-bricolage font-bold text-xl text-foreground mb-4">

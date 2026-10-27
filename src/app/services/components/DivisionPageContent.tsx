@@ -30,8 +30,8 @@ export default function DivisionPageContent({ division }: { division: ServiceDiv
                 </h2>
               </div>
               <p className="font-inter text-muted-foreground mb-6">
-                We focus on business outcomes — not just technology. Every package is designed to
-                deliver measurable results for your industry.
+                {division.overview ||
+                  'We focus on business outcomes — not just technology. Every package is designed to deliver measurable results for your industry.'}
               </p>
 
               <h3 className="font-bricolage text-lg font-semibold text-foreground mb-3">
@@ -86,22 +86,24 @@ export default function DivisionPageContent({ division }: { division: ServiceDiv
         <div className="page-container">
           <div className="text-center mb-5">
             <span className="font-inter text-sm uppercase tracking-wider text-primary font-medium mb-3 block">
-              Service Packages
+              {division.packagesEyebrow || 'Service Packages'}
             </span>
             <h2 className="font-bricolage text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Launch → Growth → Enterprise
+              {division.packagesTitle || 'Launch → Growth → Enterprise'}
             </h2>
             <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">
-              Choose the package that matches your business maturity. Each plan includes a clear
-              scope and path to upgrade as you grow.
+              {division.packagesDescription ||
+                'Choose the package that matches your business maturity. Each plan includes a clear scope and path to upgrade as you grow.'}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal reveal-stagger">
-            {division.plans.map((plan) => (
-              <PlanCard key={plan.slug} division={division} plan={plan} />
-            ))}
-          </div>
+          {division.plans.length ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal reveal-stagger">
+              {division.plans.map((plan) => (
+                <PlanCard key={plan.slug} division={division} plan={plan} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </section>
 

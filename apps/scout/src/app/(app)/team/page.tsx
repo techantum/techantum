@@ -73,9 +73,9 @@ export default function TeamPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-sm font-semibold text-slate-800">Invite someone</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm" placeholder="Full name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-          <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm" placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-          <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm" type="password" placeholder="Temporary password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+          <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm" placeholder="Enter name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm" placeholder="Enter email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+          <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm" type="password" placeholder="Enter password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
           <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })}>
             <option value="subscriber_user">Subscriber User</option>
             <option value="subscriber_admin">Subscriber Admin</option>

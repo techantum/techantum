@@ -403,14 +403,14 @@ export default function GbpAnalyticsPage() {
               <input
                 value={oauthClientId}
                 onChange={(event) => setOauthClientId(event.target.value)}
-                placeholder="….apps.googleusercontent.com"
+                placeholder="Enter client ID"
                 className="rounded-lg border border-amber-200 px-3 py-2 text-sm"
               />
               <input
                 type="password"
                 value={oauthClientSecret}
                 onChange={(event) => setOauthClientSecret(event.target.value)}
-                placeholder={oauthStatus?.hasClientSecret ? 'Client secret (saved)' : 'GOCSPX-…'}
+                placeholder={oauthStatus?.hasClientSecret ? 'Enter client secret to replace' : 'Enter client secret'}
                 className="rounded-lg border border-amber-200 px-3 py-2 text-sm"
               />
             </div>

@@ -9,10 +9,13 @@ import AdminButton from '@/components/admin/AdminButton';
 import AnalyseModal, { type AnalyseConfig } from '@/components/admin/youtube/AnalyseModal';
 import ChannelDraftForm from '@/components/admin/youtube/ChannelDraftForm';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, saveAndDownloadAnalysisReport, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { allow, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo } from '@/lib/youtube/home-display';
 import { lengthLabel } from '@/lib/youtube/parse';
 import { MAX_PROJECT_COMPETITORS } from '@/lib/youtube/workspace-nav';
@@ -48,8 +51,9 @@ function initials(name?: string | null) {
 }
 
 function Avatar({ src, name, className = 'h-10 w-10', tone = 'bg-slate-800 text-white' }: { src?: string | null; name?: string | null; className?: string; tone?: string }) {
-  if (src) return <img src={src} alt="" className={`${className} rounded-full object-cover`} />;
-  return <span className={`inline-flex items-center justify-center rounded-full text-[11px] font-bold ${className} ${tone}`}>{initials(name)}</span>;
+  const mark = <span className={`inline-flex items-center justify-center rounded-full text-[11px] font-bold ${className} ${tone}`}>{initials(name)}</span>;
+  if (!src) return mark;
+  return <SafeImage src={src} alt="" className={`${className} rounded-full object-cover`} fallback={mark} />;
 }
 
 function Explorer() {
@@ -122,7 +126,7 @@ function Explorer() {
     if (!canImport || !channelRows.length) return null;
     setFetching(true);
     setError('');
-    setMessage('Fetching public videos from the channels in this project…');
+    setMessage('');
     try {
       const imported = await yt(`projects/${projectId}/import`, {
         method: 'POST',
@@ -222,8 +226,8 @@ function Explorer() {
   }, []);
 
   const openAnalyse = () => {
-    if (!selected.length) {
-      setError('Select at least one video to analyse.');
+    if (selected.length < 2) {
+      setError('Select at least two videos to compare.');
       return;
     }
     setError('');
@@ -253,7 +257,7 @@ function Explorer() {
     setBusy('summary');
     setError('');
     try {
-      const analysis = await createAnalysis(config, `Video comparison · ${selected.length} videos`);
+      const analysis = await createAnalysis(config, 'Video comparison');
       setAnalyseOpen(false);
       router.push(`${base}/channel-compare?id=${analysis.id}`);
     } catch (err) {
@@ -274,7 +278,7 @@ function Explorer() {
         type="button"
         className={partnerBtnPrimary}
         disabled={Boolean(busy)}
-        onClick={() => { if (selected.length) setAnalyseOpen(true); else router.push(`${base}/channel-compare`); }}
+        onClick={() => { if (selected.length >= 2) setAnalyseOpen(true); else router.push(`${base}/channel-compare`); }}
       >
         <Icon name="LightBulbIcon" size={16} /> Analyse results
       </button>
@@ -322,26 +326,20 @@ function Explorer() {
       return;
     }
     setBusy('report');
-    setAnalyseOpen(true);
     setError('');
     setMessage('');
     try {
-      const analysis = await createAnalysis({
-        goals: ['views', 'likes', 'comments', 'engagement'],
-        targetAges: ['All ages'],
-        targetGenders: ['All audiences'],
-        geographies: [],
-        languages: [],
-        interests: [],
-        devices: ['All devices'],
-        audienceNotes: '',
-      }, `Video comparison · ${selected.length} videos`);
-      await saveAndDownloadAnalysisReport(projectId, analysis);
-      setAnalyseOpen(false);
-      setMessage('Report downloaded and saved to Reports.');
+      const report = await yt(`projects/${projectId}/research-reports`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Selected videos · ${selected.length} · ${new Date().toISOString().slice(0, 10)}`,
+          report_type: 'performance',
+          videoIds: selected,
+        }),
+      });
+      router.push(`${base}/reports/${report.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not generate the report');
-      setAnalyseOpen(false);
     } finally {
       setBusy('');
     }
@@ -537,8 +535,8 @@ function Explorer() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100">
-                          {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="h-full w-full object-cover" /> : null}
+                        <span className="relative h-12 w-[4.5rem] shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                          <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="h-full w-full object-cover" alt="" />
                           {duration ? <span className="absolute inset-x-0 bottom-0 bg-slate-900/75 py-0.5 text-center text-[9px] font-semibold text-white">{duration}</span> : null}
                         </span>
                         <span>
@@ -621,11 +619,17 @@ function Explorer() {
                 <Icon name="XMarkIcon" size={16} />
               </button>
             </span>
-            <button type="button" className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50" disabled={Boolean(busy)} onClick={openAnalyse}>
-              <Icon name="ChartBarIcon" size={16} /> Compare Selected ({selected.length})
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={Boolean(busy) || selected.length < 2}
+              title={selected.length < 2 ? 'Select at least two videos to compare' : 'Run a goal-based comparison'}
+              onClick={openAnalyse}
+            >
+              <Icon name="ChartBarIcon" size={16} /> Compare selected
             </button>
             <button type="button" className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50" disabled={Boolean(busy)} onClick={generateReport}>
-              <Icon name="DocumentChartBarIcon" size={16} /> Generate Report ({selected.length})
+              <Icon name="DocumentChartBarIcon" size={16} /> Generate report
             </button>
           </div>
         </div>
@@ -641,8 +645,7 @@ function Explorer() {
               setSelected((current) => (current.includes(menuVideo.id) ? current : [...current, menuVideo.id].slice(0, 12)));
               setPicked((current) => ({ ...current, [menuVideo.id]: menuVideo }));
               setMenu('');
-              setAnalyseOpen(true);
-            }}>Analyse</button>
+            }}>Select</button>
             <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
               const url = menuVideo.watch_url || `https://www.youtube.com/watch?v=${menuVideo.youtube_video_id}`;
               navigator.clipboard?.writeText(url).catch(() => undefined);
@@ -653,12 +656,24 @@ function Explorer() {
         )
         : null}
 
-      {analyseOpen ? (
+      {fetching ? <FetchVideosOverlay /> : null}
+      {busy === 'summary' ? <FetchVideosOverlay mode="analysis" /> : null}
+
+      {busy === 'report' ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
+          <div className="rounded-3xl bg-white px-8 py-10 text-center shadow-2xl">
+            <p className="font-bricolage text-xl font-semibold text-slate-900">Generating report</p>
+            <p className="mt-2 max-w-sm text-sm text-slate-500">Saving a snapshot of the selected videos. This is not a comparison analysis.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {analyseOpen && busy !== 'summary' ? (
         <AnalyseModal
           videos={selected.map((id) => picked[id] || rows.find((row) => row.id === id)).filter(Boolean)}
-          busy={busy === 'summary' || busy === 'report'}
+          busy={false}
           error={error}
-          onClose={() => { if (busy !== 'summary' && busy !== 'report') setAnalyseOpen(false); }}
+          onClose={() => setAnalyseOpen(false)}
           onGenerate={runAnalysis}
         />
       ) : null}

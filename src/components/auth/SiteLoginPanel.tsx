@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import { safeNextPath } from '@/lib/auth/safe-next';
 import type { SiteBranding } from '@/lib/cms/types';
+import SafeImage from '@/components/ui/SafeImage';
 
 type AuthConfig = {
   googleClientId?: string;
@@ -222,8 +223,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
     <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-8 lg:p-9">
       <div className="mb-6 text-center">
         {branding?.logo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={branding.logo_url} alt={branding.company_name} className="mx-auto mb-3 h-12 w-auto object-contain" />
+          <SafeImage src={branding.logo_url} alt={branding.company_name} className="mx-auto mb-3 h-12 w-auto object-contain" />
         ) : (
           <p className="font-bricolage text-2xl font-bold tracking-tight text-slate-900">
             techantum
@@ -323,7 +323,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                       className={`${inputClass} mt-1.5`}
                       inputMode="tel"
                       autoComplete="tel"
-                      placeholder="+91 98765 43210"
+                      placeholder="Enter WhatsApp number"
                       required
                       autoFocus
                       value={phone}
@@ -349,7 +349,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                       maxLength={6}
                       required
                       autoFocus
-                      placeholder="000000"
+                      placeholder="Enter code"
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     />
@@ -392,7 +392,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                       type="email"
                       autoComplete="email"
                       required
-                      placeholder="you@company.com"
+                      placeholder="Enter email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -415,7 +415,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                     <input
                       className={inputClass}
                       autoComplete="name"
-                      placeholder="Your name"
+                      placeholder="Enter name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                     />
@@ -426,7 +426,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                       type="email"
                       autoComplete="email"
                       required
-                      placeholder="you@company.com"
+                      placeholder="Enter email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -463,7 +463,7 @@ export default function SiteLoginPanel({ branding }: { branding?: SiteBranding }
                       type="email"
                       autoComplete="email"
                       required
-                      placeholder="you@company.com"
+                      placeholder="Enter email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -535,7 +535,7 @@ function PasswordInput({
         type={show ? 'text' : 'password'}
         autoComplete={autoComplete}
         required
-        placeholder="Enter your password"
+        placeholder="Enter password"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

@@ -50,7 +50,7 @@ export function presentVideo<T extends Record<string, unknown>>(row: T, now = Da
     description: fresh ? row.description ?? null : null,
     published_at: fresh ? row.published_at || null : null,
     duration: fresh ? row.duration || null : null,
-    thumbnail_url: fresh ? row.thumbnail_url || null : null,
+    thumbnail_url: row.thumbnail_url || null,
     view_count: fresh ? count(row.view_count) : null,
     like_count: fresh ? count(row.like_count) : null,
     comment_count: fresh ? count(row.comment_count) : null,

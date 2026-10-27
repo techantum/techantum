@@ -137,6 +137,14 @@ export function savedThumbnailUrl(file?: string | null) {
   return `/uploads/${clean}`;
 }
 
+export function youtubeThumbUrl(youtubeVideoId?: string | null, stored?: string | null) {
+  const storedUrl = String(stored || '').trim();
+  if (storedUrl && (storedUrl.startsWith('/') || /^https?:\/\//i.test(storedUrl))) return storedUrl;
+  const id = String(youtubeVideoId || '');
+  if (/^[\w-]{11}$/.test(id)) return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  return '';
+}
+
 export function lengthLabel(input: {
   duration_label?: string | null;
   duration_seconds?: number | null;

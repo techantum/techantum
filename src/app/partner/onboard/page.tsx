@@ -25,6 +25,8 @@ function OnboardForm() {
   } | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -146,25 +148,46 @@ function OnboardForm() {
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Password
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
-              placeholder="Minimum 8 characters"
-            />
+            <div className="relative mt-1.5">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
+                placeholder="Enter password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute inset-y-0 right-3 text-slate-400 hover:text-slate-700"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <Icon name={showPassword ? 'EyeSlashIcon' : 'EyeIcon'} size={18} />
+              </button>
+            </div>
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Confirm password
-            <input
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
-            />
+            <div className="relative mt-1.5">
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
+                placeholder="Enter confirm password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((value) => !value)}
+                className="absolute inset-y-0 right-3 text-slate-400 hover:text-slate-700"
+                aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              >
+                <Icon name={showConfirm ? 'EyeSlashIcon' : 'EyeIcon'} size={18} />
+              </button>
+            </div>
           </label>
           <button
             type="submit"

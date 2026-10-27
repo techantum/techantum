@@ -5,14 +5,17 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AnalysisComplete from '@/components/admin/youtube/AnalysisComplete';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, saveAndDownloadAnalysisReport } from '@/components/admin/youtube/research-ui';
 import { allow, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
-import { analysisStatusMeta, uniqueChannelCount } from '@/lib/youtube/analysis-display';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
+import { analysisStatusMeta } from '@/lib/youtube/analysis-display';
 
 const PAGE_SIZE = 7;
+const TONES = ['bg-violet-100 text-violet-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700'];
 
 function asList(payload: unknown): Record<string, any>[] {
   if (Array.isArray(payload)) return payload;
@@ -29,38 +32,66 @@ function formatCreated(value: unknown) {
   return date.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function channelLabel(videos: Record<string, any>[]) {
-  const names = [...new Set(videos.map((video) => (video.relationship === 'own' ? 'You' : video.channel_name || 'Channel')).filter(Boolean))];
-  return { primary: names[0] || '—', count: Math.max(names.length, uniqueChannelCount(videos)) };
+function cleanTitle(name?: string | null) {
+  return String(name || 'Video comparison').replace(/\s*[·•\-–]\s*\d+\s*videos?\s*$/i, '').trim() || 'Video comparison';
+}
+
+function analysisKind(row: Record<string, any>) {
+  const goals = Array.isArray(row.config?.goals) ? row.config.goals.map(String) : [];
+  const name = String(row.name || '').toLowerCase();
+  if (name.includes('gap') || goals.includes('discoverability')) return { label: 'Content Gap', className: 'bg-orange-50 text-orange-700', icon: 'LightBulbIcon' };
+  if (name.includes('engagement') || goals.includes('engagement') || goals.includes('comments')) return { label: 'Engagement', className: 'bg-pink-50 text-pink-700', icon: 'HeartIcon' };
+  if (name.includes('comparison') || (Array.isArray(row.videos) && row.videos.length > 1)) return { label: 'Comparison', className: 'bg-indigo-50 text-indigo-700', icon: 'ArrowsRightLeftIcon' };
+  return { label: 'Performance', className: 'bg-violet-50 text-violet-700', icon: 'ChartBarIcon' };
+}
+
+function uniqueChannels(videos: Record<string, any>[]) {
+  const seen = new Map<string, Record<string, any>>();
+  videos.forEach((video) => {
+    const key = String(video.channel_id || video.channel_name || video.id);
+    if (!seen.has(key)) seen.set(key, video);
+  });
+  return [...seen.values()];
 }
 
 function VideoStack({ videos }: { videos: Record<string, any>[] }) {
   const shown = videos.slice(0, 3);
   const extra = videos.length - shown.length;
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center">
-        {shown.map((video, index) => (
-          video.thumbnail_url ? (
-            <img
-              key={`${video.id}-${index}`}
-              src={video.thumbnail_url}
-              alt=""
-              className={`h-10 w-10 rounded-full border-2 border-white object-cover ${index ? '-ml-2.5' : ''}`}
-            />
+    <div className="flex items-center">
+      {shown.map((video, index) => (
+        <span key={`${video.id}-${index}`} className={`inline-flex h-9 w-9 overflow-hidden rounded-lg border-2 border-white bg-slate-100 ${index ? '-ml-2' : ''}`}>
+          <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="h-full w-full object-cover" alt="" />
+        </span>
+      ))}
+      {extra > 0 ? (
+        <span className="-ml-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border-2 border-white bg-violet-50 text-[11px] font-semibold text-violet-700">
+          +{extra}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ChannelStack({ videos }: { videos: Record<string, any>[] }) {
+  const channels = uniqueChannels(videos);
+  return (
+    <div className="flex items-center">
+      {channels.map((channel, index) => (
+        <span
+          key={String(channel.channel_id || channel.id || index)}
+          title={channel.relationship === 'own' ? 'You' : channel.channel_name || 'Channel'}
+          className={`inline-flex h-9 w-9 overflow-hidden rounded-full border-2 border-white ${index ? '-ml-2' : ''} ${TONES[index % TONES.length]}`}
+        >
+          {channel.channel_thumbnail_url ? (
+            <VideoThumb src={channel.channel_thumbnail_url} className="h-full w-full object-cover" alt="" />
           ) : (
-            <span key={`${video.id}-${index}`} className={`inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-semibold text-slate-500 ${index ? '-ml-2.5' : ''}`}>
-              {(video.title || 'V').slice(0, 1).toUpperCase()}
+            <span className="flex h-full w-full items-center justify-center text-[11px] font-bold">
+              {(channel.relationship === 'own' ? 'Y' : (channel.channel_name || 'C').charAt(0)).toUpperCase()}
             </span>
-          )
-        ))}
-        {extra > 0 ? (
-          <span className="-ml-2.5 inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-violet-50 text-xs font-semibold text-violet-700">
-            +{extra}
-          </span>
-        ) : null}
-      </div>
-      <span className="text-sm text-slate-600">{videos.length} {videos.length === 1 ? 'video' : 'videos'}</span>
+          )}
+        </span>
+      ))}
     </div>
   );
 }
@@ -95,9 +126,11 @@ function AnalysisWorkspace() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [ready, setReady] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
   const [q, setQ] = useState('');
   const [range, setRange] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [channelFilter, setChannelFilter] = useState('all');
+  const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState('');
 
@@ -129,6 +162,16 @@ function AnalysisWorkspace() {
     })();
   }, [projectId, analysisId]);
 
+  useEffect(() => {
+    if (!projectId || !analysisId || current?.status !== 'generating') return;
+    const timer = window.setInterval(() => {
+      yt(`projects/${projectId}/ai-analyses/${analysisId}`)
+        .then((row) => setCurrent(row))
+        .catch(() => undefined);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [projectId, analysisId, current?.status]);
+
   const headerActions = useMemo(() => (
     analysisId ? (
       <Link className={partnerBtnSecondary} href={listHref}>← Back to analysis list</Link>
@@ -147,48 +190,64 @@ function AnalysisWorkspace() {
   ), [analysisId, base, listHref, manage]);
   useYoutubeRailActions(headerActions);
 
+  const channelOptions = useMemo(() => {
+    const names = new Set<string>();
+    rows.forEach((row) => {
+      (Array.isArray(row.videos) ? row.videos : []).forEach((video: Record<string, any>) => {
+        const label = video.relationship === 'own' ? 'You' : video.channel_name;
+        if (label) names.add(String(label));
+      });
+    });
+    return [...names];
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const preset = DATE_PRESETS.find((item) => item.id === range);
     const since = preset?.days ? Date.now() - preset.days * 86400000 : 0;
     const needle = q.trim().toLowerCase();
-    return rows.filter((row) => {
+    const next = rows.filter((row) => {
       const created = new Date(row.created_at).getTime();
       if (since && Number.isFinite(created) && created < since) return false;
-      if (!needle) return true;
+      if (statusFilter !== 'all' && row.status !== statusFilter) return false;
       const videos: Record<string, any>[] = Array.isArray(row.videos) ? row.videos : [];
-      const hay = `${row.name} ${videos.map((video) => `${video.title} ${video.channel_name}`).join(' ')}`.toLowerCase();
+      if (channelFilter !== 'all') {
+        const labels = videos.map((video) => (video.relationship === 'own' ? 'You' : video.channel_name));
+        if (!labels.includes(channelFilter)) return false;
+      }
+      if (!needle) return true;
+      const hay = `${cleanTitle(row.name)} ${videos.map((video) => `${video.title} ${video.channel_name}`).join(' ')}`.toLowerCase();
       return hay.includes(needle);
     });
-  }, [rows, q, range]);
+    next.sort((a, b) => {
+      const left = new Date(a.created_at).getTime();
+      const right = new Date(b.created_at).getTime();
+      return sort === 'oldest' ? left - right : right - left;
+    });
+    return next;
+  }, [rows, q, range, statusFilter, channelFilter, sort]);
 
   useEffect(() => {
     setPage(1);
-  }, [q, range]);
+  }, [q, range, statusFilter, channelFilter, sort]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const allFilteredIds = filtered.map((row) => String(row.id));
-  const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selected.includes(id));
 
-  const toggleAll = () => {
-    setSelected(allSelected ? selected.filter((id) => !allFilteredIds.includes(id)) : [...new Set([...selected, ...allFilteredIds])]);
-  };
+  const stats = useMemo(() => {
+    const completed = rows.filter((row) => row.status === 'ready').length;
+    const videos = rows.reduce((sum, row) => sum + Number(row.video_count || (Array.isArray(row.videos) ? row.videos.length : 0)), 0);
+    const channels = new Set<string>();
+    rows.forEach((row) => uniqueChannels(Array.isArray(row.videos) ? row.videos : []).forEach((channel) => channels.add(String(channel.channel_id || channel.channel_name))));
+    return { total: rows.length, completed, videos, channels: channels.size };
+  }, [rows]);
 
-  const toggleOne = (id: string) => {
-    setSelected((currentIds) => (currentIds.includes(id) ? currentIds.filter((item) => item !== id) : [...currentIds, id]));
-  };
-
-  const removeAnalyses = async (ids: string[]) => {
-    if (!ids.length) return;
-    if (!window.confirm(`Delete ${ids.length} ${ids.length === 1 ? 'analysis' : 'analyses'}? This cannot be undone.`)) return;
+  const removeAnalysis = async (id: string, title: string) => {
+    if (!window.confirm(`Delete “${title}”? This cannot be undone.`)) return;
     setBusy('delete');
     setError('');
     try {
-      for (const id of ids) {
-        await yt(`projects/${projectId}/ai-analyses/${id}`, { method: 'DELETE' });
-      }
-      setSelected((currentIds) => currentIds.filter((id) => !ids.includes(id)));
-      setMessage(`${ids.length} ${ids.length === 1 ? 'analysis' : 'analyses'} removed.`);
+      await yt(`projects/${projectId}/ai-analyses/${id}`, { method: 'DELETE' });
+      setMessage('Analysis removed.');
       await loadList();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not delete analysis');
@@ -197,20 +256,14 @@ function AnalysisWorkspace() {
     }
   };
 
-  const generateReports = async (ids: string[]) => {
-    const readyRows = rows.filter((row) => ids.includes(String(row.id)) && row.status === 'ready');
-    if (!readyRows.length) {
-      setError('Select completed analyses to generate reports.');
-      return;
-    }
+  const generateReport = async (row: Record<string, any>) => {
+    if (row.status !== 'ready') return;
     setBusy('report');
     setError('');
     setMessage('');
     try {
-      for (const row of readyRows) {
-        await saveAndDownloadAnalysisReport(projectId, row);
-      }
-      setMessage(`${readyRows.length} ${readyRows.length === 1 ? 'report' : 'reports'} downloaded and saved to Reports.`);
+      await saveAndDownloadAnalysisReport(projectId, row);
+      setMessage('Report downloaded and saved to Reports.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not generate the report');
     } finally {
@@ -226,6 +279,8 @@ function AnalysisWorkspace() {
         {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
         {current?.status === 'ready' ? (
           <AnalysisComplete analysis={current} />
+        ) : current?.status === 'generating' ? (
+          <FetchVideosOverlay mode="analysis" />
         ) : current ? (
           <p className="text-sm text-slate-500">This analysis is {current.status}. {current.error_summary || 'Open the list and try another run from Research.'}</p>
         ) : !error ? (
@@ -235,43 +290,69 @@ function AnalysisWorkspace() {
     );
   }
 
+  const filterClass = 'h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700';
+
   return (
-    <div className="relative space-y-4 pb-24">
+    <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-bricolage text-xl font-semibold text-slate-900">Analysis</h2>
-          <p className="text-sm text-slate-500">Each row is one comparison of the videos selected for that run.</p>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Total analyses', value: stats.total, hint: 'Comparisons in this project', icon: 'DocumentTextIcon', tone: 'bg-violet-50 text-violet-600' },
+          { label: 'Completed', value: stats.completed, hint: stats.total ? `${Math.round((stats.completed / stats.total) * 100)}%` : '0%', icon: 'CheckCircleIcon', tone: 'bg-emerald-50 text-emerald-600' },
+          { label: 'Compared videos', value: stats.videos, hint: 'Across all analyses', icon: 'PlayCircleIcon', tone: 'bg-rose-50 text-rose-600' },
+          { label: 'Channels covered', value: stats.channels, hint: 'Own and competitor', icon: 'UserGroupIcon', tone: 'bg-sky-50 text-sky-600' },
+        ].map((card) => (
+          <article key={card.label} className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
+            <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${card.tone}`}>
+              <Icon name={card.icon} size={18} />
+            </span>
+            <p className="mt-3 font-bricolage text-2xl font-bold text-slate-900">{card.value}</p>
+            <p className="text-sm font-medium text-slate-700">{card.label}</p>
+            <p className="text-xs text-slate-400">{card.hint}</p>
+          </article>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[240px] flex-1">
+          <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className={`${partnerInput} h-10 pl-9`}
+            placeholder="Search analysis by title or channel…"
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+          />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[240px] flex-1">
-            <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              className={`${partnerInput} pl-9`}
-              placeholder="Search analysis by title or channel…"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-            />
-          </div>
-          <select className={`${partnerInput} w-auto min-w-[150px]`} value={range} onChange={(event) => setRange(event.target.value)}>
-            {DATE_PRESETS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
-        </div>
+        <select className={filterClass} value={range} onChange={(event) => setRange(event.target.value)}>
+          {DATE_PRESETS.map((item) => <option key={item.id} value={item.id}>{item.id === 'all' ? 'All time' : item.label}</option>)}
+        </select>
+        <select className={filterClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="ready">Completed</option>
+          <option value="generating">Processing</option>
+          <option value="failed">Failed</option>
+        </select>
+        <select className={filterClass} value={channelFilter} onChange={(event) => setChannelFilter(event.target.value)}>
+          <option value="all">All channels</option>
+          {channelOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        <select className={filterClass} value={sort} onChange={(event) => setSort(event.target.value)}>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead>
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                <th className="w-12 px-4 py-3">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" className="h-4 w-4 rounded border-slate-300 text-secondary" />
-                </th>
-                <th className="px-3 py-3">Analysis title</th>
-                <th className="px-3 py-3">Videos</th>
-                <th className="px-3 py-3">Channels</th>
+                <th className="px-5 py-3">Analysis title</th>
+                <th className="px-3 py-3">Selected videos</th>
+                <th className="px-3 py-3">Channels compared</th>
+                <th className="px-3 py-3">Analysis type</th>
                 <th className="px-3 py-3">Created on</th>
                 <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3 text-right">Actions</th>
@@ -280,27 +361,27 @@ function AnalysisWorkspace() {
             <tbody>
               {visible.map((row) => {
                 const videos: Record<string, any>[] = Array.isArray(row.videos) ? row.videos : [];
-                const channels = channelLabel(videos);
                 const status = analysisStatusMeta(row.status);
-                const checked = selected.includes(String(row.id));
+                const kind = analysisKind(row);
+                const title = cleanTitle(row.name);
                 return (
-                  <tr key={row.id} className={`border-t border-slate-50 ${checked ? 'bg-sky-50/40' : 'hover:bg-slate-50/80'}`}>
-                    <td className="px-4 py-4">
-                      <input type="checkbox" checked={checked} onChange={() => toggleOne(String(row.id))} aria-label={`Select ${row.name}`} className="h-4 w-4 rounded border-slate-300 text-secondary" />
-                    </td>
-                    <td className="px-3 py-4">
-                      <p className="font-semibold text-slate-900">{row.name || 'Video comparison'}</p>
-                      <p className="mt-0.5 text-xs text-slate-400">{row.video_count || videos.length} videos compared</p>
+                  <tr key={row.id} className="border-t border-slate-50 hover:bg-slate-50/80">
+                    <td className="px-5 py-4">
+                      <button type="button" className="text-left font-semibold text-slate-900 hover:text-secondary" onClick={() => router.push(`${listHref}?id=${row.id}`)}>
+                        {title}
+                      </button>
                     </td>
                     <td className="px-3 py-4"><VideoStack videos={videos} /></td>
+                    <td className="px-3 py-4"><ChannelStack videos={videos} /></td>
                     <td className="px-3 py-4">
-                      <p className="font-medium text-slate-800">{channels.primary}</p>
-                      <p className="text-xs text-slate-400">{channels.count} {channels.count === 1 ? 'channel' : 'channels'}</p>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${kind.className}`}>
+                        <Icon name={kind.icon} size={12} /> {kind.label}
+                      </span>
                     </td>
                     <td className="px-3 py-4 text-slate-500">{formatCreated(row.created_at)}</td>
                     <td className="px-3 py-4">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}>
-                        {row.status === 'ready' ? '●' : row.status === 'failed' ? '●' : '●'} {status.label}
+                        ● {status.label}
                       </span>
                     </td>
                     <td className="px-3 py-4">
@@ -308,10 +389,10 @@ function AnalysisWorkspace() {
                         <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-secondary" title="Open" onClick={() => router.push(`${listHref}?id=${row.id}`)}>
                           <Icon name="EyeIcon" size={18} />
                         </button>
-                        <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-secondary" title="Download report" disabled={busy === 'report' || row.status !== 'ready'} onClick={() => generateReports([String(row.id)])}>
+                        <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-secondary" title="Download report" disabled={busy === 'report' || row.status !== 'ready'} onClick={() => generateReport(row)}>
                           <Icon name="ArrowDownTrayIcon" size={18} />
                         </button>
-                        <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Delete" disabled={busy === 'delete'} onClick={() => removeAnalyses([String(row.id)])}>
+                        <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Delete" disabled={busy === 'delete'} onClick={() => removeAnalysis(String(row.id), title)}>
                           <Icon name="TrashIcon" size={18} />
                         </button>
                       </div>
@@ -325,15 +406,14 @@ function AnalysisWorkspace() {
         {!filtered.length ? (
           <div className="px-4 py-12 text-center">
             <p className="font-semibold text-slate-800">No comparisons yet</p>
-            <p className="mt-1 text-sm text-slate-500">Select videos on Research, then generate an analysis. The full set appears here as one comparison.</p>
+            <p className="mt-1 text-sm text-slate-500">Select two or more videos on Research, then compare them. Each run appears here.</p>
             <Link href={`${base}/videos`} className={`${partnerBtnPrimary} mt-4`}>Go to Research</Link>
           </div>
         ) : null}
       </section>
 
       {filtered.length ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-500">{selected.length} {selected.length === 1 ? 'analysis' : 'analyses'} selected</p>
+        <div className="flex items-center justify-end">
           <nav className="flex items-center gap-1">
             <button type="button" className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-50 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} aria-label="Previous page">‹</button>
             {pageItems(filtered.length, page).map((item, index) => (
@@ -344,7 +424,7 @@ function AnalysisWorkspace() {
                   key={item}
                   type="button"
                   onClick={() => setPage(item)}
-                  className={`min-w-8 rounded-lg px-2 py-1 text-sm font-semibold ${page === item ? 'bg-secondary text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                  className={`min-w-8 rounded-lg px-2 py-1 text-sm font-semibold ${page === item ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                 >
                   {item}
                 </button>
@@ -352,19 +432,6 @@ function AnalysisWorkspace() {
             ))}
             <button type="button" className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-50 disabled:opacity-40" disabled={page >= pages} onClick={() => setPage((value) => value + 1)} aria-label="Next page">›</button>
           </nav>
-        </div>
-      ) : null}
-
-      {selected.length ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur">
-            <button type="button" className={partnerBtnSecondary} disabled={!!busy} onClick={() => generateReports(selected)}>
-              <Icon name="ChartBarIcon" size={16} /> {busy === 'report' ? 'Generating…' : `Generate Report (${selected.length})`}
-            </button>
-            <button type="button" className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-100 bg-white px-4 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" disabled={!!busy} onClick={() => removeAnalyses(selected)}>
-              <Icon name="TrashIcon" size={16} /> Remove
-            </button>
-          </div>
         </div>
       ) : null}
     </div>

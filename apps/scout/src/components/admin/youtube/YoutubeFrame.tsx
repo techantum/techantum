@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import Icon from '@/components/ui/AppIcon';
-import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
+import { partnerBtnPrimary } from '@/components/partner/PartnerUi';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { YOUTUBE_PROJECT_PAGES, YOUTUBE_TAB_HINT, youtubeNestedLabel, youtubeWorkspaceTab } from '@/lib/youtube/workspace-nav';
 
@@ -267,9 +267,6 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
               <p className="mt-1 max-w-3xl text-sm text-slate-500">{project?.objective || YOUTUBE_TAB_HINT[section] || YOUTUBE_TAB_HINT[activeTab] || 'Competition Research'}</p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Link className={partnerBtnSecondary} href={`${base}/projects`}>
-                ← All projects
-              </Link>
               {railActions || nestedLabel ? railActions : (
                 <Link className={partnerBtnPrimary} href={`${base}/channel-compare`}>
                   <Icon name="LightBulbIcon" size={16} /> Analyse results

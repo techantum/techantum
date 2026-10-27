@@ -43,6 +43,7 @@ function AppImage({
     const [imageSrc, setImageSrc] = useState(src);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [dead, setDead] = useState(false);
 
     // More reliable external URL detection
     const isExternal = imageSrc.startsWith('http://') || imageSrc.startsWith('https://');
@@ -52,6 +53,8 @@ function AppImage({
         if (!hasError && imageSrc !== fallbackSrc) {
             setImageSrc(fallbackSrc);
             setHasError(true);
+        } else {
+            setDead(true);
         }
         setIsLoading(false);
     };
@@ -60,6 +63,8 @@ function AppImage({
         setIsLoading(false);
         setHasError(false);
     };
+
+    if (dead) return null;
 
     const commonClassName = `${className} ${isLoading ? 'bg-gray-200' : ''} ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`;
     

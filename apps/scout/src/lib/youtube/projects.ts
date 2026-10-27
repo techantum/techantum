@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { q, withFinanceTx } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
-import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE } from './parse';
+import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
 import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, performanceSummary, startImport } from './service';
 import { presentListedProject } from './home-display';
@@ -404,7 +404,10 @@ function shapeVideo(row: Record<string, unknown>) {
     relationship: row.relationship,
     category_label: categoryLabel(video.category_id),
     content_label: contentLabel(video.duration_seconds as number | null, video.title as string | null, Array.isArray(video.tags) ? video.tags as string[] : null),
-    thumbnail_url: savedThumbnailUrl(video.thumbnail_file as string | null) || video.thumbnail_url,
+    thumbnail_url: youtubeThumbUrl(
+      String(row.youtube_video_id || ''),
+      savedThumbnailUrl(video.thumbnail_file as string | null) || (video.thumbnail_url as string | null)
+    ) || null,
     duration_label: lengthLabel({
       duration_seconds: video.duration_seconds as number | null,
       duration: video.duration as string | null,

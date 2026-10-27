@@ -1,5 +1,7 @@
 'use client';
 
+import SafeImage from '@/components/ui/SafeImage';
+
 const SIZE_CLASS = {
   sm: 'h-8 max-w-[140px]',
   md: 'h-12 max-w-[200px]',
@@ -24,14 +26,7 @@ export default function PartnerBrandMark({
   className?: string;
 }) {
   const name = companyName?.trim() || 'Partner';
-  if (logoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt={name} className={`${SIZE_CLASS[size]} w-auto object-contain ${className}`} />
-    );
-  }
-
-  return (
+  const letter = (
     <div
       className={`${FALLBACK_SIZE[size]} flex items-center justify-center rounded-xl bg-brand-gradient font-bricolage font-bold text-white ${className}`}
       aria-label={name}
@@ -39,4 +34,9 @@ export default function PartnerBrandMark({
       {name.charAt(0).toUpperCase()}
     </div>
   );
+  if (logoUrl) {
+    return <SafeImage src={logoUrl} alt={name} className={`${SIZE_CLASS[size]} w-auto object-contain ${className}`} fallback={letter} />;
+  }
+
+  return letter;
 }

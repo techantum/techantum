@@ -11,14 +11,14 @@ export default async function SubscribersPage() {
     <div className="space-y-5">
       <div>
         <h1 className="font-bricolage text-3xl font-bold text-slate-900">Subscribers</h1>
-        <p className="mt-1 text-slate-500">Each subscriber workspace has a Subscriber Admin and optional Subscriber Users. Super Admin keeps YouTube Settings, the same as Techantum.</p>
+        <p className="mt-1 text-slate-500">Each subscriber workspace has a Subscriber Admin and optional Subscriber Users.</p>
       </div>
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
               <th className="px-4 py-3">Workspace</th>
-              <th className="px-4 py-3">Plan</th>
+              <th className="px-4 py-3">Package</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Seats</th>
             </tr>

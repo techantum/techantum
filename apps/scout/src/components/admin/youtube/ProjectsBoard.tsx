@@ -70,7 +70,7 @@ export default function ProjectsBoard() {
 
   const go = (project: HomeProject) => {
     rememberProject(project.id);
-    router.push(`${base}${project.next.href}`);
+    router.push(`${base}/videos`);
   };
 
   const run = async (id: string, work: () => Promise<void>) => {

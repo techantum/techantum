@@ -87,9 +87,9 @@ export function nextStepFor(row: {
     return { key: 'analysis', label: 'Run analysis', href: `/videos`, action: 'Analyse', progress: 4 };
   }
   if (Number(row.report_count || 0) < 1) {
-    return { key: 'report', label: 'Generate report', href: `/reports`, action: 'Generate', progress: 5 };
+    return { key: 'report', label: 'Generate report', href: `/videos`, action: 'Generate', progress: 5 };
   }
-  return { key: 'ready', label: 'Report ready', href: `/reports`, action: null, progress: 6 };
+  return { key: 'ready', label: 'Research', href: `/videos`, action: null, progress: 6 };
 }
 
 export function presentListedProject(row: Record<string, any>): HomeProject {

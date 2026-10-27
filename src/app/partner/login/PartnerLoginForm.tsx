@@ -180,7 +180,7 @@ export default function PartnerLoginForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
-              placeholder="you@company.com"
+              placeholder="Enter email"
             />
           </label>
           <label className="block text-sm font-medium text-slate-700">
@@ -192,7 +192,7 @@ export default function PartnerLoginForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
-                placeholder="••••••••"
+                placeholder="Enter password"
               />
               <button
                 type="button"

@@ -74,20 +74,23 @@ export default function PartnerShell({ partner, partnerUser, children }: Partner
       <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {visiblePartnerNavItems(partnerUser, partner).map((item) => {
           const youtube = item.key === 'youtube-research';
-          const active = youtube ? Boolean(pathname?.startsWith('/partner/youtube-research')) : isActive(item.href);
+          const youtubeChild = Boolean(pathname?.startsWith('/partner/youtube-research/'));
+          const active = youtube
+            ? Boolean(pathname === '/partner/youtube-research' || pathname === '/partner/youtube-research/') && !youtubeChild
+            : isActive(item.href);
           return (
             <div key={item.href}>
               <Link
                 href={item.href}
                 className={`side-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                   active
-                    ? 'bg-orange-100 font-medium text-secondary'
-                    : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
+                    ? 'bg-[#fdecea] font-medium text-secondary'
+                    : 'text-slate-600 hover:bg-[#fff5f3] hover:text-secondary'
                 }`}
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    active ? 'bg-orange-100 text-secondary' : 'bg-slate-100 text-slate-500'
+                    active ? 'bg-[#fdecea] text-secondary' : 'bg-slate-100 text-slate-500'
                   }`}
                 >
                   <Icon name={item.icon as any} size={16} />

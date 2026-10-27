@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/ui/AppIcon';
 import AuthSplitShell from '@/components/auth/AuthSplitShell';
 import type { SiteBranding } from '@/lib/cms/types';
+import SafeImage from '@/components/ui/SafeImage';
 
 const HIGHLIGHTS = [
   { icon: 'PaintBrushIcon', title: 'Brand and content', description: 'Update logos, pages, and SEO in one workspace.' },
@@ -73,11 +74,11 @@ export default function AdminLoginForm({
   };
 
   const companyName = branding?.company_name || 'TechAntum';
+  const nameMark = <span className="font-bricolage text-2xl font-bold text-slate-900">{companyName}</span>;
   const logo = branding?.logo_url ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={branding.logo_url} alt={companyName} className="h-12 w-auto object-contain" />
+    <SafeImage src={branding.logo_url} alt={companyName} className="h-12 w-auto object-contain" fallback={nameMark} />
   ) : (
-    <span className="font-bricolage text-2xl font-bold text-slate-900">{companyName}</span>
+    nameMark
   );
 
   return (
@@ -112,7 +113,7 @@ export default function AdminLoginForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
-              placeholder="you@techantum.com"
+              placeholder="Enter email"
             />
           </label>
           <label className="block text-sm font-medium text-slate-700">
@@ -125,7 +126,7 @@ export default function AdminLoginForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-secondary/40 focus:bg-white focus:ring-2 focus:ring-secondary/15"
-                placeholder="Enter your password"
+                placeholder="Enter password"
               />
               <button
                 type="button"

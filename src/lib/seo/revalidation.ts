@@ -1,7 +1,8 @@
 import { revalidatePath } from 'next/cache';
 import { getAllStaticPublicRoutes } from '@/lib/seo/public-routes';
-import { CMS_SITE_PAGES } from '@/lib/cms/site-pages';
+import { CMS_SITE_PAGES, flattenAdminPages } from '@/lib/cms/site-pages';
 import { invalidateCmsRuntimeCache } from '@/lib/cms';
+import { slugFromServiceKey } from '@/lib/cms/service-catalog';
 
 /**
  * ISR revalidation interval (seconds) for public marketing pages.
@@ -11,7 +12,11 @@ export const MARKETING_REVALIDATE = 300;
 
 /** Map a CMS entry_key prefix (e.g. homepage.hero) → public route(s) to revalidate. */
 function routesForCmsKey(entryKey: string): string[] {
-  const page = CMS_SITE_PAGES.find((p) =>
+  if (entryKey.startsWith('service.')) {
+    const slug = slugFromServiceKey(entryKey);
+    return slug ? [`/services/${slug}`, '/services'] : ['/services'];
+  }
+  const page = flattenAdminPages(CMS_SITE_PAGES).find((p) =>
     p.sections.some((s) => s.entryKey === entryKey)
   );
   if (page?.route && page.route !== '/404-preview') {

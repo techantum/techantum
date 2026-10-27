@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import AdminButton from '@/components/admin/AdminButton';
 import Icon from '@/components/ui/AppIcon';
 import { partnerBtnSecondary } from '@/components/partner/PartnerUi';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { PRIMARY_GOALS } from '@/lib/youtube/analysis-display';
 
 const AGES = ['All ages', '13–17', '18–24', '25–34', '35–44', '45–54', '55–64', '65+'];
@@ -92,8 +93,8 @@ export default function AnalyseModal({
         {busy ? (
           <div className="flex min-h-[28rem] flex-col items-center justify-center gap-4 px-8 py-16 text-center">
             <img src="/youtube/analysing.gif" alt="" className="h-40 w-40 object-contain" />
-            <p className="font-bricolage text-2xl font-semibold text-slate-900">Your videos are being analysed</p>
-            <p className="max-w-md text-sm text-slate-500">Reading public titles, thumbnails, likes, comments, and views. Watch hours and Analytics retention are not in this dataset.</p>
+            <p className="font-bricolage text-2xl font-semibold text-slate-900">Comparing selected videos</p>
+            <p className="max-w-md text-sm text-slate-500">Goal-based comparison using public titles, thumbnails, likes, comments, and views. YouTube Analytics retention is not in this dataset.</p>
           </div>
         ) : (
           <>
@@ -101,9 +102,9 @@ export default function AnalyseModal({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Step {step} of 3</p>
                 <h2 id="analyse-title" className="font-bricolage text-xl font-semibold text-slate-900">
-                  {step === 1 ? 'Objective of analysis' : step === 2 ? 'Audience (optional)' : 'Review and generate'}
+                  {step === 1 ? 'Comparison goal' : step === 2 ? 'Audience (optional)' : 'Review comparison'}
                 </h2>
-                <p className="text-sm text-slate-500">{videos.length} video{videos.length === 1 ? '' : 's'} selected</p>
+                <p className="text-sm text-slate-500">Compare {videos.length} videos, then open the analysis detail.</p>
               </div>
               <button type="button" className="rounded-full p-2 text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="Close">
                 <Icon name="XMarkIcon" size={20} />
@@ -234,7 +235,9 @@ export default function AnalyseModal({
                     <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                       {videos.map((video) => (
                         <li key={video.id} className="flex gap-2 rounded-xl border border-slate-100 p-2">
-                          {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="h-12 w-[4.5rem] rounded-lg object-cover" /> : <span className="h-12 w-[4.5rem] rounded-lg bg-slate-100" />}
+                          <span className="h-12 w-[4.5rem] overflow-hidden rounded-lg bg-slate-100">
+                            <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="h-full w-full object-cover" alt="" />
+                          </span>
                           <span className="min-w-0">
                             <span className="line-clamp-2 text-xs font-semibold text-slate-800">{video.title || video.youtube_video_id}</span>
                             <span className="text-[11px] text-slate-400">{video.relationship === 'own' ? 'You' : 'Comp'}</span>
@@ -259,7 +262,7 @@ export default function AnalyseModal({
                 {step > 1 ? <AdminButton onClick={() => setStep((step - 1) as 1 | 2 | 3)}>Back</AdminButton> : null}
                 {step === 1 ? <AdminButton variant="primary" onClick={() => { if (!goals.length) { setLocalError('Select at least one objective.'); return; } setLocalError(''); setStep(2); }}>Next: Audience</AdminButton> : null}
                 {step === 2 ? <AdminButton variant="primary" onClick={goReview}>Next: Review</AdminButton> : null}
-                {step === 3 ? <AdminButton variant="primary" onClick={generate}><Icon name="SparklesIcon" size={16} /> Generate analysis</AdminButton> : null}
+                {step === 3 ? <AdminButton variant="primary" onClick={generate}><Icon name="SparklesIcon" size={16} /> Run comparison</AdminButton> : null}
               </div>
             </div>
           </>

@@ -202,14 +202,14 @@ export default function KnowledgeBasePanel() {
             </select>
           </AdminField>
           <AdminField label="Title (optional)" hint="Defaults to the page or PDF title">
-            <input className={adminInputClass} value={train.title} onChange={(e) => setTrain({ ...train, title: e.target.value })} placeholder="Website services" />
+            <input className={adminInputClass} value={train.title} onChange={(e) => setTrain({ ...train, title: e.target.value })} placeholder="Enter title" />
           </AdminField>
           <AdminField label="Website URLs" span={2} hint="One URL per line. HTML pages and PDF links are supported.">
             <textarea
               className={`${adminTextareaClass} min-h-[88px]`}
               value={train.urls}
               onChange={(e) => setTrain({ ...train, urls: e.target.value })}
-              placeholder="https://techantum.com&#10;https://techantum.com/services"
+              placeholder="Enter website URL (one per line)"
             />
           </AdminField>
           <AdminField label="PDF file" hint="Text PDFs up to 15 MB. Scanned image PDFs are not supported.">

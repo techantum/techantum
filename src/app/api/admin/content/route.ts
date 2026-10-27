@@ -11,10 +11,13 @@ export async function GET() {
   await seedMissingCmsEntries().catch((err) => console.error('Auto-seed failed:', err));
 
   const supabase = createAdminClient();
-  const { data } = await supabase
+  let { data, error } = await supabase
     .from('cms_content')
-    .select('entry_key, entry_group, label, content, updated_at')
+    .select('entry_key, entry_group, label, content, updated_at, is_enabled, sort_order')
     .order('entry_key');
+  if (error && /is_enabled|sort_order/i.test(error.message)) {
+    ({ data } = await supabase.from('cms_content').select('entry_key, entry_group, label, content, updated_at').order('entry_key'));
+  }
 
   return NextResponse.json(mergeCmsEntries(data));
 }

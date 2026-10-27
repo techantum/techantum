@@ -35,6 +35,10 @@ export interface SiteSeo {
   robots_extra?: string;
   header_scripts?: string;
   footer_scripts?: string;
+  header_scripts_enabled?: boolean;
+  footer_scripts_enabled?: boolean;
+  scripts_updated_at?: string | null;
+  scripts_updated_by?: string | null;
   /** Google Tag Manager container ID (GTM-XXXX) */
   gtm_id?: string;
   /** Google Analytics 4 measurement ID (G-XXXX) */

@@ -156,10 +156,17 @@
     }
 
     .page-container {
-      width: min(80vw, 100%);
+      width: 100%;
       margin-left: auto;
       margin-right: auto;
       @apply px-4 sm:px-5;
+    }
+
+    @media (min-width: 768px) {
+      .page-container {
+        width: 85vw;
+        min-width: 85vw;
+      }
     }
 
     .admin-content-width {

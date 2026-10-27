@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { SHELL } from './layout';
+import type { RevealeoBranding } from '@/lib/cms/defaults';
+import SafeImage from '@/components/ui/SafeImage';
 
 const LINKS = [
   { href: '/#product', label: 'Product' },
@@ -12,14 +14,23 @@ const LINKS = [
   { href: '/#pricing', label: 'Pricing' },
 ];
 
-export default function SiteHeader({ solid = false }: { solid?: boolean }) {
+export default function SiteHeader({ solid = false, branding }: { solid?: boolean; branding?: RevealeoBranding | null }) {
   const [open, setOpen] = useState(false);
   return (
     <>
     <header className={`fixed inset-x-0 top-0 z-50 bg-white/95 shadow-sm backdrop-blur ${solid ? 'border-b border-slate-100' : 'border-b border-slate-100/80'}`}>
-      <div className={`${SHELL} flex h-[72px] items-center justify-between`}>
-        <Link href="/" className="font-bricolage text-[22px] font-bold tracking-tight text-slate-900">
-          revealeo
+      <div className={`${SHELL} flex h-20 items-center justify-between`}>
+        <Link href="/" className="flex shrink-0 items-center font-bricolage text-[22px] font-bold tracking-tight text-slate-900">
+          {branding?.logo_url ? (
+            <SafeImage
+              src={branding.logo_url}
+              alt={branding.company_name || 'revealeo'}
+              className="h-12 w-auto max-w-[220px] object-contain object-left sm:h-14 sm:max-w-[260px]"
+              fallback={branding?.company_name || 'revealeo'}
+            />
+          ) : (
+            branding?.company_name || 'revealeo'
+          )}
         </Link>
         <nav className="hidden items-center gap-8 text-[13.5px] font-medium text-slate-500 lg:flex">
           {LINKS.map((link) => (
@@ -64,7 +75,7 @@ export default function SiteHeader({ solid = false }: { solid?: boolean }) {
         </div>
       ) : null}
     </header>
-    <div className="h-[72px]" aria-hidden />
+    <div className="h-20" aria-hidden />
     </>
   );
 }

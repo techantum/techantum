@@ -21,6 +21,14 @@ export const serviceCategories: ServiceCategory[] = serviceDivisions.map((divisi
 }));
 
 export const defaultServicesPageContent = {
-  exploreTitle: 'Explore Our Service Divisions',
-  categories: serviceCategories,
+  exploreTitle: 'Explore Our Services',
+  title: 'Explore Our Services',
+  description: 'Discover how Techantum Solutions can help you transform ideas into powerful digital experiences.',
+  cta: 'Get Started',
+  ctaHref: '/contact',
+  categories: serviceCategories.map((category, index) => ({
+    ...category,
+    offerings: String(serviceDivisions[index]?.plans.length || 0),
+    published: true,
+  })),
 };

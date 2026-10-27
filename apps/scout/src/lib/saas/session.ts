@@ -6,7 +6,8 @@ import { publicAppUrl } from '@/lib/brand';
 import { q } from '@/lib/finance/db';
 import { createClient } from '@supabase/supabase-js';
 import { createAdminClient, getPublishableKey } from '@/lib/supabase/admin';
-import { saasPlan, TRIAL_DAYS, TRIAL_PLAN, type SaasPlanId } from './plans';
+import { TRIAL_DAYS } from './plans';
+import { assignPackageToAccount, trialPackage } from './catalog';
 
 export const SAAS_COOKIE = 'revealeo_session';
 const LEGACY_COOKIE = 'saas_session';
@@ -16,7 +17,9 @@ export type SaasAccount = {
   owner_user_id: string;
   name: string;
   email: string;
-  plan: SaasPlanId;
+  plan: string;
+  package_id?: string | null;
+  contracted_price_monthly?: number | null;
   status: string;
   trial_ends_at: string | null;
   current_period_end: string | null;
@@ -34,6 +37,7 @@ export type PlatformActor = {
   userId: string;
   email: string;
   name: string;
+  avatarUrl?: string | null;
   role: PlatformRole;
   account: SaasAccount | null;
 };
@@ -119,18 +123,29 @@ export async function getPlatformActor(): Promise<PlatformActor | null> {
   const userId = await readSaasUserId();
   if (!userId) return null;
   const admin = await lookupAdmin(userId);
+  const profile = await q<{ name: string | null; avatar_url: string | null }>(
+    undefined,
+    `SELECT name, avatar_url FROM saas_profiles WHERE user_id=$1 LIMIT 1`,
+    [userId]
+  ).catch(() => ({ rows: [] as { name: string | null; avatar_url: string | null }[] }));
+  const stored = profile.rows[0];
   if (admin && isSuperAdmin(admin.role)) {
     return {
       userId,
       email: admin.email,
-      name: admin.email.split('@')[0],
+      name: stored?.name?.trim() || admin.email.split('@')[0],
+      avatarUrl: stored?.avatar_url || null,
       role: 'SUPER_ADMIN',
       account: null,
     };
   }
   const subscriber = await getSaasActor();
   if (!subscriber) return null;
-  return subscriber;
+  return {
+    ...subscriber,
+    name: stored?.name?.trim() || subscriber.name,
+    avatarUrl: stored?.avatar_url || null,
+  };
 }
 
 export async function getSaasActor(): Promise<SaasActor | null> {
@@ -138,7 +153,7 @@ export async function getSaasActor(): Promise<SaasActor | null> {
   if (!userId) return null;
   const { rows } = await q<SaasAccount & { member_role?: string; member_email?: string; member_name?: string }>(
     undefined,
-    `SELECT a.id, a.owner_user_id, a.name, a.email, a.plan, a.status, a.trial_ends_at, a.current_period_end,
+    `SELECT a.id, a.owner_user_id, a.name, a.email, a.plan, a.package_id, a.contracted_price_monthly, a.status, a.trial_ends_at, a.current_period_end,
             m.role AS member_role, m.email AS member_email, m.name AS member_name
      FROM saas_accounts a
      JOIN saas_memberships m ON m.account_id = a.id
@@ -159,6 +174,8 @@ export async function getSaasActor(): Promise<SaasActor | null> {
       name: row.name,
       email: row.email,
       plan: row.plan,
+      package_id: row.package_id,
+      contracted_price_monthly: row.contracted_price_monthly == null ? null : Number(row.contracted_price_monthly),
       status: row.status,
       trial_ends_at: row.trial_ends_at,
       current_period_end: row.current_period_end,
@@ -171,31 +188,6 @@ export function accountIsActive(account: SaasAccount) {
   if (account.status === 'trialing' && account.trial_ends_at && new Date(account.trial_ends_at).getTime() < Date.now()) return false;
   if (account.status === 'past_due') return false;
   return true;
-}
-
-export function entitlementsFor(account: SaasAccount | null | undefined) {
-  if (!account) {
-    return {
-      active: true,
-      plan: { ...saasPlan('scale'), name: 'Platform' },
-      youtube: true,
-      leads: true,
-      projects: 10_000,
-      leadsPerMonth: 100_000,
-      seats: 10_000,
-    };
-  }
-  const active = accountIsActive(account);
-  const plan = saasPlan(account.status === 'trialing' && active ? TRIAL_PLAN : account.plan);
-  return {
-    active,
-    plan,
-    youtube: active && plan.youtube,
-    leads: active && plan.leads,
-    projects: plan.projects,
-    leadsPerMonth: plan.leadsPerMonth,
-    seats: plan.seats,
-  };
 }
 
 export async function requirePlatformActor() {
@@ -224,11 +216,12 @@ async function provisionWorkspace(userId: string, email: string, name: string) {
   );
   if (existing.rows[0]) return { userId, account: existing.rows[0] };
   const trialEnds = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
+  const trial = await trialPackage();
   const account = await q<SaasAccount>(
     undefined,
-    `INSERT INTO saas_accounts (owner_user_id, name, email, plan, status, trial_ends_at)
-     VALUES ($1,$2,$3,$4,'trialing',$5) RETURNING *`,
-    [userId, name, email, TRIAL_PLAN, trialEnds]
+    `INSERT INTO saas_accounts (owner_user_id, name, email, plan, package_id, contracted_price_monthly, status, trial_ends_at, current_period_end)
+     VALUES ($1,$2,$3,$4,$5,$6,'trialing',$7,$7) RETURNING *`,
+    [userId, name, email, trial?.slug || 'growth', trial?.id || null, trial?.price_monthly || 0, trialEnds]
   );
   await q(
     undefined,
@@ -236,6 +229,9 @@ async function provisionWorkspace(userId: string, email: string, name: string) {
      ON CONFLICT (account_id, user_id) DO NOTHING`,
     [account.rows[0].id, userId, email, name]
   );
+  if (trial) {
+    await assignPackageToAccount(account.rows[0], trial, userId, 'trial_started');
+  }
   return { userId, account: account.rows[0] };
 }
 
@@ -281,7 +277,7 @@ export async function loginSaasAccount(email: string, password: string) {
   return user.id;
 }
 
-export async function setSaasPlan(accountId: string, plan: SaasPlanId) {
+export async function setSaasPlan(accountId: string, plan: string) {
   const period = new Date(Date.now() + 30 * 86400000).toISOString();
   await q(
     undefined,

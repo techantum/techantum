@@ -37,6 +37,8 @@ export async function PUT(request: Request) {
     robots_extra: body.robots_extra ?? '',
     header_scripts: body.header_scripts ?? '',
     footer_scripts: body.footer_scripts ?? '',
+    header_scripts_enabled: body.header_scripts_enabled !== false,
+    footer_scripts_enabled: body.footer_scripts_enabled !== false,
     gtm_id: normalizeMarketingTagId(body.gtm_id, 'gtm'),
     ga4_id: normalizeMarketingTagId(body.ga4_id, 'ga4'),
     google_ads_id: normalizeMarketingTagId(body.google_ads_id, 'aw'),

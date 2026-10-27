@@ -4,34 +4,24 @@ import { useEffect, useState } from 'react';
 import type { SiteBranding } from '@/lib/cms/types';
 import { defaultBranding, normalizeSiteBranding } from '@/lib/cms/default-content';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminSection from '@/components/admin/AdminSection';
-import MediaUploadField from '@/components/admin/MediaUploadField';
+import AdminButton from '@/components/admin/AdminButton';
+import Icon from '@/components/ui/AppIcon';
+import SafeImage from '@/components/ui/SafeImage';
 
 type AssetType = 'logo' | 'footer_logo' | 'favicon';
 
 const assetConfig: { type: AssetType; label: string; field: keyof SiteBranding; hint: string }[] = [
-  {
-    type: 'logo',
-    label: 'Navbar logo',
-    field: 'logo_url',
-    hint: 'Header logo. PNG with transparency, ~48px height.',
-  },
-  {
-    type: 'footer_logo',
-    label: 'Footer logo',
-    field: 'footer_logo_url',
-    hint: 'Footer logo. Falls back to navbar logo if empty.',
-  },
-  {
-    type: 'favicon',
-    label: 'Favicon',
-    field: 'favicon_url',
-    hint: 'Browser tab icon. 32×32 or 48×48 PNG/ICO.',
-  },
+  { type: 'logo', label: 'Navbar Logo', field: 'logo_url', hint: 'Header logo. PNG with transparency. ~48px height.' },
+  { type: 'footer_logo', label: 'Footer Logo', field: 'footer_logo_url', hint: 'Footer logo. Falls back to navbar logo if empty.' },
+  { type: 'favicon', label: 'Favicon', field: 'favicon_url', hint: 'Browser tab icon. 32×32 or 48×48 PNG/ICO.' },
 ];
+
+const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20';
+const areaClass = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20';
 
 export default function BrandingAdminPage() {
   const [form, setForm] = useState<SiteBranding>(defaultBranding);
+  const [updatedAt, setUpdatedAt] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<AssetType | null>(null);
@@ -40,16 +30,18 @@ export default function BrandingAdminPage() {
   useEffect(() => {
     fetch('/api/admin/branding')
       .then((r) => r.json())
-      .then((data) => setForm(normalizeSiteBranding(data)))
+      .then((data) => {
+        setForm(normalizeSiteBranding(data));
+        setUpdatedAt(data.updated_at || '');
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const update = (key: keyof SiteBranding, value: string) => {
+  const update = (key: keyof SiteBranding, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     setSaving(true);
     setMessage('');
     try {
@@ -61,6 +53,7 @@ export default function BrandingAdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setForm(normalizeSiteBranding(data));
+      setUpdatedAt(data.updated_at || new Date().toISOString());
       setMessage('Branding saved.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Save failed');
@@ -79,7 +72,6 @@ export default function BrandingAdminPage() {
       const res = await fetch('/api/admin/upload/logo', { method: 'POST', body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-
       const columnMap: Record<AssetType, keyof SiteBranding> = {
         logo: 'logo_url',
         footer_logo: 'footer_logo_url',
@@ -94,183 +86,140 @@ export default function BrandingAdminPage() {
     }
   };
 
-  if (loading) return <p className="text-muted-foreground">Loading branding…</p>;
+  if (loading) return <p className="text-slate-500">Loading branding…</p>;
 
   return (
-    <form onSubmit={handleSave} className="w-full space-y-6">
+    <div className="w-full space-y-5">
       <AdminPageHeader
+        kicker="Settings"
         title="Branding"
-        description="Logo, favicon, company identity, contact details, and WhatsApp widget."
+        description="Manage logos, company identity, contact details, WhatsApp settings, and footer copy globally across the site."
+        action={
+          <p className="text-xs text-emerald-600">
+            ● Last updated {updatedAt ? new Date(updatedAt).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : 'today'}
+          </p>
+        }
       />
+      {message ? <p className={`text-sm ${message.toLowerCase().includes('fail') ? 'text-rose-600' : 'text-emerald-700'}`}>{message}</p> : null}
 
-      <AdminSection title="Visual identity" description="Logos and favicon shown across the site.">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <Icon name="SwatchIcon" size={16} className="text-secondary" /> Visual Identity
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">Upload your logos and favicon. These are used across the website. Use high-quality files (PNG, JPG or SVG).</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
           {assetConfig.map(({ type, label, field, hint }) => (
-            <div key={type} className="space-y-2">
-              <MediaUploadField
-                label={label}
-                value={form[field] as string}
-                onChange={(url) => update(field, url)}
-                mediaType="image"
-                hint={hint}
-              />
-              <label className="block">
-                <span className="sr-only">Upload {label}</span>
-                <input
-                  type="file"
-                  accept={
-                    type === 'favicon'
-                      ? 'image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml'
-                      : 'image/*'
-                  }
-                  disabled={uploading === type}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleAssetUpload(type, file);
-                    e.target.value = '';
-                  }}
-                  className="text-xs w-full"
-                />
-              </label>
+            <div key={type} className="rounded-2xl border border-slate-100 p-4">
+              <p className="text-sm font-semibold text-slate-800">{label}</p>
+              <p className="mt-1 text-xs text-slate-500">{hint}</p>
+              <div className="mt-3 flex h-24 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">
+                {form[field] ? (
+                  <SafeImage src={String(form[field])} alt="" className="max-h-16 max-w-full object-contain" fallback={<span className="text-xs text-slate-400">No file chosen</span>} />
+                ) : (
+                  <span className="text-xs text-slate-400">No file chosen</span>
+                )}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-full border border-slate-200 py-2 text-xs font-semibold text-slate-700">
+                  <Icon name="ArrowUpTrayIcon" size={14} /> Choose file
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept={type === 'favicon' ? 'image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml' : 'image/*'}
+                    disabled={uploading === type}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) handleAssetUpload(type, file);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                <button type="button" className="rounded-full border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-600" onClick={() => update(field, '')}>
+                  Remove
+                </button>
+              </div>
             </div>
           ))}
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Logo letter fallback</label>
-          <input
-            value={form.logo_letter}
-            onChange={(e) => update('logo_letter', e.target.value)}
-            maxLength={2}
-            className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          />
-          <p className="text-xs text-muted-foreground mt-1">Shown when no logo image is set.</p>
-        </div>
-      </AdminSection>
+        <label className="mt-4 block max-w-xs text-sm font-medium">Logo letter fallback
+          <input className={`${inputClass} mt-1 w-24`} value={form.logo_letter} maxLength={2} placeholder="Enter letter" onChange={(event) => update('logo_letter', event.target.value)} />
+        </label>
+        <p className="mt-1 text-xs text-slate-500">Single character shown when no logo image is set.</p>
+      </section>
 
-      <AdminSection title="Company" description="Name and tagline used in header, footer, and metadata.">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Company name</label>
-            <input
-              value={form.company_name}
-              onChange={(e) => update('company_name', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Tagline</label>
-            <input
-              value={form.tagline}
-              onChange={(e) => update('tagline', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
-          </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <Icon name="BuildingOffice2Icon" size={16} className="text-secondary" /> Company Information
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">Name and tagline used in header, footer, and metadata.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="text-sm font-medium">Company name
+            <input className={`${inputClass} mt-1`} value={form.company_name} placeholder="Enter company name" onChange={(event) => update('company_name', event.target.value)} />
+          </label>
+          <label className="text-sm font-medium">Tagline
+            <input className={`${inputClass} mt-1`} value={form.tagline} placeholder="Enter tagline" onChange={(event) => update('tagline', event.target.value)} />
+          </label>
         </div>
-      </AdminSection>
+      </section>
 
-      <AdminSection title="Contact" description="Email, phone, and address shown on contact page and footer.">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              value={form.email}
-              onChange={(e) => update('email', e.target.value)}
-              type="email"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Icon name="EnvelopeIcon" size={16} className="text-secondary" /> Contact Information
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium">Email
+              <input className={`${inputClass} mt-1`} type="email" value={form.email} placeholder="Enter email" onChange={(event) => update('email', event.target.value)} />
+            </label>
+            <label className="text-sm font-medium">Phone (display)
+              <input className={`${inputClass} mt-1`} value={form.phone} placeholder="Enter phone" onChange={(event) => update('phone', event.target.value)} />
+            </label>
+            <label className="text-sm font-medium sm:col-span-2">Phone link (digits only)
+              <input className={`${inputClass} mt-1`} value={form.phone_href} placeholder="Enter phone number" onChange={(event) => update('phone_href', event.target.value)} />
+            </label>
+            <label className="text-sm font-medium sm:col-span-2">Address
+              <textarea className={`${areaClass} mt-1`} rows={3} value={form.address} placeholder="Enter address" onChange={(event) => update('address', event.target.value)} />
+            </label>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone (display)</label>
-            <input
-              value={form.phone}
-              onChange={(e) => update('phone', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Icon name="ChatBubbleLeftRightIcon" size={16} className="text-secondary" /> WhatsApp Widget
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">Floating widget, header links, and contact page.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium">WhatsApp number (display)
+              <input className={`${inputClass} mt-1`} value={form.whatsapp} placeholder="Enter WhatsApp number" onChange={(event) => update('whatsapp', event.target.value)} />
+            </label>
+            <label className="text-sm font-medium">WhatsApp link (digits only)
+              <input className={`${inputClass} mt-1`} value={form.whatsapp_href} placeholder="Enter WhatsApp number" onChange={(event) => update('whatsapp_href', event.target.value)} />
+            </label>
+            <label className="text-sm font-medium sm:col-span-2">Pre-filled message
+              <textarea className={`${areaClass} mt-1`} rows={3} value={form.whatsapp_widget_message ?? ''} placeholder="Enter message" onChange={(event) => update('whatsapp_widget_message', event.target.value)} />
+            </label>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone link (digits only)</label>
-            <input
-              value={form.phone_href}
-              onChange={(e) => update('phone_href', e.target.value)}
-              placeholder="914040268570"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Address</label>
-          <textarea
-            value={form.address}
-            onChange={(e) => update('address', e.target.value)}
-            rows={3}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          />
-        </div>
-      </AdminSection>
+        </section>
+      </div>
 
-      <AdminSection title="WhatsApp" description="Floating widget, header links, and contact page.">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">WhatsApp number (display)</label>
-            <input
-              value={form.whatsapp}
-              onChange={(e) => update('whatsapp', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">WhatsApp link (digits only)</label>
-            <input
-              value={form.whatsapp_href}
-              onChange={(e) => update('whatsapp_href', e.target.value)}
-              placeholder="917032923474"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            />
-          </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <Icon name="DocumentTextIcon" size={16} className="text-secondary" /> Footer & Legal
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">Footer copy and copyright line.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="text-sm font-medium">Footer description
+            <textarea className={`${areaClass} mt-1`} rows={3} value={form.footer_description} placeholder="Enter footer description" onChange={(event) => update('footer_description', event.target.value)} />
+          </label>
+          <label className="text-sm font-medium">Copyright text
+            <input className={`${inputClass} mt-1`} value={form.copyright_text} placeholder="Enter copyright text" onChange={(event) => update('copyright_text', event.target.value)} />
+          </label>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Pre-filled message</label>
-          <textarea
-            value={form.whatsapp_widget_message ?? ''}
-            onChange={(e) => update('whatsapp_widget_message', e.target.value)}
-            rows={2}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            placeholder="Shown only to first-time visitors. Returning visitors open the existing WhatsApp chat with no pre-filled text."
-          />
-        </div>
-      </AdminSection>
+      </section>
 
-      <AdminSection title="Footer" description="Footer copy and copyright line.">
-        <div>
-          <label className="block text-sm font-medium mb-1">Footer description</label>
-          <textarea
-            value={form.footer_description}
-            onChange={(e) => update('footer_description', e.target.value)}
-            rows={2}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Copyright text</label>
-          <input
-            value={form.copyright_text}
-            onChange={(e) => update('copyright_text', e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          />
-        </div>
-      </AdminSection>
-
-      {message && (
-        <p className={`text-sm ${message.includes('failed') ? 'text-red-600' : 'text-green-700'}`}>{message}</p>
-      )}
-
-      <button
-        type="submit"
-        disabled={saving}
-        className="inline-flex items-center justify-center rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50"
-      >
-        {saving ? 'Saving…' : 'Save branding'}
-      </button>
-    </form>
+      <div className="flex justify-end gap-2">
+        <AdminButton onClick={() => window.location.reload()}>Cancel</AdminButton>
+        <AdminButton variant="primary" loading={saving} onClick={handleSave}>Save branding</AdminButton>
+      </div>
+    </div>
   );
 }

@@ -187,11 +187,11 @@ export default function PageSeoAdminPage() {
           <div className="space-y-3 p-3">
             <label className="relative block">
               <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search pages..." className={`${inputClass} pl-9`} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter search" className={`${inputClass} pl-9`} />
             </label>
             {adding && (
               <div className="flex gap-2">
-                <input value={newPath} onChange={(event) => setNewPath(event.target.value)} placeholder="/custom-page" className={inputClass} />
+                <input value={newPath} onChange={(event) => setNewPath(event.target.value)} placeholder="Enter page path" className={inputClass} />
                 <AdminButton variant="primary" onClick={addPage}>Add</AdminButton>
               </div>
             )}

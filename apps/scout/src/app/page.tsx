@@ -8,6 +8,10 @@ import { BTN, COPY, H2, SHELL } from '@/components/marketing/layout';
 import SiteFooter from '@/components/marketing/SiteFooter';
 import SiteHeader from '@/components/marketing/SiteHeader';
 import Icon from '@/components/ui/AppIcon';
+import { getRevealeoSite } from '@/lib/cms/site';
+import SafeImage from '@/components/ui/SafeImage';
+
+export const dynamic = 'force-dynamic';
 
 const LOGOS = ['nike', 'amazon', 'hubspot', 'notion', 'spotify', 'Canva', 'Shopify', 'Adobe'];
 
@@ -20,11 +24,36 @@ const STEPS = [
   { n: '6', icon: 'ShareIcon', t: 'Export', d: 'Save reports and share with your team', tone: 'bg-[#F5F3FF] text-[#A78BFA]' },
 ];
 
-export default function LandingPage() {
+function text(section: Record<string, unknown> | undefined, key: string, fallback: string) {
+  const value = section?.[key];
+  return typeof value === 'string' && value.trim() ? value : fallback;
+}
+
+function lines(section: Record<string, unknown> | undefined, key: string, fallback: string[]) {
+  const value = section?.[key];
+  return Array.isArray(value) && value.length ? value.map((item) => String(item)) : fallback;
+}
+
+export default async function LandingPage() {
+  const { branding, content } = await getRevealeoSite();
+  const hero = content.hero || {};
+  const features = content.features || {};
+  const platforms = content.platforms || {};
+  const workflow = content.workflow || {};
+  const ai = content.ai || {};
+  const compare = content.compare || {};
+  const faq = content.faq || {};
+  const cta = content.cta || {};
+  const faqItems = Array.isArray(faq.items) ? faq.items as { q: string; a: string }[] : undefined;
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">
-      <SiteHeader />
-      <Hero />
+      <SiteHeader branding={branding} />
+      <Hero
+        title={text(hero, 'title', 'Uncover your competitors’')}
+        highlight={text(hero, 'highlight', 'marketing secrets')}
+        description={text(hero, 'description', 'Turn public data from YouTube, Instagram, Facebook, Ads and more into actionable insights. See what works, then recreate winning content, faster.')}
+        image={text(hero, 'image', '/marketing/hero-dashboard.jpg')}
+      />
 
       <section className="border-t border-slate-100 py-10">
         <p className="mb-6 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Trusted by marketers at</p>
@@ -41,14 +70,15 @@ export default function LandingPage() {
         <div className="relative max-w-lg">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-500">
             <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-            From noise to insight
+            {text(features, 'eyebrow', 'From noise to insight')}
           </p>
           <h2 className={H2}>
-            Public data is a goldmine
-            <span className="block">— if you know where to look.</span>
+            {text(features, 'title', 'Public data is a goldmine\n— if you know where to look.').split('\n').map((line) => (
+              <span key={line} className="block">{line}</span>
+            ))}
           </h2>
           <p className={`${COPY} max-w-md`}>
-            Your competitors are already showing you what works. We turn publicly available content into clear, actionable insights so you can make smarter marketing decisions.
+            {text(features, 'description', 'Your competitors are already showing you what works. We turn publicly available content into clear, actionable insights so you can make smarter marketing decisions.')}
           </p>
           <svg className="pointer-events-none absolute -right-6 bottom-4 hidden h-16 w-24 text-violet-300 lg:block" viewBox="0 0 96 64" fill="none" aria-hidden>
             <path d="M8 12c22 4 48 8 72 28" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 4" />
@@ -64,7 +94,7 @@ export default function LandingPage() {
               The old way
             </h3>
             <ul className="mt-4 space-y-2.5 text-[13.5px] text-slate-600">
-              {['Manually check competitor channels', 'Spend hours watching videos', 'No easy way to compare', 'Miss valuable insights', 'Slow, inconsistent research'].map((item) => (
+              {lines(features, 'oldWay', ['Manually check competitor channels', 'Spend hours watching videos', 'No easy way to compare', 'Miss valuable insights', 'Slow, inconsistent research']).map((item) => (
                 <li key={item} className="flex items-start gap-2">
                   <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-500">
                     <Icon name="XMarkIcon" size={10} />
@@ -82,7 +112,7 @@ export default function LandingPage() {
               With Revealeo
             </h3>
             <ul className="mt-4 space-y-2.5 text-[13.5px] text-slate-600">
-              {['All platforms in one place', 'Automated data collection', 'AI-powered analysis', 'Compare competitors easily', 'Export and share insights'].map((item) => (
+              {lines(features, 'withRevealeo', ['All platforms in one place', 'Automated data collection', 'AI-powered analysis', 'Compare competitors easily', 'Export and share insights']).map((item) => (
                 <li key={item} className="flex items-start gap-2">
                   <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
                     <Icon name="CheckIcon" size={10} />
@@ -106,11 +136,11 @@ export default function LandingPage() {
           </p>
           <p className="mb-3 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-500">
             <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-            Multi-platform intelligence
+            {text(platforms, 'eyebrow', 'Multi-platform intelligence')}
           </p>
-          <h2 className={`${H2} max-w-xl`}>All your competitor research in one place.</h2>
+          <h2 className={`${H2} max-w-xl`}>{text(platforms, 'title', 'All your competitor research in one place.')}</h2>
           <p className={`${COPY} max-w-xl`}>
-            Create platform-based projects and uncover insights from every major channel. Compare content, analyze what’s working, and find new opportunities across the entire social media landscape.
+            {text(platforms, 'description', 'Create platform-based projects and uncover insights from every major channel. Compare content, analyze what’s working, and find new opportunities across the entire social media landscape.')}
           </p>
           <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
             {PLATFORM_MARKS.map(({ name, blurb, Icon: Mark }) => (
@@ -127,10 +157,10 @@ export default function LandingPage() {
       <section id="how-it-works" className={`${SHELL} pb-16 pt-8`}>
         <p className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-600">
           <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-          Simple, powerful workflow
+          {text(workflow, 'eyebrow', 'Simple, powerful workflow')}
         </p>
-        <h2 className={`${H2} mt-4`}>From data to insights in minutes.</h2>
-        <p className={`${COPY} max-w-xl`}>Get from a competitor’s channel to actionable insights in just a few clicks.</p>
+        <h2 className={`${H2} mt-4`}>{text(workflow, 'title', 'From data to insights in minutes.')}</h2>
+        <p className={`${COPY} max-w-xl`}>{text(workflow, 'description', 'Get from a competitor’s channel to actionable insights in just a few clicks.')}</p>
         <ol className="relative mt-12 grid gap-8 sm:grid-cols-3 lg:grid-cols-6">
           <span className="pointer-events-none absolute left-[8%] right-[8%] top-[22px] hidden border-t border-dotted border-violet-200 lg:block" />
           {STEPS.map((step) => (
@@ -152,14 +182,14 @@ export default function LandingPage() {
         <div className={`${SHELL} relative grid items-center gap-10 lg:grid-cols-[0.85fr_1.25fr]`}>
           <div>
             <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-fuchsia-100">
-              AI-powered analysis
+              {text(ai, 'eyebrow', 'AI-powered analysis')}
             </p>
-            <h2 className="mt-4 font-bricolage text-[2.4rem] font-bold leading-[1.1] sm:text-[2.8rem]">Deeper insights with AI.</h2>
+            <h2 className="mt-4 font-bricolage text-[2.4rem] font-bold leading-[1.1] sm:text-[2.8rem]">{text(ai, 'title', 'Deeper insights with AI.')}</h2>
             <p className="mt-4 max-w-md text-[15px] leading-7 text-white/75">
-              Our AI analyzes every part of your competitors’ content — from thumbnails and visuals to captions, transcripts and key themes.
+              {text(ai, 'description', 'Our AI analyzes every part of your competitors’ content — from thumbnails and visuals to captions, transcripts and key themes.')}
             </p>
             <Link href="/signup" className="mt-8 inline-flex h-11 items-center gap-1 rounded-full bg-[#E879F9] px-5 text-sm font-semibold text-white hover:bg-[#F0ABFC]">
-              See AI analysis in action →
+              {text(ai, 'cta', 'See AI analysis in action →')}
             </Link>
           </div>
           <div className="relative grid items-center gap-3 lg:grid-cols-[1fr_0.72fr]">
@@ -170,7 +200,7 @@ export default function LandingPage() {
               </div>
               <div className="overflow-hidden rounded-[22px] bg-white text-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.28)]">
                 <div className="relative">
-                  <img src="/marketing/ai-california-lake.jpg" alt="" className="h-44 w-full object-cover" />
+                  <SafeImage src={text(ai, 'image', '/marketing/ai-california-lake.jpg')} alt="" className="h-44 w-full object-cover" />
                   <span className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-violet-600">▶</span>
                   <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">10:24</span>
                   <span className="absolute -left-2 bottom-16 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">94/100</span>
@@ -180,7 +210,7 @@ export default function LandingPage() {
                   <p className="mt-1 text-[11px] text-slate-500">👁 125,430 · ❤ 4,321 · 💬 312</p>
                   <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
                     <span className="flex items-center gap-2">
-                      <img src="/marketing/avatar-2.jpg" alt="" className="h-6 w-6 rounded-full object-cover" />
+                      <SafeImage src="/marketing/avatar-2.jpg" alt="" className="h-6 w-6 rounded-full object-cover" />
                       Travel Explorer · 1.2M subscribers
                     </span>
                     <span className="font-semibold text-violet-600">View on YouTube</span>
@@ -212,14 +242,14 @@ export default function LandingPage() {
         <div>
           <p className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-600">
             <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-            Simple. Find opportunities
+            {text(compare, 'eyebrow', 'Simple. Find opportunities')}
           </p>
-          <h2 className={`${H2} mt-4`}>Compare content side-by-side.</h2>
+          <h2 className={`${H2} mt-4`}>{text(compare, 'title', 'Compare content side-by-side.')}</h2>
           <p className={COPY}>
-            Easily compare your competitors’ best performing content, spot trends and find new opportunities for your own strategy.
+            {text(compare, 'description', 'Easily compare your competitors’ best performing content, spot trends and find new opportunities for your own strategy.')}
           </p>
           <Link href="/signup" className={`${BTN} mt-8 gap-1`}>
-            Start comparing →
+            {text(compare, 'cta', 'Start comparing →')}
           </Link>
         </div>
         <div className="rounded-[24px] bg-white p-5 shadow-[0_20px_50px_rgba(109,40,217,0.08)] ring-1 ring-slate-100">
@@ -236,7 +266,7 @@ export default function LandingPage() {
                 ].map((item) => (
                   <article key={item.title}>
                     <div className="relative overflow-hidden rounded-xl">
-                      <img src={item.src} alt="" className="h-24 w-full object-cover" />
+                      <SafeImage src={item.src} alt="" className="h-24 w-full object-cover" />
                       <span className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-violet-600">▶</span>
                     </div>
                     <p className="mt-2 text-[12px] font-semibold text-slate-800">{item.title}</p>
@@ -285,26 +315,27 @@ export default function LandingPage() {
         <div>
           <p className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-500">
             <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-            Frequently asked questions
+            {text(faq, 'eyebrow', 'Frequently asked questions')}
           </p>
           <h2 className={`${H2} mt-4`}>
-            Got questions?
-            <span className="block">We&apos;ve got answers.</span>
+            {text(faq, 'title', 'Got questions?\nWe’ve got answers.').split('\n').map((line) => (
+              <span key={line} className="block">{line}</span>
+            ))}
           </h2>
           <p className={`${COPY} mt-4 max-w-sm`}>
-            Everything you need to know about Revealeo and how it can help you make better marketing decisions.
+            {text(faq, 'description', 'Everything you need to know about Revealeo and how it can help you make better marketing decisions.')}
           </p>
         </div>
-        <Faq />
+        <Faq items={faqItems && faqItems.length ? faqItems : undefined} />
       </section>
 
       <section className={`${SHELL} pb-6`}>
         <div className="rounded-[24px] bg-gradient-to-r from-[#7C3AED] via-[#C026D3] to-[#E879F9] px-8 py-10 text-white lg:flex lg:items-center lg:justify-between lg:px-12">
           <div className="max-w-md">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">Ready to uncover your competitors’ secrets?</p>
-            <h2 className="mt-2 font-bricolage text-[2rem] font-bold leading-tight">Start your free trial today.</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{text(cta, 'eyebrow', 'Ready to uncover your competitors’ secrets?')}</p>
+            <h2 className="mt-2 font-bricolage text-[2rem] font-bold leading-tight">{text(cta, 'title', 'Start your free trial today.')}</h2>
             <p className="mt-2 text-[14px] leading-6 text-white/80">
-              Join thousands of marketers who use Revealeo to find opportunities, create better content and stay ahead of the competition.
+              {text(cta, 'description', 'Join thousands of marketers who use Revealeo to find opportunities, create better content and stay ahead of the competition.')}
             </p>
           </div>
           <div className="mt-6 lg:mt-0">
@@ -318,7 +349,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <SiteFooter />
+      <SiteFooter branding={branding} />
     </div>
   );
 }

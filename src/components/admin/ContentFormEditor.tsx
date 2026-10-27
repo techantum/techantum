@@ -42,6 +42,14 @@ function setFieldValue(
   return next;
 }
 
+function enterPlaceholder(field: FieldSchema) {
+  const label = (field.label || field.key || 'value').toLowerCase();
+  if (field.placeholder && field.placeholder !== 'https://') return field.placeholder;
+  if (field.type === 'lines') return 'Enter one item per line';
+  if (field.type === 'url') return 'Enter URL';
+  return `Enter ${label}`;
+}
+
 function FieldInput({
   field,
   value,
@@ -52,9 +60,10 @@ function FieldInput({
   onChange: (value: string) => void;
 }) {
   const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20';
+  const placeholder = enterPlaceholder(field);
 
   if (field.type === 'richtext') {
-    return <RichTextEditor value={value} onChange={onChange} placeholder={field.placeholder} />;
+    return <RichTextEditor value={value} onChange={onChange} placeholder={placeholder} />;
   }
 
   if (field.type === 'image') {
@@ -87,7 +96,7 @@ function FieldInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={field.type === 'lines' ? 4 : 3}
-        placeholder={field.placeholder || (field.type === 'lines' ? 'One item per line' : undefined)}
+        placeholder={placeholder}
         className={inputClass}
       />
     );
@@ -99,7 +108,7 @@ function FieldInput({
         type="url"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={field.placeholder || 'https://'}
+        placeholder={placeholder}
         className={inputClass}
       />
     );
@@ -110,7 +119,7 @@ function FieldInput({
       type={field.type === 'number' ? 'number' : 'text'}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder={field.placeholder}
+      placeholder={placeholder}
       className={inputClass}
     />
   );
@@ -250,7 +259,7 @@ function StringListEditor({
               onChange(next);
             }}
             className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-            placeholder={`${itemLabel || 'Item'} ${index + 1}`}
+            placeholder={`Enter ${(itemLabel || 'item').toLowerCase()}`}
           />
           <button
             type="button"

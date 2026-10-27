@@ -9,6 +9,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState(search.get('email') || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const signup = mode === 'signup';
@@ -50,6 +51,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
             className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-slate-900 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
             required
             value={name}
+            placeholder="Enter workspace name"
             onChange={(event) => setName(event.target.value)}
           />
         </label>
@@ -62,20 +64,32 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           autoComplete="email"
           required
           value={email}
+          placeholder="Enter email"
           onChange={(event) => setEmail(event.target.value)}
         />
       </label>
       <label className="mt-3 block text-sm font-medium text-slate-700">
         Password
-        <input
-          className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-slate-900 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-          type="password"
-          autoComplete={signup ? 'new-password' : 'current-password'}
-          minLength={signup ? 8 : undefined}
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        <div className="relative mt-1">
+          <input
+            className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 pr-12 text-slate-900 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete={signup ? 'new-password' : 'current-password'}
+            minLength={signup ? 8 : undefined}
+            required
+            value={password}
+            placeholder="Enter password"
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-3 text-sm font-semibold text-slate-400 hover:text-slate-700"
+            onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
       </label>
       <button
         type="submit"

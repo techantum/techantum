@@ -1,3 +1,5 @@
+import SafeImage from '@/components/ui/SafeImage';
+
 interface CmsMediaFitProps {
   src: string;
   alt?: string;
@@ -36,8 +38,5 @@ export default function CmsMediaFit({
     );
   }
 
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={fitClass} loading="lazy" />
-  );
+  return <SafeImage src={src} alt={alt} className={fitClass} loading="lazy" />;
 }

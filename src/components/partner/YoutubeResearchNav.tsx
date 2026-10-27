@@ -7,8 +7,8 @@ import { youtubePageBase } from '@/components/admin/youtube/YoutubeFrame';
 export function youtubeChildNavClass(active: boolean) {
   return `side-nav-item block rounded-md px-3 py-1.5 text-[13px] leading-snug ${
     active
-      ? 'border-l-2 border-secondary bg-transparent font-semibold text-secondary'
-      : 'border-l-2 border-transparent text-slate-500 hover:bg-white/80 hover:text-secondary'
+      ? 'border-l-2 border-secondary/20 bg-[#fdecea] font-medium text-secondary'
+      : 'border-l-2 border-transparent text-slate-500 hover:bg-[#fff5f3] hover:text-secondary'
   }`;
 }
 

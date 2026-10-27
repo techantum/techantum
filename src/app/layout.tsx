@@ -123,7 +123,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="manifest" href="/site.webmanifest" />
         <MarketingHeadTags seo={seo} />
-        <HeadSnippets html={seo.header_scripts || ''} />
+        {seo.header_scripts_enabled !== false ? <HeadSnippets html={seo.header_scripts || ''} /> : null}
         <PageHeadSnippets />
       </head>
       <body className={`${inter.className} antialiased`}>
@@ -138,7 +138,7 @@ export default async function RootLayout({
         {children}
         <WhatsAppWidgetLoader />
         <PageBodySnippets />
-        <BodySnippets html={seo.footer_scripts || ''} />
+        {seo.footer_scripts_enabled !== false ? <BodySnippets html={seo.footer_scripts || ''} /> : null}
       </body>
     </html>
   );

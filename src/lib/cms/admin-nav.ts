@@ -54,6 +54,29 @@ export const ADMIN_NAV: AdminNavItem[] = [
           { href: '/admin/redirects', label: 'Redirects', icon: 'ArrowPathIcon' },
         ],
       },
+      { href: '/admin/submissions', label: 'Leads', icon: 'InboxIcon' },
+      {
+        id: 'sales',
+        href: '/admin/lead-discovery',
+        label: 'Lead Discovery',
+        icon: 'MapPinIcon',
+        activePaths: ['/admin/lead-discovery'],
+      },
+      {
+        id: 'youtube-research',
+        href: '/admin/youtube-research',
+        label: 'YouTube Research',
+        icon: 'PlayCircleIcon',
+        activePaths: ['/admin/youtube-research'],
+        children: [
+          {
+            id: 'youtube-research-settings',
+            href: '/admin/youtube-research/settings',
+            label: 'Settings',
+            icon: 'Cog6ToothIcon',
+          },
+        ],
+      },
     ],
   },
   {
@@ -103,83 +126,77 @@ export const ADMIN_NAV: AdminNavItem[] = [
     ],
   },
   {
+    id: 'project-management',
     label: 'Projects & Delivery',
     icon: 'ClipboardDocumentCheckIcon',
     children: [
+      { href: '/admin/pm', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
+      { href: '/admin/pm/projects', label: 'Projects', icon: 'FolderIcon' },
+      { href: '/admin/pm/daily', label: 'Daily Updates', icon: 'CalendarDaysIcon' },
+      { href: '/admin/pm/onboarding', label: 'Onboarding', icon: 'ClipboardDocumentCheckIcon' },
+      { href: '/admin/pm/team', label: 'Team Allocation', icon: 'UsersIcon' },
+      { href: '/admin/pm/tickets', label: 'Tickets', icon: 'TicketIcon' },
+      { href: '/admin/pm/requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
       {
-        id: 'project-management',
-        label: 'Project Management',
-        icon: 'FolderIcon',
+        label: 'Process & ISMS',
+        icon: 'ShieldCheckIcon',
         children: [
-          { href: '/admin/pm', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
-          { href: '/admin/pm/projects', label: 'Projects', icon: 'FolderIcon' },
-          { href: '/admin/pm/daily', label: 'Daily Updates', icon: 'CalendarDaysIcon' },
-          { href: '/admin/pm/onboarding', label: 'Onboarding', icon: 'ClipboardDocumentCheckIcon' },
-          { href: '/admin/pm/team', label: 'Team Allocation', icon: 'UsersIcon' },
-          { href: '/admin/pm/tickets', label: 'Tickets', icon: 'TicketIcon' },
-          { href: '/admin/pm/requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
+          { href: '/admin/pm/process', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
           {
-            label: 'Process & ISMS',
-            icon: 'ShieldCheckIcon',
+            label: 'Assets & Resources',
+            icon: 'CircleStackIcon',
             children: [
-              { href: '/admin/pm/process', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
-              {
-                label: 'Assets & Resources',
-                icon: 'CircleStackIcon',
-                children: [
-                  { href: '/admin/pm/registers/assets', label: 'Assets', icon: 'CircleStackIcon' },
-                  { href: '/admin/pm/registers/software', label: 'Software', icon: 'SquaresPlusIcon' },
-                  { href: '/admin/pm/registers/suppliers', label: 'Suppliers', icon: 'BuildingStorefrontIcon' },
-                ],
-              },
-              {
-                label: 'Access & Infrastructure',
-                icon: 'ServerStackIcon',
-                children: [
-                  { href: '/admin/pm/registers/access', label: 'Access', icon: 'IdentificationIcon' },
-                  { href: '/admin/pm/registers/servers', label: 'Servers & Cloud', icon: 'ServerStackIcon' },
-                  { href: '/admin/pm/registers/backups', label: 'Backups', icon: 'CircleStackIcon' },
-                ],
-              },
-              {
-                label: 'Security',
-                icon: 'ShieldCheckIcon',
-                children: [
-                  { href: '/admin/pm/registers/incidents', label: 'Incidents', icon: 'ExclamationTriangleIcon' },
-                  { href: '/admin/pm/registers/vulnerabilities', label: 'Vulnerabilities', icon: 'ShieldCheckIcon' },
-                ],
-              },
-              {
-                label: 'People & Compliance',
-                icon: 'UsersIcon',
-                children: [
-                  { href: '/admin/pm/registers/training', label: 'Training', icon: 'BookOpenIcon' },
-                  { href: '/admin/pm/registers/joiner-leaver', label: 'Joiner / Leaver', icon: 'UserPlusIcon' },
-                ],
-              },
-              {
-                label: 'Risks & Changes',
-                icon: 'ArrowsRightLeftIcon',
-                children: [
-                  { href: '/admin/pm/registers/changes', label: 'Changes', icon: 'ArrowsRightLeftIcon' },
-                  { href: '/admin/pm/registers/risks', label: 'Risks', icon: 'ShieldCheckIcon' },
-                  { href: '/admin/pm/registers/actions', label: 'Corrective Actions', icon: 'ClipboardDocumentCheckIcon' },
-                ],
-              },
-              {
-                label: 'Controls',
-                icon: 'QueueListIcon',
-                children: [
-                  { href: '/admin/pm/registers/controls', label: 'Control Checklist', icon: 'QueueListIcon' },
-                ],
-              },
+              { href: '/admin/pm/registers/assets', label: 'Assets', icon: 'CircleStackIcon' },
+              { href: '/admin/pm/registers/software', label: 'Software', icon: 'SquaresPlusIcon' },
+              { href: '/admin/pm/registers/suppliers', label: 'Suppliers', icon: 'BuildingStorefrontIcon' },
             ],
           },
-          { href: '/admin/pm/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
-          { href: '/admin/pm/documents', label: 'Documents & Evidence', icon: 'FolderIcon' },
-          { href: '/admin/pm/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+          {
+            label: 'Access & Infrastructure',
+            icon: 'ServerStackIcon',
+            children: [
+              { href: '/admin/pm/registers/access', label: 'Access', icon: 'IdentificationIcon' },
+              { href: '/admin/pm/registers/servers', label: 'Servers & Cloud', icon: 'ServerStackIcon' },
+              { href: '/admin/pm/registers/backups', label: 'Backups', icon: 'CircleStackIcon' },
+            ],
+          },
+          {
+            label: 'Security',
+            icon: 'ShieldCheckIcon',
+            children: [
+              { href: '/admin/pm/registers/incidents', label: 'Incidents', icon: 'ExclamationTriangleIcon' },
+              { href: '/admin/pm/registers/vulnerabilities', label: 'Vulnerabilities', icon: 'ShieldCheckIcon' },
+            ],
+          },
+          {
+            label: 'People & Compliance',
+            icon: 'UsersIcon',
+            children: [
+              { href: '/admin/pm/registers/training', label: 'Training', icon: 'BookOpenIcon' },
+              { href: '/admin/pm/registers/joiner-leaver', label: 'Joiner / Leaver', icon: 'UserPlusIcon' },
+            ],
+          },
+          {
+            label: 'Risks & Changes',
+            icon: 'ArrowsRightLeftIcon',
+            children: [
+              { href: '/admin/pm/registers/changes', label: 'Changes', icon: 'ArrowsRightLeftIcon' },
+              { href: '/admin/pm/registers/risks', label: 'Risks', icon: 'ShieldCheckIcon' },
+              { href: '/admin/pm/registers/actions', label: 'Corrective Actions', icon: 'ClipboardDocumentCheckIcon' },
+            ],
+          },
+          {
+            label: 'Controls',
+            icon: 'QueueListIcon',
+            children: [
+              { href: '/admin/pm/registers/controls', label: 'Control Checklist', icon: 'QueueListIcon' },
+            ],
+          },
         ],
       },
+      { href: '/admin/pm/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
+      { href: '/admin/pm/documents', label: 'Documents & Evidence', icon: 'FolderIcon' },
+      { href: '/admin/pm/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
     ],
   },
   {
@@ -245,54 +262,26 @@ export const ADMIN_NAV: AdminNavItem[] = [
     label: 'Content & Brand',
     icon: 'DocumentTextIcon',
     children: [
-      {
-        id: 'content',
-        label: 'Site Content',
-        icon: 'PencilSquareIcon',
-        children: [
-          { href: '/admin/content', label: 'Website Content', icon: 'PencilSquareIcon' },
-          { href: '/admin/branding', label: 'Branding', icon: 'PaintBrushIcon' },
-          { href: '/admin/submissions', label: 'Leads', icon: 'InboxIcon' },
-        ],
-      },
+      { href: '/admin/content', label: 'Website Content', icon: 'PencilSquareIcon', activePaths: ['/admin/content/'] },
+      { href: '/admin/branding', label: 'Branding', icon: 'PaintBrushIcon' },
+      { href: '/admin/custom-scripts', label: 'Custom Scripts', icon: 'CodeBracketIcon' },
     ],
   },
   {
-    label: 'Partners',
+    id: 'partners',
+    label: 'Partner Portal',
     icon: 'UserGroupIcon',
     children: [
-      {
-        id: 'partners',
-        label: 'Partner Portal',
-        icon: 'UserGroupIcon',
-        children: [
-          { href: '/admin/partners', label: 'Partners', icon: 'UsersIcon' },
-          { href: '/admin/partner-catalog', label: 'Service Catalog', icon: 'Squares2X2Icon' },
-          { href: '/admin/partner-requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
-        ],
-      },
-      {
-        id: 'youtube-research',
-        href: '/admin/youtube-research',
-        label: 'YouTube Research',
-        icon: 'PlayCircleIcon',
-        activePaths: ['/admin/youtube-research'],
-        children: [
-          {
-            id: 'youtube-research-settings',
-            href: '/admin/youtube-research/settings',
-            label: 'Settings',
-            icon: 'Cog6ToothIcon',
-          },
-        ],
-      },
-      {
-        id: 'sales',
-        href: '/admin/lead-discovery',
-        label: 'Lead Discovery',
-        icon: 'MapPinIcon',
-        activePaths: ['/admin/lead-discovery'],
-      },
+      { href: '/admin/partners', label: 'Partners', icon: 'UsersIcon' },
+      { href: '/admin/partner-catalog', label: 'Service Catalog', icon: 'Squares2X2Icon' },
+      { href: '/admin/partner-requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
+    ],
+  },
+  {
+    label: 'Applications',
+    icon: 'Squares2X2Icon',
+    children: [
+      { href: '/admin/apps', label: 'Apps', icon: 'SquaresPlusIcon' },
     ],
   },
   {

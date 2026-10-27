@@ -232,7 +232,7 @@ export default function PartnerTeamPage() {
               required
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              placeholder="Full name"
+              placeholder="Enter name"
               className={partnerInput}
             />
             <input
@@ -241,7 +241,7 @@ export default function PartnerTeamPage() {
               value={form.email}
               disabled={Boolean(editingId)}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="Email address"
+              placeholder="Enter email"
               className={partnerInput}
             />
           </div>

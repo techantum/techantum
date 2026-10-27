@@ -60,7 +60,7 @@ export function ScopeFields({
         )}
       </AdminField>
       <AdminField label="Scope document URL" hint="Use a URL instead of uploading a PDF.">
-        <input className={adminInputClass} value={url} onChange={(e) => onUrl(e.target.value)} placeholder="https://…" />
+        <input className={adminInputClass} value={url} onChange={(e) => onUrl(e.target.value)} placeholder="Enter URL" />
       </AdminField>
     </div>
   );

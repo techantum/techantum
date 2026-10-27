@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import SafeImage from '@/components/ui/SafeImage';
 
 interface MediaUploadFieldProps {
   label: string;
@@ -66,8 +67,7 @@ export default function MediaUploadField({
                 controls
               />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={value} alt={label} className="w-full h-full object-contain" />
+              <SafeImage src={value} alt={label} className="w-full h-full object-contain" fallback={<span className="text-xs text-muted-foreground">No image uploaded</span>} />
             )
           ) : (
             <span className="text-xs text-muted-foreground">No {mediaType} uploaded</span>

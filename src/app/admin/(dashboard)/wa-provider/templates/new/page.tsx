@@ -121,7 +121,7 @@ export default function TemplateBuilderPage() {
                 <option>OTP</option>
               </select>
               <input className={adminInputClass} value={button.text} onChange={(e) => setForm((f) => ({ ...f, buttons: f.buttons.map((b, i) => (i === index ? { ...b, text: e.target.value } : b)) }))} />
-              {button.type === 'URL' && <input className={adminInputClass} placeholder="https://" value={button.url || ''} onChange={(e) => setForm((f) => ({ ...f, buttons: f.buttons.map((b, i) => (i === index ? { ...b, url: e.target.value } : b)) }))} />}
+              {button.type === 'URL' && <input className={adminInputClass} placeholder="Enter URL" value={button.url || ''} onChange={(e) => setForm((f) => ({ ...f, buttons: f.buttons.map((b, i) => (i === index ? { ...b, url: e.target.value } : b)) }))} />}
             </div>
           ))}
           <div className="flex gap-2">

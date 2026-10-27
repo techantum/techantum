@@ -6,7 +6,7 @@ import { listProjectChannels, listProjectVideos } from './projects';
 import { enrichComparisonVideos } from './thumbnail-read';
 import { captionLanguageNames, enrichSpokenContent } from './video-content';
 import { assertYoutubeProject } from './scope';
-import { lengthLabel, YOUTUBE_METRIC_NOTICE } from './parse';
+import { lengthLabel, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
 
 export const ANALYTICS_UNAVAILABLE = 'Not available through the current YouTube integration.';
 export const ANALYTICS_HINT = 'Connect an authorized YouTube channel for additional audience insights.';
@@ -108,6 +108,7 @@ type EvidenceVideo = {
   comment_count: number | null;
   watch_url: string | null;
   thumbnail_url: string | null;
+  channel_thumbnail_url: string | null;
   thumbnail_caption: string | null;
   description: string | null;
   spoken_text: string | null;
@@ -159,7 +160,7 @@ function cleanText(value: unknown, max: number) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function compactVideo(row: Record<string, any>, channels: { id: string; youtube_channel_id?: string; channel_handle?: string | null; subscriber_count?: number | null }[] = []): EvidenceVideo {
+function compactVideo(row: Record<string, any>, channels: { id: string; youtube_channel_id?: string; channel_handle?: string | null; subscriber_count?: number | null; thumbnail_url?: string | null }[] = []): EvidenceVideo {
   const channel = channels.find((item) => String(item.id) === String(row.channel_id) || item.youtube_channel_id === row.youtube_channel_id);
   return {
     id: String(row.id),
@@ -184,7 +185,8 @@ function compactVideo(row: Record<string, any>, channels: { id: string; youtube_
     like_count: row.like_count == null ? null : Number(row.like_count),
     comment_count: row.comment_count == null ? null : Number(row.comment_count),
     watch_url: row.watch_url || null,
-    thumbnail_url: row.thumbnail_url || null,
+    thumbnail_url: youtubeThumbUrl(row.youtube_video_id, row.thumbnail_url) || null,
+    channel_thumbnail_url: channel?.thumbnail_url || row.channel_thumbnail_url || null,
     thumbnail_caption: row.thumbnail_caption || null,
     description: row.description ? String(row.description).slice(0, 2500) : null,
     spoken_text: row.spoken_text ? String(row.spoken_text).slice(0, 14000) : null,
@@ -438,11 +440,15 @@ async function runModel(config: AiResearchConfig, evidence: Awaited<ReturnType<t
     messages: [
       {
         role: 'system',
-        content: `You are a YouTube research analyst for Revealeo. Use only provided public Data API fields.
+        content: `You are a YouTube research analyst for Revealeo running a side-by-side comparison of selected videos. Use only provided public Data API fields.
 Rules:
 - Never invent watch time, CTR, impressions, retention, demographics, or competitor private analytics.
 - Desired audience targets are goals, not measured facts.
 - Use may / potentially / worth testing for causal claims.
+- Rank and contrast the selected videos against each other for the user's selected goals. Say which packaging choices look stronger in this set and why, using views, likes, comments, titles, tags, and thumbnail readings only.
+- Apply YouTube public packaging standards: searchable, specific titles; high-contrast thumbnails with few readable words; a first-line description that restates the promise; relevant tags; a clear own-vs-competitor gap when both roles are present.
+- Success mantra to turn into actions: (1) Package the click (title + thumbnail must match one promise), (2) Deliver that promise in the opening, (3) Earn the next public action (like or comment). Because retention is not in this dataset, treat step 2 as a test, not a measured fact.
+- Every recommendation must be a concrete next step tied to a selected goal (views, likes, comments, engagement, retention, discoverability). Order recommendations by the selected goals, highest priority first.
 - Separate Improve Existing Video (title, description, tags, thumbnail concept) from Create New Video.
 - Work in this order for every video: (1) thumbnail image using thumbnail_text and thumbnail_scene, (2) then text using title, description, tags, and spoken_text.
 - thumbnail_text and thumbnail_scene were read from the thumbnail image. Do not add words that are not in those fields.
@@ -598,8 +604,10 @@ export async function listAiAnalyses(projectId: string) {
         'id', item->>'id',
         'title', item->>'title',
         'thumbnail_url', item->>'thumbnail_url',
+        'youtube_video_id', item->>'youtube_video_id',
         'channel_id', item->>'channel_id',
         'channel_name', item->>'channel_name',
+        'channel_thumbnail_url', item->>'channel_thumbnail_url',
         'view_count', item->>'view_count',
         'like_count', item->>'like_count',
         'comment_count', item->>'comment_count',
@@ -692,7 +700,22 @@ export async function updateAiAction(projectId: string, actionId: string, body: 
 
 export async function listResearchReports(projectId: string) {
   await assertYoutubeProject(projectId);
-  const { rows } = await q(undefined, `SELECT id, project_id, analysis_id, name, report_type, status, generated_by, generated_at, archived_at FROM youtube_research_reports WHERE project_id=$1 AND status <> 'archived' ORDER BY generated_at DESC LIMIT 50`, [projectId]);
+  const { rows } = await q(
+    undefined,
+    `SELECT r.id, r.project_id, r.analysis_id, r.name, r.report_type, r.status, r.generated_by, r.generated_at, r.archived_at,
+            COALESCE(jsonb_array_length(r.payload->'evidence'->'videos'), 0)::int AS video_count,
+            COALESCE((
+              SELECT COUNT(DISTINCT COALESCE(item->>'channel_id', item->>'channel_name'))::int
+              FROM jsonb_array_elements(COALESCE(r.payload->'evidence'->'videos', '[]'::jsonb)) item
+            ), 0) AS channel_count,
+            COALESCE(NULLIF(r.payload->'analysis'->>'name', ''), a.name) AS analysis_name
+     FROM youtube_research_reports r
+     LEFT JOIN youtube_ai_analyses a ON a.id = r.analysis_id
+     WHERE r.project_id=$1
+     ORDER BY r.generated_at DESC
+     LIMIT 80`,
+    [projectId]
+  );
   return rows;
 }
 
@@ -701,7 +724,37 @@ export async function createResearchReport(projectId: string, body: Record<strin
   const typeRaw = String(body.report_type || body.reportType || 'executive');
   const reportType = REPORT_TYPES.some((item) => item.id === typeRaw) ? typeRaw : 'executive';
   const analysisId = String(body.analysis_id || body.analysisId || '');
-  if (!analysisId) throw new FinanceValidationError('Generate or choose an AI Analysis before creating a report.');
+  const videoIds = Array.isArray(body.videoIds) ? [...new Set(body.videoIds.map(String).filter(Boolean))].slice(0, 40) : [];
+  if (!analysisId && videoIds.length) {
+    const channels = await listProjectChannels(projectId);
+    const listed = await listProjectVideos({
+      projectId,
+      videoIds,
+      page: 1,
+      pageSize: 40,
+      includeTotal: false,
+      sort: 'view_count',
+    });
+    const videos = listed.rows.map((row) => compactVideo(row as Record<string, any>, channels));
+    if (!videos.length) throw new FinanceValidationError('Select videos that belong to this project.');
+    const name = cleanText(body.name, 120) || `Selected videos · ${videos.length} · ${new Date().toISOString().slice(0, 10)}`;
+    const payload = {
+      reportType,
+      mode: 'selected_snapshot',
+      analysis: null,
+      evidence: { videos },
+      actions: [],
+      notice: `${AI_RESEARCH_NOTICE} This report is a snapshot of the selected videos. It is not a comparison analysis.`,
+    };
+    const { rows } = await q(
+      undefined,
+      `INSERT INTO youtube_research_reports (project_id, analysis_id, name, report_type, status, payload, generated_by) VALUES ($1,NULL,$2,$3,'ready',$4::jsonb,$5) RETURNING *`,
+      [projectId, name, reportType, JSON.stringify(payload), userId]
+    );
+    await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube Research Report Created','youtube_research_report',$2,$3::jsonb)`, [userId, rows[0].id, JSON.stringify({ reportType, mode: 'selected_snapshot', videoCount: videos.length })]);
+    return rows[0];
+  }
+  if (!analysisId) throw new FinanceValidationError('Select videos on Research, or choose a saved comparison, before creating a report.');
   const analysis = await getAiAnalysis(projectId, analysisId);
   const name = cleanText(body.name, 120) || `${REPORT_TYPES.find((item) => item.id === reportType)?.label} · ${new Date().toISOString().slice(0, 10)}`;
   const payload = {

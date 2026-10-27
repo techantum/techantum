@@ -66,8 +66,10 @@ export default function ResearchProjectsPage() {
 
   const go = (projectId: string, suffix = '/videos') => {
     rememberProject(projectId);
-    router.push(`${base}${suffix}`);
+    router.push(`${base}${suffix.startsWith('/') ? suffix : `/${suffix}`}`);
   };
+
+  const openProject = (projectId: string) => go(projectId, '/videos');
 
   const greeting = `${greetingForHour()}, ${firstName}`;
   const stats = home?.stats || {};
@@ -150,7 +152,7 @@ export default function ResearchProjectsPage() {
                         Next step: <button type="button" className="font-semibold text-secondary" onClick={() => go(resume.id, resume.next.href)}>{resume.next.label}</button>
                       </p>
                     </div>
-                    <button type="button" className={partnerBtnPrimary} onClick={() => go(resume.id, resume.next.href)}>
+                    <button type="button" className={partnerBtnPrimary} onClick={() => openProject(resume.id)}>
                       Open project →
                     </button>
                   </div>
@@ -171,7 +173,7 @@ export default function ResearchProjectsPage() {
                 <ul className="divide-y divide-slate-50">
                   {projects.slice(0, 4).map((project, index) => (
                     <li key={project.id}>
-                      <button type="button" className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-slate-50/80" onClick={() => go(project.id, project.next.href)}>
+                      <button type="button" className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-slate-50/80" onClick={() => openProject(project.id)}>
                         <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-bold ${PROJECT_AVATARS[index % PROJECT_AVATARS.length]}`}>{project.initials}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-semibold text-slate-900">{project.name}</span>
@@ -243,7 +245,7 @@ export default function ResearchProjectsPage() {
                 <ul className="space-y-3">
                   {(home?.reports || []).map((row: { id: string; name: string; report_type: string; generated_at: string; project_id: string; project_name: string }) => (
                     <li key={row.id}>
-                      <button type="button" className="flex w-full items-start gap-3 text-left" onClick={() => go(row.project_id, `/reports?id=${row.id}`)}>
+                      <button type="button" className="flex w-full items-start gap-3 text-left" onClick={() => go(row.project_id, `/reports/${row.id}`)}>
                         <span className="mt-0.5 rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">{reportKind(row.report_type)}</span>
                         <span>
                           <span className="block text-sm font-semibold text-slate-800">{row.name}</span>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isSuperAdmin } from '@/lib/admin/roles';
-import { entitlementsFor, getPlatformActor } from '@/lib/saas/session';
+import { FEATURE_LEADS, resolveAccess } from '@/lib/saas/catalog';
+import { getPlatformActor } from '@/lib/saas/session';
 
 export type LeadDiscoveryAccess =
   | {
@@ -33,8 +34,9 @@ export async function requireLeadDiscoveryAccess(): Promise<
   if (!actor.account) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
-  if (!entitlementsFor(actor.account).leads) {
-    return { error: NextResponse.json({ error: 'Lead Discovery is not on your current plan.' }, { status: 402 }) };
+  const access = await resolveAccess(actor.account, actor.role);
+  if (!access.has(FEATURE_LEADS)) {
+    return { error: NextResponse.json({ error: 'Lead Discovery is not included in your package.' }, { status: 402 }) };
   }
   return { actor: 'saas', user: { id: actor.userId }, saasAccountId: actor.account.id };
 }

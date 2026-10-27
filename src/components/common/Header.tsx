@@ -7,9 +7,17 @@ import { defaultBranding } from '@/lib/cms/default-content';
 import type { SiteBranding } from '@/lib/cms/types';
 import WhatsAppChatLink from '@/components/common/WhatsAppChatLink';
 import HeaderAuthLink from '@/components/common/HeaderAuthLink';
+import SafeImage from '@/components/ui/SafeImage';
 import { getDivisionPath, serviceDivisions } from '@/lib/service-packages-data';
+import type { ServiceDivision } from '@/lib/service-packages-data';
 
-export default function Header({ branding = defaultBranding }: { branding?: SiteBranding }) {
+export default function Header({
+  branding = defaultBranding,
+  services = serviceDivisions,
+}: {
+  branding?: SiteBranding;
+  services?: Pick<ServiceDivision, 'slug' | 'name'>[];
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
@@ -45,13 +53,19 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
         <div className="flex items-center justify-between h-14 sm:h-16">
           <Link href="/" className="flex items-center shrink-0" aria-label={branding.company_name}>
             {branding.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SafeImage
                 src={branding.logo_url}
                 alt={branding.company_name}
                 className="h-12 w-auto object-contain"
                 fetchPriority="high"
                 decoding="async"
+                fallback={
+                  <div className="h-12 w-12 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
+                    <span className="font-bricolage font-bold text-lg text-primary-foreground">
+                      {branding.logo_letter}
+                    </span>
+                  </div>
+                }
               />
             ) : (
               <div className="h-12 w-12 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
@@ -109,7 +123,7 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
                     >
                       All Services
                     </Link>
-                    {serviceDivisions.map((division) => (
+                    {services.map((division) => (
                       <Link
                         key={division.slug}
                         href={getDivisionPath(division.slug)}
@@ -218,7 +232,7 @@ export default function Header({ branding = defaultBranding }: { branding?: Site
               >
                 Services
               </Link>
-              {serviceDivisions.map((division) => (
+              {services.map((division) => (
                 <Link
                   key={division.slug}
                   href={getDivisionPath(division.slug)}

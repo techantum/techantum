@@ -252,7 +252,7 @@ export default function ProjectForm({ projectId }: { projectId?: string }) {
         </label>
         {pendingFiles.length ? <ul className="text-sm text-slate-600">{pendingFiles.map((file) => <li key={file.name}>{file.name}</li>)}</ul> : null}
         <div className="flex gap-2">
-          <input className={inputClass} placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input className={inputClass} placeholder="Enter URL" value={url} onChange={(e) => setUrl(e.target.value)} />
           <button type="button" className="rounded-xl border border-slate-200 px-3 text-sm text-slate-700" onClick={() => { if (url.trim()) { setPendingUrls((current) => [...current, url.trim()]); setUrl(''); } }}>Add URL</button>
         </div>
         {pendingUrls.length ? <ul className="text-sm text-slate-600">{pendingUrls.map((link) => <li key={link} className="flex items-center justify-between gap-2"><span className="truncate">{link}</span><button type="button" className="text-slate-500" onClick={() => setPendingUrls((current) => current.filter((item) => item !== link))}>Remove</button></li>)}</ul> : null}

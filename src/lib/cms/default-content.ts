@@ -18,6 +18,14 @@ import {
   defaultSeoMarketingInputs,
   defaultWebsiteGoals,
 } from '@/lib/techantum-defaults';
+import { serviceDivisions } from '@/lib/service-packages-data';
+import {
+  heroFromDivision,
+  overviewFromDivision,
+  packagesFromDivision,
+  blankServiceDivision,
+  slugFromServiceKey,
+} from './service-catalog';
 import type { CmsEntry, SiteBranding, SiteSeo } from './types';
 
 export const defaultBranding: SiteBranding = {
@@ -92,6 +100,10 @@ export const defaultSeo: SiteSeo = {
   robots_extra: '',
   header_scripts: '',
   footer_scripts: '',
+  header_scripts_enabled: true,
+  footer_scripts_enabled: true,
+  scripts_updated_at: null,
+  scripts_updated_by: null,
   gtm_id: '',
   ga4_id: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '',
   google_ads_id: '',
@@ -147,6 +159,8 @@ export function normalizeSiteSeo(data?: Partial<SiteSeo> | null): SiteSeo {
   if (merged.index_site == null) merged.index_site = defaultSeo.index_site;
   if (merged.follow_site == null) merged.follow_site = defaultSeo.follow_site;
   if (merged.sitemap_enabled == null) merged.sitemap_enabled = defaultSeo.sitemap_enabled;
+  if (merged.header_scripts_enabled == null) merged.header_scripts_enabled = true;
+  if (merged.footer_scripts_enabled == null) merged.footer_scripts_enabled = true;
   return merged;
 }
 
@@ -377,6 +391,26 @@ export const defaultCmsEntries: CmsEntry[] = [
         'Website development, custom web applications, and mobile app development — tailored packages from launch to enterprise scale.',
     },
   },
+  ...serviceDivisions.flatMap((division) => [
+    {
+      entry_key: `service.${division.slug}.hero`,
+      entry_group: 'services',
+      label: `${division.name} Hero`,
+      content: heroFromDivision(division) as unknown as Record<string, unknown>,
+    },
+    {
+      entry_key: `service.${division.slug}.overview`,
+      entry_group: 'services',
+      label: `${division.name} Overview`,
+      content: overviewFromDivision(division) as unknown as Record<string, unknown>,
+    },
+    {
+      entry_key: `service.${division.slug}.packages`,
+      entry_group: 'services',
+      label: `${division.name} Packages`,
+      content: packagesFromDivision(division) as unknown as Record<string, unknown>,
+    },
+  ]),
   {
     entry_key: 'about.hero',
     entry_group: 'about',
@@ -567,7 +601,14 @@ export function getDefaultContentMap(): Record<string, Record<string, unknown>> 
 
 export function getDefaultContent(key: string): Record<string, unknown> {
   const entry = defaultCmsEntries.find((item) => item.entry_key === key);
-  return entry?.content ?? {};
+  if (entry?.content) return entry.content;
+  const slug = slugFromServiceKey(key);
+  if (!slug) return {};
+  const blank = blankServiceDivision(slug, slug.replace(/-/g, ' '));
+  if (key.endsWith('.hero')) return heroFromDivision(blank) as unknown as Record<string, unknown>;
+  if (key.endsWith('.overview')) return overviewFromDivision(blank) as unknown as Record<string, unknown>;
+  if (key.endsWith('.packages')) return packagesFromDivision(blank) as unknown as Record<string, unknown>;
+  return {};
 }
 
 /** Merge CMS content over defaults, skipping empty values so partial saves don't wipe fields. */

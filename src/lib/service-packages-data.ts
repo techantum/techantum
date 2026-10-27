@@ -31,6 +31,7 @@ export interface ServiceDivision {
   title: string;
   description: string;
   marketingMessage: string;
+  overview?: string;
   targetAudience: string[];
   benefits: string[];
   icon: string;
@@ -38,6 +39,9 @@ export interface ServiceDivision {
   bgClass: string;
   image: string;
   imageAlt: string;
+  packagesEyebrow?: string;
+  packagesTitle?: string;
+  packagesDescription?: string;
   plans: ServicePlan[];
   comparisonRows?: { feature: string; values: Record<string, string> }[];
 }
@@ -457,11 +461,11 @@ export function getPlan(divisionSlug: string, planSlug: string): ServicePlan | u
   return division?.plans.find((p) => p.slug === planSlug);
 }
 
-export function getDivisionPath(slug: DivisionSlug): string {
+export function getDivisionPath(slug: string): string {
   return `/services/${slug}`;
 }
 
-export function getPlanPath(divisionSlug: DivisionSlug, planSlug: PlanSlug): string {
+export function getPlanPath(divisionSlug: string, planSlug: string): string {
   return `/services/${divisionSlug}/${planSlug}`;
 }
 

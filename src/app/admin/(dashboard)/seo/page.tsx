@@ -286,7 +286,7 @@ export default function SeoAdminPage() {
                   <option value="https://">https://</option>
                   <option value="http://">http://</option>
                 </select>
-                <input value={host} onChange={(e) => setCanonical(protocol, e.target.value)} className={inputClass} placeholder="www.techantum.com" />
+                <input value={host} onChange={(e) => setCanonical(protocol, e.target.value)} className={inputClass} placeholder="Enter domain" />
               </div>
               <span className="mt-1 block text-xs text-slate-400">The preferred domain for your site (e.g. www.example.com).</span>
             </div>
@@ -461,15 +461,15 @@ export default function SeoAdminPage() {
         <h2 className="font-bricolage text-base font-semibold text-slate-900">Social media profiles</h2>
         <p className="mt-1 text-xs text-slate-500">Add your social media profiles to help people find and connect with you.</p>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <SocialField icon="f" iconClass="bg-blue-600" label="Facebook" value={form.facebook_url || ''} onChange={(value) => setField('facebook_url', value)} placeholder="https://facebook.com/techantum" />
-          <SocialField icon="ig" iconClass="bg-pink-500" label="Instagram" value={form.instagram_url || ''} onChange={(value) => setField('instagram_url', value)} placeholder="https://instagram.com/techantum" />
-          <SocialField icon="in" iconClass="bg-sky-700" label="LinkedIn" value={form.linkedin_url || ''} onChange={(value) => setField('linkedin_url', value)} placeholder="https://linkedin.com/company/techantum" />
-          <SocialField icon="X" iconClass="bg-slate-900" label="X / Twitter" value={form.twitter_url || ''} onChange={(value) => setField('twitter_url', value)} placeholder="https://twitter.com/techantum" />
-          <SocialField icon="▶" iconClass="bg-red-600" label="YouTube" value={form.youtube_url || ''} onChange={(value) => setField('youtube_url', value)} placeholder="https://youtube.com/@techantum" />
+          <SocialField icon="f" iconClass="bg-blue-600" label="Facebook" value={form.facebook_url || ''} onChange={(value) => setField('facebook_url', value)} placeholder="Enter Facebook URL" />
+          <SocialField icon="ig" iconClass="bg-pink-500" label="Instagram" value={form.instagram_url || ''} onChange={(value) => setField('instagram_url', value)} placeholder="Enter Instagram URL" />
+          <SocialField icon="in" iconClass="bg-sky-700" label="LinkedIn" value={form.linkedin_url || ''} onChange={(value) => setField('linkedin_url', value)} placeholder="Enter LinkedIn URL" />
+          <SocialField icon="X" iconClass="bg-slate-900" label="X / Twitter" value={form.twitter_url || ''} onChange={(value) => setField('twitter_url', value)} placeholder="Enter X URL" />
+          <SocialField icon="▶" iconClass="bg-red-600" label="YouTube" value={form.youtube_url || ''} onChange={(value) => setField('youtube_url', value)} placeholder="Enter YouTube URL" />
         </div>
         <label className="mt-4 block max-w-sm">
           <span className="mb-1 block text-sm font-medium text-slate-700">X / Twitter handle</span>
-          <input value={form.twitter_handle} onChange={(e) => setField('twitter_handle', e.target.value)} placeholder="@techantum" className={inputClass} />
+          <input value={form.twitter_handle} onChange={(e) => setField('twitter_handle', e.target.value)} placeholder="Enter X handle" className={inputClass} />
         </label>
       </section>
 

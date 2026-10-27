@@ -37,7 +37,7 @@ function SubField({
       <RichTextEditor
         value={value}
         onChange={onChange}
-        placeholder={field.placeholder || field.label}
+        placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
         compact
       />
     );
@@ -48,7 +48,7 @@ function SubField({
         value={value}
         disabled={disabled}
         rows={field.rows ?? 2}
-        placeholder={field.placeholder}
+        placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
         onChange={(e) => onChange(e.target.value)}
         className={INPUT_CLASS}
       />
@@ -59,7 +59,7 @@ function SubField({
       type={field.type === 'url' ? 'url' : field.type === 'number' ? 'number' : 'text'}
       value={value}
       disabled={disabled}
-      placeholder={field.placeholder}
+      placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
       onChange={(e) => onChange(e.target.value)}
       className={INPUT_CLASS}
     />

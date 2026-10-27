@@ -1,13 +1,25 @@
 import { redirect } from 'next/navigation';
 import Shell from '@/components/Shell';
-import { entitlementsFor, getPlatformActor } from '@/lib/saas/session';
+import { navigationFor, resolveAccess } from '@/lib/saas/catalog';
+import { getPlatformActor } from '@/lib/saas/session';
+import { getRevealeoSite } from '@/lib/cms/site';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
   if (!actor) redirect('/login');
-  const access = entitlementsFor(actor.account);
+  const access = await resolveAccess(actor.account, actor.role);
+  const { branding } = await getRevealeoSite();
   return (
-    <Shell name={actor.name} plan={access.active ? access.plan.name : 'Inactive'} role={actor.role}>
+    <Shell
+      name={actor.name}
+      email={actor.email}
+      plan={access.package?.name || (access.active ? 'Platform' : 'Inactive')}
+      role={actor.role}
+      avatarUrl={actor.avatarUrl}
+      logoUrl={branding.logo_url}
+      companyName={branding.company_name}
+      nav={navigationFor(actor.role, access)}
+    >
       {children}
     </Shell>
   );

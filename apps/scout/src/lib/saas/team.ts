@@ -2,7 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { q } from '@/lib/finance/db';
 import { FinanceValidationError } from '@/lib/finance/errors';
 import { normalizeSubscriberRole, type SubscriberRole } from '@/lib/admin/roles';
-import { entitlementsFor, type SaasAccount } from './session';
+import { type SaasAccount } from './session';
+import { resolveAccess } from './catalog';
 
 export type TeamMember = {
   user_id: string;
@@ -33,9 +34,9 @@ export async function inviteTeamMember(
   const role: SubscriberRole = input.role === 'subscriber_admin' ? 'subscriber_admin' : 'subscriber_user';
   if (!email.includes('@')) throw new FinanceValidationError('Enter a valid email address.');
   if (input.password.length < 8) throw new FinanceValidationError('Use a password of at least 8 characters.');
-  const access = entitlementsFor(account);
+  const access = await resolveAccess(account, 'subscriber_admin');
   const members = await listTeam(account.id);
-  if (members.length >= access.seats) {
+  if (access.seats > 0 && members.length >= access.seats) {
     throw new FinanceValidationError(`This plan includes ${access.seats} seat${access.seats === 1 ? '' : 's'}. Upgrade to add more people.`);
   }
   const existing = members.find((member) => member.email.toLowerCase() === email);

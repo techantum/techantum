@@ -29,7 +29,7 @@ export default function EmailCapture({
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="Enter your email address"
+          placeholder="Enter email"
           className="h-11 min-w-0 flex-1 bg-transparent px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400"
         />
         <button type="submit" className="inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white hover:bg-[#6D28D9]">
@@ -46,7 +46,7 @@ export default function EmailCapture({
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}
-        placeholder="Enter your email address"
+        placeholder="Enter email"
         className="h-11 min-w-0 flex-1 bg-transparent px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400"
       />
       <button type="submit" className="inline-flex h-11 shrink-0 items-center rounded-full bg-[#6D28D9] px-4 text-sm font-semibold text-white hover:bg-[#5B21B6]">

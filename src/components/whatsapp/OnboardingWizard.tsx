@@ -359,7 +359,7 @@ export default function OnboardingWizard({ compact = false }: { compact?: boolea
                     <input className={fieldClass} placeholder="Enter your business name" value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
                   </Field>
                   <Field label="Website (Optional)">
-                    <input className={fieldClass} placeholder="https://yourwebsite.com" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+                    <input className={fieldClass} placeholder="Enter website URL" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
                   </Field>
                   <Field label="Industry *">
                     <select className={fieldClass} value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}>

@@ -163,7 +163,12 @@ export const contentSchemas: Record<string, ContentSchema> = {
     stringLists: [{ key: 'bullets', label: 'Bullet points', itemLabel: 'Bullet' }],
   },
   'services.page': {
-    fields: [{ key: 'exploreTitle', label: 'Explore section title', type: 'text' }],
+    fields: [
+      { key: 'title', label: 'Section title', type: 'text' },
+      { key: 'description', label: 'Section description', type: 'textarea' },
+      { key: 'cta', label: 'CTA', type: 'text' },
+      { key: 'ctaHref', label: 'CTA link', type: 'text' },
+    ],
     arrays: [
       {
         key: 'categories',
@@ -177,6 +182,7 @@ export const contentSchemas: Record<string, ContentSchema> = {
           { key: 'icon', label: 'Icon name', type: 'text' },
           { key: 'iconClass', label: 'Icon CSS class', type: 'text' },
           { key: 'bgClass', label: 'Background CSS class', type: 'text' },
+          { key: 'offerings', label: 'Number of offerings', type: 'text' },
         ],
       },
     ],
@@ -186,6 +192,52 @@ export const contentSchemas: Record<string, ContentSchema> = {
       { key: 'eyebrow', label: 'Eyebrow (caption)', type: 'text' },
       { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
       { key: 'description', label: 'Description', type: 'richtext' },
+    ],
+  },
+  'service.hero': {
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow (caption)', type: 'text' },
+      { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
+      { key: 'description', label: 'Description', type: 'richtext' },
+    ],
+  },
+  'service.overview': {
+    fields: [
+      { key: 'name', label: 'Service name', type: 'text' },
+      { key: 'shortName', label: 'Short name', type: 'text' },
+      { key: 'marketingMessage', label: headingLabel.h2('Headline'), type: 'text' },
+      { key: 'overview', label: 'Overview', type: 'textarea' },
+      { key: 'icon', label: 'Icon name', type: 'text' },
+      { key: 'image', label: 'Image', type: 'image' },
+      { key: 'imageAlt', label: 'Image alt text', type: 'text' },
+    ],
+    stringLists: [
+      { key: 'benefits', label: 'Core benefits', itemLabel: 'Benefit' },
+      { key: 'targetAudience', label: 'Suitable to', itemLabel: 'Audience' },
+    ],
+  },
+  'service.packages': {
+    fields: [
+      { key: 'packagesEyebrow', label: 'Packages eyebrow', type: 'text' },
+      { key: 'packagesTitle', label: headingLabel.h2('Packages title'), type: 'text' },
+      { key: 'packagesDescription', label: 'Packages description', type: 'textarea' },
+    ],
+    arrays: [
+      {
+        key: 'plans',
+        label: 'Packages',
+        itemLabel: 'Package',
+        fields: [
+          { key: 'slug', label: 'Slug', type: 'text' },
+          { key: 'name', label: 'Name', type: 'text' },
+          { key: 'tagline', label: 'Tagline', type: 'text' },
+          { key: 'bestFor', label: 'Best for', type: 'text' },
+          { key: 'scope', label: 'Scope', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+          { key: 'includes', label: 'Includes (one per line)', type: 'lines' },
+          { key: 'image', label: 'Image', type: 'image' },
+        ],
+      },
     ],
   },
   'site.not_found': {
@@ -625,5 +677,10 @@ export const contentSchemas: Record<string, ContentSchema> = {
 };
 
 export function getContentSchema(key: string): ContentSchema | undefined {
-  return contentSchemas[key];
+  if (contentSchemas[key]) return contentSchemas[key];
+  if (/^service\.[^.]+\.hero$/i.test(key)) return contentSchemas['service.hero'];
+  if (/^service\.[^.]+\.overview$/i.test(key)) return contentSchemas['service.overview'];
+  if (/^service\.[^.]+\.packages$/i.test(key)) return contentSchemas['service.packages'];
+  if (/\.hero$/i.test(key)) return contentSchemas['homepage.hero'];
+  return undefined;
 }

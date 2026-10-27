@@ -8,6 +8,10 @@ import { ADMIN_NAV, visibleAdminNav, type AdminNavItem } from '@/lib/cms/admin-n
 import YoutubeResearchNav, { youtubeChildNavClass } from '@/components/partner/YoutubeResearchNav';
 import type { AdminRole } from '@/lib/admin/roles';
 import Icon from '@/components/ui/AppIcon';
+import SafeImage from '@/components/ui/SafeImage';
+
+const NAV_ACTIVE = 'bg-[#fdecea] font-medium text-secondary';
+const NAV_IDLE = 'text-slate-600 hover:bg-[#fff5f3] hover:text-secondary';
 
 function isNavActive(pathname: string, href: string, exact?: boolean, activePaths?: string[]) {
   const onHref = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -21,8 +25,17 @@ function itemTreeActive(pathname: string, item: AdminNavItem): boolean {
   return item.children?.some((child) => itemTreeActive(pathname, child)) ?? false;
 }
 
+function itemSelfActive(pathname: string, item: AdminNavItem): boolean {
+  if (!item.href || item.children?.length) return false;
+  return isNavActive(pathname, item.href, item.exact, item.activePaths);
+}
+
 function nodeKey(trail: string[], item: AdminNavItem) {
   return [...trail, item.id || item.label].join('/');
+}
+
+function ancestorKeys(trail: string[]) {
+  return trail.map((_, index) => trail.slice(0, index + 1).join('/'));
 }
 
 function openNodesForPath(pathname: string) {
@@ -65,8 +78,17 @@ export default function AdminShell({
   }, [pathname]);
 
   useEffect(() => {
-    setOpenNodes((prev) => ({ ...prev, ...openNodesForPath(pathname) }));
+    setOpenNodes(openNodesForPath(pathname));
   }, [pathname]);
+
+  const toggleExclusive = (key: string, trail: string[]) => {
+    setOpenNodes((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const ancestor of ancestorKeys(trail)) next[ancestor] = true;
+      if (!prev[key]) next[key] = true;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') return;
@@ -97,13 +119,15 @@ export default function AdminShell({
     router.refresh();
   };
 
-  const brandMark = logoUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={logoUrl} alt={companyName} className="h-12 w-auto object-contain" />
-  ) : (
+  const letterMark = (
     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient shadow-sm">
       <span className="font-bricolage text-lg font-bold text-primary-foreground">{logoLetter}</span>
     </div>
+  );
+  const brandMark = logoUrl ? (
+    <SafeImage src={logoUrl} alt={companyName} className="h-12 w-auto object-contain" fallback={letterMark} />
+  ) : (
+    letterMark
   );
 
   const renderNodes = (items: AdminNavItem[], trail: string[], depth: number) =>
@@ -111,9 +135,9 @@ export default function AdminShell({
       const key = nodeKey(trail, item);
 
       if (item.id === 'youtube-research') {
-        const active = itemTreeActive(pathname, item);
+        const selfActive = itemSelfActive(pathname, item);
         const nested = depth > 0;
-        const showChildren = !nested || Boolean(openNodes[key]);
+        const showChildren = Boolean(openNodes[key]);
         const settings = (item.children || []).filter((child) => child.id === 'youtube-research-settings' && child.href);
         return (
           <div key={key} className={depth === 0 ? 'overflow-hidden rounded-2xl' : undefined}>
@@ -121,26 +145,20 @@ export default function AdminShell({
               <Link
                 href={item.href || '/admin/youtube-research'}
                 className={`side-nav-item flex min-w-0 flex-1 items-center gap-2 rounded-xl py-2 pr-2 text-sm transition-colors ${
-                  nested
-                    ? active
-                      ? 'border-l-2 border-orange-200 bg-orange-100 font-medium text-secondary'
-                      : 'border-l-2 border-transparent text-slate-600 hover:border-orange-200 hover:bg-orange-50/70 hover:text-secondary'
-                    : active
-                      ? 'bg-orange-100 font-medium text-secondary'
-                      : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
-                }`}
+                  nested ? 'border-l-2' : ''
+                } ${selfActive ? `border-secondary/20 ${NAV_ACTIVE}` : `border-transparent ${NAV_IDLE}`}`}
                 style={{ paddingLeft: nested ? 8 + depth * 10 : 12 }}
               >
-                <Icon name={item.icon} size={15} className={`shrink-0 ${active ? 'text-secondary' : 'text-slate-400'}`} />
+                <Icon name={item.icon} size={15} className={`shrink-0 ${selfActive ? 'text-secondary' : 'text-slate-400'}`} />
                 <span className="truncate">{item.label}</span>
               </Link>
               {nested ? (
                 <button
                   type="button"
-                  className="side-nav-item mr-1 rounded-lg p-1.5 text-slate-400 hover:bg-orange-50 hover:text-secondary"
+                  className="side-nav-item mr-1 rounded-lg p-1.5 text-slate-400 hover:bg-secondary/10 hover:text-secondary"
                   aria-label="YouTube Research menu"
                   aria-expanded={showChildren}
-                  onClick={() => setOpenNodes((prev) => ({ ...prev, [key]: !prev[key] }))}
+                  onClick={() => toggleExclusive(key, trail)}
                 >
                   <Icon name="ChevronDownIcon" size={14} className={`transition-transform ${showChildren ? 'rotate-180' : ''}`} />
                 </button>
@@ -169,35 +187,26 @@ export default function AdminShell({
 
       if (item.children?.length) {
         const open = Boolean(openNodes[key]);
-        const active = itemTreeActive(pathname, item);
         const isMain = depth === 0;
         return (
           <div key={key} className={isMain ? 'overflow-hidden rounded-2xl' : undefined}>
             <button
               type="button"
-              onClick={() => setOpenNodes((prev) => ({ ...prev, [key]: !prev[key] }))}
+              onClick={() => toggleExclusive(key, trail)}
               className={
                 isMain
-                  ? `side-nav-item flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      active ? 'bg-orange-100 text-secondary' : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
-                    }`
-                  : `side-nav-item flex w-full items-center justify-between gap-2 rounded-xl py-2 pr-3 text-sm font-medium transition-colors ${
-                      active ? 'bg-orange-100 text-secondary' : 'text-slate-600 hover:bg-orange-50/70 hover:text-secondary'
-                    }`
+                  ? `side-nav-item flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${NAV_IDLE}`
+                  : `side-nav-item flex w-full items-center justify-between gap-2 rounded-xl py-2 pr-3 text-sm font-medium transition-colors ${NAV_IDLE}`
               }
               style={isMain ? undefined : { paddingLeft: 8 + depth * 10 }}
             >
               <span className="flex min-w-0 items-center gap-2">
                 {isMain ? (
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                      active ? 'bg-orange-100 text-secondary' : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                     <Icon name={item.icon} size={16} />
                   </span>
                 ) : (
-                  <Icon name={item.icon} size={15} className={`shrink-0 ${active ? 'text-secondary' : 'text-slate-400'}`} />
+                  <Icon name={item.icon} size={15} className="shrink-0 text-slate-400" />
                 )}
                 <span className="text-left leading-tight">{item.label}</span>
               </span>
@@ -213,15 +222,13 @@ export default function AdminShell({
       }
 
       const href = item.href || '#';
-      const active = item.href ? isNavActive(pathname, item.href, item.exact, item.activePaths) : false;
+      const active = itemSelfActive(pathname, item);
       return (
         <Link
           key={key}
           href={href}
           className={`side-nav-item flex items-center gap-2 rounded-xl border-l-2 py-2 pr-3 text-sm transition-colors ${
-            active
-              ? 'border-orange-200 bg-orange-100 font-medium text-secondary'
-              : 'border-transparent text-slate-600 hover:border-orange-200 hover:bg-orange-50/70 hover:text-secondary'
+            active ? `border-secondary/20 ${NAV_ACTIVE}` : `border-transparent ${NAV_IDLE}`
           }`}
           style={{ paddingLeft: 8 + depth * 10 }}
         >

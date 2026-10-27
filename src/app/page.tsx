@@ -10,7 +10,7 @@ import FAQSection from './homepage/components/FAQSection';
 import CTASection from './homepage/components/CTASection';
 import StructuredData from '@/components/StructuredData';
 import { generateOrganizationSchema, generateFAQSchema } from '@/lib/seo';
-import { getBranding, getCmsContent, getSeo } from '@/lib/cms';
+import { getBranding, getCmsSection, getSeo } from '@/lib/cms';
 import { getDefaultContent } from '@/lib/cms/default-content';
 import { defaultIndustriesServed } from '@/lib/techantum-defaults';
 import { getSocialSameAsUrls } from '@/lib/seo/marketing-tags';
@@ -32,23 +32,23 @@ export async function generateMetadata() {
 export default async function Homepage() {
   const [branding, seo] = await Promise.all([getBranding(), getSeo()]);
   const [hero, stats, services, techStack, testimonials, faq, cta, industriesContent] = await Promise.all([
-    getCmsContent('homepage.hero'),
-    getCmsContent('homepage.stats'),
-    getCmsContent('homepage.services'),
-    getCmsContent('homepage.tech_stack'),
-    getCmsContent('homepage.testimonials'),
-    getCmsContent('homepage.faq'),
-    getCmsContent('homepage.cta'),
-    getCmsContent('industries.served'),
+    getCmsSection('homepage.hero'),
+    getCmsSection('homepage.stats'),
+    getCmsSection('homepage.services'),
+    getCmsSection('homepage.tech_stack'),
+    getCmsSection('homepage.testimonials'),
+    getCmsSection('homepage.faq'),
+    getCmsSection('homepage.cta'),
+    getCmsSection('industries.served'),
   ]);
 
   const industries = {
     ...defaultIndustriesServed,
-    ...industriesContent,
+    ...industriesContent.content,
   };
   const industryItems = (industries.industries as typeof defaultIndustriesServed.industries) ?? [];
 
-  const faqItems = ((faq.faqs as { question: string; answer: string }[]) ||
+  const faqItems = ((faq.content.faqs as { question: string; answer: string }[]) ||
     (getDefaultContent('homepage.faq').faqs as { question: string; answer: string }[]));
 
   return (
@@ -61,18 +61,20 @@ export default async function Homepage() {
       />
       <Header branding={branding} />
       <main className="min-h-screen">
-        <HeroSection content={hero} />
-        <StatsSection content={stats} />
-        <ProductCategoriesSection content={services} />
+        {hero.enabled ? <HeroSection content={hero.content} /> : null}
+        {stats.enabled ? <StatsSection content={stats.content} /> : null}
+        {services.enabled ? <ProductCategoriesSection content={services.content} /> : null}
+        {industriesContent.enabled ? (
         <IndustriesServedSection
           title={String(industries.title)}
           description={String(industries.description)}
           industries={industryItems}
         />
-        <PartnerCountriesSection content={techStack} />
-        <TestimonialsSection content={testimonials} />
-        <FAQSection content={faq} />
-        <CTASection content={cta} branding={branding} />
+        ) : null}
+        {techStack.enabled ? <PartnerCountriesSection content={techStack.content} /> : null}
+        {testimonials.enabled ? <TestimonialsSection content={testimonials.content} /> : null}
+        {faq.enabled ? <FAQSection content={faq.content} /> : null}
+        {cta.enabled ? <CTASection content={cta.content} branding={branding} /> : null}
       </main>
       <Footer branding={branding} />
     </>

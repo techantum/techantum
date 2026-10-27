@@ -2,49 +2,62 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import AppHeaderActions from '@/components/AppHeaderActions';
 import Icon from '@/components/ui/AppIcon';
-import { isSuperAdmin, isSubscriberAdmin, roleLabel, type PlatformRole } from '@/lib/admin/roles';
+import SafeImage from '@/components/ui/SafeImage';
+import type { PlatformRole } from '@/lib/admin/roles';
+import type { NavItem } from '@/lib/saas/catalog';
 
 export default function Shell({
   children,
   name,
+  email,
   plan,
   role,
+  avatarUrl,
+  logoUrl,
+  companyName,
+  nav,
 }: {
   children: React.ReactNode;
   name: string;
+  email?: string;
   plan: string;
   role: PlatformRole;
+  avatarUrl?: string | null;
+  logoUrl?: string | null;
+  companyName?: string | null;
+  nav: NavItem[];
 }) {
   const pathname = usePathname() || '';
-  const nav = [
-    { href: '/home', label: 'Home', icon: 'HomeIcon', show: true },
-    { href: '/youtube', label: 'YouTube Research', icon: 'PlayCircleIcon', show: true },
-    { href: '/leads', label: 'Lead Discovery', icon: 'MapPinIcon', show: true },
-    { href: '/youtube/settings', label: 'YouTube Settings', icon: 'KeyIcon', show: isSuperAdmin(role) },
-    { href: '/subscribers', label: 'Subscribers', icon: 'BuildingOffice2Icon', show: isSuperAdmin(role) },
-    { href: '/team', label: 'Team', icon: 'UsersIcon', show: isSubscriberAdmin(role) },
-    { href: '/billing', label: 'Billing', icon: 'CreditCardIcon', show: isSubscriberAdmin(role) },
-    { href: '/settings', label: 'Settings', icon: 'Cog6ToothIcon', show: true },
-  ];
-  const links = nav.filter((item) => item.show);
   const itemClass = (href: string) => {
     const active =
       pathname === href ||
       (href !== '/youtube' && pathname.startsWith(`${href}/`)) ||
       (href === '/youtube' && pathname.startsWith('/youtube') && !pathname.startsWith('/youtube/settings'));
-    return `flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`;
+    return `flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold ${active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50'}`;
   };
+  const mark = (
+    <span className="flex items-center gap-2">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-black text-white">
+        {(companyName || 'Revealeo').charAt(0)}
+      </span>
+      <span className="font-bricolage text-lg font-bold text-slate-900">{companyName || 'Revealeo'}</span>
+    </span>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#F6F7FB]">
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 overflow-y-auto border-r border-slate-200 bg-white px-4 py-5 lg:block">
-        <Link href="/home" className="flex items-center gap-2 px-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-sm font-black text-white">R</span>
-          <span className="font-bricolage text-lg font-bold text-slate-900">Revealeo</span>
+        <Link href="/home" className="flex items-center px-2">
+          {logoUrl ? (
+            <SafeImage src={logoUrl} alt={companyName || 'Revealeo'} className="h-12 w-auto max-w-[180px] object-contain object-left" fallback={mark} />
+          ) : (
+            mark
+          )}
         </Link>
         <nav className="mt-6 space-y-1">
-          {links.map((item) => (
+          {nav.map((item) => (
             <Link key={item.href} href={item.href} className={itemClass(item.href)}>
               <Icon name={item.icon} size={18} /> {item.label}
             </Link>
@@ -52,18 +65,18 @@ export default function Shell({
         </nav>
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-[60] flex h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white px-4 text-sm sm:px-6 lg:left-64 lg:px-8">
-        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold capitalize text-indigo-700">{plan}</span>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{roleLabel(role)}</span>
-        <span className="font-medium text-slate-700">{name}</span>
-        <form action="/api/auth/logout" method="post">
-          <button type="submit" className="font-semibold text-slate-500 hover:text-slate-800">Sign out</button>
-        </form>
+      <header className="fixed inset-x-0 top-0 z-[60] flex h-16 items-center justify-end gap-2 border-b border-slate-100 bg-white/95 px-4 text-sm backdrop-blur sm:px-6 lg:left-64 lg:px-8">
+        {role !== 'SUPER_ADMIN' && plan ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+            <Icon name="ChartBarIcon" size={12} /> {plan}
+          </span>
+        ) : null}
+        <AppHeaderActions name={name} email={email} avatarUrl={avatarUrl} />
       </header>
 
-      <div className="pt-14 lg:pl-64">
+      <div className="pt-16 lg:pl-64">
         <nav className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 lg:hidden">
-          {links.map((item) => (
+          {nav.map((item) => (
             <Link key={item.href} href={item.href} className={`${itemClass(item.href)} shrink-0`}>
               {item.label}
             </Link>

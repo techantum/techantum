@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import CmsRichText from '@/components/cms/CmsRichText';
+import SafeImage from '@/components/ui/SafeImage';
 import { getDefaultContent } from '@/lib/cms/default-content';
 
 export default function ProductCategoriesSection({ content }: { content?: Record<string, unknown> }) {
@@ -34,8 +35,7 @@ export default function ProductCategoriesSection({ content }: { content?: Record
               className="group bg-card rounded-lg overflow-hidden border border-border hover:border-primary/30 transition-colors"
             >
               <div className="relative h-52 overflow-hidden bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <SafeImage
                   src={service.image}
                   alt={service.imageAlt}
                   className="absolute inset-0 w-full h-full object-cover object-center max-w-full max-h-full"

@@ -6,6 +6,7 @@ import { saveAnalysisAsReport, saveAndDownloadAnalysisReport } from '@/component
 import { useProjectId, useYoutubePageBase } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import {
   compactCount,
   formatPublished,
@@ -76,11 +77,7 @@ function VideoHero({
         </span>
       </div>
       <div className="relative mx-4 mt-3 overflow-hidden rounded-xl bg-slate-100">
-        {video.thumbnail_url ? (
-          <img src={video.thumbnail_url} alt="" className="aspect-video w-full object-cover" />
-        ) : (
-          <div className="aspect-video" />
-        )}
+        <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="aspect-video w-full object-cover" alt="" />
         {lengthLabel(video) ? (
           <span className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-[11px] font-semibold text-white">
             {lengthLabel(video)}

@@ -4,7 +4,8 @@ import { financeErrorResponse, fileResponse } from '@/lib/finance/http';
 import { YoutubeApiError } from '@/lib/youtube/client';
 import { firstNameFrom, researchHome } from '@/lib/youtube/home';
 import { hasYoutubePermission, permissionsForRole, type YoutubePermission } from '@/lib/youtube/permissions';
-import { entitlementsFor, getPlatformActor } from '@/lib/saas/session';
+import { FEATURE_YOUTUBE, resolveAccess } from '@/lib/saas/catalog';
+import { getPlatformActor } from '@/lib/saas/session';
 import { currentSaasAccountId, currentYoutubePartnerId, protectPartnerScope, withYoutubeContext, withYoutubePartner } from '@/lib/youtube/scope';
 import { projectAnalysis, summarizeAnalysisVideo, summarizeProjectAnalysis } from '@/lib/youtube/analysis';
 import {
@@ -126,9 +127,9 @@ const resolveYoutubeActor = cache(async () => {
       displayName: firstNameFrom(actor.name, actor.email),
     };
   }
-  const access = entitlementsFor(actor.account);
-  if (!access.youtube) {
-    return { error: NextResponse.json({ error: 'YouTube Research is on Growth and Scale plans. Open Billing to upgrade.' }, { status: 402 }) };
+  const access = await resolveAccess(actor.account, actor.role);
+  if (!access.has(FEATURE_YOUTUBE)) {
+    return { error: NextResponse.json({ error: 'YouTube Research is not included in your package.' }, { status: 402 }) };
   }
   const grants = await grantsFor(actor.userId);
   return {
