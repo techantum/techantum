@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Shell from '@/components/Shell';
-import { navigationFor, resolveAccess } from '@/lib/saas/catalog';
+import { listFeatures, navigationFor, resolveAccess } from '@/lib/saas/catalog';
 import { getPlatformActor } from '@/lib/saas/session';
 import { getRevealeoSite } from '@/lib/cms/site';
 
@@ -8,6 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const actor = await getPlatformActor();
   if (!actor) redirect('/login');
   const access = await resolveAccess(actor.account, actor.role);
+  const catalog = await listFeatures(false).catch(() => []);
   const { branding } = await getRevealeoSite();
   return (
     <Shell
@@ -18,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       avatarUrl={actor.avatarUrl}
       logoUrl={branding.logo_url}
       companyName={branding.company_name}
-      nav={navigationFor(actor.role, access)}
+      nav={navigationFor(actor.role, access, catalog)}
     >
       {children}
     </Shell>

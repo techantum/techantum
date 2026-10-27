@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo, setupLabel, type HomeProject } from '@/lib/youtube/home-display';
 
 export const PROJECT_AVATARS = ['bg-violet-100 text-violet-700', 'bg-sky-100 text-sky-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-800', 'bg-rose-100 text-rose-700', 'bg-indigo-100 text-indigo-700'];
@@ -27,11 +28,11 @@ export function ChannelStack({ project, index = 0 }: { project: HomeProject; ind
     <span className="inline-flex items-center gap-2">
       <span className="flex -space-x-1.5">
         {project.own_thumbnail_url
-          ? <img src={project.own_thumbnail_url} alt="" className="h-7 w-7 rounded-full border-2 border-white object-cover" />
+          ? <SafeImage src={project.own_thumbnail_url} alt="" className="h-7 w-7 rounded-full border-2 border-white object-cover" fallback={<span className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold ${PROJECT_AVATARS[index % PROJECT_AVATARS.length]}`}>{project.initials}</span>} />
           : <span className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold ${PROJECT_AVATARS[index % PROJECT_AVATARS.length]}`}>{project.initials}</span>}
         {(project.competitor_avatars || []).slice(0, 2).map((avatar) => (
           avatar.thumbnail_url
-            ? <img key={avatar.name} src={avatar.thumbnail_url} alt="" className="h-7 w-7 rounded-full border-2 border-white object-cover" />
+            ? <SafeImage key={avatar.name} src={avatar.thumbnail_url} alt="" className="h-7 w-7 rounded-full border-2 border-white object-cover" fallback={<span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[9px] font-bold text-slate-600">{avatar.name.slice(0, 2).toUpperCase()}</span>} />
             : <span key={avatar.name} className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[9px] font-bold text-slate-600">{avatar.name.slice(0, 2).toUpperCase()}</span>
         ))}
         {extra > 0 ? <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-semibold text-slate-600">+{extra}</span> : null}

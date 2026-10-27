@@ -19,6 +19,29 @@ export function formatDateIn(value?: string | null) {
   return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+export function timeAgo(value?: string | null) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '—';
+  const mins = Math.round((Date.now() - date.getTime()) / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return formatDateIn(value);
+}
+
+export function monthDelta(current: number, previous: number) {
+  if (!previous && !current) return null;
+  if (!previous) return { text: `+${current} this month`, up: true };
+  const diff = current - previous;
+  if (!diff) return { text: 'Same as last month', up: true };
+  const pct = Math.round((diff / previous) * 100);
+  return { text: `${diff > 0 ? '+' : ''}${pct}% vs last month`, up: diff > 0 };
+}
+
 export function planTone(name?: string | null) {
   const key = (name || '').toLowerCase();
   if (key.includes('growth')) return 'bg-violet-100 text-violet-700';

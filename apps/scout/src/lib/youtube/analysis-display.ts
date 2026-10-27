@@ -41,6 +41,156 @@ export function pctDiff(yours: unknown, theirs: unknown) {
   return Math.round(((b - a) / Math.abs(a)) * 100);
 }
 
+function looksLikeId(value: string) {
+  const text = value.trim();
+  return /^(UC[\w-]{20,}|[\w-]{11}|[0-9a-f]{8}-[0-9a-f-]{27,})$/i.test(text);
+}
+
+export function displayTitle(video?: Record<string, any> | null) {
+  const title = String(video?.title || '').trim();
+  if (title && !looksLikeId(title)) return title;
+  return 'Untitled video';
+}
+
+export function shortTitle(video?: Record<string, any> | null, max = 36) {
+  const title = displayTitle(video);
+  if (title.length <= max) return title;
+  const cut = title.slice(0, max).replace(/\s+\S*$/, '').trim();
+  return `${cut || title.slice(0, max)}…`;
+}
+
+export function displayChannel(video?: Record<string, any> | null) {
+  const name = String(video?.channel_name || '').trim();
+  const handle = String(video?.channel_handle || '').replace(/^@/, '').trim();
+  if (name && !looksLikeId(name)) return name;
+  if (handle && !looksLikeId(handle)) return `@${handle}`;
+  return video?.relationship === 'own' ? 'Your channel' : 'Competitor channel';
+}
+
+export function displayRole(video?: Record<string, any> | null): 'own' | 'competitor' {
+  return video?.relationship === 'own' ? 'own' : 'competitor';
+}
+
+export function displayRoleLabel(video?: Record<string, any> | null) {
+  return displayRole(video) === 'own' ? 'Your video' : 'Competitor';
+}
+
+export function videoAccent(index: number, own?: boolean) {
+  if (own) return { bar: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700', soft: 'bg-sky-50', ring: 'ring-sky-100', icon: 'text-sky-600' };
+  const palettes = [
+    { bar: 'bg-violet-500', chip: 'bg-violet-50 text-violet-700', soft: 'bg-violet-50', ring: 'ring-violet-100', icon: 'text-violet-600' },
+    { bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700', soft: 'bg-rose-50', ring: 'ring-rose-100', icon: 'text-rose-600' },
+    { bar: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700', soft: 'bg-amber-50', ring: 'ring-amber-100', icon: 'text-amber-600' },
+    { bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700', soft: 'bg-emerald-50', ring: 'ring-emerald-100', icon: 'text-emerald-600' },
+  ];
+  return palettes[index % palettes.length];
+}
+
+export function leaderFor(videos: Record<string, any>[], key: string) {
+  if (!videos.length) return null;
+  return [...videos].sort((a, b) => Number(b?.[key] || 0) - Number(a?.[key] || 0))[0];
+}
+
+export function comparativeInsightPoints(videos: Record<string, any>[]) {
+  const list = videos.filter(Boolean);
+  if (list.length < 2) return [];
+  const points: { icon: string; tone: string; title: string; lines: string[] }[] = [];
+  const pushMetric = (icon: string, tone: string, key: string, label: string) => {
+    const ranked = [...list].sort((a, b) => Number(b?.[key] || 0) - Number(a?.[key] || 0));
+    const top = ranked[0];
+    const next = ranked[1];
+    const topVal = Number(top?.[key] || 0);
+    const nextVal = Number(next?.[key] || 0);
+    if (!Number.isFinite(topVal) || topVal <= 0) return;
+    points.push({
+      icon,
+      tone,
+      title: `${label}: ${displayTitle(top)} leads`,
+      lines: ranked.map((video) => `${shortTitle(video)} · ${displayChannel(video)} · ${compactCount(video[key])} ${label.toLowerCase()}`),
+    });
+    if (next && topVal !== nextVal) {
+      points[points.length - 1].lines.push(
+        `${compactCount(topVal - nextVal)} more ${label.toLowerCase()} than ${displayTitle(next)}.`
+      );
+    }
+  };
+  pushMetric('EyeIcon', 'bg-sky-50 text-sky-700', 'view_count', 'Views');
+  pushMetric('HandThumbUpIcon', 'bg-violet-50 text-violet-700', 'like_count', 'Likes');
+  pushMetric('ChatBubbleLeftRightIcon', 'bg-rose-50 text-rose-700', 'comment_count', 'Comments');
+  const byLength = [...list].sort((a, b) => String(b.title || '').length - String(a.title || '').length);
+  points.push({
+    icon: 'DocumentTextIcon',
+    tone: 'bg-amber-50 text-amber-700',
+    title: 'Titles',
+    lines: byLength.map((video) => {
+      const title = displayTitle(video);
+      return `${shortTitle(video)} · ${displayChannel(video)} · ${title.length} characters`;
+    }),
+  });
+  const thumbs = list.filter((video) => video.thumbnail_text);
+  if (thumbs.length) {
+    points.push({
+      icon: 'PhotoIcon',
+      tone: 'bg-emerald-50 text-emerald-700',
+      title: 'Thumbnail text on the image',
+      lines: list.map((video) => `${shortTitle(video)} · ${displayChannel(video)} · ${video.thumbnail_text ? `“${String(video.thumbnail_text).slice(0, 80)}”` : 'No on-image text was read'}`),
+    });
+  }
+  const tagged = [...list].sort((a, b) => (Array.isArray(b.tags) ? b.tags.length : 0) - (Array.isArray(a.tags) ? a.tags.length : 0));
+  points.push({
+    icon: 'HashtagIcon',
+    tone: 'bg-indigo-50 text-indigo-700',
+    title: 'Public tags',
+    lines: tagged.map((video) => `${shortTitle(video)} · ${displayChannel(video)} · ${Array.isArray(video.tags) && video.tags.length ? video.tags.length : 0} tags`),
+  });
+  return points.slice(0, 6);
+}
+
+export function thumbnailTextStats(text: unknown) {
+  const trimmed = String(text || '').replace(/\s+/g, ' ').trim();
+  const words = trimmed ? trimmed.split(' ') : [];
+  return {
+    text: trimmed,
+    chars: trimmed.length,
+    words: words.length,
+    numbers: (trimmed.match(/\d+/g) || []).length,
+    questions: (trimmed.match(/\?/g) || []).length,
+    shout: words.filter((word) => word.length >= 3 && word === word.toUpperCase() && /[A-Z]/.test(word)).length,
+  };
+}
+
+export function thumbnailWordSet(text: unknown) {
+  return new Set(
+    String(text || '')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter((word) => word.length >= 3)
+  );
+}
+
+export function compareThumbnailReadings(videos: Record<string, any>[], briefs: Record<string, any>[] = []) {
+  return videos.map((video) => {
+    const brief = briefs.find((item) => String(item.video_id) === String(video.id));
+    const stats = thumbnailTextStats(video.thumbnail_text);
+    const scene = String(video.thumbnail_scene || '').trim();
+    const summary = String(brief?.thumbnail_summary || '').trim();
+    const title = displayTitle(video).toLowerCase();
+    const overlap = stats.text
+      ? stats.text.split(/\s+/).filter((word) => word.length >= 4 && title.includes(word.toLowerCase())).length
+      : 0;
+    return {
+      video,
+      stats,
+      scene,
+      summary,
+      overlap,
+      hasText: Boolean(stats.text),
+      hasScene: Boolean(scene),
+    };
+  });
+}
+
 export function uniqueChannelCount(videos: { channel_name?: string | null; channel_id?: string | null }[]) {
   return new Set(videos.map((video) => video.channel_id || video.channel_name || '').filter(Boolean)).size;
 }

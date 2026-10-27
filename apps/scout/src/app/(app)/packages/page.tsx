@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
 import RichTextEditor from '@/components/admin/RichTextEditor';
 import { formatInr, packageIconTone } from '@/lib/saas/money';
 import type { CatalogFeature, CatalogPackage } from '@/lib/saas/catalog';
@@ -252,14 +253,14 @@ export default function PackagesPage() {
         {message ? <p className="px-5 pt-3 text-sm text-rose-600">{message}</p> : null}
         <div className="grid lg:grid-cols-[210px_1fr_280px]">
           <aside className="space-y-1 border-b border-slate-100 p-3 lg:border-b-0 lg:border-r">
-            {TABS.map((item) => (
+            {TABS.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setTab(item.id)}
                 className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${tab === item.id ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50'}`}
               >
-                <Icon name={item.icon} size={16} /> {item.label}
+                <NavIcon name={item.icon} itemKey={item.id} delay={index * 120} className="h-7 w-7 rounded-lg" size={14} /> {item.label}
               </button>
             ))}
           </aside>

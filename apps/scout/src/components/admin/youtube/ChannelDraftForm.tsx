@@ -7,6 +7,7 @@ import AdminButton from '@/components/admin/AdminButton';
 import { metric, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import SafeImage from '@/components/ui/SafeImage';
 
 export default function ChannelDraftForm({
   relationship,
@@ -114,7 +115,18 @@ export default function ChannelDraftForm({
       </div>
       {preview ? (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3 text-sm">
-          {preview.thumbnailUrl ? <img src={preview.thumbnailUrl} alt="" loading="lazy" className="h-12 w-12 rounded-full object-cover" /> : (
+          {preview.thumbnailUrl ? (
+            <SafeImage
+              src={preview.thumbnailUrl}
+              alt=""
+              className="h-12 w-12 rounded-full object-cover"
+              fallback={(
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-500">
+                  {String(preview.channelName || 'C').slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            />
+          ) : (
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-500">
               {String(preview.channelName || 'C').slice(0, 1).toUpperCase()}
             </span>

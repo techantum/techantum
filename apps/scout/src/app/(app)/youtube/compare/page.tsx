@@ -10,6 +10,7 @@ import AdminStatCard from '@/components/admin/AdminStatCard';
 import { CHANNEL_COLORS, ChartCard, MonthBarChart, PlacementBadge, downloadProjectExport } from '@/components/admin/youtube/research-ui';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { metric, ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 
 function CompareVideos() {
   const projectId = useProjectId();
@@ -100,7 +101,7 @@ function CompareVideos() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {videos.map((video) => (
               <div key={video.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" loading="lazy" className="mb-2 h-28 w-full rounded-lg object-cover" /> : <div className="mb-2 h-28 rounded-lg bg-slate-100" />}
+                <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="mb-2 h-28 w-full rounded-lg object-cover" />
                 <p className="line-clamp-2 text-sm font-semibold">{video.title || video.youtube_video_id}</p>
                 <p className="mt-1 text-xs text-slate-500">{video.channel_name || '—'}</p>
                 <AdminBadge variant={video.relationship === 'own' ? 'indigo' : 'default'}>{video.relationship === 'own' ? 'Own' : 'Competitor'}</AdminBadge>

@@ -459,7 +459,84 @@ export async function listEvents(accountId: string) {
   return rows;
 }
 
-export type NavItem = { href: string; label: string; icon: string; key?: string };
+export type NavItem = { href: string; label: string; icon: string; key?: string; locked?: boolean };
+
+export async function platformDashboard() {
+  const [packages, features, subscriptions, counts, coverage, events] = await Promise.all([
+    listPackages(),
+    listFeatures(false),
+    listSubscriptionRows(),
+    q<{
+      packages: string;
+      packages_active: string;
+      workspaces: string;
+      workspaces_active: string;
+      workspaces_this_month: string;
+      workspaces_last_month: string;
+      features: string;
+      assigned_features: string;
+      subscribers_this_month: string;
+      subscribers_last_month: string;
+    }>(
+      undefined,
+      `SELECT
+         (SELECT COUNT(*) FROM saas_packages)::text AS packages,
+         (SELECT COUNT(*) FROM saas_packages WHERE status='active')::text AS packages_active,
+         (SELECT COUNT(*) FROM saas_accounts)::text AS workspaces,
+         (SELECT COUNT(*) FROM saas_accounts WHERE status IN ('active','trialing'))::text AS workspaces_active,
+         (SELECT COUNT(*) FROM saas_accounts WHERE created_at >= date_trunc('month', NOW()))::text AS workspaces_this_month,
+         (SELECT COUNT(*) FROM saas_accounts WHERE created_at >= date_trunc('month', NOW() - interval '1 month') AND created_at < date_trunc('month', NOW()))::text AS workspaces_last_month,
+         (SELECT COUNT(*) FROM saas_features WHERE status='active')::text AS features,
+         (SELECT COUNT(DISTINCT feature_id) FROM saas_package_features)::text AS assigned_features,
+         (SELECT COUNT(*) FROM saas_accounts WHERE status IN ('active','trialing') AND created_at >= date_trunc('month', NOW()))::text AS subscribers_this_month,
+         (SELECT COUNT(*) FROM saas_accounts WHERE status IN ('active','trialing') AND created_at >= date_trunc('month', NOW() - interval '1 month') AND created_at < date_trunc('month', NOW()))::text AS subscribers_last_month`
+    ).catch(() => ({ rows: [{} as any] })),
+    q<{ id: string; name: string; feature_key: string; icon: string; route: string; sidebar_label: string; package_count: string }>(
+      undefined,
+      `SELECT f.id, f.name, f.feature_key, f.icon, f.route, f.sidebar_label,
+              COUNT(pf.package_id) FILTER (WHERE p.status = 'active')::text AS package_count
+       FROM saas_features f
+       LEFT JOIN saas_package_features pf ON pf.feature_id = f.id
+       LEFT JOIN saas_packages p ON p.id = pf.package_id
+       WHERE f.status = 'active'
+       GROUP BY f.id
+       ORDER BY f.sort_order, f.name`
+    ).catch(() => ({ rows: [] as any[] })),
+    q<{ event_type: string; created_at: string; account_name: string | null; email: string | null; to_name: string | null; from_name: string | null }>(
+      undefined,
+      `SELECT e.event_type, e.created_at::text, a.name AS account_name, a.email, t.name AS to_name, f.name AS from_name
+       FROM saas_subscription_events e
+       JOIN saas_accounts a ON a.id = e.account_id
+       LEFT JOIN saas_packages t ON t.id = e.to_package_id
+       LEFT JOIN saas_packages f ON f.id = e.from_package_id
+       ORDER BY e.created_at DESC
+       LIMIT 8`
+    ).catch(() => ({ rows: [] as any[] })),
+  ]);
+  const row = counts.rows[0] || {};
+  const activeWorkspaces = subscriptions.filter((item) => ['active', 'trialing'].includes(item.subscription_status || item.status));
+  return {
+    packages,
+    features,
+    subscriptions,
+    activeWorkspaces,
+    recentSubscribers: subscriptions.slice(0, 6),
+    coverage: coverage.rows,
+    events: events.rows,
+    totals: {
+      packages: asInt(row.packages),
+      packagesActive: asInt(row.packages_active),
+      workspaces: asInt(row.workspaces),
+      workspacesActive: asInt(row.workspaces_active),
+      workspacesThisMonth: asInt(row.workspaces_this_month),
+      workspacesLastMonth: asInt(row.workspaces_last_month),
+      features: asInt(row.features),
+      assignedFeatures: asInt(row.assigned_features),
+      subscribersThisMonth: asInt(row.subscribers_this_month),
+      subscribersLastMonth: asInt(row.subscribers_last_month),
+    },
+  };
+}
 
 export async function cancelAccountSubscription(accountId: string, createdBy: string) {
   const current = await currentSubscription(accountId);
@@ -480,22 +557,53 @@ export async function cancelAccountSubscription(accountId: string, createdBy: st
   });
 }
 
-export function navigationFor(role: PlatformRole, access: Access): NavItem[] {
+export function navigationFor(role: PlatformRole, access: Access, catalog: CatalogFeature[] = []): NavItem[] {
   if (isSuperAdmin(role)) {
-    return [
-      { href: '/home', label: 'Dashboard', icon: 'HomeIcon' },
-      { href: '/youtube', label: 'YouTube Research', icon: 'PlayCircleIcon' },
-      { href: '/leads', label: 'Places', icon: 'MapPinIcon' },
+    const items: NavItem[] = [{ href: '/home', label: 'Dashboard', icon: 'HomeIcon' }];
+    const seen = new Set(['/home']);
+    const apps = access.features.length ? access.features : catalog;
+    for (const feature of apps) {
+      if (seen.has(feature.route)) continue;
+      seen.add(feature.route);
+      items.push({ href: feature.route, label: feature.sidebar_label || feature.name, icon: feature.icon || 'Squares2X2Icon', key: feature.feature_key });
+    }
+    if (!apps.length) {
+      items.push(
+        { href: '/youtube', label: 'YouTube Research', icon: 'PlayCircleIcon', key: FEATURE_YOUTUBE },
+        { href: '/leads', label: 'Places', icon: 'MapPinIcon', key: FEATURE_LEADS },
+      );
+    }
+    items.push(
       { href: '/subscriptions', label: 'Subscriptions', icon: 'CreditCardIcon' },
       { href: '/cms', label: 'CMS', icon: 'PencilSquareIcon' },
       { href: '/branding', label: 'Branding', icon: 'SwatchIcon' },
       { href: '/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
-    ];
+    );
+    return items;
   }
   const items: NavItem[] = [{ href: '/home', label: 'Home', icon: 'HomeIcon' }];
+  const seen = new Set(['/home']);
   for (const feature of access.features) {
     if (feature.feature_key === FEATURE_TEAM && role !== 'subscriber_admin' && role !== 'owner') continue;
+    if (seen.has(feature.route)) continue;
+    seen.add(feature.route);
     items.push({ href: feature.route, label: feature.sidebar_label, icon: feature.icon, key: feature.feature_key });
+  }
+  const missing = catalog.filter((feature) => {
+    if (access.has(feature.feature_key)) return false;
+    if (feature.feature_key === FEATURE_TEAM && role !== 'subscriber_admin' && role !== 'owner') return false;
+    return true;
+  });
+  for (const feature of missing) {
+    if (seen.has(feature.route) || seen.has(feature.feature_key)) continue;
+    seen.add(feature.feature_key);
+    items.push({
+      href: `/billing?need=${feature.feature_key}`,
+      label: feature.sidebar_label || feature.name,
+      icon: feature.icon || 'Squares2X2Icon',
+      key: feature.feature_key,
+      locked: true,
+    });
   }
   if (role === 'subscriber_admin' || role === 'owner') {
     items.push({ href: '/billing', label: 'Billing', icon: 'CreditCardIcon' });

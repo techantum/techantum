@@ -17,24 +17,116 @@ function shapeProject(row: Record<string, any>): HomeProject {
   return presentListedProject(row);
 }
 
-function weekBuckets(rows: { week: string; count: number }[]) {
-  const byWeek = new Map(rows.map((row) => [String(row.week).slice(0, 10), Number(row.count || 0)]));
-  const buckets = [];
-  const now = new Date();
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const day = monday.getUTCDay() || 7;
-  monday.setUTCDate(monday.getUTCDate() - day + 1);
+function utcDay(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function utcMonday(date: Date) {
+  const day = utcDay(date);
+  const weekday = day.getUTCDay() || 7;
+  day.setUTCDate(day.getUTCDate() - weekday + 1);
+  return day;
+}
+
+function addUtcDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function dayKey(value: unknown) {
+  const raw = String(value || '').trim();
+  const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const date = value instanceof Date ? value : new Date(raw);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+}
+
+export type ImportBucket = { key: string; label: string; count: number };
+
+function sumDays(byDay: Map<string, number>, prefix: string) {
+  let total = 0;
+  for (const [day, count] of byDay) {
+    if (day.startsWith(prefix)) total += count;
+  }
+  return total;
+}
+
+function weeklyFromDays(byDay: Map<string, number>, origin: Date) {
+  const monday = utcMonday(origin);
+  const thisMonday = utcMonday(new Date()).toISOString().slice(0, 10);
+  const buckets: ImportBucket[] = [];
   for (let i = 7; i >= 0; i -= 1) {
-    const start = new Date(monday);
-    start.setUTCDate(monday.getUTCDate() - i * 7);
+    const start = addUtcDays(monday, -i * 7);
     const key = start.toISOString().slice(0, 10);
+    let count = 0;
+    for (let d = 0; d < 7; d += 1) count += byDay.get(addUtcDays(start, d).toISOString().slice(0, 10)) || 0;
     buckets.push({
-      week: key,
-      label: i === 0 ? 'This wk' : `W${8 - i}`,
-      count: byWeek.get(key) || 0,
+      key,
+      label: key === thisMonday ? 'This wk' : start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      count,
     });
   }
   return buckets;
+}
+
+function buildImportCharts(rows: { day: string; count: number }[]) {
+  const byDay = new Map<string, number>();
+  for (const row of rows) {
+    const key = dayKey(row.day);
+    if (!key) continue;
+    byDay.set(key, (byDay.get(key) || 0) + Number(row.count || 0));
+  }
+  const today = utcDay(new Date());
+  const daily: ImportBucket[] = [];
+  for (let i = 13; i >= 0; i -= 1) {
+    const day = addUtcDays(today, -i);
+    const key = day.toISOString().slice(0, 10);
+    daily.push({
+      key,
+      label: i === 0 ? 'Today' : day.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      count: byDay.get(key) || 0,
+    });
+  }
+  let weekly = weeklyFromDays(byDay, today);
+  if (!weekly.some((item) => item.count) && byDay.size) {
+    const latest = [...byDay.keys()].sort().at(-1);
+    if (latest) weekly = weeklyFromDays(byDay, new Date(`${latest}T00:00:00.000Z`));
+  }
+  const monthly: ImportBucket[] = [];
+  for (let i = 11; i >= 0; i -= 1) {
+    const month = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - i, 1));
+    const key = month.toISOString().slice(0, 7);
+    monthly.push({
+      key,
+      label: i === 0 ? 'This mo' : month.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
+      count: sumDays(byDay, key),
+    });
+  }
+  const all: ImportBucket[] = [];
+  const days = [...byDay.keys()].sort();
+  if (days.length) {
+    const start = new Date(`${days[0]}T00:00:00.000Z`);
+    const spanMonths = (today.getUTCFullYear() - start.getUTCFullYear()) * 12 + (today.getUTCMonth() - start.getUTCMonth());
+    if (spanMonths > 23) {
+      for (let year = start.getUTCFullYear(); year <= today.getUTCFullYear(); year += 1) {
+        all.push({ key: String(year), label: String(year), count: sumDays(byDay, String(year)) });
+      }
+    } else {
+      const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+      while (cursor.getTime() <= today.getTime()) {
+        const key = cursor.toISOString().slice(0, 7);
+        all.push({
+          key,
+          label: cursor.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
+          count: sumDays(byDay, key),
+        });
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+      }
+    }
+  }
+  return { daily, weekly, monthly, all };
 }
 
 export async function researchHome() {
@@ -63,8 +155,8 @@ export async function researchHome() {
     ),
     q<{ total: string; week: string }>(
       undefined,
-      `SELECT COUNT(*)::text AS total,
-              COUNT(*) FILTER (WHERE COALESCE(v.fetched_at, v.created_at) >= NOW() - INTERVAL '7 days')::text AS week
+      `SELECT COUNT(DISTINCT v.id)::text AS total,
+              COUNT(DISTINCT v.id) FILTER (WHERE COALESCE(v.fetched_at, v.created_at) >= NOW() - INTERVAL '7 days')::text AS week
        FROM youtube_videos v
        JOIN youtube_project_channels pc ON pc.channel_id=v.channel_id
        JOIN youtube_research_projects p ON p.id=pc.project_id
@@ -103,13 +195,14 @@ export async function researchHome() {
        LIMIT 12`,
       scope.values,
     ),
-    q<{ week: string; count: number }>(
+    q<{ day: string; count: number }>(
       undefined,
-      `SELECT date_trunc('week', COALESCE(v.fetched_at, v.created_at))::date::text AS week, COUNT(*)::int AS count
+      `SELECT to_char(timezone('UTC', COALESCE(v.fetched_at, v.created_at)), 'YYYY-MM-DD') AS day,
+              COUNT(DISTINCT v.id)::int AS count
        FROM youtube_videos v
        JOIN youtube_project_channels pc ON pc.channel_id=v.channel_id
        JOIN youtube_research_projects p ON p.id=pc.project_id
-       WHERE ${scope.sql} AND COALESCE(v.fetched_at, v.created_at) >= date_trunc('week', NOW()) - INTERVAL '7 weeks'
+       WHERE ${scope.sql}
        GROUP BY 1`,
       scope.values,
     ),
@@ -170,7 +263,8 @@ export async function researchHome() {
 
   const videoTotal = Number(videos.rows[0]?.total || 0);
   const videoWeek = Number(videos.rows[0]?.week || 0);
-  const weekSeries = weekBuckets(weeks.rows || []);
+  const imports = buildImportCharts(weeks.rows || []);
+  const weekSeries = imports.weekly;
   const previous = weekSeries.slice(0, 7).reduce((sum, item) => sum + item.count, 0);
   const last = weekSeries[weekSeries.length - 1]?.count || 0;
   const wow = previous > 0 ? Math.round(((last - previous / 7) / (previous / 7)) * 100) : 0;
@@ -206,7 +300,8 @@ export async function researchHome() {
       project_name: row.project_name || row.metadata?.projectName || '',
       channel_name: row.metadata?.channelName || row.metadata?.name || '',
     })),
-    weeks: weekSeries,
+    weeks: weekSeries.map((item) => ({ ...item, week: item.key })),
+    imports,
     weekChange: wow,
   };
 }

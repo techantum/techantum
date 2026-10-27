@@ -10,6 +10,7 @@ import { ChannelStack, PROJECT_AVATARS, ProjectProgress, formatAgo } from '@/com
 import { allow, rememberProject, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
 import type { HomeProject } from '@/lib/youtube/home-display';
 
 type Counts = { all: number; active: number; setup: number; archived: number };
@@ -231,13 +232,23 @@ export default function ProjectsBoard() {
             className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
             style={{ top: menuPos.top, right: menuPos.right }}
           >
-            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => go(menuProject)}>Open</button>
-            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setRename({ id: menuProject.id, name: menuProject.name }); setMenu(''); }}>Rename</button>
-            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-50" disabled={busy === menuProject.id} onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}/duplicate`, { method: 'POST', body: '{}' }); })}>Duplicate</button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => go(menuProject)}>
+              <NavIcon name="FolderOpenIcon" itemKey="open" className="h-7 w-7 rounded-lg" size={14} /> Open
+            </button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setRename({ id: menuProject.id, name: menuProject.name }); setMenu(''); }}>
+              <NavIcon name="PencilSquareIcon" itemKey="rename" delay={80} className="h-7 w-7 rounded-lg" size={14} /> Rename
+            </button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-50" disabled={busy === menuProject.id} onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}/duplicate`, { method: 'POST', body: '{}' }); })}>
+              <NavIcon name="DocumentDuplicateIcon" itemKey="duplicate" delay={160} className="h-7 w-7 rounded-lg" size={14} /> Duplicate
+            </button>
             {menuProject.status === 'archived' ? (
-              <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'active' }) }); })}>Restore</button>
+              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'active' }) }); })}>
+                <NavIcon name="ArrowPathIcon" itemKey="restore" delay={240} className="h-7 w-7 rounded-lg" size={14} /> Restore
+              </button>
             ) : !menuProject.legacy ? (
-              <button type="button" className="block w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => { if (window.confirm(`Archive ${menuProject.name}? Channels and notes stay saved.`)) run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'DELETE' }); }); }}>Archive</button>
+              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => { if (window.confirm(`Archive ${menuProject.name}? Channels and notes stay saved.`)) run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'DELETE' }); }); }}>
+                <NavIcon name="ArchiveBoxIcon" itemKey="archive" delay={240} className="h-7 w-7 rounded-lg" size={14} /> Archive
+              </button>
             ) : null}
           </div>,
           document.body,

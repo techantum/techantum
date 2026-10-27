@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
 import { partnerBtnPrimary } from '@/components/partner/PartnerUi';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { YOUTUBE_PROJECT_PAGES, YOUTUBE_TAB_HINT, youtubeNestedLabel, youtubeWorkspaceTab } from '@/lib/youtube/workspace-nav';
@@ -275,17 +276,18 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
             </div>
           </div>
           <nav className="mt-4 flex gap-6 overflow-x-auto" aria-label="Project sections">
-            {YOUTUBE_PROJECT_PAGES.map((item) => {
+            {YOUTUBE_PROJECT_PAGES.map((item, index) => {
               const active = activeTab === item.section && !nestedLabel;
               const parent = activeTab === item.section && nestedLabel;
               return (
                 <Link
                   key={item.suffix}
                   href={`${base}${item.suffix}`}
-                  className={`-mb-px shrink-0 border-b-2 pb-3 text-sm ${
+                  className={`-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 pb-3 text-sm ${
                     active ? 'border-secondary font-semibold text-secondary' : parent ? 'border-secondary/40 font-semibold text-secondary' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
+                  <NavIcon name={item.icon} itemKey={item.section} delay={index * 120} className="h-7 w-7 rounded-lg" size={14} />
                   {item.label}
                 </Link>
               );

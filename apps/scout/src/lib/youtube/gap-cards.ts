@@ -51,6 +51,7 @@ export type GapCard = {
   title: string;
   channelName: string;
   thumbnailUrl: string | null;
+  youtubeVideoId: string | null;
   thumbnailCaption: string | null;
   thumbnailText: string | null;
   thumbnailScene: string | null;
@@ -268,6 +269,7 @@ function card(video: GapVideo, other: GapVideo): GapCard {
     title: video.title || video.id,
     channelName: video.channel_name || '—',
     thumbnailUrl: video.thumbnail_url || null,
+    youtubeVideoId: video.youtube_video_id || null,
     thumbnailCaption: thumbnailContent(video) || null,
     thumbnailText: String(video.thumbnail_text || '').trim() || null,
     thumbnailScene: String(video.thumbnail_scene || '').trim() || null,
@@ -322,6 +324,7 @@ export function comparisonTable(videos: GapVideo[] | null | undefined) {
       title: video.title || 'Untitled',
       role: roleLabel(video),
       thumbnailUrl: video.thumbnail_url || null,
+      youtubeVideoId: video.youtube_video_id || null,
       watchUrl: video.watch_url || null,
     })),
     rows,

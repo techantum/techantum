@@ -12,6 +12,12 @@ import { usePartnerAccess } from '@/components/partner/PartnerShell';
 import Icon from '@/components/ui/AppIcon';
 import { firstNameFrom, greetingForHour, type HomeProject } from '@/lib/youtube/home-display';
 
+const IMPORT_RANGES = [
+  { id: 'daily', label: 'Daily', hint: 'Last 14 days' },
+  { id: 'weekly', label: 'Weekly', hint: 'Last 8 weeks' },
+  { id: 'monthly', label: 'Monthly', hint: 'Last 12 months' },
+] as const;
+
 function activityLine(row: { action?: string; actor_name?: string; project_name?: string; channel_name?: string }) {
   const name = row.actor_name || 'Someone';
   const action = String(row.action || '');
@@ -42,6 +48,22 @@ function projectPath(base: string, suffix: string) {
   return `${base}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
 }
 
+const BAR_TONES = [
+  'from-violet-500 to-fuchsia-400',
+  'from-sky-500 to-cyan-400',
+  'from-rose-500 to-orange-400',
+  'from-amber-400 to-yellow-300',
+  'from-emerald-500 to-teal-400',
+];
+
+function MotionIcon({ name, className, delay = 0 }: { name: string; className?: string; delay?: number }) {
+  return (
+    <span className={`inline-flex ${className || ''}`} style={{ animation: `yt-bob 2.4s ease-in-out ${delay}ms infinite` }}>
+      <Icon name={name} size={18} />
+    </span>
+  );
+}
+
 export default function ResearchProjectsPage() {
   const router = useRouter();
   const base = useYoutubePageBase();
@@ -52,6 +74,7 @@ export default function ResearchProjectsPage() {
   const [firstName, setFirstName] = useState(firstNameFrom(partner?.partnerUser.full_name, partner?.partnerUser.email));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [importRange, setImportRange] = useState<(typeof IMPORT_RANGES)[number]['id']>('weekly');
 
   const loadHome = async () => {
     const [body, session] = await Promise.all([yt('home'), yt('session').catch(() => ({}))]);
@@ -75,7 +98,12 @@ export default function ResearchProjectsPage() {
   const stats = home?.stats || {};
   const projects: HomeProject[] = home?.projects || [];
   const resume = home?.resume as HomeProject | null;
-  const weekMax = Math.max(1, ...(home?.weeks || []).map((row: { count: number }) => row.count));
+  const importSeries: { key?: string; week?: string; label: string; count: number }[] =
+    home?.imports?.[importRange]
+    || (importRange === 'weekly' ? home?.weeks : [])
+    || [];
+  const weekMax = Math.max(1, ...importSeries.map((row) => row.count));
+  const importMeta = IMPORT_RANGES.find((item) => item.id === importRange);
   const competitorProject = projects.find((project) => project.next.key === 'competitors') || resume;
   const analysisProject = projects.find((project) => project.next.key === 'analysis') || projects.find((project) => project.video_count > 0);
   const reportProject = projects.find((project) => project.next.key === 'report' || project.next.key === 'ready') || resume;
@@ -87,10 +115,23 @@ export default function ResearchProjectsPage() {
     { label: 'Generate report', hint: 'PDF or share link', href: reportProject ? projectPath(base, '/reports') : `${base}/projects/new`, icon: 'DocumentChartBarIcon', tint: 'bg-emerald-50 text-emerald-700', show: true, projectId: reportProject?.id || '' },
   ].filter((item) => item.show), [analysisProject, base, competitorProject, home?.analysisReadyCount, manage, reportProject]);
 
+  const statCards = [
+    { label: 'Active projects', value: stats.activeProjects ?? 0, hint: `of ${stats.totalProjects ?? 0}`, icon: 'FolderIcon', tone: 'bg-violet-50 text-violet-600', hintClass: 'text-violet-500' },
+    { label: 'Channels tracked', value: (stats.ownChannels || 0) + (stats.competitorChannels || 0), hint: `${stats.ownChannels || 0} own · ${stats.competitorChannels || 0} comp.`, icon: 'PlayCircleIcon', tone: 'bg-sky-50 text-sky-600', hintClass: 'text-sky-500' },
+    { label: 'Videos imported', value: Number(stats.videos || 0).toLocaleString('en-IN'), hint: stats.videosThisWeek ? `+${Number(stats.videosThisWeek).toLocaleString('en-IN')} this week` : 'this week', icon: 'FilmIcon', tone: 'bg-rose-50 text-rose-600', hintClass: 'text-emerald-600' },
+    { label: 'Reports generated', value: stats.reports ?? 0, hint: `${stats.reportsThisMonth || 0} this month`, icon: 'DocumentChartBarIcon', tone: 'bg-amber-50 text-amber-600', hintClass: 'text-amber-600' },
+  ];
+
   if (loading) return <PageLoader label="Loading dashboard…" />;
 
   return (
     <div className="space-y-5">
+      <style>{`
+        @keyframes yt-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        @keyframes yt-grow { from { transform: scaleY(0); opacity: .4; } to { transform: scaleY(1); opacity: 1; } }
+        @keyframes yt-shine { 0% { background-position: 0% 0%; } 100% { background-position: 0% 120%; } }
+        @keyframes yt-pulse-soft { 0%,100% { box-shadow: 0 0 0 0 rgb(124 58 237 / 0.18); } 50% { box-shadow: 0 0 0 8px rgb(124 58 237 / 0); } }
+      `}</style>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">{greeting}</h1>
@@ -105,15 +146,15 @@ export default function ResearchProjectsPage() {
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: 'Active projects', value: stats.activeProjects ?? 0, hint: `of ${stats.totalProjects ?? 0}`, hintClass: 'text-slate-400' },
-              { label: 'Channels tracked', value: (stats.ownChannels || 0) + (stats.competitorChannels || 0), hint: `${stats.ownChannels || 0} own · ${stats.competitorChannels || 0} comp.`, hintClass: 'text-slate-400' },
-              { label: 'Videos imported', value: Number(stats.videos || 0).toLocaleString('en-IN'), hint: stats.videosThisWeek ? `+${Number(stats.videosThisWeek).toLocaleString('en-IN')} this week` : 'this week', hintClass: 'text-emerald-600' },
-              { label: 'Reports generated', value: stats.reports ?? 0, hint: `${stats.reportsThisMonth || 0} this month`, hintClass: 'text-slate-400' },
-            ].map((card) => (
+            {statCards.map((card, index) => (
               <article key={card.label} className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
-                <p className="text-xs font-medium text-slate-500">{card.label}</p>
-                <p className="mt-1 flex flex-wrap items-baseline gap-x-2 font-bricolage text-3xl font-bold tracking-tight text-slate-900">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-500">{card.label}</p>
+                  <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${card.tone}`} style={{ animation: `yt-bob 2.6s ease-in-out ${index * 180}ms infinite` }}>
+                    <Icon name={card.icon} size={18} />
+                  </span>
+                </div>
+                <p className="mt-2 flex flex-wrap items-baseline gap-x-2 font-bricolage text-3xl font-bold tracking-tight text-slate-900">
                   <span>{card.value}</span>
                   <span className={`text-sm font-medium ${card.hintClass}`}>{card.hint}</span>
                 </p>
@@ -122,11 +163,11 @@ export default function ResearchProjectsPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {quick.map((item) => (
+            {quick.map((item, index) => (
               <Link key={item.label} href={item.href} onClick={() => { if (item.projectId) rememberProject(item.projectId); }} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm hover:border-secondary/30">
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${item.tint}`}>
-                    <Icon name={item.icon} size={18} />
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${item.tint}`} style={{ animation: `yt-pulse-soft 2.8s ease-in-out ${index * 200}ms infinite` }}>
+                    <MotionIcon name={item.icon} delay={index * 160} />
                   </span>
                   <span>
                     <span className="block text-sm font-semibold text-slate-900">{item.label}</span>
@@ -140,34 +181,22 @@ export default function ResearchProjectsPage() {
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="space-y-4">
-              {resume ? (
-                <section className="rounded-2xl border border-orange-100 bg-orange-50/80 px-5 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary">Continue where you left off</p>
-                  <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="font-bricolage text-xl font-bold text-slate-900">{resume.name}</h2>
-                      <p className="mt-1 text-sm text-slate-600">{resume.own_channel_name || resume.brand_name || 'Research project'}{resume.competitor_count ? ` vs ${resume.competitor_count} competitor${resume.competitor_count === 1 ? '' : 's'}` : ''} · edited {formatAgo(resume.updated_at)}</p>
-                      <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-                        <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px]">○</span>
-                        Next step: <button type="button" className="font-semibold text-secondary" onClick={() => go(resume.id, resume.next.href)}>{resume.next.label}</button>
-                      </p>
-                    </div>
-                    <button type="button" className={partnerBtnPrimary} onClick={() => openProject(resume.id)}>
-                      Open project →
-                    </button>
-                  </div>
-                </section>
-              ) : (
+              {!projects.length ? (
                 <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
                   <p className="font-semibold text-slate-800">No research projects yet</p>
                   <p className="mt-1 text-sm text-slate-500">Create a project, add your channel, then competitors.</p>
                   {manage ? <Link href={`${base}/projects/new`} className={`${partnerBtnPrimary} mt-4`}>+ New project</Link> : null}
                 </section>
-              )}
+              ) : null}
 
               <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                 <div className="flex items-center justify-between px-5 py-3">
-                  <h2 className="font-bricolage text-base font-semibold text-slate-900">Recent projects</h2>
+                  <h2 className="inline-flex items-center gap-2 font-bricolage text-base font-semibold text-slate-900">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600" style={{ animation: 'yt-bob 2.5s ease-in-out infinite' }}>
+                      <Icon name="RectangleStackIcon" size={16} />
+                    </span>
+                    Recent projects
+                  </h2>
                   <Link href={`${base}/projects`} className="text-sm font-semibold text-secondary">View all</Link>
                 </div>
                 <ul className="divide-y divide-slate-50">
@@ -190,19 +219,54 @@ export default function ResearchProjectsPage() {
                 </ul>
               </section>
 
-              <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-end justify-between gap-3">
+              <section className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/50 p-5 shadow-sm">
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="font-bricolage text-base font-semibold text-slate-900">Videos imported</h2>
-                    <p className="text-xs text-slate-400">Last 8 weeks</p>
+                    <h2 className="inline-flex items-center gap-2 font-bricolage text-lg font-semibold text-slate-900">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-600" style={{ animation: 'yt-bob 2.4s ease-in-out infinite' }}>
+                        <Icon name="ChartBarIcon" size={18} />
+                      </span>
+                      Videos imported
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {importSeries.some((row) => row.count) ? importMeta?.hint : `No imports in ${importMeta?.label.toLowerCase()}`}
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">{Number(stats.videos || 0).toLocaleString('en-IN')} {home?.weekChange ? <span className="text-emerald-600">+{home.weekChange}%</span> : null}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-full bg-white/80 p-0.5 ring-1 ring-slate-100">
+                      {IMPORT_RANGES.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setImportRange(item.id)}
+                          className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${importRange === item.id ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500'}`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">{Number(stats.videos || 0).toLocaleString('en-IN')} total</p>
+                  </div>
                 </div>
-                <div className="flex h-40 items-end gap-2">
-                  {(home?.weeks || []).map((row: { label: string; count: number; week: string }) => (
-                    <div key={row.week} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                      <div className={`w-full rounded-t-lg ${row.count ? 'bg-secondary' : 'bg-secondary/20'}`} style={{ height: row.count ? `${Math.max(10, Math.round((row.count / weekMax) * 100))}%` : '6px' }} title={`${row.count} videos`} />
-                      <span className="text-[10px] text-slate-400">{row.label}</span>
+                <div className="flex h-64 items-end gap-2 overflow-x-auto pb-1">
+                  {importSeries.map((row, index) => (
+                    <div
+                      key={`${importRange}-${row.key || row.week || row.label}`}
+                      className={`flex h-full flex-col items-center justify-end gap-1.5 ${importSeries.length > 14 ? 'w-9 shrink-0' : 'min-w-0 flex-1'}`}
+                    >
+                      <span className="text-[10px] font-semibold text-slate-500">{row.count || ''}</span>
+                      <div className="flex w-full flex-1 items-end">
+                        <div
+                          className={`w-full origin-bottom rounded-t-2xl bg-gradient-to-t ${row.count ? BAR_TONES[index % BAR_TONES.length] : 'from-slate-200 to-slate-100'}`}
+                          style={{
+                            height: `${row.count ? Math.max(10, Math.round((row.count / weekMax) * 100)) : 6}%`,
+                            backgroundSize: '100% 200%',
+                            animation: `yt-grow .7s ease-out ${index * 45}ms both, yt-shine 3.6s linear ${index * 120}ms infinite`,
+                          }}
+                          title={`${row.count} videos · ${row.label}`}
+                        />
+                      </div>
+                      <span className="max-w-full truncate text-[10px] text-slate-400">{row.label}</span>
                     </div>
                   ))}
                 </div>
@@ -212,7 +276,12 @@ export default function ResearchProjectsPage() {
             <div className="space-y-4">
               <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="font-bricolage text-base font-semibold text-slate-900">Needs attention</h2>
+                  <h2 className="inline-flex items-center gap-2 font-bricolage text-base font-semibold text-slate-900">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500" style={{ animation: 'yt-bob 2.3s ease-in-out infinite' }}>
+                      <Icon name="ExclamationTriangleIcon" size={16} />
+                    </span>
+                    Needs attention
+                  </h2>
                   {(home?.needsAttention || []).length ? <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600">+{(home?.needsAttention || []).length}</span> : null}
                 </div>
                 <ul className="space-y-3">
@@ -221,7 +290,7 @@ export default function ResearchProjectsPage() {
                     return (
                     <li key={`${item.id}-${item.title}`} className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-2">
-                        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${mark.tint}`}>
+                        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${mark.tint}`} style={{ animation: 'yt-bob 2.5s ease-in-out infinite' }}>
                           <Icon name={mark.icon} size={14} />
                         </span>
                         <div className="min-w-0">
@@ -239,7 +308,12 @@ export default function ResearchProjectsPage() {
 
               <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="font-bricolage text-base font-semibold text-slate-900">Latest reports</h2>
+                  <h2 className="inline-flex items-center gap-2 font-bricolage text-base font-semibold text-slate-900">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600" style={{ animation: 'yt-bob 2.6s ease-in-out .2s infinite' }}>
+                      <Icon name="DocumentChartBarIcon" size={16} />
+                    </span>
+                    Latest reports
+                  </h2>
                   <button type="button" className="text-sm font-semibold text-secondary" onClick={() => { const project = reportProject || projects[0]; if (project) go(project.id, '/reports'); }}>All reports →</button>
                 </div>
                 <ul className="space-y-3">
@@ -259,7 +333,12 @@ export default function ResearchProjectsPage() {
               </section>
 
               <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <h2 className="mb-3 font-bricolage text-base font-semibold text-slate-900">Team activity</h2>
+                <h2 className="mb-3 inline-flex items-center gap-2 font-bricolage text-base font-semibold text-slate-900">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600" style={{ animation: 'yt-bob 2.4s ease-in-out .1s infinite' }}>
+                    <Icon name="UserGroupIcon" size={16} />
+                  </span>
+                  Team activity
+                </h2>
                 <ul className="space-y-3">
                   {(home?.activity || []).map((row: { action: string; created_at: string; actor_name: string; project_id: string; project_name?: string; channel_name?: string }, index: number) => (
                     <li key={`${row.created_at}-${index}`} className="flex gap-3">

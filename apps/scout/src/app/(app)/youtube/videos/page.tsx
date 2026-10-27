@@ -15,6 +15,7 @@ import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { allow, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
 import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo } from '@/lib/youtube/home-display';
 import { lengthLabel } from '@/lib/youtube/parse';
@@ -639,18 +640,24 @@ function Explorer() {
         ? createPortal(
           <div ref={menuRef} className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
             {menuVideo.watch_url || menuVideo.youtube_video_id ? (
-              <a className="block px-3 py-2 hover:bg-slate-50" href={menuVideo.watch_url || `https://www.youtube.com/watch?v=${menuVideo.youtube_video_id}`} target="_blank" rel="noreferrer" onClick={() => setMenu('')}>Open on YouTube</a>
+              <a className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50" href={menuVideo.watch_url || `https://www.youtube.com/watch?v=${menuVideo.youtube_video_id}`} target="_blank" rel="noreferrer" onClick={() => setMenu('')}>
+                <NavIcon name="PlayCircleIcon" itemKey="youtube" className="h-7 w-7 rounded-lg" size={14} /> Open on YouTube
+              </a>
             ) : null}
-            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
               setSelected((current) => (current.includes(menuVideo.id) ? current : [...current, menuVideo.id].slice(0, 12)));
               setPicked((current) => ({ ...current, [menuVideo.id]: menuVideo }));
               setMenu('');
-            }}>Select</button>
-            <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
+            }}>
+              <NavIcon name="CheckCircleIcon" itemKey="select" delay={80} className="h-7 w-7 rounded-lg" size={14} /> Select
+            </button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => {
               const url = menuVideo.watch_url || `https://www.youtube.com/watch?v=${menuVideo.youtube_video_id}`;
               navigator.clipboard?.writeText(url).catch(() => undefined);
               setMenu('');
-            }}>Copy link</button>
+            }}>
+              <NavIcon name="LinkIcon" itemKey="copy" delay={160} className="h-7 w-7 rounded-lg" size={14} /> Copy link
+            </button>
           </div>,
           document.body,
         )

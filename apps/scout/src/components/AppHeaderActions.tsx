@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
 import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo } from '@/lib/youtube/home-display';
 
@@ -47,12 +47,12 @@ export default function AppHeaderActions({
     <div ref={wrapRef} className="relative flex items-center gap-1">
       <button
         type="button"
-        className="relative rounded-full p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+        className="relative rounded-full p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
         aria-label="Notifications"
         onClick={() => setOpen(open === 'notes' ? '' : 'notes')}
       >
-        <Icon name="BellIcon" size={20} />
-        {notes.length ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" /> : null}
+        <NavIcon name="BellIcon" itemKey="notes" className="h-9 w-9 rounded-full" size={18} />
+        {notes.length ? <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" /> : null}
       </button>
       {open === 'notes' ? (
         <div className={`${menu} w-80`}>
@@ -86,14 +86,14 @@ export default function AppHeaderActions({
             </div>
           </div>
           <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setOpen('')}>
-            <Icon name="PencilSquareIcon" size={16} /> Edit profile
+            <NavIcon name="PencilSquareIcon" itemKey="profile" className="h-7 w-7 rounded-lg" size={14} /> Edit profile
           </Link>
           <Link href="/" className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setOpen('')}>
-            <Icon name="GlobeAltIcon" size={16} /> Visit website
+            <NavIcon name="GlobeAltIcon" itemKey="website" className="h-7 w-7 rounded-lg" size={14} delay={80} /> Visit website
           </Link>
           <form action="/api/auth/logout" method="post">
             <button type="submit" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50">
-              <Icon name="ArrowRightOnRectangleIcon" size={16} /> Sign out
+              <NavIcon name="ArrowRightOnRectangleIcon" itemKey="logout" className="h-7 w-7 rounded-lg" size={14} delay={160} /> Sign out
             </button>
           </form>
         </div>

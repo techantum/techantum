@@ -6,6 +6,7 @@ import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminSection from '@/components/admin/AdminSection';
 import Icon from '@/components/ui/AppIcon';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { metric, youtubeApiPrefix, youtubePortalHeader, yt } from '@/components/admin/youtube/YoutubeFrame';
 
 export const CHANNEL_COLORS = ['#EA580C', '#0F766E', '#2563EB', '#7C3AED', '#BE123C', '#0F172A'];
@@ -336,7 +337,7 @@ export function VideoMiniTable({
                 <tr key={video.id} className="border-t border-slate-100">
                   <td className="px-2 py-2">
                     <span className="flex items-center gap-2">
-                      {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" loading="lazy" className="h-9 w-14 rounded object-cover" /> : <span className="h-9 w-14 rounded bg-slate-100" />}
+                      <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="h-9 w-14 rounded object-cover" />
                       <span className="max-w-[240px] truncate font-medium">{video.title || (video.stale ? 'Refresh required' : video.youtube_video_id)}</span>
                     </span>
                   </td>

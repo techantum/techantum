@@ -8,6 +8,7 @@ import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, downloadResearchReport } from '@/components/admin/youtube/research-ui';
 import { ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
 
 const REPORT_TYPES = [
   { id: 'performance', label: 'Existing Performance Report' },
@@ -289,11 +290,15 @@ function Reports() {
 
       {menu && menuRow && typeof document !== 'undefined'
         ? createPortal(
-          <div ref={menuRef} className="fixed z-[80] w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
+          <div ref={menuRef} className="fixed z-[80] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
             {menuRow.status !== 'archived' ? (
-              <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" disabled={pending === `archive:${menuRow.id}`} onClick={() => archive(menuRow.id)}>Archive</button>
+              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" disabled={pending === `archive:${menuRow.id}`} onClick={() => archive(menuRow.id)}>
+                <NavIcon name="ArchiveBoxIcon" itemKey="archive" className="h-7 w-7 rounded-lg" size={14} /> Archive
+              </button>
             ) : null}
-            <button type="button" className="block w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50" disabled={pending === `delete:${menuRow.id}`} onClick={() => remove(menuRow.id, cleanTitle(menuRow.name))}>Delete</button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-rose-600 hover:bg-rose-50" disabled={pending === `delete:${menuRow.id}`} onClick={() => remove(menuRow.id, cleanTitle(menuRow.name))}>
+              <NavIcon name="TrashIcon" itemKey="logout" delay={80} className="h-7 w-7 rounded-lg" size={14} /> Delete
+            </button>
           </div>,
           document.body,
         )

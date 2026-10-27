@@ -9,6 +9,8 @@ import AnalysisComplete from '@/components/admin/youtube/AnalysisComplete';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { metric, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
+import SafeImage from '@/components/ui/SafeImage';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import type { ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 
 const STEPS = [
@@ -558,7 +560,7 @@ export default function AiAnalysisWizard() {
                     <article key={channel.id} className="rounded-2xl border border-slate-200">
                       <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
-                          {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="h-9 w-9 rounded-full bg-slate-100" />}
+                          <SafeImage src={channel.thumbnail_url} alt="" className="h-9 w-9 rounded-full object-cover" fallback={<span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500">{String(channel.channel_name || 'C').slice(0, 1).toUpperCase()}</span>} />
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-slate-900">{channel.channel_name || channel.youtube_channel_id}</p>
                             <p className="text-xs text-slate-400">{channel.videos_imported || rows.length} videos</p>
@@ -577,7 +579,7 @@ export default function AiAnalysisWizard() {
                             <label key={video.id} className="flex cursor-pointer items-start gap-3 px-4 py-3">
                               <input type="checkbox" className="mt-3 rounded border-slate-300 text-secondary" checked={on} onChange={() => setVideoIds(toggle(videoIds, video.id).slice(0, 40))} />
                               <span className="relative h-12 w-[4.5rem] shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                                {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="h-full w-full object-cover" /> : null}
+                                <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="h-full w-full object-cover" />
                                 {video.duration_label ? <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1 text-[10px] font-semibold text-white">{video.duration_label}</span> : null}
                               </span>
                               <span className="min-w-0 flex-1">
@@ -700,7 +702,7 @@ export default function AiAnalysisWizard() {
                     {selectedVideos.slice(0, 8).map((video) => (
                       <div key={video.id} className="overflow-hidden rounded-xl border border-slate-100">
                         <span className="relative block aspect-video bg-slate-100">
-                          {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" className="h-full w-full object-cover" /> : null}
+                          <VideoThumb youtubeId={video.youtube_video_id} src={video.thumbnail_url} className="h-full w-full object-cover" />
                           {video.duration_label ? <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1 text-[10px] font-semibold text-white">{video.duration_label}</span> : null}
                         </span>
                         <p className="line-clamp-2 px-2 pt-2 text-xs font-semibold text-slate-800">{video.title || video.youtube_video_id}</p>

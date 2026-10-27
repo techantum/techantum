@@ -5,13 +5,14 @@ import { useState } from 'react';
 import { SHELL } from './layout';
 import type { RevealeoBranding } from '@/lib/cms/defaults';
 import SafeImage from '@/components/ui/SafeImage';
+import NavIcon from '@/components/ui/NavIcon';
 
 const LINKS = [
-  { href: '/#product', label: 'Product' },
-  { href: '/#features', label: 'Features' },
-  { href: '/#solutions', label: 'Solutions' },
-  { href: '/#faq', label: 'Resources' },
-  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#product', label: 'Product', icon: 'SparklesIcon', key: 'product' },
+  { href: '/#features', label: 'Features', icon: 'Squares2X2Icon', key: 'features' },
+  { href: '/#solutions', label: 'Solutions', icon: 'LightBulbIcon', key: 'solutions' },
+  { href: '/#faq', label: 'Resources', icon: 'BookOpenIcon', key: 'resources' },
+  { href: '/#pricing', label: 'Pricing', icon: 'CreditCardIcon', key: 'pricing' },
 ];
 
 export default function SiteHeader({ solid = false, branding }: { solid?: boolean; branding?: RevealeoBranding | null }) {
@@ -27,14 +28,16 @@ export default function SiteHeader({ solid = false, branding }: { solid?: boolea
               alt={branding.company_name || 'revealeo'}
               className="h-12 w-auto max-w-[220px] object-contain object-left sm:h-14 sm:max-w-[260px]"
               fallback={branding?.company_name || 'revealeo'}
+              priority
             />
           ) : (
             branding?.company_name || 'revealeo'
           )}
         </Link>
-        <nav className="hidden items-center gap-8 text-[13.5px] font-medium text-slate-500 lg:flex">
-          {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:text-slate-900">
+        <nav className="hidden items-center gap-6 text-[13.5px] font-medium text-slate-500 lg:flex">
+          {LINKS.map((link, index) => (
+            <Link key={link.href} href={link.href} className="inline-flex items-center gap-1.5 hover:text-slate-900">
+              <NavIcon name={link.icon} itemKey={link.key} delay={index * 120} className="h-7 w-7 rounded-lg" size={14} />
               {link.label}
             </Link>
           ))}
@@ -53,15 +56,17 @@ export default function SiteHeader({ solid = false, branding }: { solid?: boolea
             Start free trial
           </Link>
         </div>
-        <button type="button" className="text-sm font-semibold text-slate-700 lg:hidden" onClick={() => setOpen(!open)}>
+        <button type="button" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 lg:hidden" onClick={() => setOpen(!open)}>
+          <NavIcon name={open ? 'XMarkIcon' : 'Bars3Icon'} itemKey="product" className="h-8 w-8 rounded-xl" size={16} />
           Menu
         </button>
       </div>
       {open ? (
         <div className="border-t border-slate-100 bg-white py-4 lg:hidden">
           <div className={`${SHELL} flex flex-col gap-3 text-sm font-medium text-slate-700`}>
-            {LINKS.map((link) => (
-              <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>
+            {LINKS.map((link, index) => (
+              <Link key={link.href} href={link.href} className="inline-flex items-center gap-2" onClick={() => setOpen(false)}>
+                <NavIcon name={link.icon} itemKey={link.key} delay={index * 120} className="h-7 w-7 rounded-lg" size={14} />
                 {link.label}
               </Link>
             ))}

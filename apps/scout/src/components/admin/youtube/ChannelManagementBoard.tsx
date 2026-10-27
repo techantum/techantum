@@ -11,6 +11,8 @@ import { handleLabel } from '@/components/admin/youtube/research-ui';
 import { allow, metric, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import NavIcon from '@/components/ui/NavIcon';
+import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo, projectInitials } from '@/lib/youtube/home-display';
 import { MAX_PROJECT_COMPETITORS } from '@/lib/youtube/workspace-nav';
 
@@ -169,7 +171,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
       <tr key={channel.id} className="border-t border-slate-50">
         <td className="px-4 py-4">
           <div className="flex items-center gap-3">
-            {channel.thumbnail_url ? <img src={channel.thumbnail_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">{projectInitials(channel.channel_name || 'CH')}</span>}
+            <SafeImage src={channel.thumbnail_url} alt="" className="h-10 w-10 rounded-full object-cover" fallback={<span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">{projectInitials(channel.channel_name || 'CH')}</span>} />
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
                 {channel.channel_name || channel.youtube_channel_id}
@@ -341,10 +343,20 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
 
       {menu && typeof document !== 'undefined'
         ? createPortal(
-          <div ref={menuRef} className="fixed z-[80] w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
-            <Link className="block px-3 py-2 hover:bg-slate-50" href={`${base}/videos?channel=${menu}`} onClick={() => setMenu('')}>Videos</Link>
-            {manage && channels.find((channel) => channel.id === menu)?.relationship === 'own' ? <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setAdding('own'); setMenu(''); }}>Replace own</button> : null}
-            {manage ? <button type="button" className="block w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => { const row = channels.find((channel) => channel.id === menu); if (row) removeChannel(row); }}>Remove</button> : null}
+          <div ref={menuRef} className="fixed z-[80] w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
+            <Link className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50" href={`${base}/videos?channel=${menu}`} onClick={() => setMenu('')}>
+              <NavIcon name="PlayCircleIcon" itemKey="videos" className="h-7 w-7 rounded-lg" size={14} /> Videos
+            </Link>
+            {manage && channels.find((channel) => channel.id === menu)?.relationship === 'own' ? (
+              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setAdding('own'); setMenu(''); }}>
+                <NavIcon name="ArrowPathIcon" itemKey="restore" delay={80} className="h-7 w-7 rounded-lg" size={14} /> Replace own
+              </button>
+            ) : null}
+            {manage ? (
+              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => { const row = channels.find((channel) => channel.id === menu); if (row) removeChannel(row); }}>
+                <NavIcon name="TrashIcon" itemKey="archive" delay={160} className="h-7 w-7 rounded-lg" size={14} /> Remove
+              </button>
+            ) : null}
           </div>,
           document.body,
         )

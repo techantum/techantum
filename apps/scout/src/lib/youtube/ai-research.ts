@@ -625,7 +625,56 @@ export async function getAiAnalysis(projectId: string, id: string) {
   const { rows } = await q(undefined, `SELECT * FROM youtube_ai_analyses WHERE project_id=$1 AND id=$2`, [projectId, id]);
   if (!rows[0]) throw new FinanceNotFoundError('Analysis not found');
   const actions = await q(undefined, `SELECT * FROM youtube_ai_actions WHERE analysis_id=$1 ORDER BY created_at`, [id]);
-  return { ...presentAnalysis(rows[0]), actions: actions.rows };
+  const presented = presentAnalysis(rows[0]);
+  const videos = Array.isArray(presented.evidence?.videos) ? presented.evidence.videos : [];
+  const ids = videos.map((video: { id?: string }) => video.id).filter(Boolean);
+  if (ids.length) {
+    const named = await q<{
+      id: string;
+      channel_name: string | null;
+      channel_handle: string | null;
+      channel_thumbnail_url: string | null;
+      subscriber_count: string | number | null;
+      relationship: string | null;
+      title: string | null;
+      youtube_video_id: string | null;
+      thumbnail_text: string | null;
+      thumbnail_scene: string | null;
+      thumbnail_url: string | null;
+    }>(
+      undefined,
+      `SELECT v.id::text, v.title, v.youtube_video_id, v.thumbnail_text, v.thumbnail_scene, v.thumbnail_url,
+              c.channel_name, c.channel_handle, c.thumbnail_url AS channel_thumbnail_url,
+              c.subscriber_count, pc.relationship
+       FROM youtube_videos v
+       JOIN youtube_channels c ON c.id = v.channel_id
+       LEFT JOIN youtube_project_channels pc ON pc.channel_id = c.id AND pc.project_id = $1
+       WHERE v.id = ANY($2::uuid[])`,
+      [projectId, ids]
+    ).catch(() => ({ rows: [] as any[] }));
+    const byId = new Map(named.rows.map((row) => [row.id, row]));
+    presented.evidence = {
+      ...presented.evidence,
+      videos: videos.map((video: Record<string, any>) => {
+        const row = byId.get(String(video.id));
+        if (!row) return video;
+        return {
+          ...video,
+          title: video.title || row.title,
+          youtube_video_id: video.youtube_video_id || row.youtube_video_id,
+          channel_name: video.channel_name || row.channel_name,
+          channel_handle: video.channel_handle || row.channel_handle,
+          channel_thumbnail_url: video.channel_thumbnail_url || row.channel_thumbnail_url,
+          subscriber_count: video.subscriber_count ?? row.subscriber_count,
+          relationship: video.relationship || row.relationship,
+          thumbnail_text: video.thumbnail_text || row.thumbnail_text,
+          thumbnail_scene: video.thumbnail_scene || row.thumbnail_scene,
+          thumbnail_url: video.thumbnail_url || row.thumbnail_url,
+        };
+      }),
+    };
+  }
+  return { ...presented, actions: actions.rows };
 }
 
 export async function createAiAnalysis(projectId: string, body: Record<string, unknown>, userId: string) {

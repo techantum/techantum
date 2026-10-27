@@ -8,6 +8,7 @@ import AdminButton from '@/components/admin/AdminButton';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { downloadResearchReport } from '@/components/admin/youtube/research-ui';
 import { ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { COMPARISON_UNAVAILABLE, comparisonTable, type GapVideo } from '@/lib/youtube/gap-cards';
 
 function ReportView() {
@@ -104,7 +105,7 @@ function ReportView() {
                   {table.videos.map((video) => (
                     <th key={video.id} className="min-w-[220px] px-4 py-3 font-semibold normal-case tracking-normal">
                       <span className="flex items-center gap-2">
-                        {video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy" className="h-10 w-16 rounded-lg object-cover" /> : <span className="h-10 w-16 rounded-lg bg-slate-100" />}
+                        <VideoThumb youtubeId={video.youtubeVideoId} src={video.thumbnailUrl} className="h-10 w-16 rounded-lg object-cover" />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold text-slate-900">{video.title}</span>
                           <span className="block text-[11px] font-medium uppercase tracking-wide text-slate-400">{video.role}</span>
@@ -124,7 +125,7 @@ function ReportView() {
                       return (
                         <td key={`${row.label}-${video?.id || index}`} className={`px-4 py-3 text-slate-700 ${value === COMPARISON_UNAVAILABLE ? 'text-slate-400' : ''}`}>
                           {row.label === 'Thumbnail' && video?.thumbnailUrl ? (
-                            <img src={video.thumbnailUrl} alt="" loading="lazy" className="h-24 w-40 rounded-lg object-cover" />
+                            <VideoThumb youtubeId={video.youtubeVideoId} src={video.thumbnailUrl} className="h-24 w-40 rounded-lg object-cover" />
                           ) : value}
                         </td>
                       );
