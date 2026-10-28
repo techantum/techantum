@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import AnalyseModal, { type AnalyseConfig } from '@/components/admin/youtube/AnalyseModal';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import { saveAnalysisAsReport, saveAndDownloadAnalysisReport } from '@/components/admin/youtube/research-ui';
-import { useProjectId, useYoutubePageBase } from '@/components/admin/youtube/YoutubeFrame';
+import { useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
@@ -12,7 +14,6 @@ import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import {
   PRIMARY_GOALS,
   compactCount,
-  comparativeInsightPoints,
   compareThumbnailReadings,
   displayChannel,
   displayTitle,
@@ -25,15 +26,15 @@ import {
   thumbnailWordSet,
   videoAccent,
 } from '@/lib/youtube/analysis-display';
-import { lengthLabel } from '@/lib/youtube/parse';
+import { lengthLabel, parseTags } from '@/lib/youtube/parse';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'ChartBarIcon' },
+  { id: 'thumbnails', label: 'Thumbnails', icon: 'PhotoIcon' },
   { id: 'content', label: 'Content', icon: 'DocumentTextIcon' },
   { id: 'engagement', label: 'Engagement', icon: 'ChatBubbleLeftRightIcon' },
   { id: 'audience', label: 'Audience', icon: 'UserGroupIcon' },
   { id: 'seo', label: 'SEO & Tags', icon: 'HashtagIcon' },
-  { id: 'insights', label: 'Key Insights', icon: 'LightBulbIcon' },
 ] as const;
 
 function Chip({ icon, label, value, tone }: { icon: string; label: string; value: string; tone: string }) {
@@ -103,12 +104,6 @@ function VideoHero({ video, index }: { video: Record<string, any>; index: number
           </div>
         </div>
         {video.description ? <p className="line-clamp-2 text-sm leading-5 text-slate-500">{video.description}</p> : null}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Chip icon="EyeIcon" label="Views" value={compactCount(video.view_count)} tone="bg-sky-50 text-sky-800" />
-          <Chip icon="HandThumbUpIcon" label="Likes" value={compactCount(video.like_count)} tone="bg-violet-50 text-violet-800" />
-          <Chip icon="ChatBubbleLeftRightIcon" label="Comments" value={compactCount(video.comment_count)} tone="bg-rose-50 text-rose-800" />
-          <Chip icon="UserGroupIcon" label="Subscribers" value={compactCount(video.subscriber_count)} tone="bg-amber-50 text-amber-800" />
-        </div>
       </div>
     </article>
   );
@@ -139,17 +134,24 @@ function CompareBars({ videos, metric }: { videos: Record<string, any>[]; metric
   );
 }
 
+function videoTags(video: Record<string, any>) {
+  return parseTags(video.tags);
+}
+
+function topicLabel(url: string) {
+  try {
+    const path = new URL(url).pathname.split('/').filter(Boolean).pop() || url;
+    return decodeURIComponent(path).replace(/_/g, ' ');
+  } catch {
+    return url;
+  }
+}
+
 function relatedVideos(item: Record<string, any>, videos: Record<string, any>[]) {
   const ids = [item.video_id, item.videoId, ...(Array.isArray(item.video_ids) ? item.video_ids : [])].map((value) => String(value || '')).filter(Boolean);
   if (!ids.length) return videos;
   const matched = videos.filter((video) => ids.includes(String(video.id)) || ids.includes(String(video.youtube_video_id)));
   return matched.length ? matched : videos;
-}
-
-function listValue(value: unknown) {
-  if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
-  const text = String(value || '').trim();
-  return text ? text.split(/[,|]/).map((item) => item.trim()).filter(Boolean) : [];
 }
 
 export default function AnalysisComplete({
@@ -160,16 +162,24 @@ export default function AnalysisComplete({
 }) {
   const projectId = useProjectId();
   const base = useYoutubePageBase();
-  const videos: Record<string, any>[] = Array.isArray(analysis?.evidence?.videos) ? analysis.evidence.videos : [];
-  const result = analysis?.result || {};
-  const config = analysis?.config || {};
-  const observations = Array.isArray(result.observations) ? result.observations : [];
+  const [current, setCurrent] = useState(analysis);
+  useEffect(() => setCurrent(analysis), [analysis]);
+  const videos: Record<string, any>[] = Array.isArray(current?.evidence?.videos) ? current.evidence.videos : [];
+  const result = current?.result || {};
+  const config = current?.config || {};
+  const insights = result.insights && typeof result.insights === 'object' ? result.insights : null;
+  const guides = Array.isArray(insights?.guides) ? insights.guides : [];
+  const report = insights?.report && typeof insights.report === 'object' ? insights.report : null;
+  const hasInsights = Boolean(
+    insights && (guides.length || report || (Array.isArray(insights.observations) && insights.observations.length) || insights.summary?.headline),
+  );
   const briefs = Array.isArray(result.video_briefs) ? result.video_briefs : [];
-  const recommendations = Array.isArray(analysis?.actions) && analysis.actions.length
-    ? analysis.actions
-    : Array.isArray(result.recommendations) ? result.recommendations : [];
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('overview');
-  const openTab = (id: (typeof TABS)[number]['id']) => {
+  const recommendations = Array.isArray(current?.actions) && current.actions.length
+    ? current.actions
+    : Array.isArray(insights?.recommendations) ? insights.recommendations : [];
+  const [tab, setTab] = useState<string>('overview');
+  const tabs = hasInsights ? [...TABS, { id: 'insights', label: 'Key Insights', icon: 'LightBulbIcon' }] : [...TABS];
+  const openTab = (id: string) => {
     const y = typeof window !== 'undefined' ? window.scrollY : 0;
     setTab(id);
     requestAnimationFrame(() => {
@@ -181,34 +191,44 @@ export default function AnalysisComplete({
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [insightsOpen, setInsightsOpen] = useState(false);
 
   const pair = videos.length === 2;
-  const metricPoints = useMemo(() => comparativeInsightPoints(videos), [videos]);
   const thumbReadings = useMemo(() => compareThumbnailReadings(videos, briefs), [videos, briefs]);
   const goals = Array.isArray(config.goals) ? config.goals.map(String) : [];
   const goalLabels = PRIMARY_GOALS.filter((goal) => goals.includes(goal.id));
-  const channels = [...new Set(videos.map((video) => displayChannel(video)))];
 
-  const insightColumns = videos.map((video) => {
-    const points = [
-      ...metricPoints.flatMap((point) => point.lines.filter((line) => line.includes(shortTitle(video)) || line.includes(displayTitle(video)))),
-      ...observations.flatMap((item: Record<string, any>) => {
-        const related = relatedVideos(item, videos);
-        if (!related.some((entry) => String(entry.id) === String(video.id))) return [];
-        const text = [item.headline, item.observation, item.evidence].filter(Boolean).join(' — ');
-        return text ? [text] : [];
-      }),
-    ].filter(Boolean);
-    return { video, points: [...new Set(points)].slice(0, 8) };
-  });
+  const runInsights = async (config: AnalyseConfig) => {
+    setBusy('insights');
+    setError('');
+    try {
+      const next = await yt(`projects/${projectId}/ai-analyses/${current.id}/insights`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...config,
+          source: 'selected',
+          videoIds: videos.map((video) => video.id),
+          outputs: ['improve_existing', 'gap_report'],
+        }),
+      });
+      setCurrent(next);
+      setInsightsOpen(false);
+      setTab('insights');
+      setMessage('Key insights are ready in the Key Insights tab.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not generate key insights');
+    } finally {
+      setBusy('');
+    }
+  };
 
   const saveReport = async (download: boolean) => {
     setBusy(download ? 'download' : 'save');
     setError('');
     setMessage('');
     try {
-      if (download) await saveAndDownloadAnalysisReport(projectId, analysis);
-      else await saveAnalysisAsReport(projectId, analysis);
+      if (download) await saveAndDownloadAnalysisReport(projectId, current);
+      else await saveAnalysisAsReport(projectId, current);
       setMessage(download ? 'Report downloaded and saved to Reports.' : 'Comparison saved to Reports.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the report');
@@ -221,36 +241,19 @@ export default function AnalysisComplete({
     { icon: 'EyeIcon', label: 'Views', key: 'view_count', tone: 'text-sky-600' },
     { icon: 'HandThumbUpIcon', label: 'Likes', key: 'like_count', tone: 'text-violet-600' },
     { icon: 'ChatBubbleLeftRightIcon', label: 'Comments', key: 'comment_count', tone: 'text-rose-600' },
-    { icon: 'UserGroupIcon', label: 'Channel subscribers', key: 'subscriber_count', tone: 'text-amber-600' },
   ];
-
-  const audienceTargets = [
-    { icon: 'CalendarDaysIcon', label: 'Age', values: listValue(config.targetAges?.length ? config.targetAges : config.targetAge) },
-    { icon: 'UserIcon', label: 'Gender', values: listValue(config.targetGenders?.length ? config.targetGenders : config.targetGender) },
-    { icon: 'GlobeAltIcon', label: 'Geography', values: listValue(config.geographies?.length ? config.geographies : config.targetGeography) },
-    { icon: 'LanguageIcon', label: 'Languages', values: listValue(config.languages) },
-    { icon: 'SparklesIcon', label: 'Interests', values: listValue(config.interests) },
-    { icon: 'DevicePhoneMobileIcon', label: 'Devices', values: listValue(config.devices) },
-  ].filter((row) => row.values.length);
 
   const wordSets = thumbReadings.map((item) => thumbnailWordSet(item.stats.text));
   const sharedThumbWords = [...(wordSets[0] || new Set())].filter((word) => wordSets.every((set) => set.has(word)));
 
   return (
     <div className="space-y-5 pb-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link href={`${base}/channel-compare`} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-secondary">
-            <Icon name="ArrowLeftIcon" size={16} /> Back to analysis list
-          </Link>
-          <h1 className="mt-3 font-bricolage text-2xl font-semibold text-slate-900">{analysis?.name || 'Video comparison'}</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {videos.length} video{videos.length === 1 ? '' : 's'}
-            {channels.length ? ` · ${channels.join(', ')}` : ''}
-            {goalLabels.length ? ` · Goals: ${goalLabels.map((goal) => goal.label).join(', ')}` : ''}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-2xl font-semibold text-slate-900">{current?.name || 'Video comparison'}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={partnerBtnPrimary} onClick={() => setInsightsOpen(true)}>
+            <Icon name="LightBulbIcon" size={16} /> {hasInsights ? 'Refresh key insights' : 'Key Insights'}
+          </button>
           <button type="button" className={partnerBtnSecondary} disabled={!!busy} onClick={() => saveReport(false)}>
             <Icon name="BookmarkIcon" size={16} /> {busy === 'save' ? 'Saving…' : 'Save Comparison'}
           </button>
@@ -267,22 +270,9 @@ export default function AnalysisComplete({
         </p>
       ) : (
         <>
-          <div className={`relative grid gap-4 ${pair ? 'lg:grid-cols-[1fr_auto_1fr]' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
-            {videos.map((video, index) => (
-              <div key={String(video.id || index)} className="contents">
-                <VideoHero video={video} index={index} />
-                {pair && index === 0 ? (
-                  <div className="hidden items-center justify-center lg:flex">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold uppercase tracking-wide text-slate-500 shadow-sm">VS</span>
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-
           <div className="sticky top-[var(--yt-sticky)] z-30 -mx-4 h-14 border-y border-slate-200 bg-white px-4 shadow-[0_8px_16px_-12px_rgba(15,23,42,0.35)] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <div className="flex h-full flex-nowrap gap-1 overflow-x-auto">
-              {TABS.map((item, index) => (
+              {tabs.map((item, index) => (
                 <button
                   key={item.id}
                   type="button"
@@ -297,6 +287,19 @@ export default function AnalysisComplete({
 
           <div className="min-h-[calc(100dvh-var(--yt-sticky)-3.5rem)] [overflow-anchor:none]">
           {tab === 'overview' ? (
+            <div className="space-y-4">
+          <div className={`relative grid gap-4 ${pair ? 'lg:grid-cols-[1fr_auto_1fr]' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
+            {videos.map((video, index) => (
+              <div key={String(video.id || index)} className="contents">
+                <VideoHero video={video} index={index} />
+                {pair && index === 0 ? (
+                  <div className="hidden items-center justify-center lg:flex">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold uppercase tracking-wide text-slate-500 shadow-sm">VS</span>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="flex items-center gap-2 border-b border-slate-50 px-5 py-4">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
@@ -359,8 +362,8 @@ export default function AnalysisComplete({
                   </tbody>
                 </table>
               </div>
-              <div className="grid gap-4 border-t border-slate-50 p-5 md:grid-cols-2">
-                {overviewRows.slice(0, 2).map((row) => (
+              <div className="grid gap-4 border-t border-slate-50 p-5 md:grid-cols-3">
+                {overviewRows.map((row) => (
                   <div key={row.key} className="rounded-xl border border-slate-100 p-4">
                     <p className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                       <Icon name={row.icon} size={16} className={row.tone} /> {row.label}
@@ -370,10 +373,10 @@ export default function AnalysisComplete({
                 ))}
               </div>
             </section>
+            </div>
           ) : null}
 
-          {tab === 'content' ? (
-            <div className="space-y-4">
+          {tab === 'thumbnails' ? (
               <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                 <div className="flex items-center gap-2 border-b border-slate-50 px-5 py-4">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
@@ -423,7 +426,9 @@ export default function AnalysisComplete({
                   <p className="border-t border-slate-50 px-5 py-3 text-sm text-slate-500">No shared on-image words were found between these thumbnails.</p>
                 )}
               </section>
+          ) : null}
 
+          {tab === 'content' ? (
               <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                 <div className="flex items-center gap-2 border-b border-slate-50 px-5 py-4">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
@@ -450,8 +455,6 @@ export default function AnalysisComplete({
                       {[
                         { icon: 'DocumentTextIcon', label: 'Title', render: (video: Record<string, any>) => displayTitle(video) },
                         { icon: 'HashtagIcon', label: 'Title length', render: (video: Record<string, any>) => `${displayTitle(video).length} characters` },
-                        { icon: 'ChatBubbleBottomCenterTextIcon', label: 'Thumbnail text', render: (video: Record<string, any>) => video.thumbnail_text ? `“${String(video.thumbnail_text)}”` : 'None read from the image' },
-                        { icon: 'EyeIcon', label: 'Image scene', render: (video: Record<string, any>) => video.thumbnail_scene || 'No scene stored' },
                         { icon: 'ClockIcon', label: 'Length', render: (video: Record<string, any>) => lengthLabel(video) || '—' },
                         { icon: 'RectangleStackIcon', label: 'Topic', render: (video: Record<string, any>) => video.topic_name || 'No topic stored' },
                         { icon: 'CalendarDaysIcon', label: 'Published', render: (video: Record<string, any>) => formatPublished(video.published_at) },
@@ -479,7 +482,6 @@ export default function AnalysisComplete({
                   </table>
                 </div>
               </section>
-            </div>
           ) : null}
 
           {tab === 'engagement' ? (
@@ -507,8 +509,6 @@ export default function AnalysisComplete({
                   </thead>
                   <tbody>
                     {[
-                      { icon: 'HeartIcon', label: 'Likes', value: (video: Record<string, any>) => compactCount(video.like_count), key: 'like_count' },
-                      { icon: 'ChatBubbleLeftRightIcon', label: 'Comments', value: (video: Record<string, any>) => compactCount(video.comment_count), key: 'comment_count' },
                       { icon: 'FireIcon', label: 'Likes + comments', value: (video: Record<string, any>) => compactCount(likesPlusComments(video)), numeric: (video: Record<string, any>) => Number(likesPlusComments(video) || 0) },
                       {
                         icon: 'ChartBarIcon',
@@ -541,78 +541,18 @@ export default function AnalysisComplete({
                         </tr>
                       );
                     })}
-                    <tr className="border-t border-slate-50">
-                      <td className="px-5 py-3">
-                        <span className="inline-flex items-center gap-2 font-medium text-slate-700">
-                          <Icon name="ClockIcon" size={16} className="text-slate-400" /> Average view duration
-                        </span>
-                      </td>
-                      {videos.map((video, index) => (
-                        <td key={String(video.id || index)} className="px-5 py-3 text-slate-400">Not in public Data API</td>
-                      ))}
-                    </tr>
-                    <tr className="border-t border-slate-50">
-                      <td className="px-5 py-3">
-                        <span className="inline-flex items-center gap-2 font-medium text-slate-700">
-                          <Icon name="PresentationChartLineIcon" size={16} className="text-slate-400" /> Audience retention
-                        </span>
-                      </td>
-                      {videos.map((video, index) => (
-                        <td key={String(video.id || index)} className="px-5 py-3 text-slate-400">Not in public Data API</td>
-                      ))}
-                    </tr>
                   </tbody>
                 </table>
-              </div>
-              <div className="border-t border-slate-50 p-5">
-                <CompareBars videos={videos} metric="like_count" />
               </div>
             </section>
           ) : null}
 
           {tab === 'audience' ? (
             <section className="space-y-4">
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    <Icon name="FlagIcon" size={18} />
-                  </span>
-                  <div>
-                    <h2 className="font-bricolage text-base font-semibold text-slate-900">Targets saved on this analysis</h2>
-                    <p className="text-xs text-slate-400">From the comparison form in the database — not measured YouTube Analytics demographics.</p>
-                  </div>
-                </div>
-                {audienceTargets.length || goalLabels.length || config.audienceNotes ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {goalLabels.length ? (
-                      <div className="rounded-xl bg-sky-50 p-4 text-sky-800">
-                        <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"><Icon name="SparklesIcon" size={14} /> Goals</p>
-                        <p className="mt-2 text-sm font-medium">{goalLabels.map((goal) => goal.label).join(', ')}</p>
-                      </div>
-                    ) : null}
-                    {audienceTargets.map((row) => (
-                      <div key={row.label} className="rounded-xl bg-slate-50 p-4">
-                        <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          <Icon name={row.icon} size={14} className="text-indigo-500" /> {row.label}
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-slate-800">{row.values.join(', ')}</p>
-                      </div>
-                    ))}
-                    {config.audienceNotes ? (
-                      <div className="rounded-xl bg-amber-50 p-4 text-amber-900 sm:col-span-2">
-                        <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"><Icon name="PencilSquareIcon" size={14} /> Notes</p>
-                        <p className="mt-2 text-sm">{String(config.audienceNotes)}</p>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500">No audience targets were saved on this analysis.</p>
-                )}
-              </div>
               <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                 <div className="px-5 py-4">
                   <h3 className="font-bricolage text-base font-semibold text-slate-900">Public channel comparison</h3>
-                  <p className="text-xs text-slate-400">Subscriber counts are the public channel field. Age, gender, geography, and devices are not returned by the Data API for these videos.</p>
+                  <p className="text-xs text-slate-400">Only fields YouTube publishes on the channel or video: subscribers, default language, and country when present.</p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-sm">
@@ -639,14 +579,20 @@ export default function AnalysisComplete({
                           <td key={String(video.id || index)} className="px-5 py-3 font-semibold">{compactCount(video.subscriber_count)}</td>
                         ))}
                       </tr>
-                      {['Age mix', 'Gender mix', 'Geography', 'Devices'].map((label) => (
-                        <tr key={label} className="border-t border-slate-50">
-                          <td className="px-5 py-3 font-medium text-slate-700">{label}</td>
+                      <tr className="border-t border-slate-50">
+                        <td className="px-5 py-3 font-medium text-slate-700">Default language</td>
+                        {videos.map((video, index) => (
+                          <td key={String(video.id || index)} className="px-5 py-3">{video.default_language || video.default_audio_language || '—'}</td>
+                        ))}
+                      </tr>
+                      {videos.some((video) => video.country || video.channel_country) ? (
+                        <tr className="border-t border-slate-50">
+                          <td className="px-5 py-3 font-medium text-slate-700">Country</td>
                           {videos.map((video, index) => (
-                            <td key={String(video.id || index)} className="px-5 py-3 text-slate-400">Not in public Data API</td>
+                            <td key={String(video.id || index)} className="px-5 py-3">{video.country || video.channel_country || '—'}</td>
                           ))}
                         </tr>
-                      ))}
+                      ) : null}
                     </tbody>
                   </table>
                 </div>
@@ -655,104 +601,212 @@ export default function AnalysisComplete({
           ) : null}
 
           {tab === 'seo' ? (
-            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <Icon name="HashtagIcon" size={18} />
-                </span>
-                <div>
-                  <h2 className="font-bricolage text-base font-semibold text-slate-900">SEO & tags comparison</h2>
-                  <p className="text-xs text-slate-400">Public tags stored for each video. Shared tags appear in emerald.</p>
-                </div>
-              </div>
+            <section className="space-y-4">
               {(() => {
-                const sets = videos.map((video) => new Set((Array.isArray(video.tags) ? video.tags : []).map((tag: string) => String(tag).toLowerCase())));
-                const shared = [...(sets[0] || new Set())].filter((tag) => sets.every((set) => set.has(tag)));
+                const tagSets = videos.map((video) => videoTags(video));
+                const shared = tagSets[0]?.filter((tag) => tagSets.every((set) => set.some((item) => item.toLowerCase() === tag.toLowerCase()))) || [];
+                const available = [...new Set(tagSets.flat())];
                 return (
-                  <div className={`grid gap-4 ${videos.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
-                    {videos.map((video, index) => {
-                      const tags: string[] = Array.isArray(video.tags) ? video.tags.map(String) : [];
-                      const accent = videoAccent(index);
-                      return (
-                        <div key={String(video.id || index)} className={`rounded-xl border border-slate-100 p-4 ring-1 ${accent.ring}`}>
-                          <div className="flex items-start justify-between gap-2">
-                            <VideoIdent video={video} />
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${accent.chip}`}>{tags.length} tags</span>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {tags.length ? tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className={`rounded-full px-2.5 py-1 text-xs ${shared.includes(tag.toLowerCase()) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'}`}
-                              >
-                                {tag}
-                              </span>
-                            )) : <span className="text-sm text-slate-400">No public tags stored</span>}
-                          </div>
+                  <>
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-indigo-600">
+                          <Icon name="HashtagIcon" size={18} />
+                        </span>
+                        <div>
+                          <h2 className="font-bricolage text-base font-semibold text-slate-900">Available tags</h2>
+                          <p className="text-xs text-slate-500">Every public tag YouTube returned for these videos. Shared tags are green.</p>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {available.length ? available.map((tag) => (
+                          <span
+                            key={tag}
+                            className={`rounded-full px-2.5 py-1 text-xs ${shared.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-slate-700'}`}
+                          >
+                            {tag}
+                          </span>
+                        )) : (
+                          <p className="text-sm text-slate-500">YouTube did not return public tags for these videos. Tags are optional and only appear when the owner published them.</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`grid gap-4 ${videos.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
+                      {videos.map((video, index) => {
+                        const tags = videoTags(video);
+                        const accent = videoAccent(index);
+                        const details = (video.public_details || {}) as Record<string, any>;
+                        const topics = Array.isArray(details.topicCategories) ? details.topicCategories.map(String) : [];
+                        return (
+                          <div key={String(video.id || index)} className={`rounded-xl border border-slate-100 bg-white p-4 shadow-sm ring-1 ${accent.ring}`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <VideoIdent video={video} />
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${accent.chip}`}>{tags.length} tags</span>
+                            </div>
+                            <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
+                              <div><dt className="uppercase tracking-wide">Language</dt><dd className="font-medium text-slate-800">{video.default_language || video.default_audio_language || '—'}</dd></div>
+                              <div><dt className="uppercase tracking-wide">Captions</dt><dd className="font-medium text-slate-800">{details.caption === true ? 'Public captions' : details.caption === false ? 'None listed' : '—'}</dd></div>
+                              <div><dt className="uppercase tracking-wide">Definition</dt><dd className="font-medium text-slate-800">{details.definition ? String(details.definition).toUpperCase() : '—'}</dd></div>
+                              <div><dt className="uppercase tracking-wide">Made for kids</dt><dd className="font-medium text-slate-800">{details.madeForKids === true ? 'Yes' : details.madeForKids === false ? 'No' : '—'}</dd></div>
+                            </dl>
+                            {topics.length ? (
+                              <p className="mt-2 text-xs text-slate-500">Topics: {topics.map(topicLabel).join(' · ')}</p>
+                            ) : null}
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {tags.length ? tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className={`rounded-full px-2.5 py-1 text-xs ${shared.some((item) => item.toLowerCase() === tag.toLowerCase()) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'}`}
+                                >
+                                  {tag}
+                                </span>
+                              )) : <span className="text-sm text-slate-400">No public tags on this video</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 );
               })()}
             </section>
           ) : null}
 
-          {tab === 'insights' ? (
-            <section className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-violet-50 p-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <p className="inline-flex items-center gap-2 text-sm font-semibold text-sky-800">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-                    <Icon name="LightBulbIcon" size={16} />
-                  </span>
-                  Key insights by video
+          {tab === 'insights' && hasInsights ? (
+            <section className="space-y-4">
+              <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">YouTube Master · {report?.selected_goal || goalLabels[0]?.label || 'Selected goal'}</p>
+                <h2 className="mt-1 font-bricolage text-xl font-semibold text-slate-900">
+                  {insights?.summary?.headline || `How to improve ${goalLabels.map((goal) => goal.label.toLowerCase()).join(', ') || 'your selected goals'}`}
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm text-slate-600">
+                  {report?.overall_assessment || insights?.summary?.body || 'Follow the numbered steps. Public Data API evidence only unless authorized Analytics is present.'}
                 </p>
-                <button type="button" className={partnerBtnPrimary} disabled={!!busy} onClick={() => saveReport(true)}>
-                  <Icon name="SparklesIcon" size={16} /> {busy === 'download' ? 'Generating…' : 'Generate Report'}
-                </button>
               </div>
-              <div className={`mt-4 grid gap-4 ${pair ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
-                {insightColumns.map(({ video, points }, index) => {
-                  const accent = videoAccent(index);
-                  return (
-                    <article key={String(video.id || index)} className="rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
-                      <VideoIdent video={video} />
-                      <ul className="mt-3 space-y-2">
-                        {(points.length ? points : [`Public counts: ${compactCount(video.view_count)} views, ${compactCount(video.like_count)} likes, ${compactCount(video.comment_count)} comments.`]).map((line) => (
-                          <li key={line} className="flex gap-2 text-sm leading-5 text-slate-600">
-                            <Icon name="CheckCircleIcon" size={16} className={`mt-0.5 shrink-0 ${accent.icon}`} />
-                            <span>{line}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </article>
-                  );
-                })}
-              </div>
-              {recommendations.length ? (
-                <div className="mt-4 rounded-xl border border-violet-100 bg-white/70 p-4">
-                  <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    <Icon name="BoltIcon" size={14} /> Next steps from this analysis
-                  </p>
-                  <ul className="mt-3 grid gap-2 md:grid-cols-2">
-                    {recommendations.slice(0, 6).map((item: Record<string, any>, index: number) => {
-                      const related = relatedVideos(item, videos)[0];
-                      return (
-                        <li key={String(item.id || item.title || index)} className="rounded-lg bg-violet-50/70 px-3 py-2 text-sm text-slate-700">
-                          <span className="font-semibold text-slate-900">{item.title || item.action || 'Action'}</span>
-                          {related ? <span className="mt-0.5 block text-xs text-slate-500">{shortTitle(related)} · {displayChannel(related)}</span> : null}
-                          {item.description ? <span className="mt-1 block text-xs text-slate-500">{item.description}</span> : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+              {report?.findings?.length ? (
+                <article className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <h3 className="font-bricolage text-base font-semibold text-slate-900">Key findings</h3>
+                  <ol className="mt-3 space-y-3">
+                    {report.findings.map((item: Record<string, any>, index: number) => (
+                      <li key={item.title || index} className="flex gap-3">
+                        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">{index + 1}</span>
+                        <div>
+                          <p className="font-semibold text-slate-900">{item.title}</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">{item.detail}</p>
+                          {item.evidence ? <p className="mt-1 text-xs text-slate-400">Evidence: {item.evidence}</p> : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </article>
               ) : null}
+              <div className="grid gap-4 md:grid-cols-2">
+                {report?.working?.length ? (
+                  <article className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5">
+                    <h3 className="font-semibold text-emerald-900">What’s working</h3>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-emerald-900/80">{report.working.map((item: string) => <li key={item}>{item}</li>)}</ul>
+                  </article>
+                ) : null}
+                {report?.improve?.length ? (
+                  <article className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5">
+                    <h3 className="font-semibold text-amber-900">What to improve</h3>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900/80">{report.improve.map((item: string) => <li key={item}>{item}</li>)}</ul>
+                  </article>
+                ) : null}
+              </div>
+              {report?.actions?.length ? (
+                <article className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <h3 className="font-bricolage text-base font-semibold text-slate-900">Recommended actions</h3>
+                  <div className="mt-3 space-y-3">
+                    {report.actions.map((item: Record<string, any>, index: number) => (
+                      <div key={item.title || index} className="rounded-xl border border-slate-100 p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.priority === 'P1' ? 'bg-rose-100 text-rose-700' : item.priority === 'P3' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800'}`}>{item.priority || 'P2'}</span>
+                          <p className="font-semibold text-slate-900">{item.title}</p>
+                        </div>
+                        {item.problem ? <p className="mt-2 text-sm text-slate-600">{item.problem}</p> : null}
+                        {item.how || item.change ? <p className="mt-1 text-sm text-slate-700">{item.how || item.change}</p> : null}
+                        <p className="mt-2 text-xs text-slate-400">{[item.metric, item.review_period, item.confidence ? `Confidence: ${item.confidence}` : ''].filter(Boolean).join(' · ')}</p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+              {report?.creative && Object.values(report.creative).some((value: any) => Array.isArray(value) && value.length) ? (
+                <article className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <h3 className="font-bricolage text-base font-semibold text-slate-900">Suggested creative improvements</h3>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {Object.entries(report.creative).filter(([, value]) => Array.isArray(value) && value.length).map(([key, value]) => (
+                      <div key={key}>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{key}</p>
+                        <ul className="mt-1 list-disc pl-5 text-sm text-slate-700">{(value as string[]).map((item) => <li key={item}>{item}</li>)}</ul>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+              {report?.competitor_learnings?.length ? (
+                <article className="rounded-2xl border border-sky-100 bg-sky-50/60 p-5">
+                  <h3 className="font-semibold text-sky-900">Competitor learnings</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-sky-900/80">{report.competitor_learnings.map((item: string) => <li key={item}>{item}</li>)}</ul>
+                </article>
+              ) : null}
+              {report?.success || report?.confidence ? (
+                <article className="rounded-2xl border border-slate-100 bg-white p-5 text-sm text-slate-600">
+                  {report.success ? <p><span className="font-semibold text-slate-900">How you’ll know it helped: </span>{report.success}</p> : null}
+                  {report.confidence ? <p className="mt-2"><span className="font-semibold text-slate-900">Confidence: </span>{report.confidence}</p> : null}
+                </article>
+              ) : null}
+              {(guides.length ? guides : videos.flatMap((video) => (Array.isArray(config.goals) ? config.goals : ['views']).map((goal: string) => ({
+                goal,
+                video_id: video.id,
+                diagnosis: `${shortTitle(video)} · ${compactCount(video.view_count)} views, ${compactCount(video.like_count)} likes, ${compactCount(video.comment_count)} comments.`,
+                steps: recommendations.filter((item: Record<string, any>) => !item.video_id || String(item.video_id) === String(video.id)).slice(0, 5).map((item: Record<string, any>) => ({
+                  title: item.title,
+                  detail: item.description,
+                })),
+              })))).map((guide: Record<string, any>, index: number) => {
+                const video = videos.find((item) => String(item.id) === String(guide.video_id)) || relatedVideos(guide, videos)[0];
+                const goal = PRIMARY_GOALS.find((item) => item.id === guide.goal);
+                const steps = Array.isArray(guide.steps) ? guide.steps : [];
+                return (
+                  <article key={`${guide.goal}-${guide.video_id}-${index}`} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      {video ? <VideoIdent video={video} /> : null}
+                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{goal?.label || guide.goal}</span>
+                    </div>
+                    {guide.diagnosis ? <p className="mt-3 text-sm leading-6 text-slate-700">{guide.diagnosis}</p> : null}
+                    <ol className="mt-4 space-y-3">
+                      {steps.map((step: Record<string, any>, stepIndex: number) => (
+                        <li key={`${step.title}-${stepIndex}`} className="flex gap-3">
+                          <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">{stepIndex + 1}</span>
+                          <div>
+                            <p className="font-semibold text-slate-900">{step.title || step.do || `Step ${stepIndex + 1}`}</p>
+                            {step.detail || step.why ? <p className="mt-1 text-sm leading-6 text-slate-600">{step.detail || step.why}</p> : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </article>
+                );
+              })}
             </section>
           ) : null}
           </div>
         </>
       )}
+
+      {busy === 'save' || busy === 'download' ? <FetchVideosOverlay mode="report" /> : null}
+      {insightsOpen ? (
+        <AnalyseModal
+          variant="insights"
+          videos={videos}
+          busy={busy === 'insights'}
+          error={error}
+          onClose={() => { if (busy !== 'insights') setInsightsOpen(false); }}
+          onGenerate={runInsights}
+        />
+      ) : null}
     </div>
   );
 }

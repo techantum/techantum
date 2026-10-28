@@ -6,14 +6,15 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { createPortal } from 'react-dom';
 import AdminAlert from '@/components/admin/AdminAlert';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { ChannelStack, PROJECT_AVATARS, ProjectProgress, formatAgo } from '@/components/admin/youtube/ProjectMarks';
+import { ChannelStack, PROJECT_AVATARS, ProjectProgress, ProjectStatusBadge, formatAgo } from '@/components/admin/youtube/ProjectMarks';
 import { allow, rememberProject, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import type { HomeProject } from '@/lib/youtube/home-display';
+import { asProjectStatus } from '@/lib/youtube/project-status';
 
-type Counts = { all: number; active: number; setup: number; archived: number };
+type Counts = { all: number; todo: number; active: number; completed: number };
 
 export default function ProjectsBoard() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function ProjectsBoard() {
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
   const [rows, setRows] = useState<HomeProject[]>([]);
-  const [counts, setCounts] = useState<Counts>({ all: 0, active: 0, setup: 0, archived: 0 });
+  const [counts, setCounts] = useState<Counts>({ all: 0, todo: 0, active: 0, completed: 0 });
   const [total, setTotal] = useState(0);
   const [bucket, setBucket] = useState('all');
   const [q, setQ] = useState('');
@@ -90,9 +91,9 @@ export default function ProjectsBoard() {
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
-    { id: 'active', label: 'Active', count: counts.active },
-    { id: 'setup', label: 'Draft', count: counts.setup },
-    { id: 'archived', label: 'Archived', count: counts.archived },
+    { id: 'todo', label: 'To Do', count: counts.todo },
+    { id: 'active', label: 'In Progress', count: counts.active },
+    { id: 'completed', label: 'Completed', count: counts.completed },
   ];
 
   if (loading) return <PageLoader label="Loading projects…" />;
@@ -120,11 +121,8 @@ export default function ProjectsBoard() {
 
   return (
     <div className="flex min-h-[calc(100dvh-8.5rem)] flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">Projects</h1>
-          <p className="mt-1 text-sm text-slate-500">Your research projects — each one benchmarks a channel against its competitors.</p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-3xl font-bold tracking-tight text-slate-900">Projects</h1>
         {manage ? <Link href={`${base}/projects/new`} className={partnerBtnPrimary}>+ New project</Link> : null}
       </div>
 
@@ -147,7 +145,7 @@ export default function ProjectsBoard() {
           <div className="flex items-center gap-2">
             <div className="relative min-w-[12rem] flex-1">
               <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input className={`${partnerInput} pl-9`} placeholder="Filter projects" value={q} onChange={(event) => setQ(event.target.value)} />
+              <input className={`${partnerInput} pl-9`} placeholder="Enter project name" value={q} onChange={(event) => setQ(event.target.value)} />
             </div>
             <div className="flex rounded-xl border border-slate-200 p-0.5">
               <button type="button" className={`rounded-lg p-2 ${layout === 'list' ? 'bg-slate-100 text-slate-900' : 'text-slate-400'}`} onClick={() => setLayout('list')} aria-label="List view">
@@ -174,6 +172,7 @@ export default function ProjectsBoard() {
                   </button>
                   {actions(project)}
                 </div>
+                <div className="mt-3"><ProjectStatusBadge status={project.status} /></div>
                 <div className="mt-4"><ChannelStack project={project} index={index} /></div>
                 <div className="mt-4"><ProjectProgress project={project} /></div>
                 <p className="mt-3 text-xs text-slate-400">{Number(project.video_count).toLocaleString('en-IN')} videos · {formatAgo(project.updated_at)}</p>
@@ -187,6 +186,7 @@ export default function ProjectsBoard() {
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   <th className="px-4 py-3">Project</th>
                   <th className="px-4 py-3">Channels</th>
+                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Setup</th>
                   <th className="px-4 py-3 text-right">Videos</th>
                   <th className="px-4 py-3">Last updated</th>
@@ -202,14 +202,13 @@ export default function ProjectsBoard() {
                         <span>
                           <span className="flex items-center gap-2 font-semibold text-slate-900">
                             {project.name}
-                            {project.status === 'archived' ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Archived</span> : null}
-                            {project.status === 'active' && project.next.key === 'own' ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Draft</span> : null}
                           </span>
                           <span className="block text-xs text-slate-400">{project.own_channel_name || project.brand_name || 'No channel connected'}</span>
                         </span>
                       </button>
                     </td>
                     <td className="px-4 py-3"><ChannelStack project={project} index={index} /></td>
+                    <td className="px-4 py-3"><ProjectStatusBadge status={project.status} /></td>
                     <td className="px-4 py-3"><ProjectProgress project={project} /></td>
                     <td className="px-4 py-3 text-right font-medium text-slate-700">{Number(project.video_count).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 text-slate-500">{formatAgo(project.updated_at)}</td>
@@ -241,13 +240,13 @@ export default function ProjectsBoard() {
             <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-50" disabled={busy === menuProject.id} onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}/duplicate`, { method: 'POST', body: '{}' }); })}>
               <NavIcon name="DocumentDuplicateIcon" itemKey="duplicate" delay={160} className="h-7 w-7 rounded-lg" size={14} /> Duplicate
             </button>
-            {menuProject.status === 'archived' ? (
+            {asProjectStatus(menuProject.status) === 'completed' ? (
               <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'active' }) }); })}>
-                <NavIcon name="ArrowPathIcon" itemKey="restore" delay={240} className="h-7 w-7 rounded-lg" size={14} /> Restore
+                <NavIcon name="ArrowPathIcon" itemKey="restore" delay={240} className="h-7 w-7 rounded-lg" size={14} /> Mark In Progress
               </button>
             ) : !menuProject.legacy ? (
-              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => { if (window.confirm(`Archive ${menuProject.name}? Channels and notes stay saved.`)) run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'DELETE' }); }); }}>
-                <NavIcon name="ArchiveBoxIcon" itemKey="archive" delay={240} className="h-7 w-7 rounded-lg" size={14} /> Archive
+              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => run(menuProject.id, async () => { await yt(`projects/${menuProject.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) }); })}>
+                <NavIcon name="CheckCircleIcon" itemKey="complete" delay={240} className="h-7 w-7 rounded-lg" size={14} /> Mark Completed
               </button>
             ) : null}
           </div>,

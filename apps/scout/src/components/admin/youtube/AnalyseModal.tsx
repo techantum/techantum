@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminButton from '@/components/admin/AdminButton';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import Icon from '@/components/ui/AppIcon';
 import { partnerBtnSecondary } from '@/components/partner/PartnerUi';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
@@ -25,6 +26,7 @@ function toggleExclusive(list: string[], id: string, allId: string) {
 
 export type AnalyseConfig = {
   goals: string[];
+  primaryGoal: string;
   targetAges: string[];
   targetGenders: string[];
   geographies: string[];
@@ -38,17 +40,21 @@ export default function AnalyseModal({
   videos,
   busy,
   error,
+  variant = 'insights',
   onClose,
   onGenerate,
 }: {
   videos: Record<string, any>[];
   busy: boolean;
   error?: string;
+  variant?: 'direct' | 'insights';
   onClose: () => void;
   onGenerate: (config: AnalyseConfig) => void;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [goals, setGoals] = useState<string[]>(['views']);
+  const [primaryGoal, setPrimaryGoal] = useState('views');
+  const [secondary, setSecondary] = useState<string[]>([]);
+  const goals = [primaryGoal, ...secondary.filter((item) => item !== primaryGoal)];
   const [ages, setAges] = useState<string[]>(['All ages']);
   const [genders, setGenders] = useState<string[]>(['All audiences']);
   const [geographies, setGeographies] = useState<string[]>([]);
@@ -60,6 +66,23 @@ export default function AnalyseModal({
   const [localError, setLocalError] = useState('');
 
   const goalRows = useMemo(() => PRIMARY_GOALS.filter((item) => goals.includes(item.id)), [goals]);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (variant !== 'direct' || started.current) return;
+    started.current = true;
+    onGenerate({
+      goals: ['views'],
+      primaryGoal: 'views',
+      targetAges: ['All ages'],
+      targetGenders: ['All audiences'],
+      geographies: [],
+      languages: [],
+      interests: [],
+      devices: ['All devices'],
+      audienceNotes: '',
+    });
+  }, [onGenerate, variant]);
 
   const goReview = () => {
     if (!goals.length) {
@@ -77,6 +100,7 @@ export default function AnalyseModal({
     }
     onGenerate({
       goals,
+      primaryGoal,
       targetAges: ages,
       targetGenders: genders,
       geographies,
@@ -87,24 +111,25 @@ export default function AnalyseModal({
     });
   };
 
+  if (busy || variant === 'direct') {
+    return (
+      <FetchVideosOverlay
+        mode="analysis"
+        title={variant === 'insights' ? 'Please wait while we generate key insights' : 'Please wait while we run the analysis'}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="analyse-title">
       <div className="relative flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl animate-[fadeIn_.2s_ease-out]">
-        {busy ? (
-          <div className="flex min-h-[28rem] flex-col items-center justify-center gap-4 px-8 py-16 text-center">
-            <img src="/youtube/analysing.gif" alt="" className="h-40 w-40 object-contain" />
-            <p className="font-bricolage text-2xl font-semibold text-slate-900">Comparing selected videos</p>
-            <p className="max-w-md text-sm text-slate-500">Goal-based comparison using public titles, thumbnails, likes, comments, and views. YouTube Analytics retention is not in this dataset.</p>
-          </div>
-        ) : (
-          <>
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Step {step} of 3</p>
                 <h2 id="analyse-title" className="font-bricolage text-xl font-semibold text-slate-900">
-                  {step === 1 ? 'Comparison goal' : step === 2 ? 'Audience (optional)' : 'Review comparison'}
+                  {step === 1 ? 'Insight goals' : step === 2 ? 'Audience (optional)' : 'Review key insights'}
                 </h2>
-                <p className="text-sm text-slate-500">Compare {videos.length} videos, then open the analysis detail.</p>
+                <p className="text-sm text-slate-500">Pick one primary objective. Optionally add up to two secondary goals. YouTube Master will route diagnosis to the matching playbooks.</p>
               </div>
               <button type="button" className="rounded-full p-2 text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="Close">
                 <Icon name="XMarkIcon" size={20} />
@@ -116,27 +141,48 @@ export default function AnalyseModal({
               {step === 1 ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {PRIMARY_GOALS.map((item) => {
-                    const on = goals.includes(item.id);
+                    const isPrimary = primaryGoal === item.id;
+                    const isSecondary = secondary.includes(item.id);
+                    const on = isPrimary || isSecondary;
                     return (
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => { setGoals(toggle(goals, item.id)); setLocalError(''); }}
-                        className={`rounded-2xl border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${on ? 'border-orange-300 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white'}`}
+                        onClick={() => {
+                          setLocalError('');
+                          if (isPrimary) return;
+                          if (isSecondary) {
+                            setSecondary(secondary.filter((id) => id !== item.id));
+                            return;
+                          }
+                          if (secondary.length >= 2) {
+                            setSecondary([...secondary.slice(1), item.id]);
+                            return;
+                          }
+                          setSecondary([...secondary, item.id]);
+                        }}
+                        onDoubleClick={() => {
+                          setLocalError('');
+                          setSecondary(secondary.filter((id) => id !== item.id).concat(primaryGoal === item.id ? [] : [primaryGoal]).slice(0, 2));
+                          setPrimaryGoal(item.id);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${isPrimary ? 'border-orange-300 bg-orange-50 shadow-sm' : isSecondary ? 'border-violet-200 bg-violet-50' : 'border-slate-200 bg-white'}`}
                       >
                         <span className="flex items-start justify-between gap-2">
                           <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${on ? 'bg-white text-secondary' : 'bg-slate-50 text-slate-400'}`}>
                             <Icon name={item.icon} size={20} />
                           </span>
-                          <span className={`flex h-5 w-5 items-center justify-center rounded border ${on ? 'border-secondary bg-secondary text-white' : 'border-slate-300'}`}>
-                            {on ? <Icon name="CheckIcon" size={12} /> : null}
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${isPrimary ? 'bg-secondary text-white' : isSecondary ? 'bg-violet-200 text-violet-800' : 'bg-slate-100 text-slate-400'}`}>
+                            {isPrimary ? 'Primary' : isSecondary ? 'Secondary' : 'Off'}
                           </span>
                         </span>
                         <span className="mt-3 block font-semibold text-slate-900">{item.label}</span>
                         <span className="mt-1 block text-xs text-slate-500">{item.hint}</span>
+                        {'playbooks' in item ? <span className="mt-2 block text-[11px] text-slate-400">Playbooks: {item.playbooks}</span> : null}
                       </button>
                     );
                   })}
+                  <p className="sm:col-span-2 lg:col-span-3 text-xs text-slate-500">Click to add a secondary goal. Double-click to make a goal primary. Keep one primary.</p>
                 </div>
               ) : null}
 
@@ -185,7 +231,7 @@ export default function AnalyseModal({
                       ))}
                       <input
                         className="min-w-[10rem] flex-1 border-0 text-sm outline-none"
-                        placeholder="Add interests"
+                        placeholder="Enter audience interest"
                         value={interestDraft}
                         onChange={(event) => setInterestDraft(event.target.value)}
                         onKeyDown={(event) => {
@@ -210,7 +256,7 @@ export default function AnalyseModal({
                   </div>
                   <label className="lg:col-span-2 rounded-2xl border border-slate-200 p-4 text-sm">
                     <span className="font-semibold text-slate-800">Target audience notes</span>
-                    <textarea className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="e.g. Patients looking for treatment information in Telugu, aged 25–44." />
+                    <textarea className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Enter notes about this analysis" />
                   </label>
                 </div>
               ) : null}
@@ -262,11 +308,9 @@ export default function AnalyseModal({
                 {step > 1 ? <AdminButton onClick={() => setStep((step - 1) as 1 | 2 | 3)}>Back</AdminButton> : null}
                 {step === 1 ? <AdminButton variant="primary" onClick={() => { if (!goals.length) { setLocalError('Select at least one objective.'); return; } setLocalError(''); setStep(2); }}>Next: Audience</AdminButton> : null}
                 {step === 2 ? <AdminButton variant="primary" onClick={goReview}>Next: Review</AdminButton> : null}
-                {step === 3 ? <AdminButton variant="primary" onClick={generate}><Icon name="SparklesIcon" size={16} /> Run comparison</AdminButton> : null}
+                {step === 3 ? <AdminButton variant="primary" onClick={generate}><Icon name="SparklesIcon" size={16} /> Generate key insights</AdminButton> : null}
               </div>
             </div>
-          </>
-        )}
       </div>
     </div>
   );

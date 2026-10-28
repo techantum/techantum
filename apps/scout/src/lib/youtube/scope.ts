@@ -43,6 +43,8 @@ export function partnerYoutubeAccess(method: string, path: string[]) {
   if (head === 'session') return method === 'GET' ? 'allow' : 'deny';
   if (head === 'home' || head === 'dashboard') return method === 'GET' ? 'allow' : 'deny';
   if (head === 'settings') return method === 'GET' ? 'allow' : 'deny';
+  if (head === 'ai-training') return method === 'GET' || method === 'POST' || method === 'DELETE' ? 'allow' : 'deny';
+  if (head === 'quick') return method === 'GET' ? 'allow' : 'deny';
   if (head === 'projects') {
     if (!path[1]) return method === 'GET' || method === 'POST' ? 'allow' : 'deny';
     return 'project';

@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createAdminClient, getPublishableKey } from '@/lib/supabase/admin';
 import { TRIAL_DAYS } from './plans';
 import { assignPackageToAccount, trialPackage } from './catalog';
+import { emailError, isPersonName, isStrongPassword } from '@/lib/forms/rules';
 
 export const SAAS_COOKIE = 'revealeo_session';
 const LEGACY_COOKIE = 'saas_session';
@@ -248,7 +249,9 @@ async function passwordSignIn(email: string, password: string) {
 export async function createSaasAccount(input: { email: string; password: string; name: string }) {
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim() || email.split('@')[0];
-  if (!email || input.password.length < 8) throw new Error('Use a valid email and a password of at least 8 characters.');
+  if (emailError(email)) throw new Error(emailError(email));
+  if (name && !isPersonName(name)) throw new Error('Enter a workspace name using letters only.');
+  if (!isStrongPassword(input.password)) throw new Error('Use a password of at least 8 characters, with uppercase, lowercase, a number, and a symbol.');
   const auth = createAdminClient();
   const created = await auth.auth.admin.createUser({
     email,

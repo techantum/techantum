@@ -9,10 +9,7 @@ export default async function SubscribersPage() {
   const rows = await listSubscribers();
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-bricolage text-3xl font-bold text-slate-900">Subscribers</h1>
-        <p className="mt-1 text-slate-500">Each subscriber workspace has a Subscriber Admin and optional Subscriber Users.</p>
-      </div>
+      <h1 className="font-bricolage text-3xl font-bold text-slate-900">Subscribers</h1>
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>

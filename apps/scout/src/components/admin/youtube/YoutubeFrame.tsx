@@ -1,15 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
-import AdminBadge from '@/components/admin/AdminBadge';
+import { ProjectStatusBadge } from '@/components/admin/youtube/ProjectMarks';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
-import { partnerBtnPrimary } from '@/components/partner/PartnerUi';
+import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { YOUTUBE_PROJECT_PAGES, YOUTUBE_TAB_HINT, youtubeNestedLabel, youtubeWorkspaceTab } from '@/lib/youtube/workspace-nav';
+import { YOUTUBE_PROJECT_PAGES, youtubeNestedLabel, youtubeWorkspaceTab } from '@/lib/youtube/workspace-nav';
 
 const YoutubeAccessContext = createContext<string[]>([]);
 const YoutubeProjectContext = createContext('');
@@ -146,27 +146,20 @@ function isWorkspace(pathname: string) {
     || pathname === `${base}/projects`
     || pathname.startsWith(`${base}/projects/new`)
     || pathname.startsWith(`${base}/performance`)
+    || pathname.startsWith(`${base}/quick-analysis`)
+    || pathname.startsWith(`${base}/quick-reports`)
+    || pathname.startsWith(`${base}/quick-report`)
+    || pathname.startsWith(`${base}/quick-research`)
+    || pathname.startsWith(`${base}/ai-training`)
   ) return false;
   const section = sectionOf(pathname);
   if (section === 'projects' && pathname.endsWith('/edit')) return true;
   return ['overview', 'channels', 'import', 'videos', 'analysis', 'compare', 'channel-compare', 'reports'].includes(section);
 }
 
-function Crumbs({ items }: { items: { href?: string; label: string }[] }) {
-  return (
-    <p className="text-sm text-slate-500">
-      {items.map((item, index) => (
-        <span key={`${item.label}-${index}`}>
-          {index ? <span className="px-1">/</span> : null}
-          {item.href ? <Link href={item.href} className="font-semibold text-slate-700">{item.label}</Link> : <span className="text-slate-800">{item.label}</span>}
-        </span>
-      ))}
-    </p>
-  );
-}
-
 export default function YoutubeFrame({ children, initialAccess }: { children: React.ReactNode; initialAccess?: string[] }) {
   const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
   const base = youtubePageBase(pathname);
   const [access, setAccess] = useState<string[] | null>(initialAccess ?? null);
   const [error, setError] = useState('');
@@ -224,19 +217,15 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
     };
   }, [pathname]);
 
-  const crumbs = pathname.startsWith(`${base}/settings`)
-    ? [{ href: base, label: 'YouTube Research' }, { label: 'Settings' }]
-    : pathname.startsWith(`${base}/projects/new`)
-      ? [{ href: `${base}/projects`, label: 'Projects' }, { label: 'Create Project' }]
-      : [];
-
   const activeTab = youtubeWorkspaceTab(crumbSection);
   const nestedLabel = youtubeNestedLabel(section);
-  const nestedBack = section === 'channels' || section === 'import'
+  const nestedBack = section === 'channels' || section === 'import' || section === 'compare'
     ? `${base}/videos`
-    : section === 'compare'
-      ? `${base}/videos`
-      : '';
+    : section === 'channel-compare' && searchParams?.get('id')
+      ? `${base}/channel-compare`
+      : pathname.startsWith(`${base}/reports/`)
+        ? `${base}/reports`
+        : '';
 
   useLayoutEffect(() => {
     const node = headerRef.current;
@@ -256,23 +245,20 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
     <div className="space-y-4" style={{ ['--yt-sticky' as string]: `${stickyTop}px` }}>
       {workspace ? (
         <div ref={headerRef} className="sticky top-14 z-40 -mx-4 -mt-6 border-b border-slate-200 bg-white px-4 pb-0 pt-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <Link href={`${base}/projects`} className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-secondary">
-                <Icon name="ArrowLeftIcon" size={16} /> Back to projects
-              </Link>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">{project?.name || 'Project'}</h1>
-                <AdminBadge variant={project?.status === 'archived' ? 'default' : 'green'}>{project?.status === 'active' ? 'Active' : project?.status || 'active'}</AdminBadge>
-              </div>
-              <p className="mt-1 max-w-3xl text-sm text-slate-500">{project?.objective || YOUTUBE_TAB_HINT[section] || YOUTUBE_TAB_HINT[activeTab] || 'Competition Research'}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">{project?.name || 'Project'}</h1>
+              <ProjectStatusBadge status={project?.status} />
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               {railActions || nestedLabel ? railActions : (
                 <Link className={partnerBtnPrimary} href={`${base}/channel-compare`}>
                   <Icon name="LightBulbIcon" size={16} /> Analyse results
                 </Link>
               )}
+              <Link href={nestedBack || `${base}/projects`} className={partnerBtnSecondary}>
+                <Icon name="ArrowLeftIcon" size={16} /> {nestedBack ? 'Back' : 'Back to projects'}
+              </Link>
             </div>
           </div>
           <nav className="mt-4 flex gap-6 overflow-x-auto" aria-label="Project sections">
@@ -293,18 +279,8 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
               );
             })}
           </nav>
-          {nestedLabel ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-2.5 text-sm">
-              <p className="text-slate-500">
-                <span className="font-medium text-slate-700">{YOUTUBE_PROJECT_PAGES.find((item) => item.section === activeTab)?.label || 'Research'}</span>
-                <span className="px-1.5 text-slate-300">/</span>
-                <span className="font-semibold text-slate-900">{nestedLabel}</span>
-              </p>
-              {nestedBack ? <Link href={nestedBack} className="font-semibold text-secondary">← Back</Link> : null}
-            </div>
-          ) : null}
         </div>
-      ) : pathname === base || pathname === `${base}/projects` ? null : crumbs.length ? <Crumbs items={crumbs} /> : null}
+      ) : null}
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {access && !access.includes('youtube_research.view') ? (
         <AdminAlert>You do not have YouTube Research access. Ask a Super Admin to grant it.</AdminAlert>

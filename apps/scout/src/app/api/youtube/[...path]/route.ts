@@ -18,6 +18,7 @@ import {
   getProject,
   getProjectVideo,
   importProject,
+  importProjectVideosFromUrls,
   listProjectChannels,
   listProjectTopics,
   listProjects,
@@ -35,16 +36,20 @@ import {
 import {
   archiveResearchReport,
   createAiAnalysis,
+  generateAiInsights,
   createResearchReport,
   deleteAiAnalysis,
   deleteResearchReport,
   getAiAnalysis,
   getResearchReport,
   listAiAnalyses,
+  listQuickAnalyses,
+  listQuickReports,
   listResearchReports,
   updateAiAction,
 } from '@/lib/youtube/ai-research';
 import { exportResearchReport } from '@/lib/youtube/ai-research-export';
+import { deleteYoutubeTraining, importYoutubeTrainingFile, listYoutubeTraining, saveYoutubeTraining } from '@/lib/youtube/youtube-master';
 import { exportResearch } from '@/lib/youtube/reports';
 import {
   archiveTopic,
@@ -183,6 +188,16 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
       const auth = await resolveYoutubeActor();
       if ('error' in auth) return auth.error;
       return NextResponse.json({ role: auth.role, permissions: auth.permissions, firstName: auth.displayName });
+    }
+    if (path[0] === 'quick' && path[1] === 'analyses') {
+      const auth = await gate('youtube_research.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await listQuickAnalyses());
+    }
+    if (path[0] === 'quick' && path[1] === 'reports') {
+      const auth = await gate('youtube_research.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await listQuickReports());
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'overview') {
       const auth = await gate('youtube_research.view');
@@ -367,6 +382,11 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
         topicId: url.searchParams.get('topicId') || '',
       }));
     }
+    if (path[0] === 'ai-training') {
+      const auth = await gate('youtube_research.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json({ rows: await listYoutubeTraining() });
+    }
     if (path[0] === 'settings') {
       const auth = await gate('youtube_research.view');
       if ('error' in auth && auth.error) return auth.error;
@@ -392,6 +412,11 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
     const path = (await context.params).path || [];
     const body = await readBody(request);
     await protectPartnerScope('POST', path, body);
+    if (path[0] === 'ai-training' && (request.headers.get('content-type') || '').includes('multipart/form-data')) {
+      const auth = await gate('youtube_research.hookooh.knowledge');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await importYoutubeTrainingFile(await request.formData(), auth.user.id));
+    }
     if (path[0] === 'projects' && path[1] && path[2] === 'channels' && path[4] === 'primary') {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;
@@ -411,6 +436,16 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
       const auth = await gate('youtube_research.analytics.view');
       if ('error' in auth && auth.error) return auth.error;
       return NextResponse.json(await summarizeAnalysisVideo(path[1], String(body.videoId || body.video_id || ''), body.mode, body));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses' && path[3] && path[4] === 'insights') {
+      const auth = await gate('youtube_research.analytics.view');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await generateAiInsights(path[1], path[3], body, auth.user.id));
+    }
+    if (path[0] === 'ai-training') {
+      const auth = await gate('youtube_research.hookooh.knowledge');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await saveYoutubeTraining(body, auth.user.id));
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses') {
       const auth = await gate('youtube_research.analytics.view');
@@ -436,6 +471,11 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
       const auth = await gate('youtube_research.videos.import');
       if ('error' in auth && auth.error) return auth.error;
       return NextResponse.json(await importProject(path[1], body, auth.user.id));
+    }
+    if (path[0] === 'projects' && path[1] && path[2] === 'videos' && path[3] === 'urls') {
+      const auth = await gate('youtube_research.videos.import');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await importProjectVideosFromUrls(path[1], body, auth.user.id));
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'topics') {
       const auth = await gate('youtube_research.research.edit');
@@ -584,6 +624,11 @@ async function handleDelete(context: { params: Promise<{ path?: string[] }> }) {
   try {
     const path = (await context.params).path || [];
     await protectPartnerScope('DELETE', path);
+    if (path[0] === 'ai-training' && path[1]) {
+      const auth = await gate('youtube_research.hookooh.knowledge');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await deleteYoutubeTraining(path[1]));
+    }
     if (path[0] === 'projects' && path[1] && path[2] === 'ai-analyses' && path[3]) {
       const auth = await gate('youtube_research.analytics.view');
       if ('error' in auth && auth.error) return auth.error;

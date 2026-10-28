@@ -18,28 +18,14 @@ export default function HeaderAuthLink({ compact = false }: { compact?: boolean 
 
   if (signedIn) {
     return (
-      <Link
-        href="/portal/wa"
-        className={
-          compact
-            ? 'border border-secondary text-secondary px-6 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors inline-block'
-            : 'border border-secondary text-secondary px-5 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors'
-        }
-      >
+      <Link href="/portal/wa" className={`btn-secondary ${compact ? 'inline-block' : ''}`}>
         My Dashboard
       </Link>
     );
   }
 
   return (
-    <Link
-      href="/login"
-      className={
-        compact
-          ? 'border border-secondary text-secondary px-6 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors inline-block'
-          : 'border border-secondary text-secondary px-5 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors'
-      }
-    >
+    <Link href="/login" className={`btn-secondary ${compact ? 'inline-block' : ''}`}>
       Sign in
     </Link>
   );

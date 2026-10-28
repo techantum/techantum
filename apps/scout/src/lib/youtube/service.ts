@@ -3,7 +3,7 @@ import { q } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { createYoutube, normalizeYoutubeApiKey, YoutubeApiError, YOUTUBE_CONNECTED_MESSAGE, type ResolvedChannel, type ResolvedVideo, type YoutubeFetch } from './client';
 import { presentChannel, presentVideo } from './mask';
-import { durationSeconds, shortsPlaylistId, YOUTUBE_METRIC_NOTICE, publishingBuckets } from './parse';
+import { durationSeconds, parseYoutubeVideoIds, shortsPlaylistId, YOUTUBE_METRIC_NOTICE, publishingBuckets } from './parse';
 import { isYoutubePermission, permissionsForRole, type YoutubePermission } from './permissions';
 
 const SORTS: Record<string, string> = {
@@ -16,15 +16,16 @@ const SORTS: Record<string, string> = {
 
 export const VIDEO_UPSERT_SQL = `INSERT INTO youtube_videos (
   channel_id, youtube_video_id, title, video_url, description, published_at, duration, thumbnail_url,
-  view_count, like_count, comment_count, tags, category_id, default_language, default_audio_language, duration_seconds, has_paid_product_placement, fetched_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
+  view_count, like_count, comment_count, tags, category_id, default_language, default_audio_language, duration_seconds, has_paid_product_placement, public_details, fetched_at
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,NOW())
 ON CONFLICT (youtube_video_id) DO UPDATE SET
   channel_id=EXCLUDED.channel_id, title=EXCLUDED.title, video_url=EXCLUDED.video_url,
   description=EXCLUDED.description, published_at=EXCLUDED.published_at, duration=EXCLUDED.duration,
   thumbnail_url=EXCLUDED.thumbnail_url, view_count=EXCLUDED.view_count, like_count=EXCLUDED.like_count,
   comment_count=EXCLUDED.comment_count, tags=EXCLUDED.tags, category_id=EXCLUDED.category_id,
   default_language=EXCLUDED.default_language, default_audio_language=EXCLUDED.default_audio_language,
-  duration_seconds=EXCLUDED.duration_seconds, has_paid_product_placement=EXCLUDED.has_paid_product_placement, fetched_at=NOW()`;
+  duration_seconds=EXCLUDED.duration_seconds, has_paid_product_placement=EXCLUDED.has_paid_product_placement,
+  public_details=EXCLUDED.public_details, fetched_at=NOW()`;
 
 const VIDEO_SELECT = `SELECT v.*, c.channel_name, c.youtube_channel_id, c.last_refreshed_at AS channel_refreshed_at,
   c.classification, r.topic_id, r.thumbnail_caption, r.research_notes, t.name AS topic_name
@@ -265,6 +266,8 @@ function channelValues(channel: ResolvedChannel) {
     channel.subscriberCount,
     channel.videoCount,
     channel.viewCount,
+    channel.country || null,
+    JSON.stringify(channel.publicDetails || {}),
   ];
 }
 
@@ -281,8 +284,8 @@ export async function saveChannel(input: string, classification: unknown, notes:
         undefined,
         `UPDATE youtube_channels SET
            channel_name=$2, channel_handle=$3, channel_url=$4, description=$5, thumbnail_url=$6, uploads_playlist_id=$7,
-           subscriber_count=$8, video_count=$9, view_count=$10, classification=$11,
-           research_notes=COALESCE($12, research_notes), status='active', last_refreshed_at=NOW(), created_by=COALESCE(created_by,$13)
+           subscriber_count=$8, video_count=$9, view_count=$10, country=$11, public_details=$12::jsonb, classification=$13,
+           research_notes=COALESCE($14, research_notes), status='active', last_refreshed_at=NOW(), created_by=COALESCE(created_by,$15)
          WHERE id=$1 RETURNING *`,
         [existing.rows[0].id, ...values.slice(1)]
       )
@@ -290,8 +293,8 @@ export async function saveChannel(input: string, classification: unknown, notes:
         undefined,
         `INSERT INTO youtube_channels (
            youtube_channel_id, channel_name, channel_handle, channel_url, description, thumbnail_url, uploads_playlist_id,
-           subscriber_count, video_count, view_count, classification, research_notes, status, last_refreshed_at, created_by
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active',NOW(),$13) RETURNING *`,
+           subscriber_count, video_count, view_count, country, public_details, classification, research_notes, status, last_refreshed_at, created_by
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,'active',NOW(),$15) RETURNING *`,
         values
       );
   await stampChannelPublished(rows[0].id, channel.publishedAt);
@@ -312,8 +315,8 @@ export async function ensureChannel(input: string, userId: string) {
     undefined,
     `INSERT INTO youtube_channels (
        youtube_channel_id, channel_name, channel_handle, channel_url, description, thumbnail_url, uploads_playlist_id,
-       subscriber_count, video_count, view_count, classification, research_notes, status, last_refreshed_at, created_by
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active',NOW(),$13) RETURNING id`,
+       subscriber_count, video_count, view_count, country, public_details, classification, research_notes, status, last_refreshed_at, created_by
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,'active',NOW(),$15) RETURNING id`,
     values
   );
   await stampChannelPublished(rows[0].id, channel.publishedAt);
@@ -362,7 +365,7 @@ export async function refreshChannel(id: string, userId: string, fetchImpl?: You
     undefined,
     `UPDATE youtube_channels SET
        channel_name=$2, channel_handle=$3, channel_url=$4, description=$5, thumbnail_url=$6, uploads_playlist_id=$7,
-       subscriber_count=$8, video_count=$9, view_count=$10, last_refreshed_at=NOW()
+       subscriber_count=$8, video_count=$9, view_count=$10, country=$11, public_details=$12::jsonb, last_refreshed_at=NOW()
      WHERE id=$1 RETURNING *`,
     [id, ...channelValues(resolved).slice(1)]
   );
@@ -397,7 +400,7 @@ async function rememberChannel(channelId: string, resolved: ResolvedChannel) {
     undefined,
     `UPDATE youtube_channels SET
        channel_name=$2, channel_handle=$3, channel_url=$4, description=$5, thumbnail_url=$6, uploads_playlist_id=$7,
-       subscriber_count=$8, video_count=$9, view_count=$10, last_refreshed_at=NOW()
+       subscriber_count=$8, video_count=$9, view_count=$10, country=$11, public_details=$12::jsonb, last_refreshed_at=NOW()
      WHERE id=$1`,
     [channelId, ...channelValues(resolved).slice(1)]
   );
@@ -405,7 +408,7 @@ async function rememberChannel(channelId: string, resolved: ResolvedChannel) {
 }
 
 async function upsertVideo(channelId: string, video: ResolvedVideo) {
-  await q(undefined, VIDEO_UPSERT_SQL, [
+  const values = [
     channelId,
     video.youtubeVideoId,
     video.title,
@@ -423,7 +426,27 @@ async function upsertVideo(channelId: string, video: ResolvedVideo) {
     video.defaultAudioLanguage,
     durationSeconds(video.duration),
     video.hasPaidProductPlacement,
-  ]);
+    JSON.stringify(video.publicDetails || {}),
+  ];
+  try {
+    await q(undefined, VIDEO_UPSERT_SQL, values);
+  } catch {
+    await q(
+      undefined,
+      `INSERT INTO youtube_videos (
+        channel_id, youtube_video_id, title, video_url, description, published_at, duration, thumbnail_url,
+        view_count, like_count, comment_count, tags, category_id, default_language, default_audio_language, duration_seconds, has_paid_product_placement, fetched_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
+      ON CONFLICT (youtube_video_id) DO UPDATE SET
+        channel_id=EXCLUDED.channel_id, title=EXCLUDED.title, video_url=EXCLUDED.video_url,
+        description=EXCLUDED.description, published_at=EXCLUDED.published_at, duration=EXCLUDED.duration,
+        thumbnail_url=EXCLUDED.thumbnail_url, view_count=EXCLUDED.view_count, like_count=EXCLUDED.like_count,
+        comment_count=EXCLUDED.comment_count, tags=EXCLUDED.tags, category_id=EXCLUDED.category_id,
+        default_language=EXCLUDED.default_language, default_audio_language=EXCLUDED.default_audio_language,
+        duration_seconds=EXCLUDED.duration_seconds, has_paid_product_placement=EXCLUDED.has_paid_product_placement, fetched_at=NOW()`,
+      values.slice(0, 17)
+    );
+  }
 }
 
 async function playlistItems(youtube: ReturnType<typeof createYoutube>, playlistId: string | null, options: { limit: number; from?: string | null; to?: string | null }) {
@@ -565,6 +588,31 @@ export async function startImport(body: Record<string, unknown>, userId: string)
   const channelId = String(body.channel_id || body.channelId || '');
   if (!channelId) throw new FinanceValidationError('Choose a channel.');
   return runImport(channelId, body, userId);
+}
+
+export async function importVideosByUrls(raw: string, userId: string) {
+  const ids = parseYoutubeVideoIds(raw).slice(0, 40);
+  if (!ids.length) throw new FinanceValidationError('Paste at least one YouTube video URL.');
+  const youtube = createYoutube(await readApiKey());
+  const details = await youtube.videos(ids);
+  if (!details.length) throw new FinanceValidationError('No public videos were found for those URLs.');
+  const channelMap = new Map<string, string>();
+  for (const video of details) {
+    const youtubeChannelId = video.youtubeChannelId;
+    if (!youtubeChannelId) continue;
+    if (!channelMap.has(youtubeChannelId)) {
+      channelMap.set(youtubeChannelId, await ensureChannel(youtubeChannelId, userId));
+    }
+    await upsertVideo(channelMap.get(youtubeChannelId) as string, video);
+  }
+  const { rows } = await q(
+    undefined,
+    `SELECT v.id, v.youtube_video_id, v.channel_id
+     FROM youtube_videos v
+     WHERE v.youtube_video_id = ANY($1::text[])`,
+    [details.map((item) => item.youtubeVideoId)],
+  );
+  return { videos: details, rows, channelIds: [...channelMap.values()] };
 }
 
 export async function retryImport(id: string, userId: string) {

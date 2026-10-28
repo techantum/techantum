@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import ChannelDraftForm from '@/components/admin/youtube/ChannelDraftForm';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { handleLabel } from '@/components/admin/youtube/research-ui';
 import { allow, metric, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
@@ -218,6 +219,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      {busy === 'refresh' ? <FetchVideosOverlay /> : null}
 
       <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -328,7 +330,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
             ) : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-400">+</span>
-              <input id="add-competitor" className={`${partnerInput} sm:max-w-md`} placeholder="Paste a YouTube channel URL or @handle" value={addInput} onChange={(event) => setAddInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCompetitor(); } }} />
+              <input id="add-competitor" className={`${partnerInput} sm:max-w-md`} placeholder="Enter competitor channel URL or @handle" value={addInput} onChange={(event) => setAddInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCompetitor(); } }} />
               <AdminButton variant="primary" loading={busy === 'add'} disabled={competitors.length >= MAX_PROJECT_COMPETITORS} onClick={addCompetitor}>Add competitor</AdminButton>
               <p className="sm:ml-auto text-xs text-slate-400">YouTube · up to {MAX_PROJECT_COMPETITORS} competitors</p>
             </div>

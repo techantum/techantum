@@ -132,15 +132,19 @@ function buildImportCharts(rows: { day: string; count: number }[]) {
 export async function researchHome() {
   const scope = scopeSql('p');
   const scopedProjects = scopeSql('p2');
+  const saasId = currentSaasAccountId();
   const projectSql = `FROM youtube_research_projects p
      LEFT JOIN youtube_project_channels opc ON opc.project_id=p.id AND opc.relationship='own'
      LEFT JOIN youtube_channels own ON own.id=opc.channel_id
      WHERE ${scope.sql}`;
 
-  const [counts, channels, videos, reports, listed, weeks, latestReports, activity] = await Promise.all([
-    q<{ active: string; total: string }>(
+  const [counts, channels, videos, reports, listed, weeks, latestReports, team, activity] = await Promise.all([
+    q<{ todo: string; active: string; completed: string; total: string }>(
       undefined,
-      `SELECT COUNT(*) FILTER (WHERE p.status='active')::text AS active, COUNT(*)::text AS total
+      `SELECT COUNT(*) FILTER (WHERE p.status='todo')::text AS todo,
+              COUNT(*) FILTER (WHERE p.status='active')::text AS active,
+              COUNT(*) FILTER (WHERE p.status='completed')::text AS completed,
+              COUNT(*)::text AS total
        FROM youtube_research_projects p WHERE ${scope.sql}`,
       scope.values,
     ),
@@ -174,7 +178,7 @@ export async function researchHome() {
     ),
     q(
       undefined,
-      `SELECT p.id, p.name, p.brand_name, p.status, p.updated_at,
+      `SELECT p.id, p.name, p.brand_name, p.industry, p.status, p.updated_at,
               own.channel_name AS own_channel_name, own.thumbnail_url AS own_thumbnail_url, own.youtube_channel_id AS own_youtube_channel_id,
               (SELECT COUNT(*) FROM youtube_project_channels pc WHERE pc.project_id=p.id AND pc.relationship='competitor') AS competitor_count,
               (SELECT COALESCE(json_agg(x), '[]'::json)
@@ -216,6 +220,13 @@ export async function researchHome() {
        LIMIT 5`,
       scope.values,
     ),
+    q<{ user_id: string; email: string; name: string; role: string }>(
+      undefined,
+      saasId
+        ? `SELECT user_id, email, name, role FROM saas_memberships WHERE account_id=$1 ORDER BY created_at ASC LIMIT 8`
+        : `SELECT NULL::uuid AS user_id, NULL::text AS email, NULL::text AS name, NULL::text AS role WHERE FALSE`,
+      saasId ? [saasId] : [],
+    ).catch(() => ({ rows: [] })),
     q(
       undefined,
       `SELECT l.action, l.created_at, l.metadata, l.entity_type, l.entity_id,
@@ -271,7 +282,9 @@ export async function researchHome() {
 
   return {
     stats: {
+      todoProjects: Number(counts.rows[0]?.todo || 0),
       activeProjects: Number(counts.rows[0]?.active || 0),
+      completedProjects: Number(counts.rows[0]?.completed || 0),
       totalProjects: Number(counts.rows[0]?.total || 0),
       ownChannels: Number(channels.rows[0]?.own || 0),
       competitorChannels: Number(channels.rows[0]?.competitor || 0),
@@ -303,5 +316,12 @@ export async function researchHome() {
     weeks: weekSeries.map((item) => ({ ...item, week: item.key })),
     imports,
     weekChange: wow,
+    team: (team.rows || []).filter((row) => row.user_id).map((row) => ({
+      user_id: row.user_id,
+      name: row.name || row.email || 'Member',
+      email: row.email || '',
+      role: row.role || 'subscriber_user',
+      active: true,
+    })),
   };
 }

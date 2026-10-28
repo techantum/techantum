@@ -2,11 +2,21 @@
 
 import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo, setupLabel, type HomeProject } from '@/lib/youtube/home-display';
+import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, asProjectStatus } from '@/lib/youtube/project-status';
+
+export function ProjectStatusBadge({ status }: { status?: string | null }) {
+  const value = asProjectStatus(status);
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${PROJECT_STATUS_TONE[value]}`}>
+      {PROJECT_STATUS_LABEL[value]}
+    </span>
+  );
+}
 
 export const PROJECT_AVATARS = ['bg-violet-100 text-violet-700', 'bg-sky-100 text-sky-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-800', 'bg-rose-100 text-rose-700', 'bg-indigo-100 text-indigo-700'];
 
 export function ProjectProgress({ project }: { project: HomeProject }) {
-  const done = project.status === 'archived' || project.next.key === 'ready';
+  const done = project.status === 'completed' || project.status === 'archived' || project.next.key === 'ready';
   return (
     <div>
       <p className={`mb-1 text-[11px] ${done ? 'text-emerald-700' : 'text-slate-500'}`}>{setupLabel(project)}</p>

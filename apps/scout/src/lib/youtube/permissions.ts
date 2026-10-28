@@ -1,3 +1,5 @@
+import { canManageHookoohKnowledge } from '@/lib/hookooh/access';
+
 export const YOUTUBE_PERMISSIONS = [
   'youtube_research.view',
   'youtube_research.channels.manage',
@@ -8,6 +10,7 @@ export const YOUTUBE_PERMISSIONS = [
   'youtube_research.competitors.view',
   'youtube_research.reports.export',
   'youtube_research.settings.manage',
+  'youtube_research.hookooh.knowledge',
 ] as const;
 
 export type YoutubePermission = (typeof YOUTUBE_PERMISSIONS)[number];
@@ -32,15 +35,23 @@ function canManageYoutubeSettings(role: string | null | undefined) {
 
 export function hasYoutubePermission(role: string | null | undefined, grants: readonly string[], key: YoutubePermission) {
   if (key === 'youtube_research.settings.manage') return canManageYoutubeSettings(role);
+  if (key === 'youtube_research.hookooh.knowledge') return canManageHookoohKnowledge(role);
   if (role === 'SUPER_ADMIN') return true;
   if (SUBSCRIBER_ROLES.has(String(role || ''))) return true;
   return grants.includes(key);
 }
 
+function deniedForRole(role: string | null | undefined) {
+  const deny = new Set<YoutubePermission>(['youtube_research.settings.manage']);
+  if (!canManageHookoohKnowledge(role)) deny.add('youtube_research.hookooh.knowledge');
+  return deny;
+}
+
 export function permissionsForRole(role: string | null | undefined, grants: readonly string[]) {
+  const deny = deniedForRole(role);
   if (role === 'SUPER_ADMIN') return [...YOUTUBE_PERMISSIONS];
   if (SUBSCRIBER_ROLES.has(String(role || ''))) {
-    return YOUTUBE_PERMISSIONS.filter((key) => key !== 'youtube_research.settings.manage');
+    return YOUTUBE_PERMISSIONS.filter((key) => !deny.has(key));
   }
-  return YOUTUBE_PERMISSIONS.filter((key) => grants.includes(key) && key !== 'youtube_research.settings.manage');
+  return YOUTUBE_PERMISSIONS.filter((key) => grants.includes(key) && !deny.has(key));
 }

@@ -147,12 +147,9 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-bricolage text-3xl font-bold text-slate-900">Manage Subscriptions</h1>
-          <p className="mt-1 text-sm text-slate-500">View and manage all subscriber subscriptions, billing status and plan details.</p>
-        </div>
-        <button type="button" onClick={() => { setAddAccount(rows[0]?.id || ''); setAddPackage(packages[0]?.id || ''); setAddOpen(true); }} className="inline-flex items-center gap-2 rounded-full bg-[#7C3AED] px-4 py-2.5 text-sm font-semibold text-white">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-3xl font-bold text-slate-900">Manage Subscriptions</h1>
+        <button type="button" onClick={() => { setAddAccount(rows[0]?.id || ''); setAddPackage(packages[0]?.id || ''); setAddOpen(true); }} className="btn-primary">
           <Icon name="PlusIcon" size={16} /> Add Subscription
         </button>
       </div>
@@ -394,8 +391,8 @@ export default function SubscriptionsPage() {
               </select>
             </label>
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setAddOpen(false)}>Cancel</button>
-              <button type="button" disabled={!addAccount || !addPackage || Boolean(busy)} className="rounded-full bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white" onClick={() => void assign(addAccount, addPackage)}>
+              <button type="button" className="btn-secondary" onClick={() => setAddOpen(false)}>Cancel</button>
+              <button type="button" disabled={!addAccount || !addPackage || Boolean(busy)} className="btn-primary" onClick={() => void assign(addAccount, addPackage)}>
                 {busy ? 'Saving…' : 'Save'}
               </button>
             </div>

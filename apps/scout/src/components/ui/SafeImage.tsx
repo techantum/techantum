@@ -12,8 +12,8 @@ function splitImageClass(className: string) {
 export function ImagePulse() {
   return (
     <span className="pointer-events-none absolute inset-0 overflow-hidden bg-slate-200">
-      <span className="absolute inset-0 animate-pulse bg-slate-200" />
-      <span className="absolute inset-y-0 w-1/2 animate-[pulse_1.1s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+      <span className="absolute inset-0 bg-slate-200" />
+      <span className="absolute inset-y-0 w-1/3 animate-[pulse_0.7s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
     </span>
   );
 }
@@ -61,7 +61,8 @@ export default function SafeImage({
         alt={alt}
         loading={priority ? 'eager' : loading || 'lazy'}
         decoding="async"
-        className={`relative z-[1] h-full w-full ${img} ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
+        fetchPriority={priority ? 'high' : 'low'}
+        className={`relative z-[1] h-full w-full ${img} ${loaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
         ref={(node) => {

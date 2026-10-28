@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { q } from '@/lib/finance/db';
 import { FinanceValidationError } from '@/lib/finance/errors';
 import { isSuperAdmin, type PlatformRole } from '@/lib/admin/roles';
+import { canManageHookoohKnowledge } from '@/lib/hookooh/access';
 import { accountIsActive, type SaasAccount } from './session';
 
 export const FEATURE_YOUTUBE = 'youtube_research';
@@ -459,7 +460,29 @@ export async function listEvents(accountId: string) {
   return rows;
 }
 
-export type NavItem = { href: string; label: string; icon: string; key?: string; locked?: boolean };
+export type NavItem = { href: string; label: string; icon: string; key?: string; locked?: boolean; children?: NavItem[] };
+
+function youtubeNavChildren(locked = false, role?: PlatformRole): NavItem[] {
+  const billing = '/billing?need=youtube';
+  const children: NavItem[] = [
+    { href: locked ? billing : '/youtube', label: 'Dashboard', icon: 'Squares2X2Icon', key: 'yt-dashboard' },
+    { href: locked ? billing : '/youtube/projects', label: 'Projects', icon: 'FolderIcon', key: 'yt-projects' },
+    { href: locked ? billing : '/youtube/quick-analysis', label: 'Quick Analysis', icon: 'BoltIcon', key: 'yt-quick-analysis' },
+    { href: locked ? billing : '/youtube/quick-reports', label: 'Quick Reports', icon: 'DocumentChartBarIcon', key: 'yt-quick-reports' },
+  ];
+  if (!locked && canManageHookoohKnowledge(role)) {
+    children.push({ href: '/youtube/ai-training', label: 'Hookooh', icon: 'SparklesIcon', key: 'yt-hookooh' });
+  }
+  if (!locked && isSuperAdmin(role)) {
+    children.push({ href: '/youtube/hookooh', label: 'Hookooh Settings', icon: 'Cog6ToothIcon', key: 'yt-hookooh-settings' });
+  }
+  return children;
+}
+
+function withYoutubeChildren(item: NavItem, role?: PlatformRole): NavItem {
+  if (item.key !== FEATURE_YOUTUBE && item.href !== '/youtube' && !item.href.startsWith('/billing?need=youtube')) return item;
+  return { ...item, children: youtubeNavChildren(Boolean(item.locked), role) };
+}
 
 export async function platformDashboard() {
   const [packages, features, subscriptions, counts, coverage, events] = await Promise.all([
@@ -565,11 +588,11 @@ export function navigationFor(role: PlatformRole, access: Access, catalog: Catal
     for (const feature of apps) {
       if (seen.has(feature.route)) continue;
       seen.add(feature.route);
-      items.push({ href: feature.route, label: feature.sidebar_label || feature.name, icon: feature.icon || 'Squares2X2Icon', key: feature.feature_key });
+      items.push(withYoutubeChildren({ href: feature.route, label: feature.sidebar_label || feature.name, icon: feature.icon || 'Squares2X2Icon', key: feature.feature_key }, role));
     }
     if (!apps.length) {
       items.push(
-        { href: '/youtube', label: 'YouTube Research', icon: 'PlayCircleIcon', key: FEATURE_YOUTUBE },
+        withYoutubeChildren({ href: '/youtube', label: 'YouTube Research', icon: 'PlayCircleIcon', key: FEATURE_YOUTUBE }, role),
         { href: '/leads', label: 'Places', icon: 'MapPinIcon', key: FEATURE_LEADS },
       );
     }
@@ -587,7 +610,7 @@ export function navigationFor(role: PlatformRole, access: Access, catalog: Catal
     if (feature.feature_key === FEATURE_TEAM && role !== 'subscriber_admin' && role !== 'owner') continue;
     if (seen.has(feature.route)) continue;
     seen.add(feature.route);
-    items.push({ href: feature.route, label: feature.sidebar_label, icon: feature.icon, key: feature.feature_key });
+    items.push(withYoutubeChildren({ href: feature.route, label: feature.sidebar_label, icon: feature.icon, key: feature.feature_key }, role));
   }
   const missing = catalog.filter((feature) => {
     if (access.has(feature.feature_key)) return false;
@@ -597,13 +620,13 @@ export function navigationFor(role: PlatformRole, access: Access, catalog: Catal
   for (const feature of missing) {
     if (seen.has(feature.route) || seen.has(feature.feature_key)) continue;
     seen.add(feature.feature_key);
-    items.push({
+    items.push(withYoutubeChildren({
       href: `/billing?need=${feature.feature_key}`,
       label: feature.sidebar_label || feature.name,
       icon: feature.icon || 'Squares2X2Icon',
       key: feature.feature_key,
       locked: true,
-    });
+    }, role));
   }
   if (role === 'subscriber_admin' || role === 'owner') {
     items.push({ href: '/billing', label: 'Billing', icon: 'CreditCardIcon' });

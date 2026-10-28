@@ -12,6 +12,7 @@ export type HomeProject = {
   id: string;
   name: string;
   brand_name: string | null;
+  industry: string | null;
   status: string;
   legacy?: boolean;
   updated_at: string;
@@ -71,8 +72,8 @@ export function nextStepFor(row: {
   analysis_count?: number;
   report_count?: number;
 }): ProjectNextStep {
-  if (row.status === 'archived') {
-    return { key: 'ready', label: 'Archived', href: `/videos`, action: null, progress: 6 };
+  if (row.status === 'completed' || row.status === 'archived') {
+    return { key: 'ready', label: 'Completed', href: `/videos`, action: null, progress: 6 };
   }
   if (!row.own_youtube_channel_id) {
     return { key: 'own', label: 'Connect your channel', href: `/channels?from=research&add=own`, action: 'Connect', progress: 1 };
@@ -103,7 +104,8 @@ export function presentListedProject(row: Record<string, any>): HomeProject {
     id: String(row.id),
     name: row.name,
     brand_name: row.brand_name || null,
-    status: row.status,
+    industry: row.industry || null,
+    status: row.status === 'archived' ? 'completed' : row.status,
     legacy: Boolean(row.legacy),
     updated_at: String(row.updated_at || ''),
     own_channel_name: row.own_channel_name || null,
@@ -119,7 +121,7 @@ export function presentListedProject(row: Record<string, any>): HomeProject {
 }
 
 export function setupLabel(project: Pick<HomeProject, 'next' | 'status'>) {
-  if (project.status === 'archived') return '✓ Archived';
+  if (project.status === 'completed' || project.status === 'archived') return '✓ Completed';
   if (project.next.key === 'ready') return '✓ Report ready';
   return `Next: ${project.next.label}`;
 }

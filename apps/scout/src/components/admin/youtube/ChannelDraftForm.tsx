@@ -7,6 +7,7 @@ import AdminButton from '@/components/admin/AdminButton';
 import { metric, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
+import { useProcess } from '@/components/ui/ProcessOverlay';
 import SafeImage from '@/components/ui/SafeImage';
 
 export default function ChannelDraftForm({
@@ -35,6 +36,7 @@ export default function ChannelDraftForm({
   const [error, setError] = useState('');
   const [pending, setPending] = useState<'fetch' | 'save' | ''>('');
   const [mounted, setMounted] = useState(false);
+  const overlay = useProcess();
   const own = relationship === 'own';
 
   useEffect(() => setMounted(true), []);
@@ -62,7 +64,9 @@ export default function ChannelDraftForm({
     setPreview(null);
     setPending('fetch');
     try {
-      setPreview(await yt('channels/resolve', { method: 'POST', body: JSON.stringify({ input: input.trim() }) }));
+      await overlay.run('Fetching channel…', async () => {
+        setPreview(await yt('channels/resolve', { method: 'POST', body: JSON.stringify({ input: input.trim() }) }));
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not fetch the channel');
     } finally {
@@ -79,10 +83,12 @@ export default function ChannelDraftForm({
     }
     setPending('save');
     try {
-      const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input: input.trim(), relationship }) });
-      setPreview(null);
-      setInput('');
-      await onSaved(saved);
+      await overlay.run(own ? 'Connecting your channel…' : 'Adding competitor…', async () => {
+        const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input: input.trim(), relationship }) });
+        setPreview(null);
+        setInput('');
+        await onSaved(saved);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the channel');
     } finally {
@@ -106,7 +112,7 @@ export default function ChannelDraftForm({
               else fetchChannel();
             }
           }}
-          placeholder="Channel URL, @handle, or ID"
+          placeholder="Enter YouTube channel URL or @handle"
         />
         <div className="flex gap-2">
           <AdminButton variant="primary" loading={pending === 'fetch'} onClick={fetchChannel}>Fetch</AdminButton>

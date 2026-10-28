@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { canManageBilling } from '@/lib/admin/roles';
 import { changeAccountPackage, listEvents, listPackages, resolveAccess } from '@/lib/saas/catalog';
 import { financeErrorResponse } from '@/lib/finance/http';
+import { razorpayConfigured, razorpayKeyId } from '@/lib/saas/razorpay';
 import { getSaasActor } from '@/lib/saas/session';
 
 export async function GET() {
@@ -20,6 +21,10 @@ export async function GET() {
     packages,
     events: await listEvents(actor.account.id),
     account: actor.account,
+    razorpay: {
+      configured: razorpayConfigured(),
+      keyId: razorpayConfigured() ? razorpayKeyId() : '',
+    },
   });
 }
 

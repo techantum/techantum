@@ -5,12 +5,11 @@ import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
 import AdminAlert from '@/components/admin/AdminAlert';
+import FieldHint from '@/components/ui/FieldHint';
 import Icon from '@/components/ui/AppIcon';
 import {
   PartnerPageHero,
   PartnerStatTile,
-  partnerBtnPrimary,
-  partnerBtnSecondary,
   partnerCard,
   partnerInput,
 } from '@/components/partner/PartnerUi';
@@ -382,15 +381,9 @@ export default function LeadDiscoveryPage() {
   return (
     <div className="w-full space-y-5">
       {isPartner ? (
-        <PartnerPageHero
-          title="Lead Discovery"
-          description="Find and save businesses using Google Places. Filter by location, segment and more."
-        />
+        <PartnerPageHero title="Lead Discovery" />
       ) : (
-        <AdminPageHeader
-          title="Lead Discovery"
-          description="Find and save businesses using Google Places. Filter by location, segment and more."
-        />
+        <AdminPageHeader title="Lead Discovery" />
       )}
 
       {message && <AdminAlert variant="success">{message}</AdminAlert>}
@@ -445,15 +438,12 @@ export default function LeadDiscoveryPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-50 text-violet-600">
             <Icon name="MagnifyingGlassIcon" size={18} />
           </div>
-          <div>
-            <h2 className="font-bricolage text-lg font-semibold text-slate-900">Create New Search</h2>
-            <p className="text-sm text-slate-500">Set your search criteria below to find businesses. You can preview results before saving.</p>
-          </div>
+          <h2 className="font-bricolage text-lg font-semibold text-slate-900">Create New Search</h2>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm font-medium text-slate-700">
-            Search Name
+            <span className="inline-flex items-center">Search Name<FieldHint text="Give this search a name to save it later." /></span>
             <input
               value={searchName}
               onChange={(event) => {
@@ -461,9 +451,8 @@ export default function LeadDiscoveryPage() {
                 setSearchName(event.target.value);
               }}
               className={`mt-1 ${INPUT}`}
-              placeholder="e.g. Leads - India"
+              placeholder="Enter search name"
             />
-            <span className="mt-1 block text-xs font-normal text-slate-400">Give this search a name to save it later.</span>
           </label>
           <PlacesSearchSelect
             label="Country"
@@ -516,7 +505,7 @@ export default function LeadDiscoveryPage() {
             hint="Choose a Google Maps business type."
           />
           <label className="text-sm font-medium text-slate-700">
-            Minimum Rating
+            <span className="inline-flex items-center">Minimum Rating<FieldHint text="Filter by minimum Google rating." /></span>
             <select value={minRating} onChange={(event) => setMinRating(event.target.value)} className={`mt-1 ${INPUT}`}>
               <option value="">Any</option>
               <option value="3">3.0+</option>
@@ -524,25 +513,22 @@ export default function LeadDiscoveryPage() {
               <option value="4">4.0+</option>
               <option value="4.5">4.5+</option>
             </select>
-            <span className="mt-1 block text-xs font-normal text-slate-400">Filter by minimum Google rating.</span>
           </label>
           <label className="text-sm font-medium text-slate-700">
-            Has Website
+            <span className="inline-flex items-center">Has Website<FieldHint text="Filter businesses with or without a website." /></span>
             <select value={hasWebsite} onChange={(event) => setHasWebsite(event.target.value as WebsiteFilter)} className={`mt-1 ${INPUT}`}>
               <option value="any">Any</option>
               <option value="yes">Yes</option>
               <option value="no">No</option>
             </select>
-            <span className="mt-1 block text-xs font-normal text-slate-400">Filter businesses with or without a website.</span>
           </label>
           <label className="text-sm font-medium text-slate-700">
-            Has Phone
+            <span className="inline-flex items-center">Has Phone<FieldHint text="Filter businesses with or without a phone number." /></span>
             <select value={hasPhone} onChange={(event) => setHasPhone(event.target.value as PhoneFilter)} className={`mt-1 ${INPUT}`}>
               <option value="any">Any</option>
               <option value="yes">Yes</option>
               <option value="no">No</option>
             </select>
-            <span className="mt-1 block text-xs font-normal text-slate-400">Filter businesses with or without a phone number.</span>
           </label>
         </div>
 
@@ -557,7 +543,7 @@ export default function LeadDiscoveryPage() {
             type="button"
             disabled={loading || !canSearch || !payload.name}
             onClick={() => runSearch(true)}
-            className={isPartner ? partnerBtnPrimary : 'inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50'}
+            className="btn-primary"
           >
             <Icon name="MagnifyingGlassIcon" size={16} />
             {loading ? 'Working…' : 'Search & Save'}
@@ -566,12 +552,12 @@ export default function LeadDiscoveryPage() {
             type="button"
             disabled={loading || !canSearch}
             onClick={() => runSearch(false)}
-            className={isPartner ? partnerBtnSecondary : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50'}
+            className="btn-secondary"
           >
             <Icon name="EyeIcon" size={16} />
             {loading ? 'Searching…' : 'Preview Search'}
           </button>
-          <button type="button" onClick={clearSearch} className="inline-flex items-center gap-2 px-2 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800">
+          <button type="button" onClick={clearSearch} className="btn-ghost">
             <Icon name="ArrowPathIcon" size={16} />
             Clear
           </button>
@@ -580,7 +566,7 @@ export default function LeadDiscoveryPage() {
               type="button"
               disabled={loading}
               onClick={savePreview}
-              className={isPartner ? `${partnerBtnPrimary} bg-emerald-600 hover:bg-emerald-700` : 'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50'}
+              className="btn-primary"
             >
               Save preview
             </button>
@@ -600,7 +586,6 @@ export default function LeadDiscoveryPage() {
       <section className={isPartner ? `${partnerCard} p-5` : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm'}>
         <div className="mb-4">
           <h2 className="font-bricolage text-lg font-semibold text-slate-900">Saved Searches</h2>
-          <p className="text-sm text-slate-500">Your saved Places searches. Open details to see only that list.</p>
         </div>
         {history.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">No saved searches yet.</p>

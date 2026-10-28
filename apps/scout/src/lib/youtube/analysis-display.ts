@@ -1,10 +1,12 @@
 export const PRIMARY_GOALS = [
-  { id: 'views', label: 'Increase Views', hint: 'Improve reach and visibility', icon: 'ChartBarIcon' },
-  { id: 'likes', label: 'Increase Likes', hint: 'Get more likes on videos', icon: 'HeartIcon' },
-  { id: 'comments', label: 'More Comments', hint: 'Drive meaningful discussions', icon: 'ChatBubbleLeftRightIcon' },
-  { id: 'engagement', label: 'Higher Engagement', hint: 'Improve overall interaction', icon: 'UserGroupIcon' },
-  { id: 'retention', label: 'Improve Retention', hint: 'Keep viewers watching longer', icon: 'ClockIcon' },
-  { id: 'discoverability', label: 'Better Discoverability', hint: 'Rank higher in search and suggested', icon: 'MagnifyingGlassIcon' },
+  { id: 'views', label: 'Increase Views', hint: 'Attract more relevant viewers via packaging, topics, and discovery', icon: 'ChartBarIcon', playbooks: 'Packaging, Titles, Thumbnails, Topics, Discovery' },
+  { id: 'ctr', label: 'Improve CTR', hint: 'Thumbnail and title appeal. Needs authorized impressions/CTR or a visual-only review', icon: 'CursorArrowRaysIcon', playbooks: 'Packaging, Titles, Thumbnails' },
+  { id: 'retention', label: 'Improve Retention', hint: 'Hooks, pacing, and structure — not unrelated SEO', icon: 'ClockIcon', playbooks: 'Retention, Opening, Structure' },
+  { id: 'engagement', label: 'Increase Engagement', hint: 'Meaningful likes, comments, and discussion', icon: 'ChatBubbleLeftRightIcon', playbooks: 'Engagement, Audience, CTA' },
+  { id: 'subscribers', label: 'Grow Subscribers', hint: 'Give viewers a reason to return and subscribe', icon: 'UserPlusIcon', playbooks: 'Channel, Series, Loyalty' },
+  { id: 'discoverability', label: 'Improve Search Visibility', hint: 'Search intent, titles, descriptions, and tags', icon: 'MagnifyingGlassIcon', playbooks: 'SEO, Titles, Descriptions' },
+  { id: 'competitors', label: 'Analyze Competitors', hint: 'Public patterns you can test — do not copy assets', icon: 'PresentationChartLineIcon', playbooks: 'Competitors, Packaging, Topics' },
+  { id: 'publishing', label: 'Improve Publishing Strategy', hint: 'Cadence, readiness, and post-publish review', icon: 'CalendarDaysIcon', playbooks: 'Publishing, Channel, Experiments' },
 ] as const;
 
 export type PrimaryGoalId = (typeof PRIMARY_GOALS)[number]['id'];
@@ -251,13 +253,17 @@ export function assessGoals(videos: Record<string, any>[], goals: string[]): Goa
   const tagged = videos.filter((video) => Array.isArray(video.tags) && video.tags.length).length;
   const aboveViews = videos.filter((video) => Number(video.view_count || 0) >= viewCut && Number(video.view_count || 0) > 0).length;
   return PRIMARY_GOALS.filter((goal) => goals.includes(goal.id)).map((goal) => {
-    if (goal.id === 'retention') {
+    if (goal.id === 'retention' || goal.id === 'ctr' || goal.id === 'subscribers') {
       return {
         id: goal.id,
         label: goal.label,
         status: 'unavailable' as const,
-        headline: 'Not in the public Data API',
-        detail: 'Audience retention and watch time need authorized YouTube Analytics. This run cannot mark retention as up to the mark.',
+        headline: 'Needs authorized YouTube Analytics',
+        detail: goal.id === 'ctr'
+          ? 'CTR and impressions are not public. Use a visual packaging assessment until Analytics is connected.'
+          : goal.id === 'subscribers'
+            ? 'Subscriber gains per video are not public on competitor channels.'
+            : 'Audience retention and watch time need authorized YouTube Analytics.',
       };
     }
     if (goal.id === 'views') {

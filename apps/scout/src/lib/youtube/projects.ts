@@ -1,9 +1,9 @@
 import { cache } from 'react';
 import { q, withFinanceTx } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
-import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
+import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, parseYoutubeVideoIds, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
 import { isFresh, presentChannel, presentVideo } from './mask';
-import { ensureChannel, performanceSummary, startImport } from './service';
+import { ensureChannel, importVideosByUrls, performanceSummary, startImport } from './service';
 import { presentListedProject } from './home-display';
 import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
 import { MAX_PROJECT_COMPETITORS } from './workspace-nav';
@@ -28,9 +28,10 @@ function clean(value: unknown, max: number) {
 }
 
 function statusOf(value: unknown) {
-  const status = String(value || 'active');
-  if (!['active', 'archived'].includes(status)) throw new FinanceValidationError('Status must be active or archived.');
-  return status;
+  const raw = String(value || 'todo');
+  if (raw === 'archived') return 'completed';
+  if (!['todo', 'active', 'completed'].includes(raw)) throw new FinanceValidationError('Status must be To Do, In Progress, or Completed.');
+  return raw;
 }
 
 function channelIdFilter(channelIds: string[] | undefined, values: unknown[]) {
@@ -118,26 +119,26 @@ export async function listProjects(params: { q?: string; status?: string; bucket
   }
   const bucket = String(params.bucket || '');
   const status = String(params.status || '');
-  if (bucket === 'archived' || (!bucket && status === 'archived')) {
-    where.push(`p.status='archived'`);
-  } else if (bucket === 'setup') {
-    where.push(`p.status='active' AND own.youtube_channel_id IS NULL`);
-  } else if (bucket === 'active') {
-    where.push(`p.status='active' AND own.youtube_channel_id IS NOT NULL`);
-  } else if (bucket === 'all') {
-    /* all workspace projects */
-  } else if (status === 'active' || (!bucket && !status)) {
+  if (bucket === 'todo' || status === 'todo') {
+    where.push(`p.status='todo'`);
+  } else if (bucket === 'completed' || status === 'completed' || bucket === 'archived') {
+    where.push(`p.status='completed'`);
+  } else if (bucket === 'active' || status === 'active') {
     where.push(`p.status='active'`);
+  } else if (bucket === 'setup') {
+    where.push(`p.status='todo'`);
+  } else if (bucket === 'all' || !bucket) {
+    /* all workspace projects */
   }
   const [listed, count, buckets] = await Promise.all([
     q(undefined, `${PROJECT_LIST_SELECT} WHERE ${where.join(' AND ')} ORDER BY p.updated_at DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`, values),
     q<{ count: string }>(undefined, `SELECT COUNT(*)::text AS count ${PROJECT_LIST_FROM} WHERE ${where.join(' AND ')}`, values),
-    q<{ total_all: string; live: string; setup: string; archived: string }>(
+    q<{ total_all: string; todo: string; live: string; completed: string }>(
       undefined,
       `SELECT COUNT(*)::text AS total_all,
-              COUNT(*) FILTER (WHERE p.status='active' AND own.youtube_channel_id IS NOT NULL)::text AS live,
-              COUNT(*) FILTER (WHERE p.status='active' AND own.youtube_channel_id IS NULL)::text AS setup,
-              COUNT(*) FILTER (WHERE p.status='archived')::text AS archived
+              COUNT(*) FILTER (WHERE p.status='todo')::text AS todo,
+              COUNT(*) FILTER (WHERE p.status='active')::text AS live,
+              COUNT(*) FILTER (WHERE p.status='completed')::text AS completed
        ${PROJECT_LIST_FROM}
        WHERE ${countWhere.join(' AND ')}`,
       values,
@@ -156,9 +157,9 @@ export async function listProjects(params: { q?: string; status?: string; bucket
     total: Number(count.rows[0]?.count || 0),
     counts: {
       all: Number(buckets.rows[0]?.total_all || 0),
+      todo: Number(buckets.rows[0]?.todo || 0),
       active: Number(buckets.rows[0]?.live || 0),
-      setup: Number(buckets.rows[0]?.setup || 0),
-      archived: Number(buckets.rows[0]?.archived || 0),
+      completed: Number(buckets.rows[0]?.completed || 0),
     },
     page,
     pageSize,
@@ -208,7 +209,7 @@ export async function duplicateProject(id: string, userId: string) {
   const created = await q(
     undefined,
     `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id)
-     VALUES ($1,$2,$3,$4,$5,'active',$6,$7,$8) RETURNING *`,
+     VALUES ($1,$2,$3,$4,$5,'todo',$6,$7,$8) RETURNING *`,
     [name, project.brand_name, project.objective, project.industry, project.description, userId, project.partner_id || currentYoutubePartnerId(), project.saas_account_id || currentSaasAccountId()]
   );
   await q(
@@ -224,8 +225,8 @@ export async function duplicateProject(id: string, userId: string) {
 export async function archiveProject(id: string, userId: string) {
   const project = await requireProject(id);
   if (project.legacy) throw new FinanceValidationError('The original research project stays available so earlier notes are not hidden.');
-  await q(undefined, `UPDATE youtube_research_projects SET status='archived' WHERE id=$1`, [id]);
-  await audit(userId, 'YouTube Project Archived', id, {});
+  await q(undefined, `UPDATE youtube_research_projects SET status='completed' WHERE id=$1`, [id]);
+  await audit(userId, 'YouTube Project Completed', id, {});
   return { ok: true };
 }
 
@@ -246,7 +247,7 @@ export async function listProjectChannels(projectId: string) {
 
 export async function addProjectChannel(projectId: string, input: string, relationship: unknown, userId: string) {
   const project = await requireProject(projectId);
-  if (project.status !== 'active') throw new FinanceValidationError('Restore this project before adding channels.');
+  if (project.status === 'completed') throw new FinanceValidationError('Mark this project In Progress before adding channels.');
   const kind = String(relationship || 'competitor');
   if (!['own', 'competitor'].includes(kind)) throw new FinanceValidationError('Choose own or competitor.');
   const channelId = await ensureChannel(input, userId);
@@ -787,6 +788,38 @@ export async function projectOverview(projectId: string) {
     recentVideos: insights.recentVideos,
     insights,
   };
+}
+
+export async function importProjectVideosFromUrls(projectId: string, body: Record<string, unknown>, userId: string) {
+  await requireProject(projectId);
+  const raw = String(body.text || body.urls || '');
+  const mode = String(body.mode || 'multiple');
+  const youtubeIds = parseYoutubeVideoIds(raw);
+  if (mode === 'single') {
+    if (youtubeIds.length !== 1) throw new FinanceValidationError('Add a single video URL here. Use Add multiple videos for a list.');
+  } else if (mode === 'multiple' && youtubeIds.length < 2) {
+    throw new FinanceValidationError('Paste at least two YouTube video URLs, one per line.');
+  }
+  const imported = await importVideosByUrls(raw, userId);
+  const linked = await q<{ channel_id: string }>(undefined, `SELECT channel_id FROM youtube_project_channels WHERE project_id=$1`, [projectId]);
+  const have = new Set(linked.rows.map((row) => String(row.channel_id)));
+  let first = have.size === 0;
+  for (const channelId of imported.channelIds) {
+    if (have.has(channelId)) continue;
+    await q(
+      undefined,
+      `INSERT INTO youtube_project_channels (project_id, channel_id, relationship) VALUES ($1,$2,$3)
+       ON CONFLICT (project_id, channel_id) DO NOTHING`,
+      [projectId, channelId, first ? 'own' : 'competitor'],
+    );
+    have.add(channelId);
+    first = false;
+  }
+  const videoIds = imported.rows.map((row) => String(row.id));
+  const listed = videoIds.length
+    ? await listProjectVideos({ projectId, videoIds, page: 1, pageSize: 40, includeTotal: false, sort: 'published_at' })
+    : { rows: [] };
+  return { imported: listed.rows.length, rows: listed.rows };
 }
 
 export async function importProject(projectId: string, body: Record<string, unknown>, userId: string) {

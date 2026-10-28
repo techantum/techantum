@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
 import Shell from '@/components/Shell';
-import { listFeatures, navigationFor, resolveAccess } from '@/lib/saas/catalog';
+import { FEATURE_YOUTUBE, listFeatures, navigationFor, resolveAccess } from '@/lib/saas/catalog';
 import { getPlatformActor } from '@/lib/saas/session';
 import { getRevealeoSite } from '@/lib/cms/site';
+import { isSuperAdmin } from '@/lib/admin/roles';
+import { canUseHookooh } from '@/lib/hookooh/access';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
@@ -20,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       logoUrl={branding.logo_url}
       companyName={branding.company_name}
       nav={navigationFor(actor.role, access, catalog)}
+      hookooh={canUseHookooh(actor.role) && (isSuperAdmin(actor.role) || access.has(FEATURE_YOUTUBE))}
     >
       {children}
     </Shell>

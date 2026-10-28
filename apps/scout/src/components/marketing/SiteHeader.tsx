@@ -43,16 +43,10 @@ export default function SiteHeader({ solid = false, branding }: { solid?: boolea
           ))}
         </nav>
         <div className="hidden items-center gap-2.5 lg:flex">
-          <Link
-            href="/login"
-            className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-slate-300"
-          >
+          <Link href="/login" className="btn-secondary">
             Sign in
           </Link>
-          <Link
-            href="/signup"
-            className="inline-flex h-10 items-center rounded-full bg-[#6D28D9] px-4 text-sm font-semibold text-white hover:bg-[#5B21B6]"
-          >
+          <Link href="/signup" className="btn-primary">
             Start free trial
           </Link>
         </div>
@@ -70,10 +64,10 @@ export default function SiteHeader({ solid = false, branding }: { solid?: boolea
                 {link.label}
               </Link>
             ))}
-            <Link href="/login" onClick={() => setOpen(false)}>
+            <Link href="/login" className="btn-secondary" onClick={() => setOpen(false)}>
               Sign in
             </Link>
-            <Link href="/signup" className="rounded-full bg-[#6D28D9] px-4 py-2 text-center font-semibold text-white" onClick={() => setOpen(false)}>
+            <Link href="/signup" className="btn-primary text-center" onClick={() => setOpen(false)}>
               Start free trial
             </Link>
           </div>

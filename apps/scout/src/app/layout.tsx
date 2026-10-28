@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Bricolage_Grotesque, Inter } from 'next/font/google';
 import './globals.css';
 import { getRevealeoSite } from '@/lib/cms/site';
+import { ProcessProvider } from '@/components/ui/ProcessOverlay';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${bricolage.variable} ${inter.variable} scroll-pt-[72px]`}>
-      <body>{children}</body>
+      <body>
+        <ProcessProvider>{children}</ProcessProvider>
+      </body>
     </html>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
@@ -44,23 +43,18 @@ export default function LeadDiscoveryDetailsPage() {
 
   return (
     <div className="w-full space-y-6">
-      <Link
-        href={pageBase}
-        className="inline-flex items-center text-sm font-medium text-secondary hover:text-secondary"
-      >
-        ← All saved searches
-      </Link>
-
       {isPartner ? (
         <PartnerPageHero
           title={run ? displaySearchName(run) : 'Search details'}
-          description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
+          backHref={pageBase}
+          backLabel="Back"
           action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
         />
       ) : (
         <AdminPageHeader
           title={run ? displaySearchName(run) : 'Search details'}
-          description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
+          backHref={pageBase}
+          backLabel="Back"
           action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
         />
       )}

@@ -382,15 +382,9 @@ export default function LeadDiscoveryPage() {
   return (
     <div className="w-full space-y-5">
       {isPartner ? (
-        <PartnerPageHero
-          title="Lead Discovery"
-          description="Find and save businesses using Google Places. Filter by location, segment and more."
-        />
+        <PartnerPageHero title="Lead Discovery" />
       ) : (
-        <AdminPageHeader
-          title="Lead Discovery"
-          description="Find and save businesses using Google Places. Filter by location, segment and more."
-        />
+        <AdminPageHeader title="Lead Discovery" />
       )}
 
       {message && <AdminAlert variant="success">{message}</AdminAlert>}

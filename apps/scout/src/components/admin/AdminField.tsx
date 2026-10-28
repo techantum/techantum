@@ -1,3 +1,5 @@
+import FieldHint from '@/components/ui/FieldHint';
+
 interface AdminFieldProps {
   label: string;
   hint?: string;
@@ -24,11 +26,11 @@ export default function AdminField({
 }: AdminFieldProps) {
   return (
     <div className={`space-y-1.5 ${spanClasses[span]} ${className}`}>
-      <label htmlFor={htmlFor} className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <label htmlFor={htmlFor} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
+        {hint ? <FieldHint text={hint} /> : null}
       </label>
       {children}
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }

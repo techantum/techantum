@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { allow, useYoutubeAccess, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, useYoutubeAccess, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { YOUTUBE_PERMISSIONS } from '@/lib/youtube/permissions';
 
 const control = 'h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
@@ -34,6 +35,7 @@ const LABELS: Record<string, string> = {
 
 export default function YoutubeSettingsPage() {
   const access = useYoutubeAccess();
+  const base = useYoutubePageBase();
   const manage = allow(access, 'youtube_research.settings.manage');
   const [settings, setSettings] = useState<Record<string, any> | null>(null);
   const [apiKey, setApiKey] = useState('');
@@ -109,9 +111,18 @@ export default function YoutubeSettingsPage() {
 
   return (
     <div className="space-y-4">
-      <AdminPageHeader kicker="YouTube Research" title="Settings" description="The API key stays on the server. The browser only sees whether a key is configured." />
+      <AdminPageHeader title="Settings" backHref="/youtube" backLabel="Back" />
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-slate-900">YouTube Master training</h2>
+            <p className="mt-1 text-sm text-slate-500">Upload playbook documents or notes. Key Insights uses them as YouTube Master coaching rules.</p>
+          </div>
+          <Link href={`${base}/ai-training`} className="btn-secondary">Open training</Link>
+        </div>
+      </section>
       {settings ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-600">Connection: <span className="font-semibold">{settings.keyConfigured ? (CONNECTION_LABEL[settings.lastTestStatus] || settings.lastTestStatus || 'Saved, not tested') : 'Configuration missing'}</span></p>
@@ -120,7 +131,7 @@ export default function YoutubeSettingsPage() {
           {manage ? (
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <label className="text-sm font-medium xl:col-span-2">YouTube Data API key
-                <input type="password" autoComplete="off" className={`${control} mt-1`} value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={settings.keyConfigured ? 'Leave blank to keep the saved key' : 'Paste the server-side API key'} />
+                <input type="password" autoComplete="off" className={`${control} mt-1`} value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={settings.keyConfigured ? 'Enter new API key or leave blank' : 'Enter YouTube Data API key'} />
               </label>
               <label className="text-sm font-medium">Default import limit
                 <input className={`${control} mt-1`} value={settings.defaultImportLimit} onChange={(event) => setSettings({ ...settings, defaultImportLimit: event.target.value })} />
@@ -141,9 +152,9 @@ export default function YoutubeSettingsPage() {
           ) : <p className="mt-3 text-sm text-slate-500">You can view the connection status. Changing the key requires settings access.</p>}
           {manage ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              <AdminButton variant="primary" loading={pending === 'save'} onClick={() => save()}>Save configuration</AdminButton>
-              <AdminButton loading={pending === 'test'} onClick={test}>Test connection</AdminButton>
-              <AdminButton loading={pending === 'clear'} onClick={() => save({ clear_key: true, api_key: '' }, 'clear')}>Remove saved key</AdminButton>
+              <AdminButton variant="primary" loading={pending === 'save'} process="Saving settings…" onClick={() => save()}>Save configuration</AdminButton>
+              <AdminButton loading={pending === 'test'} process="Testing YouTube connection…" onClick={test}>Test connection</AdminButton>
+              <AdminButton loading={pending === 'clear'} process="Removing API key…" onClick={() => save({ clear_key: true, api_key: '' }, 'clear')}>Remove saved key</AdminButton>
             </div>
           ) : null}
           <p className="mt-3 text-xs text-slate-500">{settings.notice} Remaining YouTube quota is not shown because the API does not provide it.</p>

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { DEFAULT_BRANDING, type RevealeoBranding } from '@/lib/cms/defaults';
+import { EmailField, NameField, PhoneField, TextAreaField, TextField } from '@/components/ui/FormFields';
+import { useProcess } from '@/components/ui/ProcessOverlay';
 import SafeImage from '@/components/ui/SafeImage';
-
-const input = 'mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
-const area = 'mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm';
+import { emailError, nameError, urlError } from '@/lib/forms/rules';
+import { phoneError, parsePhone } from '@/lib/forms/phone-countries';
 
 const ASSETS: { key: keyof RevealeoBranding; label: string; hint: string }[] = [
   { key: 'logo_url', label: 'Logo', hint: 'Header logo' },
@@ -18,9 +19,10 @@ export default function BrandingPage() {
   const [form, setForm] = useState<RevealeoBranding>(DEFAULT_BRANDING);
   const [previews, setPreviews] = useState<Partial<Record<keyof RevealeoBranding, string>>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string>('');
   const [message, setMessage] = useState('');
+  const [showError, setShowError] = useState(false);
+  const overlay = useProcess();
 
   useEffect(() => {
     fetch('/api/cms/branding')
@@ -41,15 +43,17 @@ export default function BrandingPage() {
     setUploading(key);
     setMessage('');
     try {
-      const body = new FormData();
-      body.append('file', file);
-      body.append('folder', 'branding');
-      body.append('field', key);
-      const res = await fetch('/api/cms/upload', { method: 'POST', body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      update(key, data.url);
-      setMessage('Image saved.');
+      await overlay.run('Uploading image…', async () => {
+        const body = new FormData();
+        body.append('file', file);
+        body.append('folder', 'branding');
+        body.append('field', key);
+        const res = await fetch('/api/cms/upload', { method: 'POST', body });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        update(key, data.url);
+        setMessage('Image saved.');
+      });
     } catch (err) {
       setPreviews((prev) => ({ ...prev, [key]: undefined }));
       throw err;
@@ -60,36 +64,39 @@ export default function BrandingPage() {
   };
 
   const save = async () => {
-    setSaving(true);
-    setMessage('');
-    try {
-      const res = await fetch('/api/cms/branding', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-      setForm({ ...DEFAULT_BRANDING, ...data });
-      setMessage('Branding saved.');
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
+    setShowError(true);
+    const parsed = parsePhone(form.phone);
+    const issue = nameError(form.company_name, 'company name') || (form.email ? emailError(form.email) : '') || phoneError(parsed.iso, parsed.national) || urlError(form.facebook_url) || urlError(form.instagram_url) || urlError(form.linkedin_url) || urlError(form.youtube_url) || urlError(form.twitter_url);
+    if (issue) {
+      setMessage(issue);
+      return;
     }
+    setMessage('');
+    await overlay.run('Saving branding…', async () => {
+      try {
+        const res = await fetch('/api/cms/branding', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Save failed');
+        setForm({ ...DEFAULT_BRANDING, ...data });
+        setMessage('Branding saved.');
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Save failed');
+      }
+    });
   };
 
   if (loading) return <p className="text-slate-500">Loading branding…</p>;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="font-bricolage text-3xl font-bold text-slate-900">Branding</h1>
-          <p className="mt-1 text-sm text-slate-500">Logos, favicon, Open Graph image, and company details for the Revealeo website.</p>
-        </div>
-        <button type="button" onClick={save} disabled={saving} className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-          {saving ? 'Saving…' : 'Save branding'}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-3xl font-bold text-slate-900">Branding</h1>
+        <button type="button" onClick={() => void save()} className="btn-primary">
+          Save branding
         </button>
       </div>
       {message ? <p className={`text-sm ${message.toLowerCase().includes('fail') ? 'text-rose-600' : 'text-emerald-700'}`}>{message}</p> : null}
@@ -130,31 +137,30 @@ export default function BrandingPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold text-slate-900">Company information</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-medium">Company name<input className={input} value={form.company_name} placeholder="Enter company name" onChange={(event) => update('company_name', event.target.value)} /></label>
-          <label className="text-sm font-medium">Tagline<input className={input} value={form.tagline} placeholder="Enter tagline" onChange={(event) => update('tagline', event.target.value)} /></label>
-          <label className="text-sm font-medium">Email<input className={input} value={form.email} placeholder="Enter email" onChange={(event) => update('email', event.target.value)} /></label>
-          <label className="text-sm font-medium">Phone<input className={input} value={form.phone} placeholder="Enter phone" onChange={(event) => update('phone', event.target.value)} /></label>
-          <label className="text-sm font-medium">Phone link<input className={input} value={form.phone_href} placeholder="Enter phone number" onChange={(event) => update('phone_href', event.target.value)} /></label>
-          <label className="text-sm font-medium sm:col-span-2">Address<textarea className={area} rows={3} value={form.address} placeholder="Enter address" onChange={(event) => update('address', event.target.value)} /></label>
+          <NameField label="Company name" value={form.company_name} onValue={(value) => update('company_name', value)} showError={showError} />
+          <TextField label="Tagline" value={form.tagline} onChange={(event) => update('tagline', event.target.value)} />
+          <EmailField value={form.email} onValue={(value) => update('email', value)} required={false} showError={showError} />
+          <PhoneField value={form.phone} onValue={(value) => update('phone', value)} onHref={(value) => update('phone_href', value)} showError={showError} />
+          <TextAreaField label="Address" className="sm:col-span-2" value={form.address} onChange={(event) => update('address', event.target.value)} />
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold text-slate-900">Social media</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-medium">Facebook URL<input className={input} value={form.facebook_url} placeholder="Enter Facebook URL" onChange={(event) => update('facebook_url', event.target.value)} /></label>
-          <label className="text-sm font-medium">Instagram URL<input className={input} value={form.instagram_url} placeholder="Enter Instagram URL" onChange={(event) => update('instagram_url', event.target.value)} /></label>
-          <label className="text-sm font-medium">LinkedIn URL<input className={input} value={form.linkedin_url} placeholder="Enter LinkedIn URL" onChange={(event) => update('linkedin_url', event.target.value)} /></label>
-          <label className="text-sm font-medium">YouTube URL<input className={input} value={form.youtube_url} placeholder="Enter YouTube URL" onChange={(event) => update('youtube_url', event.target.value)} /></label>
-          <label className="text-sm font-medium sm:col-span-2">X / Twitter URL<input className={input} value={form.twitter_url} placeholder="Enter X URL" onChange={(event) => update('twitter_url', event.target.value)} /></label>
+          <TextField label="Facebook URL" hint="Use a full URL starting with https://." error={showError ? urlError(form.facebook_url) : ''} value={form.facebook_url} onChange={(event) => update('facebook_url', event.target.value)} />
+          <TextField label="Instagram URL" hint="Use a full URL starting with https://." error={showError ? urlError(form.instagram_url) : ''} value={form.instagram_url} onChange={(event) => update('instagram_url', event.target.value)} />
+          <TextField label="LinkedIn URL" hint="Use a full URL starting with https://." error={showError ? urlError(form.linkedin_url) : ''} value={form.linkedin_url} onChange={(event) => update('linkedin_url', event.target.value)} />
+          <TextField label="YouTube URL" hint="Use a full URL starting with https://." error={showError ? urlError(form.youtube_url) : ''} value={form.youtube_url} onChange={(event) => update('youtube_url', event.target.value)} />
+          <TextField label="X / Twitter URL" className="sm:col-span-2" hint="Use a full URL starting with https://." error={showError ? urlError(form.twitter_url) : ''} value={form.twitter_url} onChange={(event) => update('twitter_url', event.target.value)} />
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold text-slate-900">Footer</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-medium">Footer description<textarea className={area} rows={3} value={form.footer_description} placeholder="Enter footer description" onChange={(event) => update('footer_description', event.target.value)} /></label>
-          <label className="text-sm font-medium">Copyright text<input className={input} value={form.copyright_text} placeholder="Enter copyright text" onChange={(event) => update('copyright_text', event.target.value)} /></label>
+          <TextAreaField label="Footer description" value={form.footer_description} onChange={(event) => update('footer_description', event.target.value)} />
+          <TextField label="Copyright text" value={form.copyright_text} onChange={(event) => update('copyright_text', event.target.value)} />
         </div>
       </section>
     </div>

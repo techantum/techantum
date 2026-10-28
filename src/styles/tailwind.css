@@ -71,6 +71,24 @@
   }
 }
 
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-secondary px-5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-px hover:bg-[#d93b1e] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-px hover:border-secondary/40 hover:text-secondary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/20 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold text-slate-500 transition hover:bg-orange-50 hover:text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/20 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-rose-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-px hover:bg-rose-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply min-h-8 px-3 text-xs;
+  }
+}
+
 @layer utilities {
   .admin-grid-bg {
     background-image:

@@ -1,4 +1,4 @@
-import { channelPublicUrl, watchUrl } from './parse';
+import { channelPublicUrl, parseTags, watchUrl } from './parse';
 
 export const YOUTUBE_DATA_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -32,6 +32,8 @@ export function presentChannel<T extends Record<string, unknown>>(row: T, now = 
     video_count: fresh ? count(row.video_count) : null,
     view_count: fresh ? count(row.view_count) : null,
     channel_published_at: fresh ? row.channel_published_at || null : null,
+    country: fresh ? row.country || (row.public_details as Record<string, unknown> | null)?.country || null : null,
+    public_details: fresh ? row.public_details || {} : null,
     videos_imported: count(row.videos_imported) || 0,
   };
 }
@@ -54,7 +56,7 @@ export function presentVideo<T extends Record<string, unknown>>(row: T, now = Da
     view_count: fresh ? count(row.view_count) : null,
     like_count: fresh ? count(row.like_count) : null,
     comment_count: fresh ? count(row.comment_count) : null,
-    tags: fresh ? (Array.isArray(row.tags) ? row.tags : []) : null,
+    tags: fresh ? parseTags(row.tags) : null,
     category_id: fresh ? row.category_id || null : null,
     default_language: fresh ? row.default_language || null : null,
     default_audio_language: fresh ? row.default_audio_language || null : null,
@@ -62,6 +64,7 @@ export function presentVideo<T extends Record<string, unknown>>(row: T, now = Da
     has_paid_product_placement: fresh
       ? (row.has_paid_product_placement == null ? null : Boolean(row.has_paid_product_placement))
       : null,
+    public_details: fresh ? row.public_details || {} : null,
     channel_name: channelFresh ? row.channel_name || null : null,
     topic_name: row.topic_name || null,
     thumbnail_caption: row.thumbnail_caption || null,

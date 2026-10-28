@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
-import AdminField, { adminInputClass, adminSelectClass, adminTextareaClass } from '@/components/admin/AdminField';
+import AdminField, { adminInputClass, adminTextareaClass } from '@/components/admin/AdminField';
 import AdminFormGrid from '@/components/admin/AdminFormGrid';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
@@ -54,36 +54,30 @@ export default function ProjectForm({ projectId = '' }: { projectId?: string }) 
   return (
     <div className="space-y-4">
       {projectId ? null : (
-        <AdminPageHeader kicker="YouTube Research" title="Create Research Project" description="Set up your YouTube research project to start analyzing channels and content." />
+        <AdminPageHeader title="Create Research Project" backHref={base} backLabel="Back" />
       )}
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       <AdminSection title={projectId ? 'Project details' : 'Project setup'} icon="RectangleStackIcon">
         <AdminFormGrid cols={2}>
           <AdminField label="Project name">
-            <input className={adminInputClass} value={form.name} onChange={(event) => set('name', event.target.value)} />
+            <input className={adminInputClass} value={form.name} placeholder="Enter project name" onChange={(event) => set('name', event.target.value)} />
           </AdminField>
           <AdminField label="Research objective">
-            <input className={adminInputClass} value={form.objective} onChange={(event) => set('objective', event.target.value)} placeholder="What this project should help you learn" />
+            <input className={adminInputClass} value={form.objective} onChange={(event) => set('objective', event.target.value)} placeholder="Enter research objective" />
           </AdminField>
           <AdminField label="Client / brand name">
-            <input className={adminInputClass} value={form.brand_name} onChange={(event) => set('brand_name', event.target.value)} />
+            <input className={adminInputClass} value={form.brand_name} placeholder="Enter brand name" onChange={(event) => set('brand_name', event.target.value)} />
           </AdminField>
           <AdminField label="Description">
-            <textarea className={adminTextareaClass} value={form.description} onChange={(event) => set('description', event.target.value)} placeholder="Optional notes about the research" />
+            <textarea className={adminTextareaClass} value={form.description} onChange={(event) => set('description', event.target.value)} placeholder="Enter description" />
           </AdminField>
           <AdminField label="Industry">
-            <input className={adminInputClass} value={form.industry} onChange={(event) => set('industry', event.target.value)} />
-          </AdminField>
-          <AdminField label="Status">
-            <select className={adminSelectClass} value={form.status} onChange={(event) => set('status', event.target.value)}>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-            </select>
+            <input className={adminInputClass} value={form.industry} placeholder="Enter industry" onChange={(event) => set('industry', event.target.value)} />
           </AdminField>
         </AdminFormGrid>
         <div className="mt-4 flex justify-end gap-2">
-          <Link href={base} className="inline-flex items-center rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700">Cancel</Link>
-          <AdminButton variant="primary" loading={busy} onClick={save}>{projectId ? 'Save Project' : 'Create Project'}</AdminButton>
+          <Link href={base} className="btn-secondary">Cancel</Link>
+          <AdminButton variant="primary" loading={busy} process={projectId ? 'Saving project…' : 'Creating project…'} onClick={save}>{projectId ? 'Save Project' : 'Create Project'}</AdminButton>
         </div>
       </AdminSection>
     </div>

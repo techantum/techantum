@@ -173,9 +173,7 @@ function AnalysisWorkspace() {
   }, [projectId, analysisId, current?.status]);
 
   const headerActions = useMemo(() => (
-    analysisId ? (
-      <Link className={partnerBtnSecondary} href={listHref}>← Back to analysis list</Link>
-    ) : (
+    analysisId ? null : (
       <>
         {manage ? (
           <Link className={partnerBtnSecondary} href={`${base}/channels?from=analysis`}>
@@ -187,7 +185,7 @@ function AnalysisWorkspace() {
         </Link>
       </>
     )
-  ), [analysisId, base, listHref, manage]);
+  ), [analysisId, base, manage]);
   useYoutubeRailActions(headerActions);
 
   const channelOptions = useMemo(() => {
@@ -296,6 +294,7 @@ function AnalysisWorkspace() {
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      {busy === 'report' ? <FetchVideosOverlay mode="report" /> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -320,7 +319,7 @@ function AnalysisWorkspace() {
           <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className={`${partnerInput} h-10 pl-9`}
-            placeholder="Search analysis by title or channel…"
+            placeholder="Enter analysis title or channel"
             value={q}
             onChange={(event) => setQ(event.target.value)}
           />

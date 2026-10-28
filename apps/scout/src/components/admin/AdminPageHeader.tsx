@@ -1,24 +1,34 @@
+import Link from 'next/link';
+import Icon from '@/components/ui/AppIcon';
+
 interface AdminPageHeaderProps {
   title: string;
   description?: string;
   action?: React.ReactNode;
   kicker?: string;
+  backHref?: string;
+  backLabel?: string;
 }
 
 export default function AdminPageHeader({
   title,
-  description,
   action,
-  kicker = 'Workspace',
+  backHref,
+  backLabel = 'Back',
 }: AdminPageHeaderProps) {
   return (
-    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{kicker}</p>
-        <h1 className="font-bricolage text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
-        {description && <p className="mt-1 max-w-3xl text-sm text-slate-500">{description}</p>}
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
+    <div className="flex w-full items-center justify-between gap-3">
+      <h1 className="min-w-0 font-bricolage text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
+      {action || backHref ? (
+        <div className="flex shrink-0 items-center gap-2">
+          {action}
+          {backHref ? (
+            <Link href={backHref} className="btn-secondary">
+              <Icon name="ArrowLeftIcon" size={16} /> {backLabel}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

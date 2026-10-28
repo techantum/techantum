@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
@@ -12,10 +11,6 @@ import LeadResultsTable from '@/components/admin/lead-discovery/LeadResultsTable
 import { displaySearchName } from '@/lib/places/sheet-data';
 import { useLeadDiscoveryPaths } from '@/components/lead-discovery/LeadDiscoveryPaths';
 import type { LeadDiscoveryResultRow, LeadDiscoveryRun } from '@/lib/places/types';
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-}
 
 export default function LeadDiscoveryDetailsPage() {
   const { apiBase, pageBase } = useLeadDiscoveryPaths();
@@ -44,23 +39,18 @@ export default function LeadDiscoveryDetailsPage() {
 
   return (
     <div className="w-full space-y-6">
-      <Link
-        href={pageBase}
-        className="inline-flex items-center text-sm font-medium text-secondary hover:text-secondary"
-      >
-        ← All saved searches
-      </Link>
-
       {isPartner ? (
         <PartnerPageHero
           title={run ? displaySearchName(run) : 'Search details'}
-          description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
+          backHref={pageBase}
+          backLabel="Back"
           action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
         />
       ) : (
         <AdminPageHeader
           title={run ? displaySearchName(run) : 'Search details'}
-          description={run ? `${run.text_query} · ${formatDate(run.created_at)}` : 'Loading the saved lead list.'}
+          backHref={pageBase}
+          backLabel="Back"
           action={run ? <LeadExportMenu runId={run.id} run={run} results={results} onMessage={setMessage} onError={setError} /> : null}
         />
       )}

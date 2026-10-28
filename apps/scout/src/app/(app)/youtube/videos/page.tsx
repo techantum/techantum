@@ -235,11 +235,13 @@ function Explorer() {
     setAnalyseOpen(true);
   };
 
-  const createAnalysis = async (config: AnalyseConfig, name: string) => yt(`projects/${projectId}/ai-analyses`, {
+  const createAnalysis = async (config: AnalyseConfig, name: string, mode: 'compare' | 'insights' = 'compare') => yt(`projects/${projectId}/ai-analyses`, {
     method: 'POST',
     body: JSON.stringify({
       name,
+      mode,
       goals: config.goals,
+      primaryGoal: config.primaryGoal,
       source: 'selected',
       videoIds: selected,
       contentFocus: ['titles', 'thumbnails', 'competitor_insights'],
@@ -258,7 +260,7 @@ function Explorer() {
     setBusy('summary');
     setError('');
     try {
-      const analysis = await createAnalysis(config, 'Video comparison');
+      const analysis = await createAnalysis(config, 'Video comparison', 'compare');
       setAnalyseOpen(false);
       router.push(`${base}/channel-compare?id=${analysis.id}`);
     } catch (err) {
@@ -433,7 +435,7 @@ function Explorer() {
             <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className={`${partnerInput} h-10 rounded-full pl-9`}
-              placeholder="Search videos by title, description or keywords…"
+              placeholder="Enter video title or keyword"
               value={filters.q}
               onChange={(event) => setFilters({ ...filters, q: event.target.value })}
               onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyFilters({ ...filters, q: event.currentTarget.value }); } }}
@@ -622,14 +624,14 @@ function Explorer() {
             </span>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-secondary"
               disabled={Boolean(busy) || selected.length < 2}
               title={selected.length < 2 ? 'Select at least two videos to compare' : 'Run a goal-based comparison'}
               onClick={openAnalyse}
             >
-              <Icon name="ChartBarIcon" size={16} /> Compare selected
+              <Icon name="ChartBarIcon" size={16} /> Analyse selected
             </button>
-            <button type="button" className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50" disabled={Boolean(busy)} onClick={generateReport}>
+            <button type="button" className="btn-primary" disabled={Boolean(busy)} onClick={generateReport}>
               <Icon name="DocumentChartBarIcon" size={16} /> Generate report
             </button>
           </div>
@@ -664,23 +666,15 @@ function Explorer() {
         : null}
 
       {fetching ? <FetchVideosOverlay /> : null}
-      {busy === 'summary' ? <FetchVideosOverlay mode="analysis" /> : null}
+      {busy === 'report' ? <FetchVideosOverlay mode="report" /> : null}
 
-      {busy === 'report' ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
-          <div className="rounded-3xl bg-white px-8 py-10 text-center shadow-2xl">
-            <p className="font-bricolage text-xl font-semibold text-slate-900">Generating report</p>
-            <p className="mt-2 max-w-sm text-sm text-slate-500">Saving a snapshot of the selected videos. This is not a comparison analysis.</p>
-          </div>
-        </div>
-      ) : null}
-
-      {analyseOpen && busy !== 'summary' ? (
+      {analyseOpen ? (
         <AnalyseModal
+          variant="direct"
           videos={selected.map((id) => picked[id] || rows.find((row) => row.id === id)).filter(Boolean)}
-          busy={false}
+          busy={busy === 'summary'}
           error={error}
-          onClose={() => setAnalyseOpen(false)}
+          onClose={() => { if (busy !== 'summary') setAnalyseOpen(false); }}
           onGenerate={runAnalysis}
         />
       ) : null}

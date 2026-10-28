@@ -30,7 +30,28 @@ type BillingState = {
   packages: Package[];
   events: { id: string; event_type: string; created_at: string; from_name: string | null; to_name: string | null }[];
   account: { status: string; trial_ends_at: string | null };
+  razorpay?: { configured: boolean; keyId: string };
 };
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+function loadRazorpay() {
+  return new Promise<void>((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Could not load Razorpay Checkout.'));
+    document.body.appendChild(script);
+  });
+}
 
 export default function BillingPage() {
   const [data, setData] = useState<BillingState | null>(null);
@@ -49,7 +70,7 @@ export default function BillingPage() {
     void load();
   }, []);
 
-  const apply = async (pkg: Package) => {
+  const applyDowngrade = async (pkg: Package) => {
     setBusy(pkg.id);
     setError('');
     setNotice('');
@@ -71,17 +92,67 @@ export default function BillingPage() {
     }
   };
 
+  const pay = async (pkg: Package) => {
+    setBusy(pkg.id);
+    setError('');
+    setNotice('');
+    try {
+      if (!data?.razorpay?.configured) {
+        throw new Error('Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to the server environment.');
+      }
+      const orderRes = await fetch('/api/billing/razorpay/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId: pkg.id }),
+      });
+      const order = await orderRes.json();
+      if (!orderRes.ok) throw new Error(order.error || 'Could not start Razorpay');
+      await loadRazorpay();
+      if (!window.Razorpay) throw new Error('Razorpay Checkout is not available.');
+      await new Promise<void>((resolve, reject) => {
+        const checkout = new window.Razorpay!({
+          key: order.keyId,
+          amount: order.amount,
+          currency: order.currency || 'INR',
+          name: 'Revealeo',
+          description: order.package?.name || pkg.name,
+          order_id: order.orderId,
+          handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+            try {
+              const verifyRes = await fetch('/api/billing/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...response, packageId: pkg.id }),
+              });
+              const verified = await verifyRes.json();
+              if (!verifyRes.ok) throw new Error(verified.error || 'Payment verification failed');
+              setNotice(verified.notice);
+              setConfirm(null);
+              await load();
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          },
+          modal: { ondismiss: () => reject(new Error('Payment was cancelled.')) },
+          theme: { color: '#7c3aed' },
+        });
+        checkout.open();
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not complete payment');
+    } finally {
+      setBusy('');
+    }
+  };
+
   if (!data) return <p className="text-slate-500">Loading billing…</p>;
   const current = data.package;
   const others = data.packages.filter((item) => item.id !== current?.id);
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-500">Billing & Subscription</p>
-        <h1 className="font-bricolage text-3xl font-bold text-slate-900">Billing & Subscription</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your plan and subscription. Amounts are shown in Indian rupees.</p>
-      </div>
+      <h1 className="font-bricolage text-3xl font-bold text-slate-900">Billing & Subscription</h1>
       {notice ? <p className="rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{notice}</p> : null}
       {error ? <p className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</p> : null}
 
@@ -96,11 +167,14 @@ export default function BillingPage() {
             <p className="mt-1 text-lg font-semibold text-violet-700">{formatInr(data.access.priceMonthly)} / month</p>
             <p className="mt-1 text-sm text-slate-500">
               {data.account.trial_ends_at ? `Trial ends ${new Date(data.account.trial_ends_at).toLocaleDateString('en-IN')}. ` : ''}
-              {data.access.periodEnd ? `Next renewal ${new Date(data.access.periodEnd).toLocaleDateString('en-IN')}.` : 'Payment status will appear here after billing is connected.'}
+              {data.access.periodEnd ? `Next renewal ${new Date(data.access.periodEnd).toLocaleDateString('en-IN')}.` : 'Pay with Razorpay in Indian Rupees to activate or upgrade a package.'}
             </p>
             {data.access.pendingChangeAt ? (
               <p className="mt-2 text-sm text-amber-700">A downgrade is scheduled for {new Date(data.access.pendingChangeAt).toLocaleDateString('en-IN')}.</p>
             ) : null}
+            <p className="mt-2 text-xs text-slate-400">
+              {data.razorpay?.configured ? 'Razorpay is connected. Upgrades collect payment in INR before features change.' : 'Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to collect payments.'}
+            </p>
           </div>
         </div>
         <div className="mt-5">
@@ -128,7 +202,7 @@ export default function BillingPage() {
                 </div>
                 {data.canManage ? (
                   <button type="button" onClick={() => setConfirm(item)} className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white">
-                    {upgrade ? 'Upgrade' : 'Downgrade'}
+                    {upgrade ? 'Pay & upgrade' : 'Downgrade'}
                   </button>
                 ) : null}
               </article>
@@ -149,16 +223,15 @@ export default function BillingPage() {
           ))}
           {data.events.length === 0 ? <li>No billing events yet.</li> : null}
         </ul>
-        <p className="mt-3 text-xs text-slate-400">Invoices and tax details will appear here after a payment provider is connected.</p>
       </section>
 
       {confirm ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-xl">
-            <h3 className="font-bricolage text-xl font-bold">{confirm.price_monthly >= (data.access.priceMonthly || 0) ? 'Upgrade package' : 'Downgrade package'}</h3>
+            <h3 className="font-bricolage text-xl font-bold">{confirm.price_monthly >= (data.access.priceMonthly || 0) ? 'Pay with Razorpay' : 'Downgrade package'}</h3>
             <p className="mt-2 text-sm text-slate-600">
               {confirm.price_monthly >= (data.access.priceMonthly || 0)
-                ? `You will move to ${confirm.name} at ${formatInr(confirm.price_monthly, { withCycle: 'monthly' })}. Additional features become available immediately.`
+                ? `You will pay ${formatInr(confirm.price_monthly)} for ${confirm.name} and receive the included features immediately.`
                 : `You will lose access to features not included in ${confirm.name}. The change takes effect at the next renewal${data.access.periodEnd ? ` (${new Date(data.access.periodEnd).toLocaleDateString('en-IN')})` : ''}.`}
             </p>
             <ul className="mt-3 space-y-1 text-sm text-slate-600">
@@ -168,8 +241,13 @@ export default function BillingPage() {
             </ul>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setConfirm(null)}>Cancel</button>
-              <button type="button" disabled={Boolean(busy)} className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => void apply(confirm)}>
-                {busy ? 'Saving…' : 'Confirm'}
+              <button
+                type="button"
+                disabled={Boolean(busy)}
+                className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => void (confirm.price_monthly >= (data.access.priceMonthly || 0) ? pay(confirm) : applyDowngrade(confirm))}
+              >
+                {busy ? 'Working…' : confirm.price_monthly >= (data.access.priceMonthly || 0) ? 'Continue to Razorpay' : 'Confirm'}
               </button>
             </div>
           </div>

@@ -151,7 +151,7 @@ export function ResearchFilters({
       <div className="flex flex-wrap items-center gap-2">
         <label className="relative min-w-[16rem] flex-1">
           <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" placeholder="Search title, description, or tags" value={value.q} onChange={(event) => set({ q: event.target.value })} />
+          <input className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" placeholder="Enter title, description or tag" value={value.q} onChange={(event) => set({ q: event.target.value })} />
         </label>
         <FilterSelect label="Channel" value={value.channelIds || ''} onChange={(channelIds) => apply({ channelIds })}>
           <option value="">All channels</option>
@@ -201,14 +201,14 @@ export function ResearchFilters({
           <AdminButton variant="primary" loading={searching} onClick={() => onApply(value)}>Search</AdminButton>
           <AdminButton onClick={onReset}>Clear</AdminButton>
           {onCompare ? (
-            <AdminButton variant="primary" disabled={compareDisabled} onClick={onCompare}>Compare selected{selectedCount ? ` (${selectedCount})` : ''}</AdminButton>
+            <AdminButton variant="primary" disabled={compareDisabled} onClick={onCompare}>Analyse selected{selectedCount ? ` (${selectedCount})` : ''}</AdminButton>
           ) : null}
         </span>
       </div>
       {onCompare ? (
         <p className="mt-2 text-xs text-slate-500">
           {selectedCount >= 2
-            ? `${selectedCount} videos selected. Compare selected is ready.`
+            ? `${selectedCount} videos selected. Analyse selected is ready.`
             : 'Select at least two videos in the list to compare.'}
         </p>
       ) : null}

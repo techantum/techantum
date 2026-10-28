@@ -1,14 +1,11 @@
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 
-export const partnerBtnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-secondary/90 disabled:cursor-not-allowed disabled:opacity-50';
+export const partnerBtnPrimary = 'btn-primary';
 
-export const partnerBtnSecondary =
-  'inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary disabled:opacity-50';
+export const partnerBtnSecondary = 'btn-secondary';
 
-export const partnerBtnGhost =
-  'inline-flex items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-secondary';
+export const partnerBtnGhost = 'btn-ghost';
 
 export const partnerInput =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:bg-slate-50 disabled:text-slate-500';
@@ -33,26 +30,33 @@ export type PartnerStatTone = keyof typeof STAT_TONES;
 
 export function PartnerPageHero({
   title,
-  description,
   action,
-  eyebrow,
+  backHref,
+  backLabel = 'Back',
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   eyebrow?: string;
+  backHref?: string;
+  backLabel?: string;
 }) {
   return (
     <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50 px-6 py-6 sm:px-8">
       <div className="pointer-events-none absolute -right-16 top-0 h-48 w-64 rounded-full bg-white/50 blur-2xl" />
       <div className="pointer-events-none absolute right-24 -bottom-16 h-40 w-40 rounded-full bg-orange-100/80 blur-2xl" />
-      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          {eyebrow ? <p className="text-sm text-slate-500">{eyebrow}</p> : null}
-          <h1 className="font-bricolage text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
-          {description ? <p className="mt-2 max-w-2xl text-sm text-slate-500">{description}</p> : null}
-        </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+      <div className="relative flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
+        {action || backHref ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {action}
+            {backHref ? (
+              <Link href={backHref} className="btn-secondary">
+                <Icon name="ArrowLeftIcon" size={16} /> {backLabel}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );

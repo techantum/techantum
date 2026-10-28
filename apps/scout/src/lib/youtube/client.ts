@@ -20,6 +20,8 @@ export class YoutubeApiError extends Error {
   }
 }
 
+export type YoutubePublicDetails = Record<string, unknown>;
+
 export type ResolvedChannel = {
   youtubeChannelId: string;
   channelName: string | null;
@@ -32,10 +34,14 @@ export type ResolvedChannel = {
   videoCount: number | null;
   viewCount: number | null;
   publishedAt: string | null;
+  country: string | null;
+  publicDetails: YoutubePublicDetails;
 };
 
 export type ResolvedVideo = {
   youtubeVideoId: string;
+  youtubeChannelId: string | null;
+  channelTitle: string | null;
   title: string | null;
   description: string | null;
   publishedAt: string | null;
@@ -49,6 +55,7 @@ export type ResolvedVideo = {
   defaultLanguage: string | null;
   defaultAudioLanguage: string | null;
   hasPaidProductPlacement: boolean | null;
+  publicDetails: YoutubePublicDetails;
 };
 
 export const YOUTUBE_CONNECTED_MESSAGE = 'YouTube Data API connected successfully.';
@@ -135,11 +142,24 @@ function thumbnail(snippet: { thumbnails?: Record<string, { url?: string }> } | 
   return thumbs.maxres?.url || thumbs.standard?.url || thumbs.high?.url || thumbs.medium?.url || thumbs.default?.url || null;
 }
 
+function stringList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || '').trim()).filter(Boolean);
+}
+
+function keywordList(raw: unknown) {
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  return [...new Set((text.match(/"[^"]+"|\S+/g) || []).map((item) => item.replace(/^"|"$/g, '').trim()).filter(Boolean))];
+}
+
 function mapChannel(item: Record<string, any>): ResolvedChannel | null {
   const id = String(item?.id || '');
   if (!id) return null;
   const snippet = item.snippet || {};
+  const branding = item.brandingSettings || {};
   const handle = snippet.customUrl ? String(snippet.customUrl).replace(/^@/, '') : null;
+  const country = snippet.country || branding.channel?.country || null;
   return {
     youtubeChannelId: id,
     channelName: snippet.title || null,
@@ -152,6 +172,19 @@ function mapChannel(item: Record<string, any>): ResolvedChannel | null {
     videoCount: stat(item.statistics, 'videoCount'),
     viewCount: stat(item.statistics, 'viewCount'),
     publishedAt: snippet.publishedAt || null,
+    country,
+    publicDetails: {
+      country,
+      keywords: keywordList(branding.channel?.keywords),
+      bannerUrl: branding.image?.bannerExternalUrl || null,
+      unsubscribedTrailer: branding.channel?.unsubscribedTrailer || null,
+      defaultLanguage: snippet.defaultLanguage || branding.channel?.defaultLanguage || null,
+      topicCategories: stringList(item.topicDetails?.topicCategories),
+      hiddenSubscriberCount: item.statistics?.hiddenSubscriberCount === true,
+      privacyStatus: item.status?.privacyStatus || null,
+      isLinked: typeof item.status?.isLinked === 'boolean' ? item.status.isLinked : null,
+      madeForKids: typeof item.status?.madeForKids === 'boolean' ? item.status.madeForKids : null,
+    },
   };
 }
 
@@ -159,23 +192,49 @@ function mapVideo(item: Record<string, any>): ResolvedVideo | null {
   const id = String(item?.id || '');
   if (!id) return null;
   const snippet = item.snippet || {};
+  const details = item.contentDetails || {};
+  const status = item.status || {};
+  const stats = item.statistics || {};
+  const topics = item.topicDetails || {};
+  const recording = item.recordingDetails || {};
+  const live = item.liveStreamingDetails || {};
   return {
     youtubeVideoId: id,
+    youtubeChannelId: snippet.channelId || null,
+    channelTitle: snippet.channelTitle || null,
     title: snippet.title || null,
     description: snippet.description ?? null,
     publishedAt: snippet.publishedAt || null,
-    duration: item.contentDetails?.duration || null,
+    duration: details.duration || null,
     thumbnailUrl: thumbnail(snippet),
-    viewCount: stat(item.statistics, 'viewCount'),
-    likeCount: stat(item.statistics, 'likeCount'),
-    commentCount: stat(item.statistics, 'commentCount'),
-    tags: Array.isArray(snippet.tags) ? snippet.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean).slice(0, 80) : [],
+    viewCount: stat(stats, 'viewCount'),
+    likeCount: stat(stats, 'likeCount'),
+    commentCount: stat(stats, 'commentCount'),
+    tags: stringList(snippet.tags),
     categoryId: snippet.categoryId || null,
     defaultLanguage: snippet.defaultLanguage || null,
     defaultAudioLanguage: snippet.defaultAudioLanguage || null,
     hasPaidProductPlacement: typeof item.paidProductPlacementDetails?.hasPaidProductPlacement === 'boolean'
       ? item.paidProductPlacementDetails.hasPaidProductPlacement
       : null,
+    publicDetails: {
+      definition: details.definition || null,
+      caption: details.caption === 'true' ? true : details.caption === 'false' ? false : null,
+      licensedContent: typeof details.licensedContent === 'boolean' ? details.licensedContent : null,
+      dimension: details.dimension || null,
+      projection: details.projection || null,
+      privacyStatus: status.privacyStatus || null,
+      license: status.license || null,
+      embeddable: typeof status.embeddable === 'boolean' ? status.embeddable : null,
+      publicStatsViewable: typeof status.publicStatsViewable === 'boolean' ? status.publicStatsViewable : null,
+      madeForKids: typeof status.madeForKids === 'boolean' ? status.madeForKids : null,
+      liveBroadcastContent: snippet.liveBroadcastContent || null,
+      favoriteCount: stat(stats, 'favoriteCount'),
+      topicCategories: stringList(topics.topicCategories),
+      recordingDate: recording.recordingDate || null,
+      scheduledStartTime: live.scheduledStartTime || null,
+      actualStartTime: live.actualStartTime || null,
+    },
   };
 }
 
@@ -222,7 +281,12 @@ export function createYoutube(apiKey: string, fetchImpl: YoutubeFetch = fetch) {
         : parsed.kind === 'handle'
           ? { forHandle: `@${parsed.value}` }
           : { forUsername: parsed.value };
-      const data = await get('channels', { part: 'snippet,statistics,contentDetails', ...params });
+      let data: Record<string, any>;
+      try {
+        data = await get('channels', { part: 'snippet,statistics,contentDetails,brandingSettings,topicDetails,status', ...params });
+      } catch {
+        data = await get('channels', { part: 'snippet,statistics,contentDetails', ...params });
+      }
       const channel = mapChannel(data.items?.[0]);
       if (!channel) throw new YoutubeApiError('not_found', MESSAGES.not_found, 404);
       return channel;
@@ -271,9 +335,16 @@ export function createYoutube(apiKey: string, fetchImpl: YoutubeFetch = fetch) {
         if (!batch.length) continue;
         let data: Record<string, any>;
         try {
-          data = await get('videos', { part: 'snippet,statistics,contentDetails,paidProductPlacementDetails', id: batch.join(',') });
+          data = await get('videos', {
+            part: 'snippet,statistics,contentDetails,status,topicDetails,recordingDetails,liveStreamingDetails,paidProductPlacementDetails',
+            id: batch.join(','),
+          });
         } catch {
-          data = await get('videos', { part: 'snippet,statistics,contentDetails', id: batch.join(',') });
+          try {
+            data = await get('videos', { part: 'snippet,statistics,contentDetails,status,topicDetails,paidProductPlacementDetails', id: batch.join(',') });
+          } catch {
+            data = await get('videos', { part: 'snippet,statistics,contentDetails', id: batch.join(',') });
+          }
         }
         for (const item of data.items || []) {
           const video = mapVideo(item);

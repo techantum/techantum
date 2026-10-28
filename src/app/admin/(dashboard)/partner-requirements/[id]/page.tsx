@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminSection from '@/components/admin/AdminSection';
@@ -143,7 +142,13 @@ export default function AdminPartnerRequirementDetailPage() {
     <div className="w-full space-y-6">
       <AdminPageHeader
         title={String(req.project_name || 'Requirement Detail')}
-        description={`Reference ${String(req.reference_id)}`}
+        backHref="/admin/partner-requirements"
+        backLabel="Back"
+        action={
+          <button type="button" onClick={regenerate} disabled={regenerating} className="btn-primary">
+            {regenerating ? 'Regenerating…' : 'Regenerate SOW'}
+          </button>
+        }
       />
 
       {message && (
@@ -151,23 +156,6 @@ export default function AdminPartnerRequirementDetailPage() {
           {message}
         </p>
       )}
-
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/admin/partner-requirements"
-          className="text-sm text-muted-foreground hover:text-primary"
-        >
-          ← Back to requirements
-        </Link>
-        <button
-          type="button"
-          onClick={regenerate}
-          disabled={regenerating}
-          className="ml-auto inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-[#d93b1e] disabled:opacity-50"
-        >
-          {regenerating ? 'Regenerating…' : 'Regenerate SOW'}
-        </button>
-      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {([

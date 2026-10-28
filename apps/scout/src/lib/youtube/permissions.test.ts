@@ -10,6 +10,8 @@ describe('Revealeo platform YouTube roles', () => {
     assert.equal(hasYoutubePermission('subscriber_admin', [], 'youtube_research.channels.manage'), true);
     assert.equal(hasYoutubePermission('owner', [], 'youtube_research.settings.manage'), false);
     assert.equal(permissionsForRole('subscriber_user', []).includes('youtube_research.settings.manage'), false);
+    assert.equal(hasYoutubePermission('subscriber_admin', [], 'youtube_research.hookooh.knowledge'), true);
+    assert.equal(hasYoutubePermission('subscriber_user', [], 'youtube_research.hookooh.knowledge'), false);
     assert.equal(permissionsForRole('SUPER_ADMIN', []).length, YOUTUBE_PERMISSIONS.length);
   });
 });

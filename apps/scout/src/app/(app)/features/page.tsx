@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { TextField } from '@/components/ui/FormFields';
+import { useProcess } from '@/components/ui/ProcessOverlay';
 import type { CatalogFeature } from '@/lib/saas/catalog';
 
 const input = 'mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm';
@@ -12,6 +14,7 @@ export default function FeaturesPage() {
   const [form, setForm] = useState(empty);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
+  const overlay = useProcess();
 
   const load = useCallback(async () => {
     const res = await fetch('/api/admin/features');
@@ -24,29 +27,32 @@ export default function FeaturesPage() {
   }, [load]);
 
   const save = async () => {
-    setMessage('');
-    const res = await fetch('/api/admin/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, id: form.id || undefined }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(data.error || 'Could not save feature');
+    if (!form.name.trim() || !form.feature_key.trim() || !form.route.trim()) {
+      setMessage('Enter feature name, feature key and route.');
       return;
     }
-    setOpen(false);
-    await load();
+    setMessage('');
+    await overlay.run('Saving feature…', async () => {
+      const res = await fetch('/api/admin/features', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, id: form.id || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || 'Could not save feature');
+        return;
+      }
+      setOpen(false);
+      await load();
+    });
   };
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="font-bricolage text-3xl font-bold text-slate-900">Feature Catalog</h1>
-          <p className="mt-1 text-sm text-slate-500">Register modules once, then assign them to packages. New modules can be added without changing subscriber navigation code.</p>
-        </div>
-        <button type="button" onClick={() => { setForm(empty); setOpen(true); }} className="rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-3xl font-bold text-slate-900">Feature Catalog</h1>
+        <button type="button" onClick={() => { setForm(empty); setOpen(true); }} className="btn-primary">
           + Add Feature
         </button>
       </div>
@@ -74,7 +80,7 @@ export default function FeaturesPage() {
                 <td className="px-5 py-4 font-mono text-xs">{row.route}</td>
                 <td className="px-5 py-4 capitalize">{row.status}</td>
                 <td className="px-5 py-4">
-                  <button type="button" className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => { setForm({ ...row, id: row.id }); setOpen(true); }}>Edit</button>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => { setForm({ ...row, id: row.id }); setOpen(true); }}>Edit</button>
                 </td>
               </tr>
             ))}
@@ -86,12 +92,14 @@ export default function FeaturesPage() {
           <h2 className="font-bricolage text-xl font-bold">{form.id ? 'Edit Feature' : 'Add Feature'}</h2>
           {message ? <p className="mt-2 text-sm text-rose-600">{message}</p> : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-medium">Feature name<input className={input} value={form.name} placeholder="Enter feature name" onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-            <label className="text-sm font-medium">Feature key<input className={input} value={form.feature_key} placeholder="Enter feature key" onChange={(event) => setForm({ ...form, feature_key: event.target.value })} /></label>
-            <label className="text-sm font-medium">Sidebar label<input className={input} value={form.sidebar_label} placeholder="Enter sidebar label" onChange={(event) => setForm({ ...form, sidebar_label: event.target.value })} /></label>
-            <label className="text-sm font-medium">Route<input className={input} value={form.route} placeholder="Enter route" onChange={(event) => setForm({ ...form, route: event.target.value })} /></label>
-            <label className="text-sm font-medium sm:col-span-2">Description<input className={input} value={form.description} placeholder="Enter description" onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
-            <label className="text-sm font-medium">Icon<input className={input} value={form.icon} placeholder="Enter icon name" onChange={(event) => setForm({ ...form, icon: event.target.value })} /></label>
+            <TextField label="Feature name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+            <TextField label="Feature key" value={form.feature_key} onChange={(event) => setForm({ ...form, feature_key: event.target.value })} />
+            <TextField label="Sidebar label" value={form.sidebar_label} onChange={(event) => setForm({ ...form, sidebar_label: event.target.value })} />
+            <TextField label="Route" value={form.route} onChange={(event) => setForm({ ...form, route: event.target.value })} />
+            <div className="sm:col-span-2">
+              <TextField label="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+            </div>
+            <TextField label="Icon name" value={form.icon} onChange={(event) => setForm({ ...form, icon: event.target.value })} />
             <label className="text-sm font-medium">Status
               <select className={input} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as 'active' | 'inactive' })}>
                 <option value="active">Active</option>
@@ -100,8 +108,8 @@ export default function FeaturesPage() {
             </label>
           </div>
           <div className="mt-4 flex justify-end gap-2">
-            <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold">Cancel</button>
-            <button type="button" onClick={() => void save()} className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white">Save Feature</button>
+            <button type="button" onClick={() => setOpen(false)} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={() => void save()} className="btn-primary">Save Feature</button>
           </div>
         </section>
       ) : null}

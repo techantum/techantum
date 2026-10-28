@@ -1,12 +1,13 @@
 import { generateAIChat } from '../ai/gateway';
+import { enabledTrainingText, YOUTUBE_MASTER_SYSTEM } from './youtube-master';
 import { parseModelJson } from '../ai/json';
 import { q } from '../finance/db';
 import { FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { listProjectChannels, listProjectVideos } from './projects';
 import { enrichComparisonVideos } from './thumbnail-read';
 import { captionLanguageNames, enrichSpokenContent } from './video-content';
-import { assertYoutubeProject } from './scope';
-import { lengthLabel, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
+import { assertYoutubeProject, currentSaasAccountId, currentYoutubePartnerId } from './scope';
+import { lengthLabel, parseTags, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
 
 export const ANALYTICS_UNAVAILABLE = 'Not available through the current YouTube integration.';
 export const ANALYTICS_HINT = 'Connect an authorized YouTube channel for additional audience insights.';
@@ -14,13 +15,17 @@ export const AI_RESEARCH_NOTICE =
   `${YOUTUBE_METRIC_NOTICE} AI recommendations use those public fields plus your selected goals. They are hypotheses to test, not guarantees. Audience targets are desired goals unless authorized YouTube Analytics is connected.`;
 
 export const IMPROVEMENT_GOALS = [
-  { id: 'views', label: 'Views', group: 'reach' },
-  { id: 'likes', label: 'Likes', group: 'engagement' },
-  { id: 'comments', label: 'Comments', group: 'engagement' },
-  { id: 'engagement', label: 'Engagement', group: 'engagement' },
-  { id: 'retention', label: 'Retention', group: 'audience' },
+  { id: 'views', label: 'Increase Views', group: 'reach' },
+  { id: 'ctr', label: 'Improve CTR', group: 'reach' },
+  { id: 'retention', label: 'Improve Retention', group: 'audience' },
+  { id: 'engagement', label: 'Increase Engagement', group: 'engagement' },
+  { id: 'subscribers', label: 'Grow Subscribers', group: 'audience' },
+  { id: 'discoverability', label: 'Improve Search Visibility', group: 'reach' },
+  { id: 'competitors', label: 'Analyze Competitors', group: 'research' },
+  { id: 'publishing', label: 'Improve Publishing Strategy', group: 'operations' },
+  { id: 'likes', label: 'Increase Likes', group: 'engagement' },
+  { id: 'comments', label: 'More Comments', group: 'engagement' },
   { id: 'audience', label: 'Audience', group: 'audience' },
-  { id: 'discoverability', label: 'Discoverability', group: 'reach' },
 ] as const;
 
 export const RESEARCH_SOURCES = [
@@ -68,6 +73,7 @@ export type ContentFocus = (typeof CONTENT_FOCUS)[number]['id'];
 
 export type AiResearchConfig = {
   goals: ImprovementGoal[];
+  primaryGoal: ImprovementGoal;
   source: ResearchSource;
   videoIds: string[];
   contentFocus: ContentFocus[];
@@ -103,6 +109,10 @@ type EvidenceVideo = {
   thumbnail_text: string | null;
   thumbnail_scene: string | null;
   tags: string[];
+  category_id: string | null;
+  default_language: string | null;
+  default_audio_language: string | null;
+  public_details: Record<string, unknown>;
   view_count: number | null;
   like_count: number | null;
   comment_count: number | null;
@@ -121,8 +131,12 @@ function listText(value: unknown, extra?: unknown, max = 12, size = 60) {
 }
 
 export function parseAiResearchConfig(body: Record<string, unknown>): AiResearchConfig {
-  const goals = uniqueIds(body.goals, IMPROVEMENT_GOALS.map((item) => item.id)) as ImprovementGoal[];
-  if (!goals.length) throw new FinanceValidationError('Select at least one improvement goal.');
+  const allowed = IMPROVEMENT_GOALS.map((item) => item.id);
+  const selected = uniqueIds(body.goals, allowed) as ImprovementGoal[];
+  if (!selected.length) throw new FinanceValidationError('Select at least one improvement goal.');
+  const primaryRaw = String(body.primaryGoal || body.primary_goal || selected[0]);
+  const primaryGoal = (allowed.includes(primaryRaw) ? primaryRaw : selected[0]) as ImprovementGoal;
+  const goals = selected.includes(primaryGoal) ? [primaryGoal, ...selected.filter((item) => item !== primaryGoal)] : [primaryGoal, ...selected];
   const videoIds = Array.isArray(body.videoIds) ? [...new Set(body.videoIds.map(String).filter(Boolean))].slice(0, 40) : [];
   const sourceRaw = String(body.source || (videoIds.length ? 'selected' : 'own'));
   const source = RESEARCH_SOURCES.some((item) => item.id === sourceRaw) ? (sourceRaw as ResearchSource) : 'own';
@@ -134,6 +148,7 @@ export function parseAiResearchConfig(body: Record<string, unknown>): AiResearch
   const geographies = listText(body.geographies, body.targetGeography);
   return {
     goals,
+    primaryGoal,
     source,
     videoIds,
     contentFocus: uniqueIds(body.contentFocus, CONTENT_FOCUS.map((item) => item.id)) as ContentFocus[],
@@ -180,7 +195,11 @@ function compactVideo(row: Record<string, any>, channels: { id: string; youtube_
     duration: row.duration || null,
     thumbnail_text: row.thumbnail_text || null,
     thumbnail_scene: row.thumbnail_scene || null,
-    tags: Array.isArray(row.tags) ? row.tags.map(String).slice(0, 12) : [],
+    tags: parseTags(row.tags),
+    category_id: row.category_id || null,
+    default_language: row.default_language || null,
+    default_audio_language: row.default_audio_language || null,
+    public_details: row.public_details && typeof row.public_details === 'object' ? row.public_details : {},
     view_count: row.view_count == null ? null : Number(row.view_count),
     like_count: row.like_count == null ? null : Number(row.like_count),
     comment_count: row.comment_count == null ? null : Number(row.comment_count),
@@ -188,7 +207,7 @@ function compactVideo(row: Record<string, any>, channels: { id: string; youtube_
     thumbnail_url: youtubeThumbUrl(row.youtube_video_id, row.thumbnail_url) || null,
     channel_thumbnail_url: channel?.thumbnail_url || row.channel_thumbnail_url || null,
     thumbnail_caption: row.thumbnail_caption || null,
-    description: row.description ? String(row.description).slice(0, 2500) : null,
+    description: row.description ? String(row.description).slice(0, 5000) : null,
     spoken_text: row.spoken_text ? String(row.spoken_text).slice(0, 14000) : null,
     spoken_source: row.spoken_source === 'captions' || row.spoken_source === 'description' ? row.spoken_source : null,
   };
@@ -351,6 +370,109 @@ export function buildFallbackActions(videos: EvidenceVideo[], config: AiResearch
   return actions.slice(0, 8);
 }
 
+function goalCoachName(id: string) {
+  return IMPROVEMENT_GOALS.find((item) => item.id === id)?.label || id;
+}
+
+function metricForGoal(goal: string) {
+  if (goal === 'likes') return 'like_count' as const;
+  if (goal === 'comments') return 'comment_count' as const;
+  return 'view_count' as const;
+}
+
+export function buildFallbackGuides(videos: EvidenceVideo[], config: AiResearchConfig) {
+  const guides: Record<string, unknown>[] = [];
+  for (const goal of config.goals) {
+    const key = metricForGoal(goal);
+    const ranked = [...videos].sort((a, b) => Number(b[key] || 0) - Number(a[key] || 0));
+    const leader = ranked[0];
+    for (const video of videos) {
+      const ownValue = Number(video[key] || 0);
+      const leadValue = Number(leader?.[key] || 0);
+      const behind = leader && String(leader.id) !== String(video.id) && ownValue < leadValue;
+      const tags = video.tags || [];
+      const leaderTags = leader?.tags || [];
+      const missingTags = leaderTags.filter((tag) => !tags.some((item) => item.toLowerCase() === tag.toLowerCase())).slice(0, 8);
+      const steps = goal === 'views'
+        ? [
+          { title: 'See why this video is behind on views', detail: behind
+            ? `${leader?.title || 'The leading video'} has ${leadValue.toLocaleString('en-IN')} public views. This video has ${ownValue.toLocaleString('en-IN')}. YouTube does not give CTR here, so treat packaging as the first test: title, thumbnail words, and tags.`
+            : `This video currently leads this set on public views (${ownValue.toLocaleString('en-IN')}). Protect the promise in the title and thumbnail, then copy what is working onto weaker videos.` },
+          { title: 'Rewrite the title as one clear promise', detail: `Keep the topic, but name the outcome a viewer wants. Compare against “${leader?.title || 'the leading title'}”. Put the searchable phrase near the front.` },
+          { title: 'Match the thumbnail to that same promise', detail: video.thumbnail_text
+            ? `On-image words now: “${video.thumbnail_text}”. Use 1–3 high-contrast words that repeat the new title promise.`
+            : 'Use one face or object and 1–3 high-contrast words that repeat the title promise.' },
+          { title: 'Fix the first line of the description and the public tags', detail: missingTags.length
+            ? `Add topical tags the stronger video already uses, such as: ${missingTags.join(', ')}. First line of the description should restate the title.`
+            : 'Restate the title in the first description line. Add 5–12 topical tags, not repeats of the whole title.' },
+          { title: 'Ask for one action in the first comment', detail: 'Pin a comment that continues the topic. Public comments are the only conversation signal in this dataset.' },
+        ]
+        : [
+          { title: `Diagnose ${goalCoachName(goal).toLowerCase()} from public counts`, detail: behind
+            ? `This video is behind “${leader?.title || 'the leader'}” on ${goalCoachName(goal).toLowerCase()} (${ownValue.toLocaleString('en-IN')} vs ${leadValue.toLocaleString('en-IN')}).`
+            : `This video is the current leader in this set on ${goalCoachName(goal).toLowerCase()}.` },
+          { title: 'Change one packaging element this week', detail: 'Edit title or thumbnail so the click promise is obvious. Do not change the video file.' },
+          { title: 'Tell viewers what to do next', detail: goal === 'comments'
+            ? 'Ask one specific question on-screen and in the description. Pin a reply that invites a second comment.'
+            : 'Ask for the next public action that fits the video. Keep it to one request.' },
+          { title: 'Reuse tags and phrasing from the stronger video', detail: missingTags.length
+            ? `Consider these public tags from the stronger video: ${missingTags.join(', ')}.`
+            : 'Keep tags topical. YouTube hides tags that the owner never published.' },
+        ];
+      guides.push({
+        goal,
+        video_id: video.id,
+        diagnosis: behind
+          ? `This video has fewer public ${goal === 'likes' ? 'likes' : goal === 'comments' ? 'comments' : 'views'} than “${leader?.title}”. Use the steps below as a YouTube Master checklist, not a report.`
+          : `This video is the reference in this set for ${goalCoachName(goal).toLowerCase()}. Use it as the pattern for the others.`,
+        steps,
+      });
+    }
+  }
+  return guides.slice(0, 16);
+}
+
+function buildFallbackReport(videos: EvidenceVideo[], config: AiResearchConfig) {
+  const goal = goalCoachName(config.primaryGoal);
+  const ranked = [...videos].sort((a, b) => Number(b.view_count || 0) - Number(a.view_count || 0));
+  const leader = ranked[0];
+  const weaker = ranked[ranked.length - 1];
+  return {
+    selected_goal: goal,
+    overall_assessment: `Primary goal is ${goal}. Public Data API counts can rank these videos, but CTR, retention, and traffic are not in this payload.`,
+    findings: [
+      { title: 'Public view gap', detail: leader && weaker ? `“${leader.title}” has ${Number(leader.view_count || 0).toLocaleString('en-IN')} public views vs “${weaker.title}” at ${Number(weaker.view_count || 0).toLocaleString('en-IN')}.` : 'Compare public views in this set.', evidence: 'YouTube Data API viewCount' },
+      { title: 'Analytics not connected', detail: 'CTR, impressions, and retention curves are unavailable for competitor research unless authorized Analytics is supplied.', evidence: ANALYTICS_UNAVAILABLE },
+    ],
+    working: leader ? [`Highest public views in this set: “${leader.title}”. Preserve that topic and packaging pattern.`] : [],
+    improve: weaker ? [`“${weaker.title}” lags on public views. Test a clearer title/thumbnail promise before adding SEO volume.`] : [],
+    actions: buildFallbackActions(videos, config).slice(0, 5).map((item, index) => ({
+      priority: index === 0 ? 'P1' : 'P2',
+      title: item.title,
+      problem: `Public performance on ${goal} is uneven in this set.`,
+      evidence: item.description,
+      why: 'Tied to the selected goal using public counts and packaging only.',
+      change: item.title,
+      how: item.description,
+      metric: item.metric,
+      review_period: item.review_period,
+      confidence: 'moderate',
+      video_id: item.video_id,
+    })),
+    creative: { titles: [], thumbnails: [], hooks: [], structure: [], seo: [], cta: [] },
+    competitor_learnings: videos.some((video) => video.relationship === 'competitor')
+      ? ['Use competitor public titles and thumbnail OCR as patterns to test, not assets to copy.']
+      : [],
+    success: config.primaryGoal === 'ctr'
+      ? 'CTR needs authorized impressions. Until then, monitor public views after a packaging test.'
+      : config.primaryGoal === 'retention'
+        ? 'Retention needs authorized Analytics. Until then, treat opening/structure changes as hypotheses.'
+        : 'Monitor public views, likes, and comments over 14 days against similar-age videos.',
+    confidence: 'Moderate for public-count comparisons. Low for causal claims.',
+    limitations: [AI_RESEARCH_NOTICE],
+  };
+}
+
 async function collectEvidence(projectId: string, config: AiResearchConfig) {
   const channels = await listProjectChannels(projectId);
   const own = channels.filter((channel) => channel.relationship === 'own');
@@ -396,6 +518,8 @@ function fallbackResult(videos: EvidenceVideo[], config: AiResearchConfig) {
     },
     video_briefs: buildVideoBriefs(videos),
     observations,
+    guides: buildFallbackGuides(videos, config),
+    report: buildFallbackReport(videos, config),
     recommendations: actions,
     alternatives: {
       titles: focus ? [
@@ -431,33 +555,34 @@ function fallbackResult(videos: EvidenceVideo[], config: AiResearchConfig) {
 }
 
 async function runModel(config: AiResearchConfig, evidence: Awaited<ReturnType<typeof collectEvidence>>) {
+  const playbook = await enabledTrainingText(config.goals).catch(() => '');
   const generated = await generateAIChat({
     purpose: 'youtube_research_ai_analysis',
     json: true,
     temperature: 0.25,
-    maxTokens: 3200,
+    maxTokens: 5000,
     timeoutMs: 50000,
     messages: [
       {
         role: 'system',
-        content: `You are a YouTube research analyst for Revealeo running a side-by-side comparison of selected videos. Use only provided public Data API fields.
+        content: `${YOUTUBE_MASTER_SYSTEM}
+
+You are running a goal-driven video analysis. Apply the youtube_master_playbook modules that match primary_goal. Secondary goals are optional extras, not a new report.
 Rules:
-- Never invent watch time, CTR, impressions, retention, demographics, or competitor private analytics.
-- Desired audience targets are goals, not measured facts.
-- Use may / potentially / worth testing for causal claims.
-- Rank and contrast the selected videos against each other for the user's selected goals. Say which packaging choices look stronger in this set and why, using views, likes, comments, titles, tags, and thumbnail readings only.
-- Apply YouTube public packaging standards: searchable, specific titles; high-contrast thumbnails with few readable words; a first-line description that restates the promise; relevant tags; a clear own-vs-competitor gap when both roles are present.
-- Success mantra to turn into actions: (1) Package the click (title + thumbnail must match one promise), (2) Deliver that promise in the opening, (3) Earn the next public action (like or comment). Because retention is not in this dataset, treat step 2 as a test, not a measured fact.
-- Every recommendation must be a concrete next step tied to a selected goal (views, likes, comments, engagement, retention, discoverability). Order recommendations by the selected goals, highest priority first.
-- Separate Improve Existing Video (title, description, tags, thumbnail concept) from Create New Video.
-- Work in this order for every video: (1) thumbnail image using thumbnail_text and thumbnail_scene, (2) then text using title, description, tags, and spoken_text.
-- thumbnail_text and thumbnail_scene were read from the thumbnail image. Do not add words that are not in those fields.
-- If spoken_source is captions, spoken_text is public caption text. It may contain Telugu, Hindi, and English sections labeled "Telugu:", "Hindi:", and "English:". Summarise every section that is present. Keep short quotes in the original script. Do not translate Telugu away. A language with no section was not on a caption track. Set content_source to captions. If spoken_source is description, only the published description was available. Never claim you watched or transcribed the video file.
+- Never invent CTR, impressions, retention, watch time, traffic sources, demographics, or competitor private analytics.
+- If the primary goal needs a missing metric (CTR, retention, subscribers gained), say it is unavailable and diagnose with public evidence plus playbook hypotheses.
+- Cover ONLY selected goals. Route diagnosis: views → demand/packaging/discovery; CTR → packaging; retention → hook/pacing/structure; engagement → comments/CTA; subscribers → reason to return; discoverability → intent/SEO; competitors → public patterns; publishing → readiness/cadence.
+- Max five recommended_actions (P1/P2/P3). Each needs problem, evidence, why, change, how, metric, review_period, confidence.
+- Per weaker video, write a numbered how-to for the primary goal (why it lagged, then what to do this week).
+- thumbnail_text and thumbnail_scene are OCR/image readings. Do not invent extra on-image words.
+- Captions: summarise every labeled language section. Never claim you watched the file.
 - Return JSON only.`,
       },
       {
         role: 'user',
         content: JSON.stringify({
+          primary_goal: config.primaryGoal,
+          secondary_goals: config.goals.filter((item) => item !== config.primaryGoal),
           goals: config.goals,
           content_focus: config.contentFocus,
           desired_audience: {
@@ -471,6 +596,8 @@ Rules:
             measured: false,
           },
           outputs: config.outputs,
+          youtube_master_playbook: playbook,
+          selected_goals_only: config.goals,
           videos: evidence.videos.map((video) => ({
             id: video.id,
             title: video.title,
@@ -480,6 +607,9 @@ Rules:
             topic: video.topic_name,
             published: video.published_at,
             tags: video.tags,
+            category_id: video.category_id,
+            language: video.default_language || video.default_audio_language,
+            public_details: video.public_details,
             views: video.view_count,
             likes: video.like_count,
             comments: video.comment_count,
@@ -496,14 +626,28 @@ Rules:
         role: 'user',
         content: `Return JSON:
 {
-  "video_briefs": [{ "video_id": "", "thumbnail_summary": "what the thumbnail image shows and any on-image text", "content_summary": "summary of every caption language that is present, or the description when no captions were found", "content_source": "captions|description|null" }],
-  "summary": { "headline": "", "body": "" },
-  "observations": [{ "category": "", "headline": "", "observation": "", "evidence": "", "implication": "", "action": "", "video_ids": [] }],
+  "video_briefs": [{ "video_id": "", "thumbnail_summary": "", "content_summary": "", "content_source": "captions|description|null" }],
+  "summary": { "headline": "selected-goal coaching headline", "body": "overall assessment in two sentences" },
+  "report": {
+    "selected_goal": "",
+    "overall_assessment": "",
+    "findings": [{ "title": "", "detail": "", "evidence": "" }],
+    "working": [""],
+    "improve": [""],
+    "actions": [{ "priority": "P1|P2|P3", "title": "", "problem": "", "evidence": "", "why": "", "change": "", "how": "", "metric": "", "review_period": "", "confidence": "low|moderate|high", "video_id": null }],
+    "creative": { "titles": [], "thumbnails": [], "hooks": [], "structure": [], "seo": [], "cta": [] },
+    "competitor_learnings": [""],
+    "success": "",
+    "confidence": "",
+    "limitations": []
+  },
+  "guides": [{ "goal": "", "video_id": "", "diagnosis": "", "steps": [{ "title": "", "detail": "" }] }],
+  "observations": [],
   "recommendations": [{ "title": "", "category": "", "kind": "existing|new", "priority": "high|medium|low", "description": "", "metric": "", "review_period": "", "video_id": null }],
   "alternatives": { "titles": [], "thumbnail_concepts": [{ "concept": "", "note": "" }], "description": "", "future_ideas": [] },
   "limitations": []
 }
-Write one video_brief per video. Limit observations to 6. Limit recommendations to 8.`,
+One brief per video. Report follows the playbook output format. Max 5 findings and 5 actions. Guides: one numbered how-to per weaker video for the primary goal.`,
       },
     ],
   });
@@ -546,6 +690,56 @@ Write one video_brief per video. Limit observations to 6. Limit recommendations 
         video_ids: Array.isArray(item.video_ids) ? item.video_ids.map(String).slice(0, 6) : [],
       }))
       : fallback.observations,
+    report: parsed.report && typeof parsed.report === 'object' ? {
+      selected_goal: String(parsed.report.selected_goal || fallback.report.selected_goal),
+      overall_assessment: String(parsed.report.overall_assessment || fallback.report.overall_assessment),
+      findings: Array.isArray(parsed.report.findings) ? parsed.report.findings.slice(0, 5).map((item: Record<string, unknown>) => ({
+        title: String(item.title || ''),
+        detail: String(item.detail || item.observation || ''),
+        evidence: String(item.evidence || ''),
+      })) : fallback.report.findings,
+      working: Array.isArray(parsed.report.working) ? parsed.report.working.map(String).slice(0, 5) : fallback.report.working,
+      improve: Array.isArray(parsed.report.improve) ? parsed.report.improve.map(String).slice(0, 5) : fallback.report.improve,
+      actions: Array.isArray(parsed.report.actions) ? parsed.report.actions.slice(0, 5).map((item: Record<string, unknown>) => ({
+        priority: ['P1', 'P2', 'P3'].includes(String(item.priority)) ? String(item.priority) : 'P2',
+        title: String(item.title || item.change || 'Recommended change'),
+        problem: String(item.problem || ''),
+        evidence: String(item.evidence || ''),
+        why: String(item.why || ''),
+        change: String(item.change || item.title || ''),
+        how: String(item.how || item.description || ''),
+        metric: String(item.metric || ''),
+        review_period: String(item.review_period || '14 days'),
+        confidence: String(item.confidence || 'moderate'),
+        video_id: item.video_id ? String(item.video_id) : null,
+      })) : fallback.report.actions,
+      creative: {
+        titles: Array.isArray(parsed.report.creative?.titles) ? parsed.report.creative.titles.map(String).slice(0, 3) : [],
+        thumbnails: Array.isArray(parsed.report.creative?.thumbnails) ? parsed.report.creative.thumbnails.map(String).slice(0, 3) : [],
+        hooks: Array.isArray(parsed.report.creative?.hooks) ? parsed.report.creative.hooks.map(String).slice(0, 3) : [],
+        structure: Array.isArray(parsed.report.creative?.structure) ? parsed.report.creative.structure.map(String).slice(0, 3) : [],
+        seo: Array.isArray(parsed.report.creative?.seo) ? parsed.report.creative.seo.map(String).slice(0, 3) : [],
+        cta: Array.isArray(parsed.report.creative?.cta) ? parsed.report.creative.cta.map(String).slice(0, 3) : [],
+      },
+      competitor_learnings: Array.isArray(parsed.report.competitor_learnings) ? parsed.report.competitor_learnings.map(String).slice(0, 5) : fallback.report.competitor_learnings,
+      success: String(parsed.report.success || fallback.report.success),
+      confidence: String(parsed.report.confidence || fallback.report.confidence),
+      limitations: Array.isArray(parsed.report.limitations) ? parsed.report.limitations.map(String).slice(0, 6) : fallback.report.limitations,
+    } : fallback.report,
+    guides: Array.isArray(parsed.guides) && parsed.guides.length
+      ? parsed.guides.slice(0, 16).map((item: Record<string, unknown>) => ({
+        goal: String(item.goal || config.goals[0] || 'views'),
+        video_id: String(item.video_id || ''),
+        diagnosis: String(item.diagnosis || ''),
+        steps: Array.isArray(item.steps)
+          ? item.steps.slice(0, 8).map((step: Record<string, unknown> | string) => (
+            typeof step === 'string'
+              ? { title: step, detail: '' }
+              : { title: String(step.title || step.do || 'Next step'), detail: String(step.detail || step.why || '') }
+          ))
+          : [],
+      }))
+      : fallback.guides,
     recommendations: Array.isArray(parsed.recommendations) && parsed.recommendations.length
       ? parsed.recommendations.slice(0, 8).map((item: Record<string, unknown>) => ({
         title: String(item.title || 'Review this video'),
@@ -641,9 +835,29 @@ export async function getAiAnalysis(projectId: string, id: string) {
       thumbnail_text: string | null;
       thumbnail_scene: string | null;
       thumbnail_url: string | null;
+      tags: string[] | null;
+      description: string | null;
+      category_id: string | null;
+      default_language: string | null;
+      default_audio_language: string | null;
+      public_details: Record<string, unknown> | null;
+      country: string | null;
+      channel_public_details: Record<string, unknown> | null;
     }>(
       undefined,
       `SELECT v.id::text, v.title, v.youtube_video_id, v.thumbnail_text, v.thumbnail_scene, v.thumbnail_url,
+              v.tags, v.description, v.category_id, v.default_language, v.default_audio_language, v.public_details,
+              c.channel_name, c.channel_handle, c.thumbnail_url AS channel_thumbnail_url,
+              c.subscriber_count, c.country, c.public_details AS channel_public_details, pc.relationship
+       FROM youtube_videos v
+       JOIN youtube_channels c ON c.id = v.channel_id
+       LEFT JOIN youtube_project_channels pc ON pc.channel_id = c.id AND pc.project_id = $1
+       WHERE v.id = ANY($2::uuid[])`,
+      [projectId, ids]
+    ).catch(async () => q<any>(
+      undefined,
+      `SELECT v.id::text, v.title, v.youtube_video_id, v.thumbnail_text, v.thumbnail_scene, v.thumbnail_url,
+              v.tags, v.description, v.category_id, v.default_language, v.default_audio_language,
               c.channel_name, c.channel_handle, c.thumbnail_url AS channel_thumbnail_url,
               c.subscriber_count, pc.relationship
        FROM youtube_videos v
@@ -651,7 +865,7 @@ export async function getAiAnalysis(projectId: string, id: string) {
        LEFT JOIN youtube_project_channels pc ON pc.channel_id = c.id AND pc.project_id = $1
        WHERE v.id = ANY($2::uuid[])`,
       [projectId, ids]
-    ).catch(() => ({ rows: [] as any[] }));
+    ).catch(() => ({ rows: [] as any[] })));
     const byId = new Map(named.rows.map((row) => [row.id, row]));
     presented.evidence = {
       ...presented.evidence,
@@ -670,6 +884,16 @@ export async function getAiAnalysis(projectId: string, id: string) {
           thumbnail_text: video.thumbnail_text || row.thumbnail_text,
           thumbnail_scene: video.thumbnail_scene || row.thumbnail_scene,
           thumbnail_url: video.thumbnail_url || row.thumbnail_url,
+          tags: parseTags(row.tags).length >= parseTags(video.tags).length ? parseTags(row.tags) : parseTags(video.tags),
+          description: (row.description && String(row.description).length > String(video.description || '').length)
+            ? String(row.description).slice(0, 5000)
+            : video.description || row.description || null,
+          category_id: video.category_id || row.category_id,
+          default_language: video.default_language || row.default_language,
+          default_audio_language: video.default_audio_language || row.default_audio_language,
+          public_details: { ...(row.public_details || {}), ...(video.public_details || {}) },
+          country: video.country || row.country,
+          channel_public_details: row.channel_public_details || video.channel_public_details || {},
         };
       }),
     };
@@ -677,24 +901,73 @@ export async function getAiAnalysis(projectId: string, id: string) {
   return { ...presented, actions: actions.rows };
 }
 
+async function gatherEvidence(projectId: string, config: AiResearchConfig) {
+  const evidence = await collectEvidence(projectId, config);
+  try {
+    evidence.videos = await enrichComparisonVideos(evidence.videos, projectId);
+  } catch {
+    /* Thumbnail reading is best-effort; public fields are still enough to save. */
+  }
+  try {
+    evidence.videos = await enrichSpokenContent(evidence.videos);
+  } catch {
+    /* Captions are optional; title and description still feed the text summary. */
+  }
+  return evidence;
+}
+
 export async function createAiAnalysis(projectId: string, body: Record<string, unknown>, userId: string) {
   await assertYoutubeProject(projectId);
   const config = parseAiResearchConfig(body);
-  const name = cleanText(body.name, 120) || `AI Analysis · ${config.goals.join(', ')}`;
-  const inserted = await q(undefined, `INSERT INTO youtube_ai_analyses (project_id, name, status, config, created_by) VALUES ($1,$2,'generating',$3::jsonb,$4) RETURNING id`, [projectId, name, JSON.stringify(config), userId]);
+  const compareOnly = body.mode === 'compare' || body.skipAi === true;
+  const name = cleanText(body.name, 120) || (compareOnly ? 'Video comparison' : `AI Analysis · ${config.goals.join(', ')}`);
+  const inserted = await q(undefined, `INSERT INTO youtube_ai_analyses (project_id, name, status, config, created_by) VALUES ($1,$2,'generating',$3::jsonb,$4) RETURNING id`, [projectId, name, JSON.stringify({ ...config, mode: compareOnly ? 'compare' : 'insights', workspace: String(body.workspace || '') }), userId]);
   const id = inserted.rows[0].id;
   try {
-    const evidence = await collectEvidence(projectId, config);
-    try {
-      evidence.videos = await enrichComparisonVideos(evidence.videos, projectId);
-    } catch {
-      /* Thumbnail reading is best-effort; public fields are still enough to save. */
+    const evidence = await gatherEvidence(projectId, config);
+    let result: Record<string, any> = { video_briefs: [], observations: [], recommendations: [], insights: null };
+    let provider = null;
+    let model = null;
+    if (!compareOnly) {
+      try {
+        result = await runModel(config, evidence);
+        provider = result.provider;
+        model = result.model;
+      } catch {
+        result = fallbackResult(evidence.videos, config);
+      }
     }
-    try {
-      evidence.videos = await enrichSpokenContent(evidence.videos);
-    } catch {
-      /* Captions are optional; title and description still feed the text summary. */
+    await q(
+      undefined,
+      `UPDATE youtube_ai_analyses SET status='ready', evidence=$2::jsonb, result=$3::jsonb, limitations=$4, provider=$5, model=$6, error_summary=NULL, updated_at=NOW() WHERE id=$1`,
+      [id, JSON.stringify(evidence), JSON.stringify(result), result.limitations || null, provider, model]
+    );
+    if (!compareOnly) {
+      for (const item of result.recommendations || []) {
+        await q(
+          undefined,
+          `INSERT INTO youtube_ai_actions (analysis_id, project_id, video_id, category, title, description, kind, priority, metric, review_period, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [id, projectId, item.video_id, item.category, item.title, item.description, item.kind, item.priority, item.metric, item.review_period, userId]
+        );
+      }
     }
+    await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube AI Analysis Created','youtube_ai_analysis',$2,$3::jsonb)`, [userId, id, JSON.stringify({ projectId, goals: config.goals, mode: compareOnly ? 'compare' : 'insights' })]);
+    return getAiAnalysis(projectId, id);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Analysis failed';
+    await q(undefined, `UPDATE youtube_ai_analyses SET status='failed', error_summary=$2, updated_at=NOW() WHERE id=$1`, [id, message]);
+    throw err;
+  }
+}
+
+export async function generateAiInsights(projectId: string, analysisId: string, body: Record<string, unknown>, userId: string) {
+  await assertYoutubeProject(projectId);
+  const existing = await getAiAnalysis(projectId, analysisId);
+  const config = parseAiResearchConfig({ ...(existing.config || {}), ...body, source: 'selected', videoIds: body.videoIds || existing.config?.videoIds });
+  await q(undefined, `UPDATE youtube_ai_analyses SET status='generating', config=$2::jsonb, updated_at=NOW() WHERE id=$1`, [analysisId, JSON.stringify({ ...config, mode: 'insights' })]);
+  try {
+    const evidence = existing.evidence?.videos?.length ? existing.evidence : await gatherEvidence(projectId, config);
     let result;
     let provider = null;
     let model = null;
@@ -703,26 +976,27 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
       provider = result.provider;
       model = result.model;
     } catch {
-      result = fallbackResult(evidence.videos, config);
+      result = fallbackResult(evidence.videos || [], config);
     }
+    const merged = { ...(existing.result || {}), ...result, insights: result };
     await q(
       undefined,
-      `UPDATE youtube_ai_analyses SET status='ready', evidence=$2::jsonb, result=$3::jsonb, limitations=$4, provider=$5, model=$6, error_summary=NULL, updated_at=NOW() WHERE id=$1`,
-      [id, JSON.stringify(evidence), JSON.stringify(result), result.limitations, provider, model]
+      `UPDATE youtube_ai_analyses SET status='ready', result=$2::jsonb, provider=$3, model=$4, error_summary=NULL, updated_at=NOW() WHERE id=$1`,
+      [analysisId, JSON.stringify(merged), provider, model]
     );
-    for (const item of result.recommendations) {
+    await q(undefined, `DELETE FROM youtube_ai_actions WHERE analysis_id=$1`, [analysisId]);
+    for (const item of result.recommendations || []) {
       await q(
         undefined,
         `INSERT INTO youtube_ai_actions (analysis_id, project_id, video_id, category, title, description, kind, priority, metric, review_period, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [id, projectId, item.video_id, item.category, item.title, item.description, item.kind, item.priority, item.metric, item.review_period, userId]
+        [analysisId, projectId, item.video_id, item.category, item.title, item.description, item.kind, item.priority, item.metric, item.review_period, userId]
       );
     }
-    await q(undefined, `INSERT INTO youtube_audit_logs (actor_user_id, action, entity_type, entity_id, metadata) VALUES ($1,'YouTube AI Analysis Created','youtube_ai_analysis',$2,$3::jsonb)`, [userId, id, JSON.stringify({ projectId, goals: config.goals })]);
-    return getAiAnalysis(projectId, id);
+    return getAiAnalysis(projectId, analysisId);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Analysis failed';
-    await q(undefined, `UPDATE youtube_ai_analyses SET status='failed', error_summary=$2, updated_at=NOW() WHERE id=$1`, [id, message]);
+    const message = err instanceof Error ? err.message : 'Insights failed';
+    await q(undefined, `UPDATE youtube_ai_analyses SET status='ready', error_summary=$2, updated_at=NOW() WHERE id=$1`, [analysisId, message]);
     throw err;
   }
 }
@@ -790,6 +1064,7 @@ export async function createResearchReport(projectId: string, body: Record<strin
     const payload = {
       reportType,
       mode: 'selected_snapshot',
+      workspace: String(body.workspace || ''),
       analysis: null,
       evidence: { videos },
       actions: [],
@@ -869,4 +1144,125 @@ export async function getResearchReport(projectId: string, id: string) {
     }
   }
   return report;
+}
+
+function accountProjectFilter(values: unknown[]) {
+  const saasId = currentSaasAccountId();
+  const partnerId = currentYoutubePartnerId();
+  if (saasId) {
+    values.push(saasId);
+    return `p.saas_account_id=$${values.length}`;
+  }
+  if (partnerId) {
+    values.push(partnerId);
+    return `p.partner_id=$${values.length}`;
+  }
+  return 'p.partner_id IS NULL AND p.saas_account_id IS NULL';
+}
+
+function trend(current: number, previous: number) {
+  if (!previous && !current) return 0;
+  if (!previous) return 100;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+export async function listQuickAnalyses() {
+  const values: unknown[] = [];
+  const scope = accountProjectFilter(values);
+  const { rows } = await q<Record<string, any>>(
+    undefined,
+    `SELECT a.id, a.project_id, a.name, a.status, a.created_at::text, a.updated_at::text, a.config, a.error_summary,
+            COALESCE(jsonb_array_length(a.evidence->'videos'), 0)::int AS video_count,
+            (
+              SELECT jsonb_agg(jsonb_build_object(
+                'title', item->>'title',
+                'thumbnail_url', item->>'thumbnail_url',
+                'youtube_video_id', item->>'youtube_video_id',
+                'channel_name', item->>'channel_name',
+                'channel_thumbnail_url', item->>'channel_thumbnail_url'
+              ))
+              FROM jsonb_array_elements(COALESCE(a.evidence->'videos', '[]'::jsonb)) AS item
+            ) AS videos
+     FROM youtube_ai_analyses a
+     JOIN youtube_research_projects p ON p.id = a.project_id
+     WHERE ${scope}
+       AND (COALESCE(a.config->>'workspace','') = 'quick_analysis' OR p.name ILIKE 'Quick Analysis%')
+     ORDER BY a.created_at DESC
+     LIMIT 80`,
+    values,
+  );
+  const month = rows.filter((row) => new Date(row.created_at).getTime() >= Date.now() - 30 * 86400000).length;
+  const prev = rows.filter((row) => {
+    const time = new Date(row.created_at).getTime();
+    return time < Date.now() - 30 * 86400000 && time >= Date.now() - 60 * 86400000;
+  }).length;
+  const completed = rows.filter((row) => row.status === 'ready').length;
+  const videos = rows.reduce((sum, row) => sum + Number(row.video_count || 0), 0);
+  return {
+    rows,
+    stats: {
+      total: rows.length,
+      completed,
+      videos,
+      lastGenerated: rows[0]?.created_at || null,
+      totalTrend: trend(month, prev),
+      completedTrend: trend(
+        rows.filter((row) => row.status === 'ready' && new Date(row.created_at).getTime() >= Date.now() - 30 * 86400000).length,
+        rows.filter((row) => row.status === 'ready' && new Date(row.created_at).getTime() < Date.now() - 30 * 86400000 && new Date(row.created_at).getTime() >= Date.now() - 60 * 86400000).length,
+      ),
+    },
+  };
+}
+
+export async function listQuickReports() {
+  const values: unknown[] = [];
+  const scope = accountProjectFilter(values);
+  const { rows } = await q<Record<string, any>>(
+    undefined,
+    `SELECT r.id, r.project_id, r.name, r.report_type, r.status, r.generated_at::text,
+            COALESCE(jsonb_array_length(r.payload->'evidence'->'videos'), 0)::int AS video_count,
+            (
+              SELECT jsonb_agg(jsonb_build_object(
+                'title', item->>'title',
+                'thumbnail_url', item->>'thumbnail_url',
+                'youtube_video_id', item->>'youtube_video_id',
+                'channel_name', item->>'channel_name',
+                'channel_thumbnail_url', item->>'channel_thumbnail_url'
+              ))
+              FROM jsonb_array_elements(COALESCE(r.payload->'evidence'->'videos', '[]'::jsonb)) AS item
+            ) AS videos
+     FROM youtube_research_reports r
+     JOIN youtube_research_projects p ON p.id = r.project_id
+     WHERE ${scope}
+       AND r.status <> 'archived'
+       AND (
+         COALESCE(r.payload->>'workspace','') = 'quick_report'
+         OR r.name ILIKE 'Quick report%'
+         OR p.name ILIKE 'Quick Report%'
+       )
+     ORDER BY r.generated_at DESC
+     LIMIT 80`,
+    values,
+  );
+  const month = rows.filter((row) => new Date(row.generated_at).getTime() >= Date.now() - 30 * 86400000).length;
+  const prev = rows.filter((row) => {
+    const time = new Date(row.generated_at).getTime();
+    return time < Date.now() - 30 * 86400000 && time >= Date.now() - 60 * 86400000;
+  }).length;
+  const ready = rows.filter((row) => row.status === 'ready').length;
+  const videos = rows.reduce((sum, row) => sum + Number(row.video_count || 0), 0);
+  return {
+    rows,
+    stats: {
+      total: rows.length,
+      ready,
+      videos,
+      lastGenerated: rows[0]?.generated_at || null,
+      totalTrend: trend(month, prev),
+      readyTrend: trend(
+        rows.filter((row) => row.status === 'ready' && new Date(row.generated_at).getTime() >= Date.now() - 30 * 86400000).length,
+        rows.filter((row) => row.status === 'ready' && new Date(row.generated_at).getTime() < Date.now() - 30 * 86400000 && new Date(row.generated_at).getTime() >= Date.now() - 60 * 86400000).length,
+      ),
+    },
+  };
 }

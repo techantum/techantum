@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import YoutubeFrame from '@/components/admin/youtube/YoutubeFrame';
 import { isSuperAdmin } from '@/lib/admin/roles';
@@ -10,5 +11,9 @@ export default async function YoutubeLayout({ children }: { children: React.Reac
   if (!actor) redirect('/login');
   const access = await resolveAccess(actor.account, actor.role);
   if (!isSuperAdmin(actor.role) && !access.has(FEATURE_YOUTUBE)) redirect('/billing?need=youtube');
-  return <YoutubeFrame initialAccess={permissionsForRole(actor.role, [])}>{children}</YoutubeFrame>;
+  return (
+    <Suspense fallback={null}>
+      <YoutubeFrame initialAccess={permissionsForRole(actor.role, [])}>{children}</YoutubeFrame>
+    </Suspense>
+  );
 }

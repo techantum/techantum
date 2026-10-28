@@ -46,6 +46,21 @@ export function parseChannelInput(raw: string): ChannelRef {
   return { ok: false, error: 'Paste the @handle or channel ID. This link format cannot be resolved reliably.' };
 }
 
+export function parseYoutubeVideoIds(raw: string) {
+  const text = String(raw || '');
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const take = (id: string) => {
+    if (!/^[\w-]{11}$/.test(id) || seen.has(id)) return;
+    seen.add(id);
+    found.push(id);
+  };
+  const url = /(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtube\.com\/live\/)([\w-]{11})/gi;
+  let match: RegExpExecArray | null;
+  while ((match = url.exec(text))) take(match[1]);
+  return found;
+}
+
 export function watchUrl(videoId: string) {
   return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
 }
@@ -188,3 +203,23 @@ export const YOUTUBE_METRIC_NOTICE =
 
 export const WATCH_HOURS_NOTE =
   'Watch hours are not returned by the YouTube Data API. Title, content on the thumbnail, organic or paid placement, and public viewership are.';
+
+export function parseTags(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item || '').trim()).filter(Boolean))];
+  }
+  if (typeof value !== 'string' || !value.trim()) return [];
+  const text = value.trim();
+  if (text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return parseTags(parsed);
+    } catch {
+      /* continue */
+    }
+  }
+  if (text.startsWith('{') && text.endsWith('}')) {
+    return parseTags(text.slice(1, -1).split(',').map((item) => item.replace(/^"+|"+$/g, '').trim()));
+  }
+  return [...new Set(text.split(/[,|]/).map((item) => item.trim()).filter(Boolean))];
+}

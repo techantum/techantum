@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import AdminAlert from '@/components/admin/AdminAlert';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, downloadResearchReport } from '@/components/admin/youtube/research-ui';
 import { ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
@@ -157,6 +158,7 @@ function Reports() {
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      {pending.startsWith('xlsx:') ? <FetchVideosOverlay mode="report" /> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
@@ -197,7 +199,7 @@ function Reports() {
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
           <div className="relative min-w-[220px] flex-1">
             <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" placeholder="Search reports…" value={q} onChange={(event) => setQ(event.target.value)} />
+            <input className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" placeholder="Enter report name" value={q} onChange={(event) => setQ(event.target.value)} />
           </div>
           <select className={filterClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="all">All status</option>
@@ -247,12 +249,12 @@ function Reports() {
                   <Icon name="DocumentArrowDownIcon" size={14} /> XLSX
                 </span>
                 <div className="ml-auto flex items-center gap-2">
-                  <Link href={`${base}/reports/${row.id}`} className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">
+                  <Link href={`${base}/reports/${row.id}`} className="btn-ghost btn-sm">
                     <Icon name="EyeIcon" size={16} /> View
                   </Link>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#7C3AED] px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-[#6D28D9] disabled:opacity-50"
+                    className="btn-primary btn-sm"
                     disabled={pending === `xlsx:${row.id}` || row.status !== 'ready'}
                     onClick={() => download(row.id)}
                   >

@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
+import { NameField } from '@/components/ui/FormFields';
+import { useProcess } from '@/components/ui/ProcessOverlay';
 import SafeImage from '@/components/ui/SafeImage';
-
-const input = 'mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-400';
+import { nameError } from '@/lib/forms/rules';
 
 export default function ProfilePage() {
   const [name, setName] = useState('');
@@ -14,8 +15,9 @@ export default function ProfilePage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
   const [message, setMessage] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [showError, setShowError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const overlay = useProcess();
   const router = useRouter();
 
   useEffect(() => {
@@ -33,24 +35,28 @@ export default function ProfilePage() {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   const save = async () => {
-    setSaving(true);
-    setMessage('');
-    try {
-      const body = new FormData();
-      body.append('name', name);
-      if (file) body.append('file', file);
-      const res = await fetch('/api/account/profile', { method: 'PUT', body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not save profile');
-      setAvatarUrl(data.avatarUrl || '');
-      setFile(null);
-      setMessage('Profile saved.');
-      router.refresh();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Could not save profile');
-    } finally {
-      setSaving(false);
+    setShowError(true);
+    if (nameError(name)) {
+      setMessage(nameError(name));
+      return;
     }
+    setMessage('');
+    await overlay.run('Saving profile…', async () => {
+      try {
+        const body = new FormData();
+        body.append('name', name);
+        if (file) body.append('file', file);
+        const res = await fetch('/api/account/profile', { method: 'PUT', body });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not save profile');
+        setAvatarUrl(data.avatarUrl || '');
+        setFile(null);
+        setMessage('Profile saved.');
+        router.refresh();
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Could not save profile');
+      }
+    });
   };
 
   if (loading) return <p className="text-sm text-slate-500">Loading profile…</p>;
@@ -60,20 +66,17 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <div>
-        <h1 className="font-bricolage text-3xl font-bold text-slate-900">Edit profile</h1>
-        <p className="mt-1 text-sm text-slate-500">Your name and photo appear on the profile menu.</p>
-      </div>
+      <h1 className="font-bricolage text-3xl font-bold text-slate-900">Edit profile</h1>
       <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-4">
           <span className="relative inline-flex h-20 w-20 overflow-hidden rounded-full bg-violet-600 text-2xl font-bold text-white">
             {photo ? (
-              <SafeImage src={photo} alt="" className="h-full w-full object-cover" fallback={<span className="flex h-full w-full items-center justify-center">{letter}</span>} />
+              <SafeImage src={photo} alt="" className="h-full w-full object-cover" priority fallback={<span className="flex h-full w-full items-center justify-center">{letter}</span>} />
             ) : (
               <span className="flex h-full w-full items-center justify-center">{letter}</span>
             )}
           </span>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <label className="btn-secondary cursor-pointer">
             <Icon name="CameraIcon" size={16} /> Change photo
             <input
               type="file"
@@ -87,17 +90,16 @@ export default function ProfilePage() {
             />
           </label>
         </div>
-        <label className="mt-5 block text-sm font-medium text-slate-700">
-          Name
-          <input className={input} value={name} placeholder="Enter name" onChange={(event) => setName(event.target.value)} />
-        </label>
+        <div className="mt-5">
+          <NameField value={name} onValue={setName} showError={showError} />
+        </div>
         <label className="mt-4 block text-sm font-medium text-slate-700">
           Email
-          <input className={`${input} bg-slate-50 text-slate-500`} value={email} readOnly />
+          <input className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500" value={email} readOnly />
         </label>
         {message ? <p className="mt-4 text-sm text-slate-600">{message}</p> : null}
-        <button type="button" className="mt-5 rounded-full bg-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" disabled={saving} onClick={save}>
-          {saving ? 'Saving…' : 'Save profile'}
+        <button type="button" className="btn-primary mt-5" onClick={() => void save()}>
+          Save profile
         </button>
       </section>
     </div>

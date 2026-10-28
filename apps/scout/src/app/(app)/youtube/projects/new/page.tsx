@@ -1,7 +1,7 @@
 'use client';
 
-import ProjectForm from '@/components/admin/youtube/ProjectForm';
+import ProjectCreateWizard from '@/components/admin/youtube/ProjectCreateWizard';
 
 export default function NewProjectPage() {
-  return <ProjectForm />;
+  return <ProjectCreateWizard />;
 }

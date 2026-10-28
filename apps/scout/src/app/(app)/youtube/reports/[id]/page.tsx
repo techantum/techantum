@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { downloadResearchReport } from '@/components/admin/youtube/research-ui';
 import { ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
@@ -18,7 +18,6 @@ function ReportView() {
   const base = useYoutubePageBase();
   const router = useRouter();
   const [name, setName] = useState('');
-  const [generatedAt, setGeneratedAt] = useState('');
   const [videos, setVideos] = useState<GapVideo[]>([]);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
@@ -38,7 +37,6 @@ function ReportView() {
         }
         if (cancelled) return;
         setName(report.name || 'Video comparison');
-        setGeneratedAt(String(report.generated_at || '').slice(0, 16).replace('T', ' '));
         setVideos(rows);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not open this report');
@@ -82,18 +80,15 @@ function ReportView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Link href={`${base}/reports`} className="text-sm font-semibold text-slate-600 hover:text-secondary">← Reports</Link>
-          <h2 className="mt-2 font-bricolage text-xl font-bold text-slate-900">{name}</h2>
-          <p className="mt-1 text-sm text-slate-500">{generatedAt ? `Generated ${generatedAt}` : 'Video comparison'}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="min-w-0 font-bricolage text-xl font-bold text-slate-900">{name}</h2>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <AdminButton variant="outline-danger" loading={deleting} onClick={remove}>Delete</AdminButton>
           <AdminButton variant="primary" loading={downloading} onClick={download}>Download</AdminButton>
         </div>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+      {downloading ? <FetchVideosOverlay mode="report" /> : null}
       <p className="text-xs text-slate-500">Length is the video duration. Thumbnail words are read from the image. YouTube does not publish watch hours, geography, ages watched, or genders watched for these videos, so those rows stay {COMPARISON_UNAVAILABLE.toLowerCase()}.</p>
       {table.videos.length ? (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">

@@ -63,8 +63,7 @@ function ImportScreen() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">Imports run when you start them. Each channel uses the maximum you set, up to the limit in Settings. You can also fetch from Research.</p>
-      <Link href={`${base}/videos`} className="text-sm font-semibold text-secondary">← Back to research</Link>
+      <h1 className="font-bricolage text-2xl font-semibold text-slate-900">Import videos</h1>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {busy ? <PageLoader label="Importing videos…" /> : null}
       <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">

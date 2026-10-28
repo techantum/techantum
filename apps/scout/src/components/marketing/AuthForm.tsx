@@ -3,36 +3,54 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { EmailField, NameField, PasswordField } from '@/components/ui/FormFields';
+import { useProcess } from '@/components/ui/ProcessOverlay';
+import { emailError, isStrongPassword, nameError } from '@/lib/forms/rules';
 
 export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const search = useSearchParams();
+  const overlay = useProcess();
   const [name, setName] = useState('');
   const [email, setEmail] = useState(search.get('email') || '');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [showError, setShowError] = useState(false);
   const signup = mode === 'signup';
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      const response = await fetch(signup ? '/api/auth/signup' : '/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(signup ? { name, email, password } : { email, password }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || (signup ? 'Could not create the account' : 'Could not sign in'));
-      window.location.assign('/youtube');
+    setShowError(true);
+    if (signup && nameError(name, 'workspace name')) {
+      setError(nameError(name, 'workspace name'));
       return;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setBusy(false);
     }
+    if (emailError(email)) {
+      setError(emailError(email));
+      return;
+    }
+    if (signup && !isStrongPassword(password)) {
+      setError('Enter a password that meets all the conditions.');
+      return;
+    }
+    if (!signup && !password) {
+      setError('Enter password.');
+      return;
+    }
+    setError('');
+    await overlay.run(signup ? 'Creating your account…' : 'Signing in…', async () => {
+      try {
+        const response = await fetch(signup ? '/api/auth/signup' : '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signup ? { name, email, password } : { email, password }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || (signup ? 'Could not create the account' : 'Could not sign in'));
+        window.location.assign('/youtube');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Something went wrong');
+      }
+    });
   };
 
   return (
@@ -45,58 +63,24 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       </p>
       {error ? <p className="mt-4 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
       {signup ? (
-        <label className="mt-6 block text-sm font-medium text-slate-700">
-          Workspace name
-          <input
-            className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-slate-900 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-            required
-            value={name}
-            placeholder="Enter workspace name"
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-      ) : null}
-      <label className={`${signup ? 'mt-3' : 'mt-6'} block text-sm font-medium text-slate-700`}>
-        Email
-        <input
-          className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-slate-900 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          placeholder="Enter email"
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </label>
-      <label className="mt-3 block text-sm font-medium text-slate-700">
-        Password
-        <div className="relative mt-1">
-          <input
-            className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 pr-12 text-slate-900 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete={signup ? 'new-password' : 'current-password'}
-            minLength={signup ? 8 : undefined}
-            required
-            value={password}
-            placeholder="Enter password"
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-3 text-sm font-semibold text-slate-400 hover:text-slate-700"
-            onClick={() => setShowPassword((value) => !value)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? 'Hide' : 'Show'}
-          </button>
+        <div className="mt-6">
+          <NameField label="Workspace name" value={name} onValue={setName} showError={showError} />
         </div>
-      </label>
-      <button
-        type="submit"
-        disabled={busy}
-        className="mt-6 w-full rounded-full bg-fuchsia-600 py-3 text-sm font-semibold text-white hover:bg-fuchsia-500 disabled:opacity-50"
-      >
-        {busy ? (signup ? 'Creating…' : 'Signing in…') : signup ? 'Get started' : 'Sign in'}
+      ) : null}
+      <div className={signup ? 'mt-3' : 'mt-6'}>
+        <EmailField value={email} onValue={setEmail} showError={showError} />
+      </div>
+      <div className="mt-3">
+        <PasswordField
+          value={password}
+          onValue={setPassword}
+          showError={showError}
+          showRules={signup}
+          autoComplete={signup ? 'new-password' : 'current-password'}
+        />
+      </div>
+      <button type="submit" className="btn-primary mt-6 w-full">
+        {signup ? 'Get started' : 'Sign in'}
       </button>
       <p className="mt-4 text-center text-sm text-slate-500">
         {signup ? (

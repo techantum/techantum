@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import FieldHint from '@/components/ui/FieldHint';
 import Icon from '@/components/ui/AppIcon';
 import type { PlacesOption } from '@/lib/places/location-catalog';
 
@@ -130,7 +131,10 @@ export default function PlacesSearchSelect({
 
   return (
     <div className="text-sm font-medium">
-      <span className="block">{label}</span>
+      <span className="inline-flex items-center">
+        {label}
+        {hint ? <FieldHint text={hint} /> : null}
+      </span>
       <div ref={rootRef} className="relative mt-1">
         <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-3 text-slate-400" />
         <input
@@ -203,7 +207,6 @@ export default function PlacesSearchSelect({
           </div>
         )}
       </div>
-      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
     </div>
   );
 }

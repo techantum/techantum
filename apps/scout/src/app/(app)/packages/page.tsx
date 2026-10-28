@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import { useProcess } from '@/components/ui/ProcessOverlay';
 import { formatInr, packageIconTone } from '@/lib/saas/money';
 import type { CatalogFeature, CatalogPackage } from '@/lib/saas/catalog';
 
@@ -62,6 +63,7 @@ export default function PackagesPage() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState(false);
+  const overlay = useProcess();
 
   const load = useCallback(async (keepId?: string) => {
     const [pkg, feat] = await Promise.all([fetch('/api/admin/packages'), fetch('/api/admin/features')]);
@@ -104,24 +106,30 @@ export default function PackagesPage() {
   };
 
   const save = async () => {
+    if (!form.name.trim()) {
+      setMessage('Enter package name.');
+      return;
+    }
     setSaving(true);
     setMessage('');
     try {
-      const res = await fetch('/api/admin/packages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          id: form.id || undefined,
-          price_monthly: Number(form.price_monthly),
-          price_yearly: form.price_yearly === '' ? null : Number(form.price_yearly),
-          seats: form.seats === '' ? null : Number(form.seats),
-          sort_order: Number(form.sort_order || 100),
-        }),
+      await overlay.run('Saving package…', async () => {
+        const res = await fetch('/api/admin/packages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...form,
+            id: form.id || undefined,
+            price_monthly: Number(form.price_monthly),
+            price_yearly: form.price_yearly === '' ? null : Number(form.price_yearly),
+            seats: form.seats === '' ? null : Number(form.seats),
+            sort_order: Number(form.sort_order || 100),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not save package');
+        await load(data.id || form.id);
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not save package');
-      await load(data.id || form.id);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not save package');
     } finally {
@@ -151,12 +159,9 @@ export default function PackagesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-bricolage text-3xl font-bold text-slate-900">Subscription Packages</h1>
-          <p className="mt-1 text-sm text-slate-500">Create and manage packages, set pricing, and assign features. Subscribers will get access to the features included in their active package.</p>
-        </div>
-        <button type="button" onClick={() => { setForm(emptyForm); setTab('basic'); setMessage(''); }} className="inline-flex items-center gap-2 rounded-full bg-[#7C3AED] px-4 py-2.5 text-sm font-semibold text-white">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-3xl font-bold text-slate-900">Subscription Packages</h1>
+        <button type="button" onClick={() => { setForm(emptyForm); setTab('basic'); setMessage(''); }} className="btn-primary">
           <Icon name="PlusIcon" size={16} /> Add Package
         </button>
       </div>
@@ -244,8 +249,8 @@ export default function PackagesPage() {
             <p className="text-sm text-slate-500">Update package details, features and pricing.</p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => applyForm(packages.find((item) => item.id === form.id) || packages[0])} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold">Cancel</button>
-            <button type="button" disabled={saving} onClick={() => void save()} className="rounded-full bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            <button type="button" onClick={() => applyForm(packages.find((item) => item.id === form.id) || packages[0])} className="btn-secondary">Cancel</button>
+            <button type="button" disabled={saving} onClick={() => void save()} className="btn-primary">
               {saving ? 'Saving…' : 'Save Package'}
             </button>
           </div>

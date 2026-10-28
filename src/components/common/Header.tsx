@@ -181,7 +181,7 @@ export default function Header({
             <HeaderAuthLink />
             <Link
               href="/contact"
-              className="bg-secondary text-secondary-foreground px-6 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary/90 transition-colors btn-shine"
+              className="btn-primary btn-shine"
             >
               Get a Quote
             </Link>
@@ -283,7 +283,7 @@ export default function Header({
                 <HeaderAuthLink compact />
                 <Link
                   href="/contact"
-                  className="bg-secondary text-secondary-foreground px-6 py-2.5 rounded-full font-inter font-medium text-sm hover:bg-secondary/90 transition-colors inline-block mt-2"
+                  className="btn-primary mt-2 inline-block"
                 >
                   Get a Quote
                 </Link>

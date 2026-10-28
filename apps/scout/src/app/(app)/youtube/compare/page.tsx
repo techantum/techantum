@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
@@ -79,15 +78,10 @@ function CompareVideos() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Link href={`${base}/videos`} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-secondary">
-            ← Back to research
-          </Link>
-          <p className="mt-2 text-sm text-slate-500">Public counts sit side by side. A higher number is not a claim that the title or thumbnail caused it.</p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 font-bricolage text-2xl font-semibold text-slate-900">Video comparison</h1>
         {videos.length >= 2 ? (
-          <span className="flex flex-wrap gap-2">
+          <span className="flex shrink-0 flex-wrap items-center gap-2">
             <AdminButton variant="primary" loading={exporting === 'xlsx'} disabled={Boolean(exporting)} onClick={() => exportFile('xlsx')}>Excel report</AdminButton>
             <AdminButton loading={exporting === 'docx'} disabled={Boolean(exporting)} onClick={() => exportFile('docx')}>Word report</AdminButton>
           </span>
@@ -145,7 +139,6 @@ function CompareVideos() {
           </section>
         </>
       ) : null}
-      <Link className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700" href={`${base}/videos`}>Back to research</Link>
     </div>
   );
 }

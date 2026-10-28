@@ -4,6 +4,7 @@ import { FinanceValidationError } from '@/lib/finance/errors';
 import { normalizeSubscriberRole, type SubscriberRole } from '@/lib/admin/roles';
 import { type SaasAccount } from './session';
 import { resolveAccess } from './catalog';
+import { emailError, isPersonName, isStrongPassword } from '@/lib/forms/rules';
 
 export type TeamMember = {
   user_id: string;
@@ -32,8 +33,9 @@ export async function inviteTeamMember(
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim() || email.split('@')[0];
   const role: SubscriberRole = input.role === 'subscriber_admin' ? 'subscriber_admin' : 'subscriber_user';
-  if (!email.includes('@')) throw new FinanceValidationError('Enter a valid email address.');
-  if (input.password.length < 8) throw new FinanceValidationError('Use a password of at least 8 characters.');
+  if (emailError(email)) throw new FinanceValidationError(emailError(email));
+  if (name && !isPersonName(name)) throw new FinanceValidationError('Enter a name using letters only.');
+  if (!isStrongPassword(input.password)) throw new FinanceValidationError('Use a password of at least 8 characters, with uppercase, lowercase, a number, and a symbol.');
   const access = await resolveAccess(account, 'subscriber_admin');
   const members = await listTeam(account.id);
   if (access.seats > 0 && members.length >= access.seats) {

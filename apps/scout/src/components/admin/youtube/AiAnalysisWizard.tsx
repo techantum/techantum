@@ -6,27 +6,20 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminBadge from '@/components/admin/AdminBadge';
 import AdminButton from '@/components/admin/AdminButton';
 import AnalysisComplete from '@/components/admin/youtube/AnalysisComplete';
+import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { metric, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
 import Icon from '@/components/ui/AppIcon';
 import SafeImage from '@/components/ui/SafeImage';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import type { ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
+import { PRIMARY_GOALS } from '@/lib/youtube/analysis-display';
 
 const STEPS = [
   { id: 1, title: 'Goal & Focus', hint: 'What do you want to achieve?' },
   { id: 2, title: 'Select Content', hint: 'Choose channels and videos' },
   { id: 3, title: 'Audience (Optional)', hint: 'Define target audience' },
   { id: 4, title: 'Review & Generate', hint: 'Confirm and run analysis' },
-];
-
-const PRIMARY_GOALS = [
-  { id: 'views', label: 'Increase Views', hint: 'Improve reach and visibility', icon: 'ChartBarIcon' },
-  { id: 'likes', label: 'Increase Likes', hint: 'Get more likes on videos', icon: 'HeartIcon' },
-  { id: 'comments', label: 'More Comments', hint: 'Drive meaningful discussions', icon: 'ChatBubbleLeftRightIcon' },
-  { id: 'engagement', label: 'Higher Engagement', hint: 'Improve overall interaction', icon: 'UserGroupIcon' },
-  { id: 'retention', label: 'Improve Retention', hint: 'Keep viewers watching longer', icon: 'ClockIcon' },
-  { id: 'discoverability', label: 'Better Discoverability', hint: 'Rank higher in search and suggested', icon: 'MagnifyingGlassIcon' },
 ];
 
 const FOCUS = [
@@ -343,12 +336,7 @@ export default function AiAnalysisWizard() {
   return (
     <div className="space-y-4">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
-      {busy ? (
-        <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-white/90">
-          <img src="/youtube/analysing.gif" alt="" className="h-40 w-40 object-contain" />
-          <p className="mt-4 font-bricolage text-2xl font-semibold text-slate-900">Your videos are being analysed</p>
-        </div>
-      ) : null}
+      {busy ? <FetchVideosOverlay mode="analysis" /> : null}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -533,7 +521,7 @@ export default function AiAnalysisWizard() {
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <label className="relative min-w-[16rem] flex-1">
                   <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" />
-                  <input className="h-11 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm" placeholder="Search title, description or tags..." value={q} onChange={(event) => setQ(event.target.value)} />
+                  <input className="h-11 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm" placeholder="Enter title, description or tag" value={q} onChange={(event) => setQ(event.target.value)} />
                 </label>
                 <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm" value={topicId} onChange={(event) => setTopicId(event.target.value)}>
                   <option value="">All topics</option>

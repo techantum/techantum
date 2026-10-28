@@ -130,9 +130,7 @@ function AnalysisWorkspace() {
   }, [projectId, analysisId]);
 
   const headerActions = useMemo(() => (
-    analysisId ? (
-      <Link className={partnerBtnSecondary} href={listHref}>← Back to analysis list</Link>
-    ) : (
+    analysisId ? null : (
       <>
         {manage ? (
           <Link className={partnerBtnSecondary} href={`${base}/channels?from=analysis`}>
@@ -144,7 +142,7 @@ function AnalysisWorkspace() {
         </Link>
       </>
     )
-  ), [analysisId, base, listHref, manage]);
+  ), [analysisId, base, manage]);
   useYoutubeRailActions(headerActions);
 
   const filtered = useMemo(() => {
