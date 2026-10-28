@@ -133,12 +133,20 @@ function asChannel(platform: ResearchPlatform, row: Record<string, unknown>, han
 
 export async function resolveFacebookPage(input: string): Promise<ResolvedChannel> {
   const key = parseFacebookPageInput(input);
-  const page = await graphGet(`/${encodeURIComponent(key)}`, {
-    fields: 'id,name,username,link,fan_count,followers_count,about,website,picture.type(large)',
-  });
-  const username = page.username ? String(page.username) : key;
-  const url = String(page.link || `https://www.facebook.com/${username}`);
-  return asChannel('facebook', page, username, url);
+  if (graphToken()) {
+    try {
+      const page = await graphGet(`/${encodeURIComponent(key)}`, {
+        fields: 'id,name,username,link,fan_count,followers_count,about,website,picture.type(large)',
+      });
+      const username = page.username ? String(page.username) : key;
+      const url = String(page.link || `https://www.facebook.com/${username}`);
+      return asChannel('facebook', page, username, url);
+    } catch {
+      /* Page lookup may need extra Meta permissions. */
+    }
+  }
+  const peeked = await peekPublicFacebook(key);
+  return typedFacebookPage(key, peeked?.name || undefined, peeked?.image);
 }
 
 async function discoverySourceId() {
@@ -155,13 +163,33 @@ async function discoverySourceId() {
 
 export async function resolveInstagramPage(input: string): Promise<ResolvedChannel> {
   const username = parseInstagramUsername(input);
-  const source = await discoverySourceId();
-  const body = await graphGet(`/${encodeURIComponent(source)}`, {
-    fields: `business_discovery.username(${username}){id,username,name,profile_picture_url,followers_count,media_count,biography,website}`,
-  });
-  const discovered = (body.business_discovery || body) as Record<string, unknown>;
-  if (!discovered?.id) throw new FinanceValidationError('No Instagram professional account was found for that username.');
-  return asChannel('instagram', discovered, username, `https://www.instagram.com/${username}/`);
+  if (graphToken()) {
+    try {
+      const source = await discoverySourceId();
+      const body = await graphGet(`/${encodeURIComponent(source)}`, {
+        fields: `business_discovery.username(${username}){id,username,name,profile_picture_url,followers_count,media_count,biography,website}`,
+      });
+      const discovered = (body.business_discovery || body) as Record<string, unknown>;
+      if (discovered?.id) return asChannel('instagram', discovered, username, `https://www.instagram.com/${username}/`);
+    } catch {
+      /* Business discovery may need an Instagram professional token. */
+    }
+  }
+  return {
+    youtubeChannelId: username,
+    channelName: prettyHandle(username),
+    channelHandle: username,
+    channelUrl: `https://www.instagram.com/${username}/`,
+    description: null,
+    thumbnailUrl: null,
+    uploadsPlaylistId: null,
+    subscriberCount: null,
+    videoCount: null,
+    viewCount: null,
+    publishedAt: null,
+    country: null,
+    publicDetails: { platform: 'instagram', source: 'typed' },
+  };
 }
 
 function asPost(platform: ResearchPlatform, post: Record<string, unknown>, channelId: string): ResolvedVideo {
@@ -202,6 +230,9 @@ function platformCopyTitle(platform: ResearchPlatform) {
 }
 
 export async function listFacebookPosts(pageId: string, limit = 50): Promise<ResolvedVideo[]> {
+  if (!graphToken()) {
+    throw new FinanceValidationError('Facebook posts need a Meta Page token. Set META_ADS_ACCESS_TOKEN or META_APP_ID and META_APP_SECRET. A WhatsApp Cloud API token cannot read Pages.');
+  }
   const body = await graphGet(`/${encodeURIComponent(pageId)}/posts`, {
     fields: 'id,message,created_time,permalink_url,full_picture,status_type,shares,likes.summary(true),comments.summary(true)',
     limit: Math.min(100, Math.max(1, limit)),
@@ -238,6 +269,67 @@ function vanityCandidates(query: string) {
   return [...new Set([raw, collapsed, dotted].filter((value) => /^[A-Za-z0-9.]{2,80}$/.test(value)))];
 }
 
+function prettyHandle(handle: string) {
+  return handle.replace(/[._-]+/g, ' ').replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
+}
+
+function facebookHandleFromQuery(query: string) {
+  try {
+    return parseFacebookPageInput(query);
+  } catch {
+    const slug = query.trim().replace(/^@/, '');
+    return /^[A-Za-z0-9.]{2,80}$/.test(slug) ? slug : '';
+  }
+}
+
+function typedFacebookPage(handle: string, name?: string, image?: string | null): ResolvedChannel {
+  return {
+    youtubeChannelId: handle,
+    channelName: name || prettyHandle(handle),
+    channelHandle: handle,
+    channelUrl: `https://www.facebook.com/${handle}`,
+    description: null,
+    thumbnailUrl: image || null,
+    uploadsPlaylistId: null,
+    subscriberCount: null,
+    videoCount: null,
+    viewCount: null,
+    publishedAt: null,
+    country: null,
+    publicDetails: { platform: 'facebook', source: 'typed' },
+  };
+}
+
+function metaContent(html: string, property: string) {
+  const tagged = html.match(new RegExp(`property="${property}" content="([^"]+)"`, 'i'))
+    || html.match(new RegExp(`content="([^"]+)" property="${property}"`, 'i'));
+  return (tagged?.[1] || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+async function peekPublicFacebook(handle: string) {
+  try {
+    const response = await fetch(`https://www.facebook.com/${encodeURIComponent(handle)}`, {
+      headers: {
+        Accept: 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible; Hookooh/1.0; +https://hookooh.com)',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(3500),
+    });
+    if (!response.ok) return null;
+    const html = await response.text();
+    const title = metaContent(html, 'og:title').replace(/\s*[|·•].*$/, '').trim();
+    const image = metaContent(html, 'og:image');
+    if (title && /^(facebook|log in|log into facebook|login)$/i.test(title)) {
+      return image ? { name: '', image } : null;
+    }
+    if (!title && !image) return null;
+    return { name: title, image: image || null };
+  } catch {
+    return null;
+  }
+}
+
 export async function searchFacebookPages(query: string): Promise<ResolvedChannel[]> {
   const q = query.trim();
   if (q.length < 2) return [];
@@ -252,12 +344,20 @@ export async function searchFacebookPages(query: string): Promise<ResolvedChanne
     if (handle) seen.add(handle);
     rows.push(item);
   };
-  const wiki = await searchWikidataPages('facebook', q);
+  const handle = facebookHandleFromQuery(q);
+  const pastedUrl = /facebook\.com|fb\.com/i.test(q);
+  const wikiQuery = handle || q;
+  const [wiki, peeked] = await Promise.all([
+    pastedUrl ? Promise.resolve([] as ResolvedChannel[]) : searchWikidataPages('facebook', wikiQuery),
+    handle ? peekPublicFacebook(handle) : Promise.resolve(null),
+  ]);
+  if (handle) push(typedFacebookPage(handle, peeked?.name || undefined, peeked?.image));
+  else vanityCandidates(q).slice(0, 1).forEach((vanity) => push(typedFacebookPage(vanity)));
   wiki.forEach(push);
   if (graphToken()) {
     try {
       const body = await graphGet('/pages/search', {
-        q,
+        q: handle || q,
         fields: 'id,name,username,link,fan_count,followers_count,picture.type(small)',
         limit: 20,
       });
@@ -267,20 +367,18 @@ export async function searchFacebookPages(query: string): Promise<ResolvedChanne
     }
     try {
       const owned = await graphGet('/me/accounts', { fields: 'id,name,username,link,fan_count,picture.type(small)', limit: 100 });
-      const needle = q.toLowerCase();
+      const needle = (handle || q).toLowerCase();
       (Array.isArray(owned.data) ? owned.data : [])
         .filter((row) => String(row.name || row.username || '').toLowerCase().includes(needle))
         .forEach((row) => push(mapFacebookHit(row)));
     } catch {
       /* Token may not list pages. */
     }
-    if (rows.length < 8) {
-      for (const vanity of vanityCandidates(q).slice(0, 2)) {
-        try {
-          push(await resolveFacebookPage(vanity));
-        } catch {
-          /* Not an exact page username. */
-        }
+    if (handle) {
+      try {
+        push(await resolveFacebookPage(handle));
+      } catch {
+        /* Username may not resolve on this token. */
       }
     }
   }
@@ -301,11 +399,34 @@ export async function searchInstagramPages(query: string): Promise<ResolvedChann
     if (handle) seen.add(handle);
     rows.push(item);
   };
-  const wiki = await searchWikidataPages('instagram', q);
+  let handle = '';
+  try {
+    handle = parseInstagramUsername(query);
+  } catch {
+    handle = /^[A-Za-z0-9._]{2,30}$/.test(q) ? q : '';
+  }
+  if (handle) {
+    push({
+      youtubeChannelId: handle,
+      channelName: prettyHandle(handle),
+      channelHandle: handle,
+      channelUrl: `https://www.instagram.com/${handle}/`,
+      description: null,
+      thumbnailUrl: null,
+      uploadsPlaylistId: null,
+      subscriberCount: null,
+      videoCount: null,
+      viewCount: null,
+      publishedAt: null,
+      country: null,
+      publicDetails: { platform: 'instagram', source: 'typed' },
+    });
+  }
+  const wiki = await searchWikidataPages('instagram', handle || q);
   wiki.forEach(push);
-  if (graphToken() && /^[A-Za-z0-9._]{2,30}$/.test(q)) {
+  if (graphToken() && /^[A-Za-z0-9._]{2,30}$/.test(handle || q)) {
     try {
-      push(await resolveInstagramPage(q));
+      push(await resolveInstagramPage(handle || q));
     } catch {
       /* Username may not exist yet; continue name search. */
     }

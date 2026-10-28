@@ -433,7 +433,7 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
     if (path[0] === 'projects' && path[1] && path[2] === 'channels') {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await addProjectChannel(path[1], String(body.input || ''), body.relationship, auth.user.id));
+      return NextResponse.json(await addProjectChannel(path[1], String(body.input || ''), body.relationship, auth.user.id, body.page));
     }
     if (path[0] === 'projects' && path[1] && path[2] === 'analysis' && path[3] === 'summarize') {
       const auth = await gate('youtube_research.analytics.view');

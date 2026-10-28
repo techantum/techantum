@@ -246,12 +246,12 @@ export async function listProjectChannels(projectId: string) {
   return rows.map((row) => ({ ...presentChannel(row), id: row.id, youtube_channel_id: row.youtube_channel_id, relationship: row.relationship }));
 }
 
-export async function addProjectChannel(projectId: string, input: string, relationship: unknown, userId: string) {
+export async function addProjectChannel(projectId: string, input: string, relationship: unknown, userId: string, page?: unknown) {
   const project = await requireProject(projectId);
   if (project.status === 'completed') throw new FinanceValidationError('Mark this project In Progress before adding channels.');
   const kind = String(relationship || 'competitor');
   if (!['own', 'competitor'].includes(kind)) throw new FinanceValidationError('Choose own or competitor.');
-  const channelId = await ensureChannel(input, userId, project.platform);
+  const channelId = await ensureChannel(input, userId, project.platform, page);
   const existing = await q(undefined, `SELECT relationship FROM youtube_project_channels WHERE project_id=$1 AND channel_id=$2`, [projectId, channelId]);
   if (existing.rows[0]) throw new FinanceConflictError('This channel is already in the project.');
   if (kind === 'competitor') {

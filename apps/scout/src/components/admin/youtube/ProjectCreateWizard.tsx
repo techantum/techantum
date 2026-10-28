@@ -186,7 +186,7 @@ export default function ProjectCreateWizard() {
         rememberProject(saved.id);
         await yt(`projects/${saved.id}/channels`, {
           method: 'POST',
-          body: JSON.stringify({ input: pageInputFor(preview), relationship: 'own' }),
+          body: JSON.stringify({ input: pageInputFor(preview), relationship: 'own', page: preview }),
         });
         setConfirming(false);
         setCreated({ id: saved.id, name: saved.name || form.name, channel: preview.channelName });

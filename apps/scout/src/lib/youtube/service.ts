@@ -379,15 +379,40 @@ function stubFromPageInput(platform: ReturnType<typeof asPlatform>, input: strin
   return null;
 }
 
-export async function ensureChannel(input: string, userId: string, platform: unknown = 'youtube') {
+function channelFromPageSnapshot(platform: ReturnType<typeof asPlatform>, snapshot: unknown, input: string): ResolvedChannel | null {
+  if (snapshot && typeof snapshot === 'object') {
+    const row = snapshot as Record<string, unknown>;
+    const id = String(row.youtubeChannelId || row.channelHandle || '').replace(/^@/, '');
+    if (id) {
+      return {
+        youtubeChannelId: id,
+        channelName: String(row.channelName || id),
+        channelHandle: String(row.channelHandle || id).replace(/^@/, ''),
+        channelUrl: String(row.channelUrl || stubFromPageInput(platform, id)?.channelUrl || ''),
+        description: row.description ? String(row.description) : null,
+        thumbnailUrl: row.thumbnailUrl ? String(row.thumbnailUrl) : null,
+        uploadsPlaylistId: null,
+        subscriberCount: Number.isFinite(Number(row.subscriberCount)) ? Number(row.subscriberCount) : null,
+        videoCount: Number.isFinite(Number(row.videoCount)) ? Number(row.videoCount) : null,
+        viewCount: Number.isFinite(Number(row.viewCount)) ? Number(row.viewCount) : null,
+        publishedAt: null,
+        country: null,
+        publicDetails: { platform, source: 'selected' },
+      };
+    }
+  }
+  return stubFromPageInput(platform, input);
+}
+
+export async function ensureChannel(input: string, userId: string, platform: unknown = 'youtube', page?: unknown) {
   const kindPlatform = asPlatform(platform);
+  const selected = kindPlatform === 'youtube' ? null : channelFromPageSnapshot(kindPlatform, page, input);
   let channel: ResolvedChannel;
   try {
     channel = await resolveResearchSource(kindPlatform, input, await readApiKey());
   } catch (err) {
-    const stub = stubFromPageInput(kindPlatform, input);
-    if (!stub) throw err;
-    channel = stub;
+    if (!selected) throw err;
+    channel = selected;
   }
   const existing = await q(undefined, `SELECT id FROM youtube_channels WHERE youtube_channel_id=$1 AND platform=$2`, [channel.youtubeChannelId, kindPlatform]);
   if (existing.rows[0]) {

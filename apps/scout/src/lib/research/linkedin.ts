@@ -94,8 +94,31 @@ export async function searchLinkedInPages(query: string): Promise<ResolvedChanne
     seen.add(item.youtubeChannelId);
     rows.push(item);
   };
-  (await searchWikidataPages('linkedin', q)).forEach(push);
-  const slug = q.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  let typed = '';
+  try {
+    typed = parseLinkedInCompanyInput(q);
+  } catch {
+    typed = '';
+  }
+  const slug = typed || q.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (slug) {
+    push({
+      youtubeChannelId: slug,
+      channelName: slug.replace(/-/g, ' ').replace(/\b([a-z])/g, (letter) => letter.toUpperCase()),
+      channelHandle: slug,
+      channelUrl: `https://www.linkedin.com/company/${slug}/`,
+      description: null,
+      thumbnailUrl: null,
+      uploadsPlaylistId: null,
+      subscriberCount: null,
+      videoCount: null,
+      viewCount: null,
+      publishedAt: null,
+      country: null,
+      publicDetails: { platform: 'linkedin', source: 'typed' },
+    });
+  }
+  (await searchWikidataPages('linkedin', typed || q)).forEach(push);
   if (env('LINKEDIN_ACCESS_TOKEN') && /^[A-Za-z0-9-]{2,100}$/.test(slug)) {
     try {
       push(await resolveLinkedInPage(slug));

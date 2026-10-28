@@ -74,7 +74,7 @@ export default function ChannelDraftForm({
     setPending('save');
     try {
       await overlay.run(own ? `Connecting your ${copy.entity}…` : 'Adding competitor…', async () => {
-        const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input: pageInputFor(preview), relationship }) });
+        const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input: pageInputFor(preview), relationship, page: preview }) });
         setPreview(null);
         setInput('');
         await onSaved(saved);
