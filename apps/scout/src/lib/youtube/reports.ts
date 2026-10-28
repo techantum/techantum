@@ -154,7 +154,7 @@ export async function pdfFile(title: string, rows: Record<string, string | numbe
       doc.rect(0, 0, pageWidth, 52).fill('#0f172a');
       doc.fillColor('#ffffff').font(bold).fontSize(14).text(pdfText(rows[0]?.project || 'YouTube Research', unicode), left, 14, { width: tableWidth - 160 });
       doc.font(regular).fontSize(8).fillColor('#cbd5e1').text(pdfText(title, unicode), left, 34, { width: tableWidth - 160 });
-      doc.font(regular).fontSize(8).fillColor('#e2e8f0').text(`Revealeo · ${pageLabel}`, right - 150, 18, { width: 150, align: 'right' });
+      doc.font(regular).fontSize(8).fillColor('#e2e8f0').text(`Hookooh · ${pageLabel}`, right - 150, 18, { width: 150, align: 'right' });
       doc.restore();
     };
 

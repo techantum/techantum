@@ -461,7 +461,7 @@ export async function summarizeProjectAnalysis(projectId: string, filterRaw?: Re
     messages: [
       {
         role: 'system',
-        content: `You analyse competitor YouTube research for Revealeo using only the public Data API fields provided.
+        content: `You analyse competitor YouTube research for Hookooh using only the public Data API fields provided.
 Rules:
 - Do not invent watch time, CTR, impressions, subscribers gained, or YouTube Analytics.
 - Treat likes + comments as public interaction counts, not official engagement rate.

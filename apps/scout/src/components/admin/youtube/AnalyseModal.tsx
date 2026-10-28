@@ -129,7 +129,7 @@ export default function AnalyseModal({
                 <h2 id="analyse-title" className="font-bricolage text-xl font-semibold text-slate-900">
                   {step === 1 ? 'Insight goals' : step === 2 ? 'Audience (optional)' : 'Review key insights'}
                 </h2>
-                <p className="text-sm text-slate-500">Pick one primary objective. Optionally add up to two secondary goals. YouTube Master will route diagnosis to the matching playbooks.</p>
+                <p className="text-sm text-slate-500">Pick one primary objective. Optionally add up to two secondary goals. Hookooh AI Agent will route diagnosis to the matching playbooks.</p>
               </div>
               <button type="button" className="rounded-full p-2 text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="Close">
                 <Icon name="XMarkIcon" size={20} />

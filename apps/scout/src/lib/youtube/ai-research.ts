@@ -423,7 +423,7 @@ export function buildFallbackGuides(videos: EvidenceVideo[], config: AiResearchC
         goal,
         video_id: video.id,
         diagnosis: behind
-          ? `This video has fewer public ${goal === 'likes' ? 'likes' : goal === 'comments' ? 'comments' : 'views'} than “${leader?.title}”. Use the steps below as a YouTube Master checklist, not a report.`
+          ? `This video has fewer public ${goal === 'likes' ? 'likes' : goal === 'comments' ? 'comments' : 'views'} than “${leader?.title}”. Use the steps below as a Hookooh checklist, not a report.`
           : `This video is the reference in this set for ${goalCoachName(goal).toLowerCase()}. Use it as the pattern for the others.`,
         steps,
       });

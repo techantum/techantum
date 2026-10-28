@@ -1,4 +1,4 @@
-# Revealeo
+# Hookooh
 
 Standalone SaaS for **YouTube Research** and **Lead Discovery**. It does not import Techantum source. You can copy this folder out of the Techantum repo and run it on its own.
 

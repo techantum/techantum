@@ -39,7 +39,7 @@ function stripInternalLabels(text: string) {
   return String(text || '')
     .replace(/Module\s+\d+\s*[—\-:]?\s*/gi, '')
     .replace(/Global agent behavior/gi, '')
-    .replace(/Revealeo YouTube Mastery Playbook v[\d.]+/gi, '')
+    .replace(/(?:Revealeo|Hookooh) YouTube Mastery Playbook v[\d.]+/gi, '')
     .replace(/\[(?:packaging|titles|thumbnails|retention|seo|audience|standards|channel|content|engagement|publishing|shorts|analytics|competitors|experiments|global)\]\s*/gi, '')
     .trim();
 }

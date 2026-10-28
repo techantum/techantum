@@ -61,7 +61,7 @@ export async function GET(request: Request, context: { params: Promise<{ path?: 
         canManageSettings: auth.canManageSettings,
         suggestions: HOOKOOH_SUGGESTIONS,
         welcome:
-          "Hey! I'm Hookooh, your YouTube growth assistant. Whether you're planning a new video, improving your thumbnails, understanding your analytics, or growing your channel, I'm here to help!",
+          "Hey! I'm Hookooh AI Agent, your YouTube growth assistant. Whether you're planning a new video, improving your thumbnails, understanding your analytics, or growing your channel, I'm here to help!",
       });
     }
     if (path[0] === 'settings') {

@@ -473,9 +473,6 @@ function youtubeNavChildren(locked = false, role?: PlatformRole): NavItem[] {
   if (!locked && canManageHookoohKnowledge(role)) {
     children.push({ href: '/youtube/ai-training', label: 'Hookooh', icon: 'SparklesIcon', key: 'yt-hookooh' });
   }
-  if (!locked && isSuperAdmin(role)) {
-    children.push({ href: '/youtube/hookooh', label: 'Hookooh Settings', icon: 'Cog6ToothIcon', key: 'yt-hookooh-settings' });
-  }
   return children;
 }
 

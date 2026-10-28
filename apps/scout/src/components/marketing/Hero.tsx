@@ -54,7 +54,7 @@ export default function Hero({
         </div>
         <SafeImage
           src={image}
-          alt="Revealeo workspace preview"
+          alt="Hookooh workspace preview"
           className="w-full rounded-[24px] object-cover shadow-[0_40px_90px_rgba(91,33,182,0.18)] ring-1 ring-white/80"
         />
       </section>

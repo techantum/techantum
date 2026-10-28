@@ -8,7 +8,7 @@ type Msg = { id?: string; role: 'user' | 'assistant'; content: string };
 type Chat = { id: string; title: string };
 
 const WELCOME =
-  "Hey! I'm Hookooh, your YouTube growth assistant. Whether you're planning a new video, improving your thumbnails, understanding your analytics, or growing your channel, I'm here to help!";
+  "Hey! I'm Hookooh AI Agent, your YouTube growth assistant. Whether you're planning a new video, improving your thumbnails, understanding your analytics, or growing your channel, I'm here to help!";
 
 async function api(path: string, init?: RequestInit) {
   const response = await fetch(`/api/hookooh/${path}`, {
@@ -184,7 +184,7 @@ export default function HookoohWidget() {
             <HookoohAvatar size={40} />
             <div className="min-w-0 flex-1">
               <p className="font-bricolage text-sm font-bold">Hookooh</p>
-              <p className="text-[11px] text-violet-100">YouTube AI Expert · Hook Better. Grow Smarter.</p>
+              <p className="text-[11px] text-violet-100">Hookooh AI Agent · Hook Better. Grow Smarter.</p>
             </div>
             <button type="button" className="rounded-lg p-1 hover:bg-white/10" onClick={() => setHistoryOpen((value) => !value)} aria-label="Chat history">
               <Icon name="ClockIcon" size={18} />

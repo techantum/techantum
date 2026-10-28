@@ -27,4 +27,4 @@ for (const file of files) {
   console.log('ok');
 }
 await client.end();
-console.log(`Applied ${files.length} Revealeo migrations.`);
+console.log(`Applied ${files.length} Hookooh migrations.`);

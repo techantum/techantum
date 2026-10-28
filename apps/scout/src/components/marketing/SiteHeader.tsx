@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { SHELL } from './layout';
 import type { RevealeoBranding } from '@/lib/cms/defaults';
+import { APP_NAME } from '@/lib/brand';
 import SafeImage from '@/components/ui/SafeImage';
 import NavIcon from '@/components/ui/NavIcon';
 
@@ -25,13 +26,13 @@ export default function SiteHeader({ solid = false, branding }: { solid?: boolea
           {branding?.logo_url ? (
             <SafeImage
               src={branding.logo_url}
-              alt={branding.company_name || 'revealeo'}
+              alt={branding.company_name || APP_NAME}
               className="h-12 w-auto max-w-[220px] object-contain object-left sm:h-14 sm:max-w-[260px]"
-              fallback={branding?.company_name || 'revealeo'}
+              fallback={branding?.company_name || APP_NAME}
               priority
             />
           ) : (
-            branding?.company_name || 'revealeo'
+            branding?.company_name || APP_NAME
           )}
         </Link>
         <nav className="hidden items-center gap-6 text-[13.5px] font-medium text-slate-500 lg:flex">

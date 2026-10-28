@@ -1,4 +1,4 @@
-export const PLAYBOOK_SOURCE = 'Revealeo YouTube Mastery Playbook v1.0';
+export const PLAYBOOK_SOURCE = 'Hookooh YouTube Mastery Playbook v1.0';
 
 export const PLAYBOOK_CATEGORIES = [
   'packaging',

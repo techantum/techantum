@@ -80,7 +80,7 @@ export function WorkspacePreview() {
   return (
     <div className="rounded-[28px] bg-[#F3E8FF] p-4 sm:p-5">
       <div className="overflow-hidden rounded-[20px] border border-white bg-white shadow-[0_18px_40px_rgba(124,58,237,0.12)]">
-        <BrowserBar url="app.revealeo.com/workspace" showAvatar />
+        <BrowserBar url="app.hookooh.com/workspace" showAvatar />
         <div className="grid grid-cols-[9.25rem_1fr]">
           <aside className="border-r border-slate-100 bg-[#FAF7FF] p-3">
             <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Workspace</p>
@@ -100,7 +100,7 @@ export function WorkspacePreview() {
             </div>
           </aside>
           <div className="p-4">
-            <p className="text-[10px] text-violet-600">revealeo / YouTube Research</p>
+            <p className="text-[10px] text-violet-600">hookooh / YouTube Research</p>
             <h3 className="mt-1 text-[15px] font-bold text-slate-900">From public data to useful insight</h3>
             <p className="mt-0.5 text-[11px] text-slate-400">Demo analysis · Public YouTube Data API counts</p>
             <div className="mt-3">
@@ -119,9 +119,9 @@ export function WorkspacePreview() {
 export function YoutubeResearchPreview() {
   return (
     <div className="overflow-hidden rounded-[22px] border border-white bg-white shadow-[0_18px_40px_rgba(124,58,237,0.12)]">
-      <BrowserBar url="app.revealeo.com/research" />
+      <BrowserBar url="app.hookooh.com/research" />
       <div className="p-5">
-        <p className="text-[10px] text-violet-600">revealeo / workspace / YouTube Research</p>
+        <p className="text-[10px] text-violet-600">hookooh / workspace / YouTube Research</p>
         <h3 className="mt-1 text-lg font-bold text-slate-900">YouTube Research</h3>
         <p className="text-[11px] text-slate-400">Demo data · Public YouTube Data API counts</p>
         <div className="mt-4">

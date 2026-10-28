@@ -1,3 +1,5 @@
+import { APP_NAME } from '@/lib/brand';
+
 export type RevealeoBranding = {
   company_name: string;
   tagline: string;
@@ -32,7 +34,7 @@ export type CmsSectionDef = {
 };
 
 export const DEFAULT_BRANDING: RevealeoBranding = {
-  company_name: 'revealeo',
+  company_name: 'Hookooh',
   tagline: 'Uncover your competitors’ marketing secrets',
   logo_url: '',
   footer_logo_url: '',
@@ -48,7 +50,7 @@ export const DEFAULT_BRANDING: RevealeoBranding = {
   youtube_url: '',
   twitter_url: '',
   footer_description: 'Turn public data into actionable insights. Uncover your competitors’ secrets and grow faster.',
-  copyright_text: 'Revealeo. All rights reserved.',
+  copyright_text: 'Hookooh. All rights reserved.',
 };
 
 export const CMS_SECTIONS: CmsSectionDef[] = [
@@ -68,13 +70,13 @@ export const CMS_SECTIONS: CmsSectionDef[] = [
   {
     key: 'features',
     label: 'Features',
-    description: 'Old way vs Revealeo comparison.',
+    description: 'Old way vs Hookooh comparison.',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
       { key: 'title', label: 'Title', type: 'textarea' },
       { key: 'description', label: 'Description', type: 'textarea' },
       { key: 'oldWay', label: 'The old way (one per line)', type: 'list' },
-      { key: 'withRevealeo', label: 'With Revealeo (one per line)', type: 'list' },
+      { key: 'withRevealeo', label: 'With Hookooh (one per line)', type: 'list' },
     ],
   },
   {
@@ -202,7 +204,7 @@ export const DEFAULT_CONTENT: Record<string, Record<string, unknown>> = {
   faq: {
     eyebrow: 'Frequently asked questions',
     title: 'Got questions?\nWe’ve got answers.',
-    description: 'Everything you need to know about Revealeo and how it can help you make better marketing decisions.',
+    description: 'Everything you need to know about Hookooh and how it can help you make better marketing decisions.',
     items: [
       {
         q: 'What platforms are supported?',
@@ -217,7 +219,7 @@ export const DEFAULT_CONTENT: Record<string, Record<string, unknown>> = {
         a: 'Yes. Saved comparisons stay on your workspace. Lead runs download as CSV or Excel. Share access through workspace seats on Growth and Scale.',
       },
       {
-        q: 'Do I need technical knowledge to use Revealeo?',
+        q: 'Do I need technical knowledge to use Hookooh?',
         a: 'No. You add public channel URLs or Places searches, then compare and export from the workspace. Optional AI notes use configured prompts — no API setup is required for the trial.',
       },
       {
@@ -229,7 +231,7 @@ export const DEFAULT_CONTENT: Record<string, Record<string, unknown>> = {
   cta: {
     eyebrow: 'Ready to uncover your competitors’ secrets?',
     title: 'Start your free trial today.',
-    description: 'Join thousands of marketers who use Revealeo to find opportunities, create better content and stay ahead of the competition.',
+    description: 'Join thousands of marketers who use Hookooh to find opportunities, create better content and stay ahead of the competition.',
   },
 };
 
@@ -239,13 +241,24 @@ export function mergeBranding(row?: Partial<RevealeoBranding> | Record<string, u
     const value = row?.[key];
     if (value != null && value !== '') next[key] = String(value);
   }
+  if (/^revealeo\.?$/i.test(next.company_name)) next.company_name = APP_NAME;
+  next.copyright_text = next.copyright_text.replace(/Revealeo/g, APP_NAME);
   return next;
+}
+
+function rebrandCopy(value: unknown): unknown {
+  if (typeof value === 'string') return value.replace(/Revealeo/g, APP_NAME);
+  if (Array.isArray(value)) return value.map(rebrandCopy);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, rebrandCopy(item)]));
+  }
+  return value;
 }
 
 export function mergeContent(stored: Record<string, Record<string, unknown>>): Record<string, Record<string, unknown>> {
   const next: Record<string, Record<string, unknown>> = {};
   for (const section of CMS_SECTIONS) {
-    next[section.key] = { ...DEFAULT_CONTENT[section.key], ...(stored[section.key] || {}) };
+    next[section.key] = rebrandCopy({ ...DEFAULT_CONTENT[section.key], ...(stored[section.key] || {}) }) as Record<string, unknown>;
   }
   return next;
 }

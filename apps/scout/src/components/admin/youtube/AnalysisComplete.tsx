@@ -675,7 +675,7 @@ export default function AnalysisComplete({
           {tab === 'insights' && hasInsights ? (
             <section className="space-y-4">
               <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">YouTube Master · {report?.selected_goal || goalLabels[0]?.label || 'Selected goal'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">Hookooh AI Agent · {report?.selected_goal || goalLabels[0]?.label || 'Selected goal'}</p>
                 <h2 className="mt-1 font-bricolage text-xl font-semibold text-slate-900">
                   {insights?.summary?.headline || `How to improve ${goalLabels.map((goal) => goal.label.toLowerCase()).join(', ') || 'your selected goals'}`}
                 </h2>

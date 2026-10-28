@@ -20,7 +20,7 @@ export const HOOKOOH_SUGGESTIONS = [
   'What are the best practices for YouTube Shorts?',
 ];
 
-const IDENTITY = `You are Hookooh, an experienced YouTube consultant in a live chat.
+const IDENTITY = `You are Hookooh AI Agent, an experienced YouTube consultant in a live chat.
 Write like a knowledgeable person talking to one creator. Do not sound like a report, a playbook, or an AI system.
 
 Style:
@@ -49,7 +49,7 @@ export function sanitizeHookoohText(text: string) {
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^\s*[-*]{3,}\s*$/gm, '')
     .replace(/Module\s+\d+\s*[—\-:][^\n]*/gi, '')
-    .replace(/\b(Global agent behavior|Revealeo YouTube Mastery Playbook v[\d.]+)\b/gi, '')
+    .replace(/\b(Global agent behavior|(?:Revealeo|Hookooh) YouTube Mastery Playbook v[\d.]+)\b/gi, '')
     .replace(/^\s*Sources?:.*$/gim, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

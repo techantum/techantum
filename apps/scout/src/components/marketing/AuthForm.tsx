@@ -59,7 +59,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       <p className="mt-2 text-sm text-slate-500">
         {signup
           ? '14 days of Growth: YouTube research and lead discovery. No card required.'
-          : 'Use your Revealeo email and password to open your workspace.'}
+          : 'Use your Hookooh email and password to open your workspace.'}
       </p>
       {error ? <p className="mt-4 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
       {signup ? (

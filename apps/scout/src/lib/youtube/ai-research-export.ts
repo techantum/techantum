@@ -34,7 +34,7 @@ export async function exportResearchReport(projectId: string, id: string) {
   });
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Revealeo';
+  workbook.creator = 'Hookooh';
   workbook.created = new Date();
   const sheet = workbook.addWorksheet('Comparison', { views: [{ state: 'frozen', ySplit: 1 }] });
   sheet.columns = columns.map((column) => ({ header: column.header, key: column.key, width: column.width || 18 }));

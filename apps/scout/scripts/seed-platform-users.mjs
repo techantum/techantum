@@ -77,7 +77,7 @@ if (!accountId) {
     `INSERT INTO public.saas_accounts (owner_user_id, name, email, plan, status, trial_ends_at)
      VALUES ($1, $2, $3, 'growth', 'trialing', $4)
      RETURNING id`,
-    [ids.subscriber_admin, 'Revealeo Demo', 'subscriber-admin@revealeo.com', trialEnds]
+    [ids.subscriber_admin, 'Hookooh Demo', 'subscriber-admin@revealeo.com', trialEnds]
   );
   accountId = inserted.rows[0].id;
 }

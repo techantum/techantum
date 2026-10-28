@@ -125,10 +125,10 @@ export default function YoutubeTrainingPage() {
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'Could not save training content');
-        setMessage(`Saved ${payload.imported || 1} item${payload.imported === 1 ? '' : 's'} to YouTube Master.`);
+        setMessage(`Saved ${payload.imported || 1} item${payload.imported === 1 ? '' : 's'} to Hookooh.`);
       } else {
         await yt('ai-training', { method: 'POST', body: JSON.stringify({ title, body, category, enabled: true }) });
-        setMessage('Training note saved. YouTube Master will use it on the next Key Insights run.');
+        setMessage('Training note saved. Hookooh AI Agent will use it on the next Key Insights run.');
       }
       resetForm();
       await load();
@@ -182,7 +182,7 @@ export default function YoutubeTrainingPage() {
     });
   }, [rows, search, typeFilter]);
 
-  if (!ready && !error) return <PageLoader label="Loading YouTube Master training…" />;
+  if (!ready && !error) return <PageLoader label="Loading Hookooh training…" />;
 
   const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100';
 
@@ -198,7 +198,7 @@ export default function YoutubeTrainingPage() {
             Train Hookooh on approved YouTube mastery playbooks and extra documents. Agent Users can chat with Hookooh; only Super Admin and Agent Admin can change this library.
           </p>
         </div>
-        <Link href={`${base}/settings`} className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+        <Link href="/settings" className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
           <Icon name="ArrowLeftIcon" size={16} /> Back to Settings
         </Link>
       </div>
@@ -211,13 +211,13 @@ export default function YoutubeTrainingPage() {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
             <Icon name="BookOpenIcon" size={18} />
           </span>
-          <h2 className="font-bricolage text-lg font-semibold text-slate-900">How to train YouTube Master</h2>
+          <h2 className="font-bricolage text-lg font-semibold text-slate-900">How to train Hookooh</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
             { icon: 'CloudArrowUpIcon', tone: 'bg-violet-50 text-violet-600', title: '1. Upload content', body: 'Upload documents, notes or training material for your YouTube business.' },
             { icon: 'PencilSquareIcon', tone: 'bg-sky-50 text-sky-600', title: '2. Add notes', body: 'Add short notes, examples or instructions to guide the agent.' },
-            { icon: 'BoltIcon', tone: 'bg-fuchsia-50 text-fuchsia-600', title: '3. Train', body: 'YouTube Master will analyse the content and learn your business context.' },
+            { icon: 'BoltIcon', tone: 'bg-fuchsia-50 text-fuchsia-600', title: '3. Train', body: 'Hookooh AI Agent will analyse the content and learn your YouTube context.' },
             { icon: 'ChatBubbleLeftRightIcon', tone: 'bg-emerald-50 text-emerald-600', title: '4. Use it', body: 'Start asking questions and get accurate, relevant YouTube insights.' },
           ].map((item) => (
             <article key={item.title} className="rounded-2xl bg-slate-50/80 p-4">
@@ -239,7 +239,7 @@ export default function YoutubeTrainingPage() {
             </span>
             <div>
               <h2 className="font-bricolage text-lg font-semibold text-slate-900">{editing ? 'Edit training content' : 'Add Training Content'}</h2>
-              <p className="text-sm text-slate-500">Upload files and add notes to train YouTube Master.</p>
+              <p className="text-sm text-slate-500">Upload files and add notes to train Hookooh AI Agent.</p>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -315,7 +315,7 @@ export default function YoutubeTrainingPage() {
               disabled={busy === 'save'}
               onClick={() => void save()}
             >
-              {busy === 'save' ? 'Saving…' : editing ? 'Update content' : 'Save to YouTube Master'}
+              {busy === 'save' ? 'Saving…' : editing ? 'Update content' : 'Save to Hookooh'}
             </button>
             {editing ? (
               <button type="button" className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600" onClick={resetForm}>
@@ -438,7 +438,7 @@ function HookoohTester() {
   const [error, setError] = useState('');
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm">
-      <h2 className="font-bricolage text-lg font-bold text-slate-900">Test Hookooh answers</h2>
+      <h2 className="font-bricolage text-lg font-bold text-slate-900">Test Hookooh AI Agent</h2>
       <p className="mt-1 text-sm text-slate-500">Send a YouTube question against the enabled knowledge. Disabled documents are excluded.</p>
       <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={3} className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Why are my YouTube videos getting fewer views?" />
       <button

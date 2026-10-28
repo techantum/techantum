@@ -117,8 +117,8 @@ export default function YoutubeSettingsPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold text-slate-900">YouTube Master training</h2>
-            <p className="mt-1 text-sm text-slate-500">Upload playbook documents or notes. Key Insights uses them as YouTube Master coaching rules.</p>
+            <h2 className="font-semibold text-slate-900">Hookooh</h2>
+            <p className="mt-1 text-sm text-slate-500">Upload playbook documents or notes. Key Insights and Hookooh AI Agent use them as coaching rules.</p>
           </div>
           <Link href={`${base}/ai-training`} className="btn-secondary">Open training</Link>
         </div>

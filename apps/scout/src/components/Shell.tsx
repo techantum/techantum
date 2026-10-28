@@ -10,6 +10,7 @@ import SafeImage from '@/components/ui/SafeImage';
 import type { PlatformRole } from '@/lib/admin/roles';
 import type { NavItem } from '@/lib/saas/catalog';
 import HookoohWidget from '@/components/hookooh/HookoohWidget';
+import { APP_NAME } from '@/lib/brand';
 
 function pathOf(href: string) {
   return href.split('?')[0];
@@ -112,9 +113,9 @@ export default function Shell({
   const mark = (
     <span className="flex items-center gap-2">
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-black text-white">
-        {(companyName || 'Revealeo').charAt(0)}
+        {(companyName || APP_NAME).charAt(0)}
       </span>
-      <span className="font-bricolage text-lg font-bold text-slate-900">{companyName || 'Revealeo'}</span>
+      <span className="font-bricolage text-lg font-bold text-slate-900">{companyName || APP_NAME}</span>
     </span>
   );
 
@@ -123,7 +124,7 @@ export default function Shell({
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 overflow-y-auto border-r border-slate-200 bg-white px-4 py-5 lg:block">
         <Link href="/home" className="flex items-center px-2">
           {logoUrl ? (
-            <SafeImage src={logoUrl} alt={companyName || 'Revealeo'} className="h-12 w-auto max-w-[180px] object-contain object-left" fallback={mark} priority />
+            <SafeImage src={logoUrl} alt={companyName || APP_NAME} className="h-12 w-auto max-w-[180px] object-contain object-left" fallback={mark} priority />
           ) : (
             mark
           )}

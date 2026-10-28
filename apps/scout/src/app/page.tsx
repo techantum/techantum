@@ -109,7 +109,7 @@ export default async function LandingPage() {
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-600">
                 <Icon name="CheckIcon" size={14} />
               </span>
-              With Revealeo
+              With Hookooh
             </h3>
             <ul className="mt-4 space-y-2.5 text-[13.5px] text-slate-600">
               {lines(features, 'withRevealeo', ['All platforms in one place', 'Automated data collection', 'AI-powered analysis', 'Compare competitors easily', 'Export and share insights']).map((item) => (
@@ -323,7 +323,7 @@ export default async function LandingPage() {
             ))}
           </h2>
           <p className={`${COPY} mt-4 max-w-sm`}>
-            {text(faq, 'description', 'Everything you need to know about Revealeo and how it can help you make better marketing decisions.')}
+            {text(faq, 'description', 'Everything you need to know about Hookooh and how it can help you make better marketing decisions.')}
           </p>
         </div>
         <Faq items={faqItems && faqItems.length ? faqItems : undefined} />
@@ -335,7 +335,7 @@ export default async function LandingPage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{text(cta, 'eyebrow', 'Ready to uncover your competitors’ secrets?')}</p>
             <h2 className="mt-2 font-bricolage text-[2rem] font-bold leading-tight">{text(cta, 'title', 'Start your free trial today.')}</h2>
             <p className="mt-2 text-[14px] leading-6 text-white/80">
-              {text(cta, 'description', 'Join thousands of marketers who use Revealeo to find opportunities, create better content and stay ahead of the competition.')}
+              {text(cta, 'description', 'Join thousands of marketers who use Hookooh to find opportunities, create better content and stay ahead of the competition.')}
             </p>
           </div>
           <div className="mt-6 lg:mt-0">

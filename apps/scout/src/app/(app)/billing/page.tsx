@@ -114,7 +114,7 @@ export default function BillingPage() {
           key: order.keyId,
           amount: order.amount,
           currency: order.currency || 'INR',
-          name: 'Revealeo',
+          name: 'Hookooh',
           description: order.package?.name || pkg.name,
           order_id: order.orderId,
           handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {

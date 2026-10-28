@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { SHELL } from './layout';
 import type { RevealeoBranding } from '@/lib/cms/defaults';
+import { APP_NAME } from '@/lib/brand';
 import SafeImage from '@/components/ui/SafeImage';
 
 const COLS = [
@@ -70,10 +71,10 @@ export default function SiteFooter({ branding }: { branding?: RevealeoBranding |
               src={branding.footer_logo_url || branding.logo_url}
               alt={branding.company_name}
               className="h-12 w-auto max-w-[240px] object-contain object-left sm:h-14 sm:max-w-[280px]"
-              fallback={<p className="font-bricolage text-[22px] font-bold text-slate-900">{branding?.company_name || 'revealeo'}</p>}
+              fallback={<p className="font-bricolage text-[22px] font-bold text-slate-900">{branding?.company_name || APP_NAME}</p>}
             />
           ) : (
-            <p className="font-bricolage text-[20px] font-bold text-slate-900">{branding?.company_name || 'revealeo'}</p>
+            <p className="font-bricolage text-[20px] font-bold text-slate-900">{branding?.company_name || APP_NAME}</p>
           )}
           <p className="mt-3 max-w-[240px] text-[13px] leading-6 text-slate-400">
             {branding?.footer_description || 'Turn public data into actionable insights. Uncover your competitors’ secrets and grow faster.'}
@@ -123,7 +124,7 @@ export default function SiteFooter({ branding }: { branding?: RevealeoBranding |
         ))}
       </div>
       <div className={`${SHELL} border-t border-slate-100 py-6 text-[12px] text-slate-400`}>
-        © {new Date().getFullYear()} {branding?.copyright_text || 'Revealeo. All rights reserved.'}
+        © {new Date().getFullYear()} {branding?.copyright_text || `${APP_NAME}. All rights reserved.`}
       </div>
     </footer>
   );

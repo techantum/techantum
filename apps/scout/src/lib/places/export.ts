@@ -8,7 +8,7 @@ export async function buildLeadDiscoveryWorkbook(
   results: Array<LeadDiscoveryResult | LeadDiscoveryResultRow>
 ) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Revealeo Lead Discovery';
+  workbook.creator = 'Hookooh Lead Discovery';
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet('Leads', {
