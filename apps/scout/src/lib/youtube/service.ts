@@ -1,6 +1,8 @@
 import { decryptSecret, encryptSecret, isEncryptionReady, secretHint } from '../ai/crypto';
 import { q } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
+import { asPlatform } from '../research/platforms';
+import { listResearchPosts, resolveResearchSource, searchResearchSources } from '../research/resolve';
 import { createYoutube, normalizeYoutubeApiKey, YoutubeApiError, YOUTUBE_CONNECTED_MESSAGE, type ResolvedChannel, type ResolvedVideo, type YoutubeFetch } from './client';
 import { presentChannel, presentVideo } from './mask';
 import { durationSeconds, parseYoutubeVideoIds, shortsPlaylistId, YOUTUBE_METRIC_NOTICE, publishingBuckets } from './parse';
@@ -249,9 +251,14 @@ export async function listChannels(query = '', classification = '', status = 'ac
   return rows.map((row) => presentChannel(row));
 }
 
-export async function resolveChannel(input: string) {
-  const channel = await createYoutube(await readApiKey()).resolve(input);
-  return channel;
+export async function resolveChannel(input: string, platform: unknown = 'youtube') {
+  return resolveResearchSource(asPlatform(platform), input, await readApiKey());
+}
+
+export async function searchChannels(query: string, platform: unknown = 'youtube') {
+  const kind = asPlatform(platform);
+  const youtubeKey = kind === 'youtube' ? await readApiKey() : '';
+  return searchResearchSources(kind, query, youtubeKey);
 }
 
 function channelValues(channel: ResolvedChannel) {
@@ -271,21 +278,22 @@ function channelValues(channel: ResolvedChannel) {
   ];
 }
 
-export async function saveChannel(input: string, classification: unknown, notes: unknown, userId: string) {
-  const channel = await createYoutube(await readApiKey()).resolve(input);
+export async function saveChannel(input: string, classification: unknown, notes: unknown, userId: string, platform: unknown = 'youtube') {
+  const kindPlatform = asPlatform(platform);
+  const channel = await resolveResearchSource(kindPlatform, input, await readApiKey());
   const kind = classificationOf(classification);
   const researchNotes = String(notes || '').trim() || null;
   if (researchNotes && researchNotes.length > 5000) throw new FinanceValidationError('Research notes are too long.');
-  const existing = await q(undefined, `SELECT id, status FROM youtube_channels WHERE youtube_channel_id=$1`, [channel.youtubeChannelId]);
-  if (existing.rows[0]?.status === 'active') throw new FinanceConflictError('This channel is already in YouTube Research.');
-  const values = [...channelValues(channel), kind, researchNotes, userId];
+  const existing = await q(undefined, `SELECT id, status FROM youtube_channels WHERE youtube_channel_id=$1 AND platform=$2`, [channel.youtubeChannelId, kindPlatform]);
+  if (existing.rows[0]?.status === 'active') throw new FinanceConflictError('This channel is already in research.');
+  const values = [...channelValues(channel), kind, researchNotes, userId, kindPlatform];
   const { rows } = existing.rows[0]
     ? await q(
         undefined,
         `UPDATE youtube_channels SET
            channel_name=$2, channel_handle=$3, channel_url=$4, description=$5, thumbnail_url=$6, uploads_playlist_id=$7,
            subscriber_count=$8, video_count=$9, view_count=$10, country=$11, public_details=$12::jsonb, classification=$13,
-           research_notes=COALESCE($14, research_notes), status='active', last_refreshed_at=NOW(), created_by=COALESCE(created_by,$15)
+           research_notes=COALESCE($14, research_notes), status='active', last_refreshed_at=NOW(), created_by=COALESCE(created_by,$15), platform=$16
          WHERE id=$1 RETURNING *`,
         [existing.rows[0].id, ...values.slice(1)]
       )
@@ -293,8 +301,8 @@ export async function saveChannel(input: string, classification: unknown, notes:
         undefined,
         `INSERT INTO youtube_channels (
            youtube_channel_id, channel_name, channel_handle, channel_url, description, thumbnail_url, uploads_playlist_id,
-           subscriber_count, video_count, view_count, country, public_details, classification, research_notes, status, last_refreshed_at, created_by
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,'active',NOW(),$15) RETURNING *`,
+           subscriber_count, video_count, view_count, country, public_details, classification, research_notes, status, last_refreshed_at, created_by, platform
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,'active',NOW(),$15,$16) RETURNING *`,
         values
       );
   await stampChannelPublished(rows[0].id, channel.publishedAt);
@@ -302,21 +310,98 @@ export async function saveChannel(input: string, classification: unknown, notes:
   return presentChannel({ ...rows[0], videos_imported: 0 });
 }
 
-export async function ensureChannel(input: string, userId: string) {
-  const channel = await createYoutube(await readApiKey()).resolve(input);
-  const existing = await q(undefined, `SELECT id FROM youtube_channels WHERE youtube_channel_id=$1`, [channel.youtubeChannelId]);
+function stubFromPageInput(platform: ReturnType<typeof asPlatform>, input: string): ResolvedChannel | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  try {
+    if (platform === 'facebook') {
+      const url = raw.startsWith('http') ? raw : `https://www.facebook.com/${raw.replace(/^@/, '')}`;
+      const parsed = new URL(url);
+      const slug = parsed.pathname.split('/').filter(Boolean)[0] || raw.replace(/^@/, '');
+      if (!slug) return null;
+      return {
+        youtubeChannelId: slug,
+        channelName: slug,
+        channelHandle: slug,
+        channelUrl: `https://www.facebook.com/${slug}`,
+        description: null,
+        thumbnailUrl: null,
+        uploadsPlaylistId: null,
+        subscriberCount: null,
+        videoCount: null,
+        viewCount: null,
+        publishedAt: null,
+        country: null,
+        publicDetails: { platform, source: 'typed' },
+      };
+    }
+    if (platform === 'instagram') {
+      const handle = raw.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').split('/')[0];
+      if (!handle) return null;
+      return {
+        youtubeChannelId: handle,
+        channelName: handle,
+        channelHandle: handle,
+        channelUrl: `https://www.instagram.com/${handle}/`,
+        description: null,
+        thumbnailUrl: null,
+        uploadsPlaylistId: null,
+        subscriberCount: null,
+        videoCount: null,
+        viewCount: null,
+        publishedAt: null,
+        country: null,
+        publicDetails: { platform, source: 'typed' },
+      };
+    }
+    if (platform === 'linkedin') {
+      const slug = raw.replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, '').replace(/\/+$/, '').split('/')[0] || raw;
+      if (!slug) return null;
+      return {
+        youtubeChannelId: slug,
+        channelName: slug,
+        channelHandle: slug,
+        channelUrl: `https://www.linkedin.com/company/${slug}/`,
+        description: null,
+        thumbnailUrl: null,
+        uploadsPlaylistId: null,
+        subscriberCount: null,
+        videoCount: null,
+        viewCount: null,
+        publishedAt: null,
+        country: null,
+        publicDetails: { platform, source: 'typed' },
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export async function ensureChannel(input: string, userId: string, platform: unknown = 'youtube') {
+  const kindPlatform = asPlatform(platform);
+  let channel: ResolvedChannel;
+  try {
+    channel = await resolveResearchSource(kindPlatform, input, await readApiKey());
+  } catch (err) {
+    const stub = stubFromPageInput(kindPlatform, input);
+    if (!stub) throw err;
+    channel = stub;
+  }
+  const existing = await q(undefined, `SELECT id FROM youtube_channels WHERE youtube_channel_id=$1 AND platform=$2`, [channel.youtubeChannelId, kindPlatform]);
   if (existing.rows[0]) {
     await rememberChannel(existing.rows[0].id, channel);
-    await q(undefined, `UPDATE youtube_channels SET status='active' WHERE id=$1 AND status='removed'`, [existing.rows[0].id]);
+    await q(undefined, `UPDATE youtube_channels SET status='active', platform=$2 WHERE id=$1 AND status='removed'`, [existing.rows[0].id, kindPlatform]);
     return String(existing.rows[0].id);
   }
-  const values = [...channelValues(channel), 'other', null, userId];
+  const values = [...channelValues(channel), 'other', null, userId, kindPlatform];
   const { rows } = await q(
     undefined,
     `INSERT INTO youtube_channels (
        youtube_channel_id, channel_name, channel_handle, channel_url, description, thumbnail_url, uploads_playlist_id,
-       subscriber_count, video_count, view_count, country, public_details, classification, research_notes, status, last_refreshed_at, created_by
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,'active',NOW(),$15) RETURNING id`,
+       subscriber_count, video_count, view_count, country, public_details, classification, research_notes, status, last_refreshed_at, created_by, platform
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,'active',NOW(),$15,$16) RETURNING id`,
     values
   );
   await stampChannelPublished(rows[0].id, channel.publishedAt);
@@ -407,12 +492,20 @@ async function rememberChannel(channelId: string, resolved: ResolvedChannel) {
   await stampChannelPublished(channelId, resolved.publishedAt);
 }
 
+function contentUrl(video: ResolvedVideo) {
+  const details = (video.publicDetails || {}) as Record<string, unknown>;
+  const permalink = String(details.permalink || details.permalink_url || '');
+  if (permalink.startsWith('http')) return permalink;
+  if (String(video.youtubeVideoId).includes(':')) return permalink || null;
+  return `https://www.youtube.com/watch?v=${video.youtubeVideoId}`;
+}
+
 async function upsertVideo(channelId: string, video: ResolvedVideo) {
   const values = [
     channelId,
     video.youtubeVideoId,
     video.title,
-    `https://www.youtube.com/watch?v=${video.youtubeVideoId}`,
+    contentUrl(video),
     video.description,
     video.publishedAt,
     video.duration,
@@ -477,9 +570,76 @@ function mergePlaylistVideos(
   return merged;
 }
 
+async function runSocialImport(channelId: string, current: Record<string, unknown>, body: Record<string, unknown>, userId: string) {
+  const platform = asPlatform(current.platform);
+  const settings = await settingsRow();
+  const limit = limitOf(body.limit ?? body.maximum_results, settings);
+  const mode = modeOf(body.mode ?? body.import_mode ?? body.import_type);
+  const dateFrom = dateOrNull(body.date_from ?? body.from);
+  const dateTo = dateOrNull(body.date_to ?? body.to);
+  await q(undefined, `UPDATE youtube_import_jobs SET status='failed', error_summary='The import stopped before it finished.', completed_at=NOW() WHERE status='running' AND started_at < NOW() - INTERVAL '10 minutes'`);
+  const running = await q(undefined, `SELECT id FROM youtube_import_jobs WHERE channel_id=$1 AND status='running'`, [channelId]);
+  if (running.rows[0]) throw new FinanceConflictError('An import is already running for this page.');
+  const { rows } = await q(
+    undefined,
+    `INSERT INTO youtube_import_jobs (channel_id, requested_by, import_type, date_from, date_to, requested_limit, status, started_at, project_id)
+     VALUES ($1,$2,$3,$4,$5,$6,'running',NOW(),$7) RETURNING *`,
+    [channelId, userId, mode, dateFrom, dateTo, limit, body.project_id || null]
+  );
+  const jobId = rows[0].id;
+  let processed = 0;
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+  try {
+    const details = await listResearchPosts(platform, {
+      youtube_channel_id: String(current.youtube_channel_id),
+      channel_handle: current.channel_handle ? String(current.channel_handle) : null,
+    });
+    const ids = details.map((item) => item.youtubeVideoId);
+    const known = ids.length
+      ? await q<{ youtube_video_id: string }>(undefined, `SELECT youtube_video_id FROM youtube_videos WHERE youtube_video_id = ANY($1::text[])`, [ids])
+      : { rows: [] };
+    const existing = new Set(known.rows.map((row) => row.youtube_video_id));
+    const targets = mode === 'new' ? details.filter((item) => !existing.has(item.youtubeVideoId)) : details;
+    skipped += details.length - targets.length;
+    for (const video of targets.slice(0, limit)) {
+      const published = video.publishedAt ? video.publishedAt.slice(0, 10) : '';
+      if (dateFrom && published && published < dateFrom) {
+        skipped += 1;
+        continue;
+      }
+      if (dateTo && published && published > dateTo) {
+        skipped += 1;
+        continue;
+      }
+      await upsertVideo(channelId, video);
+      if (existing.has(video.youtubeVideoId)) updated += 1;
+      else inserted += 1;
+      processed += 1;
+    }
+    await q(
+      undefined,
+      `UPDATE youtube_import_jobs SET processed_count=$2, inserted_count=$3, updated_count=$4, skipped_count=$5, status='completed', completed_at=NOW() WHERE id=$1`,
+      [jobId, processed, inserted, updated, skipped]
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Import failed';
+    await q(
+      undefined,
+      `UPDATE youtube_import_jobs SET processed_count=$2, inserted_count=$3, updated_count=$4, skipped_count=$5, status=$6, error_summary=$7, completed_at=NOW() WHERE id=$1`,
+      [jobId, processed, inserted, updated, skipped, processed ? 'partially_completed' : 'failed', message]
+    );
+    if (!processed) throw err;
+  }
+  const job = await q(undefined, `SELECT * FROM youtube_import_jobs WHERE id=$1`, [jobId]);
+  return job.rows[0];
+}
+
 async function runImport(channelId: string, body: Record<string, unknown>, userId: string, fetchImpl?: YoutubeFetch) {
   const current = await channelById(channelId);
   if (current.status !== 'active') throw new FinanceValidationError('Restore this channel before importing videos.');
+  if (asPlatform(current.platform) !== 'youtube') return runSocialImport(channelId, current, body, userId);
   const settings = await settingsRow();
   const limit = limitOf(body.limit ?? body.maximum_results, settings);
   const mode = modeOf(body.mode ?? body.import_mode ?? body.import_type);

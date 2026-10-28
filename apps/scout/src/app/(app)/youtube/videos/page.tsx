@@ -12,7 +12,8 @@ import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
-import { allow, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, ProjectRequired, useProjectId, useProjectPlatform, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { platformCopy } from '@/lib/research/platforms';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
@@ -59,6 +60,8 @@ function Avatar({ src, name, className = 'h-10 w-10', tone = 'bg-slate-800 text-
 
 function Explorer() {
   const projectId = useProjectId();
+  const platform = useProjectPlatform();
+  const copy = platformCopy(platform);
   const base = useYoutubePageBase();
   const router = useRouter();
   const search = useSearchParams();
@@ -144,14 +147,14 @@ function Explorer() {
         return load(1, next, channelRows);
       }
       if (failed.length && failed.length === (imported.results || []).length) {
-        throw new Error(failed[0].error || 'Could not fetch videos from these channels');
+        throw new Error(failed[0].error || `Could not fetch ${copy.contentPlural} from these ${copy.entityPlural}`);
       }
       const body = await load(1, next, channelRows);
       const added = (imported.results || []).reduce((sum: number, job: { inserted_count?: number; updated_count?: number }) => sum + Number(job.inserted_count || 0) + Number(job.updated_count || 0), 0);
       setMessage(added ? `Fetched ${added} video${added === 1 ? '' : 's'} from YouTube.` : 'No new public videos were returned for these channels.');
       return body;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not fetch videos from these channels');
+      setError(err instanceof Error ? err.message : `Could not fetch ${copy.contentPlural} from these ${copy.entityPlural}`);
       try {
         return await load(1, next, channelRows);
       } catch {
@@ -365,7 +368,7 @@ function Explorer() {
   if (loading) return <PageLoader label="Loading research…" />;
 
   return (
-    <div className={`space-y-4 ${selected.length ? 'pb-24' : ''}`}>
+    <div className="flex h-[calc(100dvh-var(--yt-sticky)+5.5rem)] flex-col gap-3">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
 
@@ -373,18 +376,18 @@ function Explorer() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform</span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-2.5 py-1 text-sm font-semibold text-slate-900">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#FF0000] text-[10px] font-black text-white">▶</span>
-              YouTube
+            <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-sm font-semibold ${copy.accent}`}>
+              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-black ${copy.markClass}`}>{copy.mark}</span>
+              {copy.label}
             </span>
-            <span className="text-xs text-slate-400">YouTube Research is YouTube-only</span>
+            <span className="text-xs text-slate-400">This project researches {copy.label} {copy.entityPlural}</span>
           </div>
-          <p className="text-xs font-medium text-slate-500">{channels.length} YouTube channel{channels.length === 1 ? '' : 's'} in this project</p>
+          <p className="text-xs font-medium text-slate-500">{channels.length} {copy.label} {channels.length === 1 ? copy.entity : copy.entityPlural} in this project</p>
         </div>
 
         <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(17rem,20rem)_1fr] xl:items-start">
           <div>
-            <p className="mb-2 text-xs font-semibold text-slate-500">Your YouTube channel</p>
+            <p className="mb-2 text-xs font-semibold text-slate-500">{copy.ownLabel}</p>
             {own ? (
               <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
                 <Avatar src={own.thumbnail_url} name={own.channel_name} className="h-11 w-11" />
@@ -396,14 +399,14 @@ function Explorer() {
               </div>
             ) : manage ? (
               <button type="button" className="flex w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 px-3 py-6 text-sm font-semibold text-secondary hover:border-secondary/50 hover:bg-orange-50/40" onClick={() => setAdding('own')}>
-                Connect your channel
+                Connect your {copy.entity}
               </button>
             ) : (
-              <p className="rounded-2xl border border-slate-100 px-3 py-6 text-sm text-slate-400">No own channel yet</p>
+              <p className="rounded-2xl border border-slate-100 px-3 py-6 text-sm text-slate-400">No own {copy.entity} yet</p>
             )}
           </div>
           <div className="min-w-0">
-            <p className="mb-2 text-xs font-semibold text-slate-500">Competitor channels · {competitors.length}</p>
+            <p className="mb-2 text-xs font-semibold text-slate-500">{copy.competitorLabel} · {competitors.length}</p>
             <div className="flex flex-wrap items-stretch gap-3">
               {competitors.map((row, index) => (
                 <div key={row.id} className="flex min-w-[13.5rem] flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 sm:max-w-[18rem]">
@@ -421,7 +424,7 @@ function Explorer() {
               ))}
               {manage && competitors.length < MAX_PROJECT_COMPETITORS ? (
                 <button type="button" className="inline-flex min-h-[4.25rem] min-w-[11rem] items-center justify-center gap-1.5 rounded-2xl border border-dashed border-secondary/70 px-4 text-sm font-semibold text-secondary hover:bg-orange-50/70" onClick={() => setAdding('competitor')}>
-                  <Icon name="PlusIcon" size={16} /> Add competitor
+                  <Icon name="PlusIcon" size={16} /> Add competitor {copy.entity}
                 </button>
               ) : manage ? (
                 <Link href={`${base}/channels?from=research`} className="self-center text-xs font-semibold text-slate-500">Manage competitors</Link>
@@ -429,78 +432,79 @@ function Explorer() {
             </div>
           </div>
         </div>
-
-        <div className="mt-5 flex flex-col gap-2 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
-            <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              className={`${partnerInput} h-10 rounded-full pl-9`}
-              placeholder="Enter video title or keyword"
-              value={filters.q}
-              onChange={(event) => setFilters({ ...filters, q: event.target.value })}
-              onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyFilters({ ...filters, q: event.currentTarget.value }); } }}
-            />
-          </label>
-          <select className={selectClass} value={range} onChange={(event) => {
-            const id = event.target.value;
-            setRange(id);
-            const next = { ...filters, ...applyPreset(id) };
-            setFilters(next);
-            applyFilters(next);
-          }}>
-            {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.id === 'all' ? 'All time' : preset.label}</option>)}
-          </select>
-          <select className={selectClass} value={filters.channelIds || ''} onChange={(event) => {
-            const next = { ...filters, channelIds: event.target.value };
-            setFilters(next);
-            applyFilters(next);
-          }}>
-            <option value="">All channels</option>
-            {channels.map((channel) => <option key={channel.id} value={channel.id}>{channel.relationship === 'own' ? 'You · ' : ''}{channel.channel_name || channel.youtube_channel_id}</option>)}
-          </select>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <select className={selectClass} value={filters.content} onChange={(event) => { const next = { ...filters, content: event.target.value }; setFilters(next); applyFilters(next); }}>
-            <option value="">All formats</option>
-            <option value="short">Shorts</option>
-            <option value="video">Videos</option>
-          </select>
-          <select className={selectClass} value={filters.categoryId} onChange={(event) => { const next = { ...filters, categoryId: event.target.value }; setFilters(next); applyFilters(next); }}>
-            <option value="">All categories</option>
-            {(filterOptions.categories || []).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
-          <select className={selectClass} value={filters.tag} onChange={(event) => { const next = { ...filters, tag: event.target.value }; setFilters(next); applyFilters(next); }}>
-            <option value="">All tags</option>
-            {(filterOptions.tags || []).map((item) => <option key={item.tag} value={item.tag}>{item.tag}</option>)}
-          </select>
-          <select className={selectClass} value={filters.placement} onChange={(event) => { const next = { ...filters, placement: event.target.value }; setFilters(next); applyFilters(next); }}>
-            <option value="">Organic & paid</option>
-            <option value="organic">Organic</option>
-            <option value="paid">Paid</option>
-          </select>
-          <select className={selectClass} value={filters.sort || 'published_at'} onChange={(event) => { const next = { ...filters, sort: event.target.value }; setFilters(next); applyFilters(next); }}>
-            <option value="published_at">Sort: Newest</option>
-            <option value="view_count">Sort: Most viewed</option>
-            <option value="like_count">Sort: Most liked</option>
-            <option value="comment_count">Sort: Most commented</option>
-          </select>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <button type="button" className={partnerBtnPrimary} onClick={() => applyFilters(filters)}>Search</button>
-            <button type="button" className="text-sm font-semibold text-slate-500 hover:text-slate-800" onClick={resetFilters}>Reset filters</button>
-            {canImport ? <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}><Icon name="ArrowDownTrayIcon" size={16} /> Fetch videos</AdminButton> : null}
-          </div>
-        </div>
       </section>
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} results`}</span>
-        <Chip className="bg-slate-100 text-slate-600">YouTube</Chip>
-      </div>
+      <section className="flex min-h-[28rem] flex-1 flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm">
+        <div className="z-20 shrink-0 space-y-2 border-b border-slate-100 bg-white px-4 py-3">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <label className="relative min-w-0 flex-1">
+              <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                className={`${partnerInput} h-10 rounded-full pl-9`}
+                placeholder="Enter video title or keyword"
+                value={filters.q}
+                onChange={(event) => setFilters({ ...filters, q: event.target.value })}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyFilters({ ...filters, q: event.currentTarget.value }); } }}
+              />
+            </label>
+            <select className={selectClass} value={range} onChange={(event) => {
+              const id = event.target.value;
+              setRange(id);
+              const next = { ...filters, ...applyPreset(id) };
+              setFilters(next);
+              applyFilters(next);
+            }}>
+              {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.id === 'all' ? 'All time' : preset.label}</option>)}
+            </select>
+            <select className={selectClass} value={filters.channelIds || ''} onChange={(event) => {
+              const next = { ...filters, channelIds: event.target.value };
+              setFilters(next);
+              applyFilters(next);
+            }}>
+              <option value="">All channels</option>
+              {channels.map((channel) => <option key={channel.id} value={channel.id}>{channel.relationship === 'own' ? 'You · ' : ''}{channel.channel_name || channel.youtube_channel_id}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select className={selectClass} value={filters.content} onChange={(event) => { const next = { ...filters, content: event.target.value }; setFilters(next); applyFilters(next); }}>
+              <option value="">All formats</option>
+              <option value="short">Shorts</option>
+              <option value="video">Videos</option>
+            </select>
+            <select className={selectClass} value={filters.categoryId} onChange={(event) => { const next = { ...filters, categoryId: event.target.value }; setFilters(next); applyFilters(next); }}>
+              <option value="">All categories</option>
+              {(filterOptions.categories || []).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className={selectClass} value={filters.tag} onChange={(event) => { const next = { ...filters, tag: event.target.value }; setFilters(next); applyFilters(next); }}>
+              <option value="">All tags</option>
+              {(filterOptions.tags || []).map((item) => <option key={item.tag} value={item.tag}>{item.tag}</option>)}
+            </select>
+            <select className={selectClass} value={filters.placement} onChange={(event) => { const next = { ...filters, placement: event.target.value }; setFilters(next); applyFilters(next); }}>
+              <option value="">Organic & paid</option>
+              <option value="organic">Organic</option>
+              <option value="paid">Paid</option>
+            </select>
+            <select className={selectClass} value={filters.sort || 'published_at'} onChange={(event) => { const next = { ...filters, sort: event.target.value }; setFilters(next); applyFilters(next); }}>
+              <option value="published_at">Sort: Newest</option>
+              <option value="view_count">Sort: Most viewed</option>
+              <option value="like_count">Sort: Most liked</option>
+              <option value="comment_count">Sort: Most commented</option>
+            </select>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <button type="button" className={partnerBtnPrimary} onClick={() => applyFilters(filters)}>Search</button>
+              <button type="button" className="text-sm font-semibold text-slate-500 hover:text-slate-800" onClick={resetFilters}>Reset filters</button>
+              {canImport ? <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}><Icon name="ArrowDownTrayIcon" size={16} /> {copy.fetchLabel}</AdminButton> : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} results`}</span>
+            <Chip className="bg-slate-100 text-slate-600">{copy.label}</Chip>
+          </div>
+        </div>
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full min-w-[920px] text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-white">
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 <th className="w-12 px-4 py-3">
                   <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-secondary" checked={allPageSelected} onChange={() => {
@@ -574,24 +578,24 @@ function Explorer() {
               })}
             </tbody>
           </table>
-        </div>
-        {!rows.length ? (
+          {!rows.length ? (
           <div className="px-4 py-12 text-center">
-            <p className="text-sm font-semibold text-slate-800">{fetching ? 'Fetching public videos…' : channels.length ? 'No videos match these filters' : 'No YouTube channels in this project yet'}</p>
-            <p className="mt-1 text-sm text-slate-500">{fetching ? 'This can take a minute.' : channels.length ? 'Fetch from YouTube or reset filters.' : 'Connect your channel, add competitors, then fetch videos.'}</p>
+            <p className="text-sm font-semibold text-slate-800">{fetching ? `Fetching public ${copy.contentPlural}…` : channels.length ? `No ${copy.contentPlural} match these filters` : `No ${copy.label} ${copy.entityPlural} in this project yet`}</p>
+            <p className="mt-1 text-sm text-slate-500">{fetching ? 'This can take a minute.' : channels.length ? `Fetch from ${copy.label} or reset filters.` : `Connect your ${copy.entity}, add competitors, then fetch ${copy.contentPlural}.`}</p>
             {!channels.length && manage ? (
-              <button type="button" className={`${partnerBtnPrimary} mt-4`} onClick={() => setAdding('own')}>Connect your channel</button>
+              <button type="button" className={`${partnerBtnPrimary} mt-4`} onClick={() => setAdding('own')}>Connect your {copy.entity}</button>
             ) : null}
             {channels.length && !fetching ? (
               <div className="mt-4 flex justify-center gap-2">
-                {canImport ? <AdminButton variant="primary" onClick={() => fetchFromChannels(channels)}>Fetch videos</AdminButton> : null}
+                {canImport ? <AdminButton variant="primary" onClick={() => fetchFromChannels(channels)}>{copy.fetchLabel}</AdminButton> : null}
                 <button type="button" className={partnerBtnSecondary} onClick={resetFilters}>Reset filters</button>
               </div>
             ) : null}
           </div>
         ) : null}
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
-          <span>{total} videos</span>
+        </div>
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
+          <span>{total} {copy.contentPlural}</span>
           <span className="flex items-center gap-3">
             <button type="button" className="font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-40" disabled={page <= 1 || Boolean(paging)} onClick={() => { const next = page - 1; setPage(next); setPaging('prev'); load(next).catch((err) => setError(err.message)).finally(() => setPaging('')); }}>Previous</button>
             <span>{page} / {totalPages}</span>
@@ -608,6 +612,7 @@ function Explorer() {
           hasOwn={Boolean(own)}
           competitorCount={competitors.length}
           competitorLimit={MAX_PROJECT_COMPETITORS}
+          platform={platform}
           onSaved={savedChannel}
           onCancel={() => setAdding('')}
         />

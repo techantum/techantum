@@ -9,7 +9,7 @@ import ChannelDraftForm from '@/components/admin/youtube/ChannelDraftForm';
 import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { handleLabel } from '@/components/admin/youtube/research-ui';
-import { allow, metric, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { allow, metric, useProjectId, useProjectPlatform, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
@@ -27,6 +27,7 @@ function compactMetric(value: unknown) {
 
 export default function ChannelManagementBoard({ backHref, initialAdding = '' }: { backHref: string; initialAdding?: 'own' | 'competitor' | '' }) {
   const projectId = useProjectId();
+  const platform = useProjectPlatform();
   const base = useYoutubePageBase();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
@@ -270,6 +271,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
           relationship="own"
           projectId={projectId}
           hasOwn={Boolean(own)}
+          platform={platform}
           onSaved={async (saved) => {
             setAdding('');
             setMessage(own ? 'Own YouTube channel replaced.' : 'Own YouTube channel connected.');

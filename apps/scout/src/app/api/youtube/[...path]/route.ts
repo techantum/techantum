@@ -70,6 +70,7 @@ import {
   refreshVideos,
   removeChannel,
   resolveChannel,
+  searchChannels,
   retryImport,
   saveChannel,
   saveTopic,
@@ -307,6 +308,13 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
         pageSize: Number(url.searchParams.get('pageSize') || 20),
       }));
     }
+    if (path[0] === 'channels' && path[1] === 'search') {
+      const auth = await gate('youtube_research.channels.manage');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json({
+        rows: await searchChannels(url.searchParams.get('q') || '', url.searchParams.get('platform') || 'youtube'),
+      });
+    }
     if (path[0] === 'channels' && path[1]) {
       const auth = await gate('youtube_research.view');
       if ('error' in auth && auth.error) return auth.error;
@@ -490,7 +498,7 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
     if (path[0] === 'channels' && path[1] === 'resolve') {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await resolveChannel(String(body.input || '')));
+      return NextResponse.json(await resolveChannel(String(body.input || ''), body.platform));
     }
     if (path[0] === 'channels' && path[2] === 'refresh') {
       const auth = await gate('youtube_research.channels.manage');
@@ -500,7 +508,7 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
     if (path[0] === 'channels') {
       const auth = await gate('youtube_research.channels.manage');
       if ('error' in auth && auth.error) return auth.error;
-      return NextResponse.json(await saveChannel(String(body.input || ''), body.classification, body.research_notes ?? body.researchNotes, auth.user.id));
+      return NextResponse.json(await saveChannel(String(body.input || ''), body.classification, body.research_notes ?? body.researchNotes, auth.user.id, body.platform));
     }
     if (path[0] === 'imports' && path[1] === 'preview') {
       const auth = await gate('youtube_research.videos.import');

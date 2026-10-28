@@ -18,10 +18,13 @@ function count(value: unknown) {
 export function presentChannel<T extends Record<string, unknown>>(row: T, now = Date.now()) {
   const fresh = isFresh(row.last_refreshed_at as string | null, now);
   const youtubeId = String(row.youtube_channel_id || '');
+  const platform = String(row.platform || 'youtube');
+  const storedUrl = String(row.channel_url || '');
   return {
     ...row,
+    platform,
     stale: !fresh,
-    public_url: youtubeId ? channelPublicUrl(youtubeId) : null,
+    public_url: platform === 'youtube' && youtubeId ? channelPublicUrl(youtubeId) : storedUrl || null,
     channel_name: fresh ? row.channel_name || null : null,
     channel_handle: fresh ? row.channel_handle || null : null,
     channel_url: fresh ? row.channel_url || null : null,
@@ -42,11 +45,17 @@ export function presentVideo<T extends Record<string, unknown>>(row: T, now = Da
   const fresh = isFresh(row.fetched_at as string | null, now);
   const channelFresh = isFresh((row.channel_refreshed_at as string | null) || null, now);
   const youtubeId = String(row.youtube_video_id || '');
+  const storedUrl = String(row.video_url || '');
+  const watch = storedUrl.startsWith('http')
+    ? storedUrl
+    : youtubeId && !youtubeId.includes(':')
+      ? watchUrl(youtubeId)
+      : storedUrl || null;
   return {
     ...row,
     stale: !fresh,
     channel_stale: !channelFresh,
-    watch_url: youtubeId ? watchUrl(youtubeId) : null,
+    watch_url: watch,
     title: fresh ? row.title || null : null,
     video_url: fresh ? row.video_url || null : null,
     description: fresh ? row.description ?? null : null,

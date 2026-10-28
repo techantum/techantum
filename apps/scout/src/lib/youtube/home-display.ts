@@ -16,6 +16,7 @@ export type HomeProject = {
   status: string;
   legacy?: boolean;
   updated_at: string;
+  platform?: string;
   own_channel_name: string | null;
   own_thumbnail_url: string | null;
   competitor_count: number;
@@ -66,6 +67,7 @@ export function formatAgo(value: string | Date | null | undefined) {
 
 export function nextStepFor(row: {
   status?: string | null;
+  platform?: string | null;
   own_youtube_channel_id?: string | null;
   competitor_count?: number;
   video_count?: number;
@@ -75,14 +77,15 @@ export function nextStepFor(row: {
   if (row.status === 'completed' || row.status === 'archived') {
     return { key: 'ready', label: 'Completed', href: `/videos`, action: null, progress: 6 };
   }
+  const page = String(row.platform || 'youtube') !== 'youtube';
   if (!row.own_youtube_channel_id) {
-    return { key: 'own', label: 'Connect your channel', href: `/channels?from=research&add=own`, action: 'Connect', progress: 1 };
+    return { key: 'own', label: page ? 'Connect your page' : 'Connect your channel', href: `/channels?from=research&add=own`, action: 'Connect', progress: 1 };
   }
   if (Number(row.competitor_count || 0) < 1) {
-    return { key: 'competitors', label: 'Add competitors', href: `/channels?from=research&add=competitor`, action: 'Add', progress: 2 };
+    return { key: 'competitors', label: page ? 'Add competitor pages' : 'Add competitors', href: `/channels?from=research&add=competitor`, action: 'Add', progress: 2 };
   }
   if (Number(row.video_count || 0) < 1) {
-    return { key: 'import', label: 'Import videos', href: `/videos`, action: 'Import', progress: 3 };
+    return { key: 'import', label: page ? 'Import posts' : 'Import videos', href: `/videos`, action: 'Import', progress: 3 };
   }
   if (Number(row.analysis_count || 0) < 1) {
     return { key: 'analysis', label: 'Run analysis', href: `/videos`, action: 'Analyse', progress: 4 };
@@ -103,6 +106,7 @@ export function presentListedProject(row: Record<string, any>): HomeProject {
   return {
     id: String(row.id),
     name: row.name,
+    platform: row.platform || 'youtube',
     brand_name: row.brand_name || null,
     industry: row.industry || null,
     status: row.status === 'archived' ? 'completed' : row.status,

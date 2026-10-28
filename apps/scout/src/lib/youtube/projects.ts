@@ -6,6 +6,7 @@ import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, importVideosByUrls, performanceSummary, startImport } from './service';
 import { presentListedProject } from './home-display';
 import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
+import { asPlatform } from '../research/platforms';
 import { MAX_PROJECT_COMPETITORS } from './workspace-nav';
 
 export const LEGACY_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';
@@ -16,7 +17,7 @@ const PROJECT_VIDEO_FROM = `FROM youtube_videos v
   LEFT JOIN youtube_project_video_research r ON r.video_id = v.id AND r.project_id = pc.project_id
   LEFT JOIN youtube_research_topics t ON t.id = r.topic_id AND t.project_id = pc.project_id`;
 
-const PROJECT_VIDEO_SELECT = `SELECT v.*, c.channel_name, c.channel_handle, c.thumbnail_url AS channel_thumbnail_url, c.youtube_channel_id, c.last_refreshed_at AS channel_refreshed_at,
+const PROJECT_VIDEO_SELECT = `SELECT v.*, c.channel_name, c.channel_handle, c.thumbnail_url AS channel_thumbnail_url, c.youtube_channel_id, c.platform AS channel_platform, c.last_refreshed_at AS channel_refreshed_at,
   pc.relationship, r.topic_id, r.thumbnail_caption, r.research_notes, t.name AS topic_name
   ${PROJECT_VIDEO_FROM}`;
 
@@ -177,9 +178,9 @@ export async function createProject(body: Record<string, unknown>, userId: strin
   if (!name || name.length < 2) throw new FinanceValidationError('Project name is required.');
   const { rows } = await q(
     undefined,
-    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-    [name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status), userId, currentYoutubePartnerId(), currentSaasAccountId()]
+    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id, platform)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [name, clean(body.brand_name ?? body.brandName, 120), clean(body.objective, 2000), clean(body.industry, 120), clean(body.description, 5000), statusOf(body.status), userId, currentYoutubePartnerId(), currentSaasAccountId(), asPlatform(body.platform)]
   );
   await audit(userId, 'YouTube Project Created', rows[0].id, { name });
   return rows[0];
@@ -208,9 +209,9 @@ export async function duplicateProject(id: string, userId: string) {
   const name = `${String(project.name || 'Project').slice(0, 110)} copy`;
   const created = await q(
     undefined,
-    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id)
-     VALUES ($1,$2,$3,$4,$5,'todo',$6,$7,$8) RETURNING *`,
-    [name, project.brand_name, project.objective, project.industry, project.description, userId, project.partner_id || currentYoutubePartnerId(), project.saas_account_id || currentSaasAccountId()]
+    `INSERT INTO youtube_research_projects (name, brand_name, objective, industry, description, status, created_by, partner_id, saas_account_id, platform)
+     VALUES ($1,$2,$3,$4,$5,'todo',$6,$7,$8,$9) RETURNING *`,
+    [name, project.brand_name, project.objective, project.industry, project.description, userId, project.partner_id || currentYoutubePartnerId(), project.saas_account_id || currentSaasAccountId(), asPlatform(project.platform)]
   );
   await q(
     undefined,
@@ -250,7 +251,7 @@ export async function addProjectChannel(projectId: string, input: string, relati
   if (project.status === 'completed') throw new FinanceValidationError('Mark this project In Progress before adding channels.');
   const kind = String(relationship || 'competitor');
   if (!['own', 'competitor'].includes(kind)) throw new FinanceValidationError('Choose own or competitor.');
-  const channelId = await ensureChannel(input, userId);
+  const channelId = await ensureChannel(input, userId, project.platform);
   const existing = await q(undefined, `SELECT relationship FROM youtube_project_channels WHERE project_id=$1 AND channel_id=$2`, [projectId, channelId]);
   if (existing.rows[0]) throw new FinanceConflictError('This channel is already in the project.');
   if (kind === 'competitor') {

@@ -13,6 +13,7 @@ import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import type { HomeProject } from '@/lib/youtube/home-display';
 import { asProjectStatus } from '@/lib/youtube/project-status';
+import { platformCopy } from '@/lib/research/platforms';
 
 type Counts = { all: number; todo: number; active: number; completed: number };
 
@@ -202,8 +203,9 @@ export default function ProjectsBoard() {
                         <span>
                           <span className="flex items-center gap-2 font-semibold text-slate-900">
                             {project.name}
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{platformCopy(project.platform).label}</span>
                           </span>
-                          <span className="block text-xs text-slate-400">{project.own_channel_name || project.brand_name || 'No channel connected'}</span>
+                          <span className="block text-xs text-slate-400">{project.own_channel_name || project.brand_name || `No ${platformCopy(project.platform).entity} connected`}</span>
                         </span>
                       </button>
                     </td>

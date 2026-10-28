@@ -13,6 +13,8 @@ import NavIcon from '@/components/ui/NavIcon';
 import { useProcess } from '@/components/ui/ProcessOverlay';
 import SafeImage from '@/components/ui/SafeImage';
 import { enterPlaceholder, nameError, requiredMessage } from '@/lib/forms/rules';
+import { PLATFORM_COPY, RESEARCH_PLATFORMS, asPlatform, platformCopy, type ResearchPlatform } from '@/lib/research/platforms';
+import PageSearchField, { pageInputFor } from '@/components/admin/youtube/PageSearchField';
 
 const INDUSTRIES = [
   'Fitness',
@@ -32,16 +34,12 @@ const INDUSTRIES = [
   'Other',
 ];
 
-const STEPS = [
-  { id: 1, label: 'Project Details' },
-  { id: 2, label: 'Your channel' },
-];
-
 function FieldIcon({ name, itemKey, delay = 0 }: { name: string; itemKey: string; delay?: number }) {
   return <NavIcon name={name} itemKey={itemKey} delay={delay} className="h-9 w-9 rounded-xl" size={16} />;
 }
 
-function CreateHero() {
+function CreateHero({ platform }: { platform: ResearchPlatform }) {
+  const copy = PLATFORM_COPY[platform];
   return (
     <aside className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#F4ECFF] via-[#EEF2FF] to-[#E8F8FF] p-8 shadow-sm lg:min-h-[640px]">
       <div
@@ -58,11 +56,11 @@ function CreateHero() {
           style={{ animation: 'create-float 3s ease-in-out infinite' }}
         >
           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] text-white">▶</span>
-          YouTube Research
+          {copy.label} Research
         </span>
-        <h2 className="mt-5 font-bricolage text-3xl font-bold tracking-tight text-slate-900">Turn YouTube insights into real opportunities</h2>
+        <h2 className="mt-5 font-bricolage text-3xl font-bold tracking-tight text-slate-900">Turn {copy.label} insights into real opportunities</h2>
         <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
-          Analyse channels, compare content, discover what works and get actionable insights for your business.
+          Analyse {copy.entityPlural}, compare {copy.contentPlural}, discover what works and get actionable insights for your business.
         </p>
       </div>
 
@@ -128,11 +126,12 @@ export default function ProjectCreateWizard() {
   const router = useRouter();
   const base = useYoutubePageBase();
   const [step, setStep] = useState(1);
+  const [platform, setPlatform] = useState<ResearchPlatform>('youtube');
   const [form, setForm] = useState({ name: '', objective: '', brand_name: '', industry: '' });
   const [channelInput, setChannelInput] = useState('');
   const [preview, setPreview] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'fetch' | 'create' | ''>('');
+  const [busy, setBusy] = useState<'create' | ''>('');
   const [confirming, setConfirming] = useState(false);
   const [created, setCreated] = useState<{ id: string; name: string; channel?: string } | null>(null);
   const overlay = useProcess();
@@ -156,28 +155,23 @@ export default function ProjectCreateWizard() {
     setStep(2);
   };
 
-  const fetchChannel = async () => {
-    if (!channelInput.trim()) {
-      setError('Paste your YouTube channel URL, @handle, or channel ID.');
-      return;
-    }
+  const copy = platformCopy(platform);
+  const stepLabels = [
+    { id: 1, label: 'Project Details' },
+    { id: 2, label: 'Platform' },
+    { id: 3, label: copy.entity === 'page' ? 'Add page' : 'Add channel' },
+  ];
+
+  const goSource = () => {
     setError('');
     setPreview(null);
-    setBusy('fetch');
-    try {
-      await overlay.run('Fetching your channel…', async () => {
-        setPreview(await yt('channels/resolve', { method: 'POST', body: JSON.stringify({ input: channelInput.trim() }) }));
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not fetch the channel');
-    } finally {
-      setBusy('');
-    }
+    setChannelInput('');
+    setStep(3);
   };
 
   const create = async () => {
     if (!preview) {
-      setError('Fetch your own YouTube channel before creating the project.');
+      setError(`Select your own ${copy.label} ${copy.entity} before creating the project.`);
       setConfirming(false);
       return;
     }
@@ -187,12 +181,12 @@ export default function ProjectCreateWizard() {
       await overlay.run('Creating project…', async () => {
         const saved = await yt('projects', {
           method: 'POST',
-          body: JSON.stringify({ ...form, status: 'active' }),
+          body: JSON.stringify({ ...form, status: 'active', platform }),
         });
         rememberProject(saved.id);
         await yt(`projects/${saved.id}/channels`, {
           method: 'POST',
-          body: JSON.stringify({ input: channelInput.trim(), relationship: 'own' }),
+          body: JSON.stringify({ input: pageInputFor(preview), relationship: 'own' }),
         });
         setConfirming(false);
         setCreated({ id: saved.id, name: saved.name || form.name, channel: preview.channelName });
@@ -212,7 +206,7 @@ export default function ProjectCreateWizard() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
         <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
           <ol className="mb-8 flex items-center gap-2">
-            {STEPS.map((item, index) => {
+            {stepLabels.map((item, index) => {
               const active = step === item.id;
               const done = step > item.id;
               return (
@@ -221,7 +215,7 @@ export default function ProjectCreateWizard() {
                     {done ? <Icon name="CheckIcon" size={16} /> : item.id}
                   </span>
                   <span className={`truncate text-sm font-semibold ${active || done ? 'text-slate-800' : 'text-slate-400'}`}>{item.label}</span>
-                  {index < STEPS.length - 1 ? <span className={`mx-2 hidden h-px flex-1 sm:block ${done ? 'bg-violet-300' : 'bg-slate-200'}`} /> : null}
+                  {index < stepLabels.length - 1 ? <span className={`mx-2 hidden h-px flex-1 sm:block ${done ? 'bg-violet-300' : 'bg-slate-200'}`} /> : null}
                 </li>
               );
             })}
@@ -287,7 +281,41 @@ export default function ProjectCreateWizard() {
               <div className="flex justify-end gap-2 pt-2">
                 <Link href={base} className={partnerBtnSecondary}>Cancel</Link>
                 <button type="button" className={partnerBtnPrimary} onClick={goChannels}>
-                  Next: Your channel →
+                  Next: Platform →
+                </button>
+              </div>
+            </div>
+          ) : step === 2 ? (
+            <div className="space-y-5">
+              <div className="flex items-start gap-3">
+                <FieldIcon name="Squares2X2Icon" itemKey="features" />
+                <h2 className="inline-flex items-center font-semibold text-slate-900">
+                  Platform
+                  <FieldHint text="One research project is for a single platform. Create another project to research a second network." />
+                </h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {RESEARCH_PLATFORMS.map((id) => {
+                  const item = PLATFORM_COPY[id];
+                  const active = platform === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setPlatform(asPlatform(id))}
+                      className={`rounded-2xl border px-4 py-4 text-left ${active ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-200' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                    >
+                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black ${item.markClass}`}>{item.mark}</span>
+                      <p className="mt-3 text-sm font-semibold text-slate-900">{item.label}</p>
+                      <p className="mt-1 text-xs text-slate-500">Step 3 adds {item.entity === 'page' ? 'a page' : 'a channel'}.</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" className={partnerBtnSecondary} onClick={() => { setError(''); setStep(1); }}>Back</button>
+                <button type="button" className={partnerBtnPrimary} onClick={goSource}>
+                  Next: {copy.entity === 'page' ? 'Add page' : 'Add channel'} →
                 </button>
               </div>
             </div>
@@ -296,32 +324,25 @@ export default function ProjectCreateWizard() {
               <div className="flex items-start gap-3">
                 <FieldIcon name="PlayCircleIcon" itemKey="youtube" />
                 <h2 className="inline-flex items-center font-semibold text-slate-900">
-                  Connect your own channel
-                  <FieldHint text="Self setup for the brand you own. Add competitors later from Research — not on this step." />
+                  {copy.ownLabel}
+                  <FieldHint text={copy.hint} />
                 </h2>
               </div>
 
               <label className="block text-sm font-medium text-slate-700">
-                Your YouTube channel <span className="text-rose-500">*</span>
-                <span className="mt-1.5 flex flex-col gap-2 sm:flex-row">
-                  <span className="relative block flex-1">
-                    <Icon name="LinkIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      className={`${partnerInput} pl-9`}
-                      value={channelInput}
-                      placeholder={enterPlaceholder('YouTube channel URL or @handle')}
-                      onChange={(event) => { setChannelInput(event.target.value); setPreview(null); }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void fetchChannel();
-                        }
-                      }}
-                    />
-                  </span>
-                  <button type="button" className={partnerBtnPrimary} disabled={busy === 'fetch'} onClick={() => void fetchChannel()}>
-                    {busy === 'fetch' ? 'Fetching…' : 'Fetch channel'}
-                  </button>
+                {copy.ownLabel} <span className="text-rose-500">*</span>
+                <span className="mt-1.5 block">
+                  <PageSearchField
+                    platform={platform}
+                    value={channelInput}
+                    selected={preview}
+                    onQuery={(next) => { setChannelInput(next); setPreview(null); setError(''); }}
+                    onSelect={(hit) => {
+                      setPreview(hit);
+                      setChannelInput(hit.channelName || hit.channelHandle || hit.youtubeChannelId);
+                      setError('');
+                    }}
+                  />
                 </span>
               </label>
 
@@ -340,19 +361,19 @@ export default function ProjectCreateWizard() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-slate-900">{preview.channelName}</p>
                     <p className="text-sm text-slate-500">
-                      {preview.channelHandle ? `@${String(preview.channelHandle).replace(/^@/, '')}` : preview.youtubeChannelId} · {metric(preview.subscriberCount)} subscribers
+                      {preview.channelHandle ? `@${String(preview.channelHandle).replace(/^@/, '')}` : preview.youtubeChannelId} · {metric(preview.subscriberCount)} {copy.entity === 'page' ? 'followers' : 'subscribers'}
                     </p>
-                    <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-violet-600">Own channel</p>
+                    <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-violet-600">Own {copy.entity}</p>
                   </div>
                 </div>
               ) : (
                 <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                  Paste your channel, fetch it, then create. Competitor channels are added after the project exists.
+                  Type a {copy.entity} name, select it from the list, then create. Competitors are added after the project exists.
                 </p>
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" className={partnerBtnSecondary} onClick={() => { setError(''); setStep(1); }}>Back</button>
+                <button type="button" className={partnerBtnSecondary} onClick={() => { setError(''); setStep(2); }}>Back</button>
                 <button
                   type="button"
                   className={partnerBtnPrimary}
@@ -366,7 +387,7 @@ export default function ProjectCreateWizard() {
           )}
         </section>
 
-        <CreateHero />
+        <CreateHero platform={platform} />
       </div>
 
       {confirming ? (
@@ -377,7 +398,7 @@ export default function ProjectCreateWizard() {
             </span>
             <h2 className="font-bricolage text-xl font-semibold text-slate-900">Create this project?</h2>
             <p className="mt-2 text-sm text-slate-500">
-              <span className="font-semibold text-slate-800">{form.name}</span> will be created as active, with <span className="font-semibold text-slate-800">{preview?.channelName}</span> as your own channel. Competitors are not added here.
+              <span className="font-semibold text-slate-800">{form.name}</span> will be created as a {copy.label} project, with <span className="font-semibold text-slate-800">{preview?.channelName}</span> as your own {copy.entity}. Competitors are not added here.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" className={partnerBtnSecondary} disabled={busy === 'create'} onClick={() => setConfirming(false)}>Cancel</button>
@@ -397,7 +418,7 @@ export default function ProjectCreateWizard() {
             </span>
             <h2 className="font-bricolage text-2xl font-semibold text-slate-900">Project created</h2>
             <p className="mt-2 text-sm text-slate-500">
-              {created.name} is ready. {created.channel ? `${created.channel} is connected as your own channel.` : 'Open Research to add competitors and fetch videos.'}
+              {created.name} is ready. {created.channel ? `${created.channel} is connected as your own ${copy.entity}.` : `Open Research to add competitors and fetch ${copy.contentPlural}.`}
             </p>
             <button
               type="button"

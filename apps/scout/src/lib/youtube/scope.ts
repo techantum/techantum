@@ -49,9 +49,10 @@ export function partnerYoutubeAccess(method: string, path: string[]) {
     if (!path[1]) return method === 'GET' || method === 'POST' ? 'allow' : 'deny';
     return 'project';
   }
+  if (head === 'channels' && method === 'GET' && path[1] === 'search') return 'allow';
   if (head === 'channels' && method === 'POST' && path[1] === 'resolve') return 'allow';
   if (head === 'channels' && method === 'POST' && path[2] === 'refresh' && path[1]) return 'channel';
-  if (head === 'channels' && path[1] && path[1] !== 'resolve' && (method === 'GET' || method === 'PATCH')) return 'channel';
+  if (head === 'channels' && path[1] && path[1] !== 'resolve' && path[1] !== 'search' && (method === 'GET' || method === 'PATCH')) return 'channel';
   if (head === 'videos' && method === 'POST' && path[1] === 'refresh') return 'videos';
   if (head === 'reports' && method === 'POST' && path[1] === 'export') return 'export';
   return 'deny';

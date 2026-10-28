@@ -353,6 +353,31 @@ export function createYoutube(apiKey: string, fetchImpl: YoutubeFetch = fetch) {
       }
       return rows;
     },
+    async searchChannels(query: string) {
+      const q = query.trim();
+      if (q.length < 2) return [] as ResolvedChannel[];
+      const data = await get('search', { part: 'snippet', type: 'channel', q, maxResults: 20 });
+      return (data.items || []).map((item: Record<string, any>) => {
+        const id = String(item?.id?.channelId || item?.snippet?.channelId || '');
+        if (!id) return null;
+        const snippet = item.snippet || {};
+        return {
+          youtubeChannelId: id,
+          channelName: snippet.title || snippet.channelTitle || null,
+          channelHandle: null,
+          channelUrl: `https://www.youtube.com/channel/${id}`,
+          description: snippet.description || null,
+          thumbnailUrl: thumbnail(snippet),
+          uploadsPlaylistId: null,
+          subscriberCount: null,
+          videoCount: null,
+          viewCount: null,
+          publishedAt: snippet.publishedAt || null,
+          country: null,
+          publicDetails: { platform: 'youtube' },
+        } satisfies ResolvedChannel;
+      }).filter(Boolean) as ResolvedChannel[];
+    },
     async test() {
       const data = await get('channels', { part: 'snippet', id: TEST_CHANNEL_ID });
       const channel = mapChannel(data.items?.[0]);

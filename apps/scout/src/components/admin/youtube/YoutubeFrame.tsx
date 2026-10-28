@@ -13,6 +13,7 @@ import { YOUTUBE_PROJECT_PAGES, youtubeNestedLabel, youtubeWorkspaceTab } from '
 
 const YoutubeAccessContext = createContext<string[]>([]);
 const YoutubeProjectContext = createContext('');
+const YoutubePlatformContext = createContext('youtube');
 const YoutubeRailSetContext = createContext<(node: ReactNode | null) => void>(() => undefined);
 
 export function useYoutubeRailActions(node: ReactNode | null) {
@@ -87,6 +88,10 @@ export function useProjectId() {
     setId(currentProjectId());
   }, [fromFrame]);
   return fromFrame || id;
+}
+
+export function useProjectPlatform() {
+  return useContext(YoutubePlatformContext) || 'youtube';
 }
 
 export function ProjectRequired({ children }: { children: React.ReactNode }) {
@@ -164,7 +169,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
   const [access, setAccess] = useState<string[] | null>(initialAccess ?? null);
   const [error, setError] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [project, setProject] = useState<{ name: string; status: string; objective: string; brand_name: string; industry: string; thumbnail: string } | null>(null);
+  const [project, setProject] = useState<{ name: string; status: string; objective: string; brand_name: string; industry: string; thumbnail: string; platform: string } | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [stickyTop, setStickyTop] = useState(176);
   const [railActions, setRailActions] = useState<ReactNode | null>(null);
@@ -207,6 +212,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
           brand_name: body.brand_name || '',
           industry: body.industry || '',
           thumbnail: own?.thumbnail_url || '',
+          platform: body.platform || 'youtube',
         });
       } catch {
         if (!cancelled) setProject(null);
@@ -261,7 +267,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
               </Link>
             </div>
           </div>
-          <nav className="mt-4 flex gap-6 overflow-x-auto" aria-label="Project sections">
+          <nav className="mt-4 flex flex-nowrap items-end gap-6 overflow-x-auto overflow-y-hidden" aria-label="Project sections">
             {YOUTUBE_PROJECT_PAGES.map((item, index) => {
               const active = activeTab === item.section && !nestedLabel;
               const parent = activeTab === item.section && nestedLabel;
@@ -269,7 +275,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
                 <Link
                   key={item.suffix}
                   href={`${base}${item.suffix}`}
-                  className={`-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 pb-3 text-sm ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 pb-3 text-sm ${
                     active ? 'border-secondary font-semibold text-secondary' : parent ? 'border-secondary/40 font-semibold text-secondary' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -288,6 +294,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
       {access?.includes('youtube_research.view') ? (
         <YoutubeAccessContext.Provider value={access}>
           <YoutubeProjectContext.Provider value={projectId}>
+            <YoutubePlatformContext.Provider value={project?.platform || 'youtube'}>
             {workspace ? (
               <YoutubeRailSetContext.Provider value={setRailActions}>
                 <div className="min-w-0">{children}</div>
@@ -295,6 +302,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
             ) : (
               children
             )}
+            </YoutubePlatformContext.Provider>
           </YoutubeProjectContext.Provider>
         </YoutubeAccessContext.Provider>
       ) : null}
