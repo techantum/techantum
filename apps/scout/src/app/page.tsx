@@ -9,9 +9,12 @@ import SiteFooter from '@/components/marketing/SiteFooter';
 import SiteHeader from '@/components/marketing/SiteHeader';
 import Icon from '@/components/ui/AppIcon';
 import { getRevealeoSite } from '@/lib/cms/site';
+import { listPackages } from '@/lib/saas/catalog';
+import { websiteSession } from '@/lib/saas/website-session';
 import SafeImage from '@/components/ui/SafeImage';
+import ScrollToPricing from '@/components/marketing/ScrollToPricing';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 const LOGOS = ['nike', 'amazon', 'hubspot', 'notion', 'spotify', 'Canva', 'Shopify', 'Adobe'];
 
@@ -35,7 +38,13 @@ function lines(section: Record<string, unknown> | undefined, key: string, fallba
 }
 
 export default async function LandingPage() {
-  const { branding, content } = await getRevealeoSite();
+  const [{ branding, content }, catalog, session] = await Promise.all([
+    getRevealeoSite(),
+    listPackages({ activeOnly: true }).catch(() => []),
+    websiteSession(),
+  ]);
+  const signedIn = session.signedIn;
+  const startHref = signedIn ? '/#pricing' : '/signup';
   const hero = content.hero || {};
   const features = content.features || {};
   const platforms = content.platforms || {};
@@ -47,12 +56,21 @@ export default async function LandingPage() {
   const faqItems = Array.isArray(faq.items) ? faq.items as { q: string; a: string }[] : undefined;
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">
-      <SiteHeader branding={branding} />
+      <ScrollToPricing />
+      <SiteHeader
+        branding={branding}
+        signedIn={signedIn}
+        userName={session.userName}
+        userEmail={session.userEmail}
+        avatarUrl={session.avatarUrl}
+        canOpenWorkspace={session.canOpenWorkspace}
+      />
       <Hero
         title={text(hero, 'title', 'Uncover your competitors’')}
         highlight={text(hero, 'highlight', 'marketing secrets')}
         description={text(hero, 'description', 'Turn public data from YouTube, Instagram, Facebook, Ads and more into actionable insights. See what works, then recreate winning content, faster.')}
         image={text(hero, 'image', '/marketing/hero-dashboard.jpg')}
+        signedIn={signedIn}
       />
 
       <section className="border-t border-slate-100 py-10">
@@ -188,7 +206,7 @@ export default async function LandingPage() {
             <p className="mt-4 max-w-md text-[15px] leading-7 text-white/75">
               {text(ai, 'description', 'Our AI analyzes every part of your competitors’ content — from thumbnails and visuals to captions, transcripts and key themes.')}
             </p>
-            <Link href="/signup" className="mt-8 inline-flex h-11 items-center gap-1 rounded-full bg-[#E879F9] px-5 text-sm font-semibold text-white hover:bg-[#F0ABFC]">
+            <Link href={startHref} className="mt-8 inline-flex h-11 items-center gap-1 rounded-full bg-[#E879F9] px-5 text-sm font-semibold text-white hover:bg-[#F0ABFC]">
               {text(ai, 'cta', 'See AI analysis in action →')}
             </Link>
           </div>
@@ -248,7 +266,7 @@ export default async function LandingPage() {
           <p className={COPY}>
             {text(compare, 'description', 'Easily compare your competitors’ best performing content, spot trends and find new opportunities for your own strategy.')}
           </p>
-          <Link href="/signup" className={`${BTN} mt-8 gap-1`}>
+          <Link href={startHref} className={`${BTN} mt-8 gap-1`}>
             {text(compare, 'cta', 'Start comparing →')}
           </Link>
         </div>
@@ -309,7 +327,19 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <Pricing />
+      <Pricing
+        signedIn={Boolean(signedIn)}
+        packages={catalog.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price_monthly: item.price_monthly,
+          price_yearly: item.price_yearly,
+          highlight: item.highlight,
+          short_description: item.short_description,
+          description_html: item.description_html,
+          features: item.features.map((feature) => ({ name: feature.name, description: feature.description })),
+        }))}
+      />
 
       <section id="faq" className={`${SHELL} grid items-start gap-10 pb-16 pt-4 lg:grid-cols-[0.85fr_1.25fr]`}>
         <div>
@@ -339,10 +369,10 @@ export default async function LandingPage() {
             </p>
           </div>
           <div className="mt-6 lg:mt-0">
-            <EmailCapture light />
+            <EmailCapture light signedIn={signedIn} />
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/85">
               <span>✓ 14-day free trial</span>
-              <span>✓ No credit card required</span>
+              <span>✓ Autopay required</span>
               <span>✓ Cancel anytime</span>
             </div>
           </div>

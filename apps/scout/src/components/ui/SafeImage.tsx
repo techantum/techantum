@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
 function splitImageClass(className: string) {
@@ -25,8 +26,9 @@ export default function SafeImage({
   fallback = null,
   priority = false,
   loading,
+  sizes,
   ...props
-}: React.ImgHTMLAttributes<HTMLImageElement> & { fallback?: React.ReactNode; priority?: boolean }) {
+}: React.ImgHTMLAttributes<HTMLImageElement> & { fallback?: React.ReactNode; priority?: boolean; sizes?: string }) {
   const url = typeof src === 'string' ? src.trim() : '';
   const { wrap, img } = splitImageClass(className);
   const [failed, setFailed] = useState(false);
@@ -54,21 +56,34 @@ export default function SafeImage({
   return (
     <span className={`relative overflow-hidden ${fills ? 'block h-full w-full' : 'inline-block'} ${wrap} ${!loaded && autoWidth ? 'min-w-[3rem]' : ''} ${!loaded && needsMinHeight ? 'min-h-[12rem]' : ''}`}>
       {loaded ? null : <ImagePulse />}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        {...props}
-        src={url}
-        alt={alt}
-        loading={priority ? 'eager' : loading || 'lazy'}
-        decoding="async"
-        fetchPriority={priority ? 'high' : 'low'}
-        className={`relative z-[1] h-full w-full ${img} ${loaded ? 'opacity-100' : 'opacity-0'}`}
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
-        ref={(node) => {
-          if (node?.complete && node.naturalWidth > 0) setLoaded(true);
-        }}
-      />
+      {url.startsWith('/') && !url.startsWith('//') && !autoWidth ? (
+        <Image
+          src={url}
+          alt={alt}
+          fill
+          sizes={sizes || '(max-width: 768px) 100vw, 50vw'}
+          priority={priority}
+          className={`relative z-[1] h-full w-full ${img} ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          {...props}
+          src={url}
+          alt={alt}
+          loading={priority ? 'eager' : loading || 'lazy'}
+          decoding="async"
+          fetchPriority={priority ? 'high' : 'low'}
+          className={`relative z-[1] h-full w-full ${img} ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          ref={(node) => {
+            if (node?.complete && node.naturalWidth > 0) setLoaded(true);
+          }}
+        />
+      )}
     </span>
   );
 }

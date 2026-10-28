@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSaasAccount, setSaasCookie } from '@/lib/saas/session';
+import { afterAuthPath, createSaasAccount, setSaasCookie } from '@/lib/saas/session';
 
 export async function POST(request: Request) {
   try {
@@ -8,8 +8,13 @@ export async function POST(request: Request) {
       name: String(body.name || ''),
       email: String(body.email || ''),
       password: String(body.password || ''),
+      packageId: body.packageId ? String(body.packageId) : null,
     });
-    const response = NextResponse.json({ ok: true, accountId: created.account.id });
+    const response = NextResponse.json({
+      ok: true,
+      accountId: created.account.id,
+      next: afterAuthPath(body.packageId ? String(body.packageId) : created.account.pending_package_id, created.account),
+    });
     await setSaasCookie(response, created.userId);
     return response;
   } catch (err) {

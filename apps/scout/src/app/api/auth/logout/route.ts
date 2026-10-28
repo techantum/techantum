@@ -2,7 +2,15 @@ import { NextResponse } from 'next/server';
 import { publicAppUrl } from '@/lib/brand';
 import { clearSaasCookie } from '@/lib/saas/session';
 
-export async function POST() {
-  const response = NextResponse.redirect(new URL('/login', publicAppUrl()));
+function loggedOut() {
+  const response = NextResponse.redirect(new URL('/', publicAppUrl()));
   return clearSaasCookie(response);
+}
+
+export async function GET() {
+  return loggedOut();
+}
+
+export async function POST() {
+  return loggedOut();
 }

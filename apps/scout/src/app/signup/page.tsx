@@ -1,8 +1,13 @@
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import AuthForm from '@/components/marketing/AuthForm';
 import AuthShell from '@/components/marketing/AuthShell';
+import { afterAuthPath } from '@/lib/saas/session';
+import { websiteSession } from '@/lib/saas/website-session';
 
-export default function SignupPage() {
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ package?: string; email?: string }> }) {
+  const [params, session] = await Promise.all([searchParams, websiteSession()]);
+  if (session.actor) redirect(afterAuthPath(params.package, session.actor.account));
   return (
     <AuthShell>
       <Suspense>

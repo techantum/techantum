@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { revalidateTag, unstable_cache } from 'next/cache';
 import { q } from '@/lib/finance/db';
 import { FinanceValidationError } from '@/lib/finance/errors';
 import { isSuperAdmin, type PlatformRole } from '@/lib/admin/roles';
@@ -40,6 +41,7 @@ export type CatalogPackage = {
   feature_ids: string[];
   features: CatalogFeature[];
   subscriber_count: number;
+  razorpay_plan_id?: string | null;
 };
 
 export type Access = {
@@ -92,7 +94,11 @@ function keyify(name: string) {
     .slice(0, 48);
 }
 
-export async function listFeatures(includeInactive = true) {
+function bumpCatalog() {
+  revalidateTag('saas-catalog');
+}
+
+async function queryFeatures(includeInactive: boolean) {
   const { rows } = await q<CatalogFeature>(
     undefined,
     `SELECT id, feature_key, name, sidebar_label, description, icon, route, status, sort_order, limit_config
@@ -101,6 +107,14 @@ export async function listFeatures(includeInactive = true) {
      ORDER BY sort_order, name`
   );
   return rows.map((row) => ({ ...row, limit_config: parseLimits(row.limit_config) }));
+}
+
+export async function listFeatures(includeInactive = true) {
+  return unstable_cache(
+    () => queryFeatures(includeInactive),
+    ['saas-features', includeInactive ? 'all' : 'active'],
+    { revalidate: 60, tags: ['saas-catalog'] },
+  )();
 }
 
 export async function saveFeature(input: Partial<CatalogFeature> & { id?: string }) {
@@ -128,6 +142,7 @@ export async function saveFeature(input: Partial<CatalogFeature> & { id?: string
        WHERE id=$1 RETURNING *`,
       [input.id, ...payload]
     );
+    bumpCatalog();
     return rows[0];
   }
   const { rows } = await q<CatalogFeature>(
@@ -136,6 +151,7 @@ export async function saveFeature(input: Partial<CatalogFeature> & { id?: string
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb) RETURNING *`,
     payload
   );
+  bumpCatalog();
   return rows[0];
 }
 
@@ -163,7 +179,7 @@ async function attachFeatures(packages: Array<Omit<CatalogPackage, 'features' | 
   });
 }
 
-export async function listPackages(options?: { activeOnly?: boolean }) {
+async function queryPackages(activeOnly?: boolean) {
   const { rows } = await q<Omit<CatalogPackage, 'features' | 'feature_ids'>>(
     undefined,
     `SELECT p.*, COALESCE((
@@ -171,7 +187,7 @@ export async function listPackages(options?: { activeOnly?: boolean }) {
         WHERE a.package_id = p.id AND a.status IN ('active', 'trialing')
       ), 0)::int AS subscriber_count
      FROM saas_packages p
-     ${options?.activeOnly ? "WHERE p.status = 'active'" : ''}
+     ${activeOnly ? "WHERE p.status = 'active'" : ''}
      ORDER BY p.sort_order, p.price_monthly`
   );
   return attachFeatures(
@@ -186,15 +202,75 @@ export async function listPackages(options?: { activeOnly?: boolean }) {
   );
 }
 
+export async function listPackages(options?: { activeOnly?: boolean }) {
+  return unstable_cache(
+    () => queryPackages(options?.activeOnly),
+    ['saas-packages', options?.activeOnly ? 'active' : 'all'],
+    { revalidate: 60, tags: ['saas-catalog'] },
+  )();
+}
+
+async function loadPackagesWhere(where: string, values: unknown[]) {
+  const { rows } = await q<Omit<CatalogPackage, 'features' | 'feature_ids'> & { razorpay_plan_id?: string | null }>(
+    undefined,
+    `SELECT p.*, COALESCE((
+        SELECT COUNT(*) FROM saas_accounts a
+        WHERE a.package_id = p.id AND a.status IN ('active', 'trialing')
+      ), 0)::int AS subscriber_count
+     FROM saas_packages p
+     WHERE ${where}
+     ORDER BY p.sort_order, p.price_monthly`,
+    values,
+  );
+  return attachFeatures(
+    rows.map((row) => ({
+      ...row,
+      short_description: String(row.short_description || ''),
+      price_monthly: asInt(row.price_monthly),
+      price_yearly: row.price_yearly == null ? null : asInt(row.price_yearly),
+      seats: row.seats == null ? null : asInt(row.seats),
+      subscriber_count: asInt(row.subscriber_count),
+    })),
+  );
+}
+
 export async function getPackageById(id: string) {
-  const all = await listPackages();
-  return all.find((item) => item.id === id) || null;
+  if (!id) return null;
+  const rows = await loadPackagesWhere('p.id=$1', [id]);
+  return rows[0] || null;
 }
 
 export async function getPackageBySlug(slug: string) {
-  const all = await listPackages();
   const mapped = slug === 'scale' ? 'business' : slug;
-  return all.find((item) => item.slug === mapped) || null;
+  const rows = await loadPackagesWhere('p.slug=$1', [mapped]);
+  return rows[0] || null;
+}
+
+export async function setPackageRazorpayPlan(packageId: string, planId: string) {
+  await q(undefined, `UPDATE saas_packages SET razorpay_plan_id=$2, updated_at=NOW() WHERE id=$1`, [packageId, planId]);
+  bumpCatalog();
+}
+
+export async function startPackageTrial(
+  account: Pick<SaasAccount, 'id' | 'status' | 'current_period_end'>,
+  packageId: string,
+  createdBy: string | null,
+  subscriptionId: string,
+) {
+  const next = await getPackageById(packageId);
+  if (!next || next.status !== 'active') throw new FinanceValidationError('That package is not available.');
+  const trialEnds = new Date(Date.now() + 14 * 86400000).toISOString();
+  await assignPackageToAccount({ ...account, status: 'trialing', current_period_end: trialEnds }, next, createdBy, 'trial_started', {
+    razorpay_subscription_id: subscriptionId,
+  });
+  await q(
+    undefined,
+    `UPDATE saas_accounts
+     SET status='trialing', trial_ends_at=$2, current_period_end=$2, razorpay_subscription_id=$3, pending_package_id=NULL, updated_at=NOW()
+     WHERE id=$1`,
+    [account.id, trialEnds, subscriptionId],
+  );
+  return next;
 }
 
 export async function savePackage(input: {
@@ -253,6 +329,7 @@ export async function savePackage(input: {
   for (const featureId of input.feature_ids || []) {
     await q(undefined, `INSERT INTO saas_package_features (package_id, feature_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [id, featureId]);
   }
+  bumpCatalog();
   return getPackageById(id as string);
 }
 
@@ -300,9 +377,21 @@ export async function recordEvent(input: {
   );
 }
 
-export async function assignPackageToAccount(account: Pick<SaasAccount, 'id' | 'status' | 'current_period_end'>, pkg: CatalogPackage, createdBy?: string | null, eventType = 'assigned') {
-  const period = account.current_period_end || new Date(Date.now() + 30 * 86400000).toISOString();
-  const status = account.status === 'trialing' ? 'trialing' : 'active';
+const PAID_EVENTS = new Set(['razorpay_paid', 'upgraded', 'assigned', 'admin_assigned']);
+
+export async function assignPackageToAccount(
+  account: Pick<SaasAccount, 'id' | 'status' | 'current_period_end'>,
+  pkg: CatalogPackage,
+  createdBy?: string | null,
+  eventType = 'assigned',
+  extraPayload?: Record<string, unknown>,
+) {
+  const paid = PAID_EVENTS.has(eventType);
+  const period = paid
+    ? new Date(Date.now() + 30 * 86400000).toISOString()
+    : account.current_period_end || new Date(Date.now() + 30 * 86400000).toISOString();
+  const status = eventType === 'trial_started' ? 'trialing' : paid ? 'active' : account.status === 'trialing' ? 'trialing' : 'active';
+  const accountStatus = eventType === 'trial_started' ? 'trialing' : status;
   await q(undefined, `UPDATE saas_subscriptions SET status='expired', updated_at=NOW() WHERE account_id=$1 AND status IN ('trialing','active','pending_downgrade')`, [account.id]);
   const inserted = await q<{ id: string }>(
     undefined,
@@ -312,27 +401,63 @@ export async function assignPackageToAccount(account: Pick<SaasAccount, 'id' | '
   );
   await q(
     undefined,
-    `UPDATE saas_accounts SET package_id=$2, plan=$3, contracted_price_monthly=$4, current_period_end=$5, status=CASE WHEN status='canceled' THEN 'active' ELSE status END, updated_at=NOW() WHERE id=$1`,
-    [account.id, pkg.id, pkg.slug, pkg.price_monthly, period]
+    `UPDATE saas_accounts SET package_id=$2, plan=$3, contracted_price_monthly=$4, current_period_end=$5, status=$6, updated_at=NOW() WHERE id=$1`,
+    [account.id, pkg.id, pkg.slug, pkg.price_monthly, period, accountStatus]
   );
   await recordEvent({
     subscriptionId: inserted.rows[0].id,
     accountId: account.id,
     type: eventType,
     toPackageId: pkg.id,
-    payload: { price_monthly: pkg.price_monthly, name: pkg.name },
+    payload: { price_monthly: pkg.price_monthly, name: pkg.name, ...(extraPayload || {}) },
     createdBy,
   });
   return inserted.rows[0].id;
 }
 
-export async function changeAccountPackage(account: SaasAccount, packageId: string, createdBy: string) {
+export async function paymentAlreadyCaptured(paymentId: string) {
+  if (!paymentId) return false;
+  const { rows } = await q<{ id: string }>(
+    undefined,
+    `SELECT id FROM saas_subscription_events
+     WHERE event_type IN ('razorpay_paid','razorpay_webhook')
+       AND payload->>'paymentId' = $1
+     LIMIT 1`,
+    [paymentId],
+  );
+  return Boolean(rows[0]);
+}
+
+export async function activatePaidPackage(
+  account: Pick<SaasAccount, 'id' | 'status' | 'current_period_end'>,
+  packageId: string,
+  createdBy: string | null,
+  payment: { orderId?: string; paymentId?: string; subscriptionId?: string },
+) {
+  const next = await getPackageById(packageId);
+  if (!next || next.status !== 'active') throw new FinanceValidationError('That package is not available.');
+  if (await paymentAlreadyCaptured(payment.paymentId || payment.subscriptionId || '')) {
+    return { immediate: true, replay: true, package: next, effectiveAt: new Date().toISOString() };
+  }
+  await assignPackageToAccount(account, next, createdBy, 'razorpay_paid', {
+    orderId: payment.orderId,
+    paymentId: payment.paymentId,
+    packageName: next.name,
+    amountInr: next.price_monthly,
+  });
+  return { immediate: true, replay: false, package: next, effectiveAt: new Date().toISOString() };
+}
+
+export async function changeAccountPackage(account: SaasAccount, packageId: string, createdBy: string, options?: { paid?: boolean }) {
   const next = await getPackageById(packageId);
   if (!next || next.status !== 'active') throw new FinanceValidationError('That package is not available.');
   const current = await currentSubscription(account.id);
   const currentPkg = current ? await getPackageById(current.package_id) : await getPackageBySlug(account.plan);
   const currentPrice = current ? asInt(current.price_monthly) : currentPkg?.price_monthly || 0;
   const upgrade = next.price_monthly >= currentPrice;
+  if (upgrade && !options?.paid) {
+    throw new FinanceValidationError('Pay with Razorpay to activate or upgrade this package.');
+  }
   if (!upgrade) {
     const changeAt = current?.current_period_end || account.current_period_end || new Date(Date.now() + 30 * 86400000).toISOString();
     if (current) {

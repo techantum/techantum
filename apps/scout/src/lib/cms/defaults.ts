@@ -224,7 +224,7 @@ export const DEFAULT_CONTENT: Record<string, Record<string, unknown>> = {
       },
       {
         q: 'Can I upgrade or downgrade my plan later?',
-        a: 'Yes. New workspaces start on a 14-day Growth trial with no card required. Change plans from Billing at any time.',
+        a: 'Yes. Choose a package, authorize Razorpay Autopay, then start a 14-day trial of that package. The first charge runs after the trial. Change plans from Billing at any time.',
       },
     ],
   },

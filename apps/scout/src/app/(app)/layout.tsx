@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Shell from '@/components/Shell';
+import TrialGuard from '@/components/TrialGuard';
 import { FEATURE_YOUTUBE, listFeatures, navigationFor, resolveAccess } from '@/lib/saas/catalog';
 import { getPlatformActor } from '@/lib/saas/session';
 import { getRevealeoSite } from '@/lib/cms/site';
@@ -10,10 +11,16 @@ import { displayCompanyName } from '@/lib/brand';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
   if (!actor) redirect('/login');
-  const access = await resolveAccess(actor.account, actor.role);
-  const catalog = await listFeatures(false).catch(() => []);
-  const { branding } = await getRevealeoSite();
+  const [access, catalog, site] = await Promise.all([
+    resolveAccess(actor.account, actor.role),
+    listFeatures(false).catch(() => []),
+    getRevealeoSite(),
+  ]);
+  const { branding } = site;
+  const pending = Boolean(actor.account && actor.account.status === 'pending_autopay' && !isSuperAdmin(actor.role));
   return (
+    <>
+    <TrialGuard pending={pending} packageId={actor.account?.pending_package_id} />
     <Shell
       name={actor.name}
       email={actor.email}
@@ -27,5 +34,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       {children}
     </Shell>
+    </>
   );
 }

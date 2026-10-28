@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { loginSaasAccount, setSaasCookie } from '@/lib/saas/session';
+import { afterAuthPath, loginSaasAccount, setSaasCookie } from '@/lib/saas/session';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const userId = await loginSaasAccount(String(body.email || ''), String(body.password || ''));
-    const response = NextResponse.json({ ok: true });
-    await setSaasCookie(response, userId);
+    const result = await loginSaasAccount(String(body.email || ''), String(body.password || ''), body.packageId ? String(body.packageId) : null);
+    const response = NextResponse.json({ ok: true, next: afterAuthPath(body.packageId ? String(body.packageId) : null, result.account) });
+    await setSaasCookie(response, result.userId);
     return response;
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not sign in' }, { status: 400 });

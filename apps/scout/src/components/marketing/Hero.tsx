@@ -21,11 +21,13 @@ export default function Hero({
   highlight = 'marketing secrets',
   description = 'Turn public data from YouTube, Instagram, Facebook, Ads and more into actionable insights. See what works, then recreate winning content, faster.',
   image = '/marketing/hero-dashboard.jpg',
+  signedIn = false,
 }: {
   title?: string;
   highlight?: string;
   description?: string;
   image?: string;
+  signedIn?: boolean;
 }) {
   return (
     <div className="relative overflow-hidden bg-white">
@@ -40,12 +42,12 @@ export default function Hero({
           </h1>
           <p className="mt-5 max-w-[26rem] text-[15px] leading-7 text-slate-500">{description}</p>
           <div className="mt-8">
-            <EmailCapture />
+            <EmailCapture signedIn={signedIn} />
           </div>
           <div className="mt-5 flex items-center gap-3">
             <div className="flex -space-x-2">
               {AVATARS.map((src) => (
-                <SafeImage key={src} src={src} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-white" />
+                <SafeImage key={src} src={src} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-white" sizes="32px" />
               ))}
             </div>
             <Stars />
@@ -55,6 +57,8 @@ export default function Hero({
         <SafeImage
           src={image}
           alt="Hookooh workspace preview"
+          priority
+          sizes="(max-width: 1024px) 100vw, 56vw"
           className="w-full rounded-[24px] object-cover shadow-[0_40px_90px_rgba(91,33,182,0.18)] ring-1 ring-white/80"
         />
       </section>

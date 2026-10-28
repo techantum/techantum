@@ -21,17 +21,35 @@ function initials(name: string) {
   return ((parts[0]?.[0] || 'U') + (parts[1]?.[0] || '')).toUpperCase();
 }
 
-export default function YoutubeActivityDashboard() {
+export default function YoutubeActivityDashboard({
+  initialHome = null,
+  initialFirstName = 'there',
+  initialManage = false,
+}: {
+  initialHome?: Record<string, any> | null;
+  initialFirstName?: string;
+  initialManage?: boolean;
+}) {
   const router = useRouter();
   const base = useYoutubePageBase();
-  const [manage, setManage] = useState(false);
-  const [home, setHome] = useState<Record<string, any> | null>(null);
-  const [firstName, setFirstName] = useState('there');
+  const [manage, setManage] = useState(initialManage);
+  const [home, setHome] = useState<Record<string, any> | null>(initialHome);
+  const [firstName, setFirstName] = useState(initialFirstName);
   const [range, setRange] = useState('30');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialHome);
 
   useEffect(() => {
+    if (initialHome) {
+      yt('session')
+        .then((session) => {
+          if (session.firstName) setFirstName(session.firstName);
+          else if (session.name || session.email) setFirstName(firstNameFrom(session.name, session.email));
+          if (Array.isArray(session.permissions)) setManage(session.permissions.includes('youtube_research.channels.manage'));
+        })
+        .catch(() => undefined);
+      return;
+    }
     Promise.all([yt('home'), yt('session').catch(() => ({}))])
       .then(([body, session]) => {
         setHome(body);
@@ -41,7 +59,7 @@ export default function YoutubeActivityDashboard() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialHome]);
 
   const stats = home?.stats || {};
   const projects: HomeProject[] = home?.projects || [];

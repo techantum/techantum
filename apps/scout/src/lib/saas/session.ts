@@ -6,8 +6,7 @@ import { publicAppUrl } from '@/lib/brand';
 import { q } from '@/lib/finance/db';
 import { createClient } from '@supabase/supabase-js';
 import { createAdminClient, getPublishableKey } from '@/lib/supabase/admin';
-import { TRIAL_DAYS } from './plans';
-import { assignPackageToAccount, trialPackage } from './catalog';
+import { getPackageById, trialPackage } from './catalog';
 import { emailError, isPersonName, isStrongPassword } from '@/lib/forms/rules';
 
 export const SAAS_COOKIE = 'revealeo_session';
@@ -24,6 +23,8 @@ export type SaasAccount = {
   status: string;
   trial_ends_at: string | null;
   current_period_end: string | null;
+  razorpay_subscription_id?: string | null;
+  pending_package_id?: string | null;
 };
 
 export type SaasActor = {
@@ -155,6 +156,7 @@ export async function getSaasActor(): Promise<SaasActor | null> {
   const { rows } = await q<SaasAccount & { member_role?: string; member_email?: string; member_name?: string }>(
     undefined,
     `SELECT a.id, a.owner_user_id, a.name, a.email, a.plan, a.package_id, a.contracted_price_monthly, a.status, a.trial_ends_at, a.current_period_end,
+            a.razorpay_subscription_id, a.pending_package_id,
             m.role AS member_role, m.email AS member_email, m.name AS member_name
      FROM saas_accounts a
      JOIN saas_memberships m ON m.account_id = a.id
@@ -180,15 +182,31 @@ export async function getSaasActor(): Promise<SaasActor | null> {
       status: row.status,
       trial_ends_at: row.trial_ends_at,
       current_period_end: row.current_period_end,
+      razorpay_subscription_id: row.razorpay_subscription_id,
+      pending_package_id: row.pending_package_id,
     },
   };
 }
 
 export function accountIsActive(account: SaasAccount) {
-  if (account.status === 'canceled') return false;
+  if (account.status === 'canceled' || account.status === 'pending_autopay') return false;
   if (account.status === 'trialing' && account.trial_ends_at && new Date(account.trial_ends_at).getTime() < Date.now()) return false;
   if (account.status === 'past_due') return false;
   return true;
+}
+
+export function trialPath(packageId?: string | null) {
+  return packageId ? `/trial?package=${encodeURIComponent(packageId)}` : '/trial';
+}
+
+export function websitePath() {
+  return '/?buy=1';
+}
+
+export function afterAuthPath(packageId?: string | null, account?: SaasAccount | null) {
+  if (packageId) return trialPath(packageId);
+  if (!account) return '/home';
+  return websitePath();
 }
 
 export async function requirePlatformActor() {
@@ -209,20 +227,25 @@ export async function requireSaasActor() {
   return actor;
 }
 
-async function provisionWorkspace(userId: string, email: string, name: string) {
+async function provisionWorkspace(userId: string, email: string, name: string, pendingPackageId?: string | null) {
   const existing = await q<SaasAccount>(
     undefined,
     `SELECT a.* FROM saas_accounts a JOIN saas_memberships m ON m.account_id = a.id WHERE m.user_id=$1 LIMIT 1`,
     [userId]
   );
-  if (existing.rows[0]) return { userId, account: existing.rows[0] };
-  const trialEnds = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
-  const trial = await trialPackage();
+  if (existing.rows[0]) {
+    if (pendingPackageId && existing.rows[0].status === 'pending_autopay') {
+      await q(undefined, `UPDATE saas_accounts SET pending_package_id=$2, updated_at=NOW() WHERE id=$1`, [existing.rows[0].id, pendingPackageId]);
+      existing.rows[0].pending_package_id = pendingPackageId;
+    }
+    return { userId, account: existing.rows[0] };
+  }
+  const chosen = pendingPackageId ? await getPackageById(pendingPackageId) : await trialPackage();
   const account = await q<SaasAccount>(
     undefined,
-    `INSERT INTO saas_accounts (owner_user_id, name, email, plan, package_id, contracted_price_monthly, status, trial_ends_at, current_period_end)
-     VALUES ($1,$2,$3,$4,$5,$6,'trialing',$7,$7) RETURNING *`,
-    [userId, name, email, trial?.slug || 'growth', trial?.id || null, trial?.price_monthly || 0, trialEnds]
+    `INSERT INTO saas_accounts (owner_user_id, name, email, plan, package_id, contracted_price_monthly, status, trial_ends_at, current_period_end, pending_package_id)
+     VALUES ($1,$2,$3,$4,$5,$6,'pending_autopay',NULL,NULL,$7) RETURNING *`,
+    [userId, name, email, chosen?.slug || 'growth', chosen?.id || null, chosen?.price_monthly || 0, chosen?.id || pendingPackageId || null]
   );
   await q(
     undefined,
@@ -230,9 +253,6 @@ async function provisionWorkspace(userId: string, email: string, name: string) {
      ON CONFLICT (account_id, user_id) DO NOTHING`,
     [account.rows[0].id, userId, email, name]
   );
-  if (trial) {
-    await assignPackageToAccount(account.rows[0], trial, userId, 'trial_started');
-  }
   return { userId, account: account.rows[0] };
 }
 
@@ -246,7 +266,7 @@ async function passwordSignIn(email: string, password: string) {
   return data.user;
 }
 
-export async function createSaasAccount(input: { email: string; password: string; name: string }) {
+export async function createSaasAccount(input: { email: string; password: string; name: string; packageId?: string | null }) {
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim() || email.split('@')[0];
   if (emailError(email)) throw new Error(emailError(email));
@@ -268,16 +288,23 @@ export async function createSaasAccount(input: { email: string; password: string
   }
   const admin = await lookupAdmin(userId);
   if (admin && isSuperAdmin(admin.role)) throw new Error('Super Admin accounts sign in from the login page. They are not subscriber workspaces.');
-  return provisionWorkspace(userId, email, name);
+  return provisionWorkspace(userId, email, name, input.packageId);
 }
 
-export async function loginSaasAccount(email: string, password: string) {
+export async function loginSaasAccount(email: string, password: string, packageId?: string | null) {
   const user = await passwordSignIn(email.trim().toLowerCase(), password);
   const admin = await lookupAdmin(user.id);
-  if (admin && isSuperAdmin(admin.role)) return user.id;
+  if (admin && isSuperAdmin(admin.role)) return { userId: user.id, account: null as SaasAccount | null };
   const name = String(user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0]);
-  await provisionWorkspace(user.id, user.email || email.trim().toLowerCase(), name);
-  return user.id;
+  const provisioned = await provisionWorkspace(user.id, user.email || email.trim().toLowerCase(), name, packageId);
+  return { userId: user.id, account: provisioned.account };
+}
+
+export async function completeOAuthLogin(input: { userId: string; email: string; name: string; packageId?: string | null }) {
+  const admin = await lookupAdmin(input.userId);
+  if (admin && isSuperAdmin(admin.role)) return { userId: input.userId, account: null as SaasAccount | null };
+  const provisioned = await provisionWorkspace(input.userId, input.email, input.name || input.email.split('@')[0], input.packageId);
+  return { userId: input.userId, account: provisioned.account };
 }
 
 export async function setSaasPlan(accountId: string, plan: string) {

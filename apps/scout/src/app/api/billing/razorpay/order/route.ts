@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       amount: order.amount,
       currency: order.currency || 'INR',
       keyId: razorpayKeyId(),
+      customer: { name: actor.name, email: actor.email },
       package: { id: pkg.id, name: pkg.name, price_monthly: pkg.price_monthly },
     });
   } catch (err) {

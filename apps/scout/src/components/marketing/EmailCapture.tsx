@@ -8,10 +8,12 @@ export default function EmailCapture({
   id,
   cta = 'Start free trial',
   light = false,
+  signedIn = false,
 }: {
   id?: string;
   cta?: string;
   light?: boolean;
+  signedIn?: boolean;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -22,6 +24,10 @@ export default function EmailCapture({
     const issue = emailError(email);
     if (issue) {
       setError(issue);
+      return;
+    }
+    if (signedIn) {
+      router.push('/?buy=1');
       return;
     }
     router.push(`/signup?email=${encodeURIComponent(email.trim())}`);

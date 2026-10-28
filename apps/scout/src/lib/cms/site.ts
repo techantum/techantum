@@ -1,3 +1,4 @@
+import { revalidateTag, unstable_cache } from 'next/cache';
 import { q } from '@/lib/finance/db';
 import {
   CMS_SECTIONS,
@@ -21,7 +22,7 @@ function asObject(value: unknown): Record<string, unknown> {
   return typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
-export async function getRevealeoSite() {
+async function loadRevealeoSite() {
   try {
     const brandingRes = await q<RevealeoBranding>(undefined, 'SELECT * FROM revealeo_site_branding WHERE id = 1');
     const contentRes = await q<{ entry_key: string; content: unknown }>(
@@ -38,6 +39,10 @@ export async function getRevealeoSite() {
     console.error('[revealeo-cms] load failed', err);
     return { branding: DEFAULT_BRANDING, content: DEFAULT_CONTENT };
   }
+}
+
+export async function getRevealeoSite() {
+  return unstable_cache(loadRevealeoSite, ['revealeo-site'], { revalidate: 60, tags: ['cms'] })();
 }
 
 export async function saveRevealeoBranding(input: RevealeoBranding) {
@@ -88,6 +93,7 @@ export async function saveRevealeoBranding(input: RevealeoBranding) {
       payload.copyright_text,
     ]
   );
+  revalidateTag('cms');
   return payload;
 }
 
@@ -103,6 +109,7 @@ export async function saveRevealeoSection(key: string, content: Record<string, u
      ON CONFLICT (entry_key) DO UPDATE SET content = EXCLUDED.content, label = EXCLUDED.label, updated_at = NOW()`,
     [key, section.label, JSON.stringify(merged), sort]
   );
+  revalidateTag('cms');
   return merged;
 }
 

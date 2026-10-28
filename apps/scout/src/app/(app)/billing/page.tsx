@@ -29,7 +29,8 @@ type BillingState = {
   package: Package | null;
   packages: Package[];
   events: { id: string; event_type: string; created_at: string; from_name: string | null; to_name: string | null }[];
-  account: { status: string; trial_ends_at: string | null };
+  account: { status: string; trial_ends_at: string | null; name?: string; email?: string; razorpay_subscription_id?: string | null };
+  customer?: { name: string; email: string };
   razorpay?: { configured: boolean; keyId: string };
 };
 
@@ -117,6 +118,10 @@ export default function BillingPage() {
           name: 'Hookooh',
           description: order.package?.name || pkg.name,
           order_id: order.orderId,
+          prefill: {
+            name: order.customer?.name || data.customer?.name || data.account.name || '',
+            email: order.customer?.email || data.customer?.email || data.account.email || '',
+          },
           handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
             try {
               const verifyRes = await fetch('/api/billing/razorpay/verify', {
@@ -160,7 +165,7 @@ export default function BillingPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-              {data.access.subscriptionStatus === 'trialing' ? 'Trial' : 'Active'}
+              {data.account.status === 'pending_autopay' ? 'Autopay pending' : data.access.subscriptionStatus === 'trialing' || data.account.status === 'trialing' ? 'Trial' : 'Active'}
             </span>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Current plan</p>
             <h2 className="font-bricolage text-3xl font-bold text-slate-900">{current?.name || 'No package'}</h2>
@@ -173,8 +178,19 @@ export default function BillingPage() {
               <p className="mt-2 text-sm text-amber-700">A downgrade is scheduled for {new Date(data.access.pendingChangeAt).toLocaleDateString('en-IN')}.</p>
             ) : null}
             <p className="mt-2 text-xs text-slate-400">
-              {data.razorpay?.configured ? 'Razorpay is connected. Upgrades collect payment in INR before features change.' : 'Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to collect payments.'}
-            </p>
+            {data.account.razorpay_subscription_id
+              ? 'Razorpay Autopay is authorized. The first charge runs after the trial unless you pay to activate sooner.'
+              : data.account.status === 'pending_autopay'
+                ? 'Authorize Autopay on the trial page to unlock this workspace.'
+                : data.razorpay?.configured
+                  ? 'Razorpay is connected. Pay in INR to activate or upgrade a package.'
+                  : 'Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to collect payments.'}
+          </p>
+            {data.canManage && (data.account.status === 'trialing' || data.access.subscriptionStatus === 'trialing') && current ? (
+              <button type="button" onClick={() => setConfirm(current)} className="mt-4 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white">
+                Pay {formatInr(current.price_monthly)} to activate {current.name}
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="mt-5">

@@ -21,6 +21,7 @@ export async function GET() {
     packages,
     events: await listEvents(actor.account.id),
     account: actor.account,
+    customer: { name: actor.name, email: actor.email },
     razorpay: {
       configured: razorpayConfigured(),
       keyId: razorpayConfigured() ? razorpayKeyId() : '',
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     const packageId = String(body.packageId || '');
     const result = await changeAccountPackage(actor.account, packageId, actor.userId);
     const notice = result.immediate
-      ? `Upgraded to ${result.package.name}. Included features are available now.`
+      ? `Moved to ${result.package.name}.`
       : `Downgrade to ${result.package.name} is scheduled for ${new Date(result.effectiveAt).toLocaleDateString('en-IN')}. Your current features stay until then.`;
     return NextResponse.json({ ok: true, notice, ...result });
   } catch (err) {

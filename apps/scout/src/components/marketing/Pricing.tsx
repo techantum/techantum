@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { GHOST, H2, SHELL } from './layout';
 import { formatInr } from '@/lib/saas/money';
 
-type PublicPackage = {
+export type PublicPackage = {
   id: string;
   name: string;
   price_monthly: number;
@@ -28,16 +28,8 @@ function Check({ children, onDark = false }: { children: string; onDark?: boolea
   );
 }
 
-export default function Pricing() {
+export default function Pricing({ packages = [], signedIn = false }: { packages?: PublicPackage[]; signedIn?: boolean }) {
   const [yearly, setYearly] = useState(false);
-  const [packages, setPackages] = useState<PublicPackage[]>([]);
-
-  useEffect(() => {
-    fetch('/api/public/packages')
-      .then((res) => res.json())
-      .then((data) => setPackages(Array.isArray(data.rows) ? data.rows : []))
-      .catch(() => setPackages([]));
-  }, []);
 
   const cards = useMemo(() => packages.slice(0, 3), [packages]);
 
@@ -86,11 +78,12 @@ export default function Pricing() {
                 ))}
               </ul>
               <Link
-                href="/signup"
+                href={signedIn ? `/trial?package=${item.id}` : `/signup?package=${item.id}`}
                 className={onDark ? 'mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-white text-sm font-semibold text-violet-700' : `${GHOST} mt-8 w-full rounded-full`}
               >
-                {onDark ? 'Start free trial' : 'Get started'}
+                {onDark ? 'Start 14-day trial' : 'Start 14-day trial'}
               </Link>
+              <p className={`mt-2 text-center text-[11px] ${onDark ? 'text-white/70' : 'text-slate-400'}`}>Autopay required</p>
             </article>
           );
         })}

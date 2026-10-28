@@ -129,6 +129,11 @@ function buildImportCharts(rows: { day: string; count: number }[]) {
   return { daily, weekly, monthly, all };
 }
 
+export async function researchHomeForAccount(saasAccountId: string | null) {
+  const { withYoutubeContext } = await import('./scope');
+  return withYoutubeContext({ partnerId: null, saasAccountId }, () => researchHome());
+}
+
 export async function researchHome() {
   const scope = scopeSql('p');
   const scopedProjects = scopeSql('p2');
