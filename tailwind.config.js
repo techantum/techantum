@@ -1,4 +1,9 @@
 /** @type {import('tailwindcss').Config} */
+
+// Channels live in src/styles/tailwind.css as "R G B" so opacity modifiers
+// such as ring-secondary/30 can compile inside @apply.
+const withAlpha = (variable) => `rgb(var(${variable}) / <alpha-value>)`
+
 module.exports = {
   darkMode: ["class"],
   content: [
@@ -18,50 +23,50 @@ module.exports = {
     },
     extend: {
       colors: {
-        border: "var(--color-border)", // gray-200
-        input: "var(--color-input)", // white
-        ring: "var(--color-ring)", // green-800
-        background: "var(--color-background)", // gray-50
-        foreground: "var(--color-foreground)", // gray-800
+        border: withAlpha("--color-border"),
+        input: withAlpha("--color-input"),
+        ring: withAlpha("--color-ring"),
+        background: withAlpha("--color-background"),
+        foreground: withAlpha("--color-foreground"),
         primary: {
-          DEFAULT: "var(--color-primary)", // green-800
-          foreground: "var(--color-primary-foreground)", // white
+          DEFAULT: withAlpha("--color-primary"),
+          foreground: withAlpha("--color-primary-foreground"),
         },
         secondary: {
-          DEFAULT: "var(--color-secondary)", // blue-800
-          foreground: "var(--color-secondary-foreground)", // white
+          DEFAULT: withAlpha("--color-secondary"),
+          foreground: withAlpha("--color-secondary-foreground"),
         },
         destructive: {
-          DEFAULT: "var(--color-destructive)", // red-600
-          foreground: "var(--color-destructive-foreground)", // white
+          DEFAULT: withAlpha("--color-destructive"),
+          foreground: withAlpha("--color-destructive-foreground"),
         },
         muted: {
-          DEFAULT: "var(--color-muted)", // gray-100
-          foreground: "var(--color-muted-foreground)", // gray-500
+          DEFAULT: withAlpha("--color-muted"),
+          foreground: withAlpha("--color-muted-foreground"),
         },
         accent: {
-          DEFAULT: "var(--color-accent)", // orange-700
-          foreground: "var(--color-accent-foreground)", // white
+          DEFAULT: withAlpha("--color-accent"),
+          foreground: withAlpha("--color-accent-foreground"),
         },
         popover: {
-          DEFAULT: "var(--color-popover)", // white
-          foreground: "var(--color-popover-foreground)", // gray-800
+          DEFAULT: withAlpha("--color-popover"),
+          foreground: withAlpha("--color-popover-foreground"),
         },
         card: {
-          DEFAULT: "var(--color-card)", // white
-          foreground: "var(--color-card-foreground)", // gray-800
+          DEFAULT: withAlpha("--color-card"),
+          foreground: withAlpha("--color-card-foreground"),
         },
         success: {
-          DEFAULT: "var(--color-success)", // green-600
-          foreground: "var(--color-success-foreground)", // white
+          DEFAULT: withAlpha("--color-success"),
+          foreground: withAlpha("--color-success-foreground"),
         },
         warning: {
-          DEFAULT: "var(--color-warning)", // amber-500
-          foreground: "var(--color-warning-foreground)", // white
+          DEFAULT: withAlpha("--color-warning"),
+          foreground: withAlpha("--color-warning-foreground"),
         },
         error: {
-          DEFAULT: "var(--color-error)", // red-600
-          foreground: "var(--color-error-foreground)", // white
+          DEFAULT: withAlpha("--color-error"),
+          foreground: withAlpha("--color-error-foreground"),
         },
       },
       borderRadius: {

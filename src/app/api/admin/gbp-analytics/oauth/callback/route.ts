@@ -54,6 +54,17 @@ export async function GET(request: Request) {
   const oauthError = url.searchParams.get('error');
   const origin = publicSiteOrigin();
 
+  if (state?.startsWith('hookooh_') && /^hookooh_[A-Za-z0-9_]+$/.test(state)) {
+    const hookooh = (process.env.HOOKOOH_APP_URL || 'https://hookooh.com').replace(/\/$/, '');
+    if (oauthError || !code) {
+      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(oauthError || 'Google sign-in was cancelled.')}`, hookooh));
+    }
+    const target = new URL('/api/auth/google/callback', hookooh);
+    target.searchParams.set('code', code);
+    target.searchParams.set('state', state);
+    return NextResponse.redirect(target);
+  }
+
   if (state?.startsWith('site_')) {
     if (oauthError) {
       return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(oauthError)}`, origin));
