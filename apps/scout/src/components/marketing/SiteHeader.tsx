@@ -73,13 +73,15 @@ export default function SiteHeader({
           {userEmail ? <p className="truncate text-xs text-slate-500">{userEmail}</p> : null}
         </div>
       </div>
-      <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>
-        <NavIcon name="PencilSquareIcon" itemKey="profile" className="h-7 w-7 rounded-lg" size={14} />
-        Edit profile
-      </Link>
+      {canOpenWorkspace ? (
+        <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>
+          <NavIcon name="PencilSquareIcon" itemKey="profile" className="h-7 w-7 rounded-lg" size={14} />
+          Edit profile
+        </Link>
+      ) : null}
       <Link href={workspaceHref} className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>
         <NavIcon name="Squares2X2Icon" itemKey="features" className="h-7 w-7 rounded-lg" size={14} delay={80} />
-        Go to workspace
+        {canOpenWorkspace ? 'Go to workspace' : 'Complete payment'}
       </Link>
       <form action="/api/auth/logout" method="post">
         <button type="submit" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50">
@@ -99,7 +101,7 @@ export default function SiteHeader({
             <SafeImage
               src={branding.logo_url}
               alt={branding.company_name || APP_NAME}
-              className="h-12 w-auto max-w-[220px] object-contain object-left sm:h-14 sm:max-w-[260px]"
+              className="h-[45px] w-[180px] max-w-[180px] object-cover object-center"
               fallback={branding?.company_name || APP_NAME}
               priority
             />
@@ -107,7 +109,7 @@ export default function SiteHeader({
             branding?.company_name || APP_NAME
           )}
         </Link>
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-6 text-[13.5px] font-medium text-slate-500 lg:flex">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 text-[13.5px] font-medium text-slate-500 lg:flex">
           {LINKS.map((link, index) => (
             <Link key={link.href} href={link.href} className="inline-flex items-center gap-1.5 hover:text-slate-900">
               <NavIcon name={link.icon} itemKey={link.key} delay={index * 120} className="h-7 w-7 rounded-lg" size={14} />

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { publicAppUrl } from '@/lib/brand';
 import { googleProfileFromCode } from '@/lib/saas/google-oauth';
 import { afterAuthPath, completeOAuthLogin, setSaasCookie } from '@/lib/saas/session';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAuthAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: Request) {
   const origin = publicAppUrl();
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   if (!code || !expected || state !== expected) return fail('Google sign-in was cancelled.');
   try {
     const profile = await googleProfileFromCode(code);
-    const auth = createAdminClient();
+    const auth = createAuthAdminClient();
     let userId = '';
     const created = await auth.auth.admin.createUser({
       email: profile.email,

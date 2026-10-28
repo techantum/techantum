@@ -7,7 +7,7 @@ export default function TrialGuard({ pending, packageId }: { pending: boolean; p
   const path = usePathname() || '';
   useEffect(() => {
     if (!pending) return;
-    if (path.startsWith('/trial') || path.startsWith('/settings') || path.startsWith('/logout')) return;
+    if (path.startsWith('/logout')) return;
     const next = packageId ? `/trial?package=${encodeURIComponent(packageId)}` : '/trial';
     window.location.replace(next);
   }, [pending, path, packageId]);

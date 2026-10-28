@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import NavIcon from '@/components/ui/NavIcon';
+import Icon from '@/components/ui/AppIcon';
 import SafeImage from '@/components/ui/SafeImage';
+import { roleLabel } from '@/lib/admin/roles';
+import type { PlatformRole } from '@/lib/admin/roles';
 import { formatAgo } from '@/lib/youtube/home-display';
 
 function AvatarMark({ name, src, size = 'h-9 w-9 text-xs' }: { name: string; src?: string | null; size?: string }) {
@@ -17,10 +20,12 @@ export default function AppHeaderActions({
   name,
   email,
   avatarUrl,
+  role,
 }: {
   name: string;
   email?: string;
   avatarUrl?: string | null;
+  role?: PlatformRole;
 }) {
   const [open, setOpen] = useState<'profile' | 'notes' | ''>('');
   const [notes, setNotes] = useState<{ id: string; title: string; detail: string; createdAt: string }[]>([]);
@@ -44,7 +49,10 @@ export default function AppHeaderActions({
   const menu = 'absolute right-0 top-11 z-[80] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl';
 
   return (
-    <div ref={wrapRef} className="relative flex items-center gap-1">
+    <div ref={wrapRef} className="relative flex items-center gap-2">
+      <Link href="/" className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 sm:inline-flex">
+        <Icon name="ArrowTopRightOnSquareIcon" size={14} /> View site
+      </Link>
       <button
         type="button"
         className="relative rounded-full p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
@@ -70,11 +78,15 @@ export default function AppHeaderActions({
 
       <button
         type="button"
-        className="rounded-full p-0.5 ring-2 ring-transparent hover:ring-violet-100"
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-1 ring-2 ring-transparent hover:ring-violet-100 sm:pr-2"
         aria-label="Profile menu"
         onClick={() => setOpen(open === 'profile' ? '' : 'profile')}
       >
         <AvatarMark name={name} src={avatarUrl} />
+        <span className="hidden text-left leading-tight sm:block">
+          <span className="block text-sm font-semibold text-slate-900">{name}</span>
+          {role ? <span className="block text-[11px] font-medium text-slate-400">{roleLabel(role)}</span> : null}
+        </span>
       </button>
       {open === 'profile' ? (
         <div className={menu}>

@@ -97,10 +97,34 @@ export async function saveRevealeoBranding(input: RevealeoBranding) {
   return payload;
 }
 
+function isEphemeralUrl(value: unknown) {
+  return typeof value === 'string' && (value.startsWith('blob:') || value.startsWith('data:'));
+}
+
+async function readStoredSection(key: string) {
+  const result = await q<{ content: unknown }>(
+    undefined,
+    'SELECT content FROM revealeo_cms_content WHERE entry_key = $1',
+    [key]
+  );
+  return asObject(result.rows[0]?.content);
+}
+
 export async function saveRevealeoSection(key: string, content: Record<string, unknown>) {
   const section = CMS_SECTIONS.find((item) => item.key === key);
   if (!section) throw new Error('Unknown section');
-  const merged = { ...DEFAULT_CONTENT[key], ...content };
+  const stored = await readStoredSection(key);
+  const durable = { ...content };
+  for (const [field, value] of Object.entries(durable)) {
+    if (!isEphemeralUrl(value)) continue;
+    const previous = stored[field];
+    if (typeof previous === 'string' && !isEphemeralUrl(previous)) durable[field] = previous;
+    else delete durable[field];
+  }
+  const merged = { ...DEFAULT_CONTENT[key], ...stored, ...durable };
+  for (const [field, value] of Object.entries(merged)) {
+    if (isEphemeralUrl(value)) delete merged[field];
+  }
   const sort = CMS_SECTIONS.findIndex((item) => item.key === key);
   await q(
     undefined,

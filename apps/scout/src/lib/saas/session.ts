@@ -5,7 +5,7 @@ import { isSuperAdmin, normalizeSubscriberRole, type PlatformRole } from '@/lib/
 import { publicAppUrl } from '@/lib/brand';
 import { q } from '@/lib/finance/db';
 import { createClient } from '@supabase/supabase-js';
-import { createAdminClient, getPublishableKey } from '@/lib/supabase/admin';
+import { createAuthAdminClient, getPublishableKey } from '@/lib/supabase/admin';
 import { getPackageById, trialPackage } from './catalog';
 import { emailError, isPersonName, isStrongPassword } from '@/lib/forms/rules';
 
@@ -272,7 +272,7 @@ export async function createSaasAccount(input: { email: string; password: string
   if (emailError(email)) throw new Error(emailError(email));
   if (name && !isPersonName(name)) throw new Error('Enter a workspace name using letters only.');
   if (!isStrongPassword(input.password)) throw new Error('Use a password of at least 8 characters, with uppercase, lowercase, a number, and a symbol.');
-  const auth = createAdminClient();
+  const auth = createAuthAdminClient();
   const created = await auth.auth.admin.createUser({
     email,
     password: input.password,

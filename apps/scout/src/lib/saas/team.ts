@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAuthAdminClient } from '@/lib/supabase/admin';
 import { q } from '@/lib/finance/db';
 import { FinanceValidationError } from '@/lib/finance/errors';
 import { normalizeSubscriberRole, type SubscriberRole } from '@/lib/admin/roles';
@@ -43,7 +43,7 @@ export async function inviteTeamMember(
   }
   const existing = members.find((member) => member.email.toLowerCase() === email);
   if (existing) throw new FinanceValidationError('That email is already on this workspace.');
-  const auth = createAdminClient();
+  const auth = createAuthAdminClient();
   const created = await auth.auth.admin.createUser({
     email,
     password: input.password,

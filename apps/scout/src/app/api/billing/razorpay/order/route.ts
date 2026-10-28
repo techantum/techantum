@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { canManageBilling } from '@/lib/admin/roles';
 import { getPackageById } from '@/lib/saas/catalog';
 import { financeErrorResponse } from '@/lib/finance/http';
-import { createRazorpayOrder, razorpayConfigured, razorpayKeyId } from '@/lib/saas/razorpay';
+import { createRazorpayOrder, orderCheckoutUrl, razorpayConfigured, razorpayKeyId } from '@/lib/saas/razorpay';
 import { getSaasActor } from '@/lib/saas/session';
 import { FinanceValidationError } from '@/lib/finance/errors';
 
@@ -32,6 +32,14 @@ export async function POST(request: Request) {
       keyId: razorpayKeyId(),
       customer: { name: actor.name, email: actor.email },
       package: { id: pkg.id, name: pkg.name, price_monthly: pkg.price_monthly },
+      checkoutUrl: orderCheckoutUrl({
+        orderId: order.id,
+        amount: order.amount,
+        packageId: pkg.id,
+        name: actor.name,
+        email: actor.email,
+        description: pkg.name,
+      }),
     });
   } catch (err) {
     return financeErrorResponse(err);

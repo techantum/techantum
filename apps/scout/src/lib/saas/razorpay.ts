@@ -91,9 +91,9 @@ export function verifyRazorpayWebhook(rawBody: string, signature: string) {
   return expected === signature;
 }
 
-async function razorpayPost(path: string, payload: Record<string, unknown>) {
+async function razorpayPost(path: string, payload: Record<string, unknown>, method: 'POST' | 'PUT' = 'POST') {
   const response = await fetch(`${API}${path}`, {
-    method: 'POST',
+    method,
     headers: { Authorization: authHeader(), 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
@@ -123,20 +123,104 @@ export async function ensureRazorpayPlan(pkg: { id: string; name: string; price_
   return planId;
 }
 
+export function indianMobile(raw: string) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+  if (!/^[6-9]\d{9}$/.test(local)) {
+    throw new FinanceValidationError('Enter the 10-digit Indian mobile number linked to your UPI app.');
+  }
+  return local;
+}
+
+export async function ensureRazorpayCustomer(input: { name: string; email: string; contact: string }) {
+  const contact = indianMobile(input.contact);
+  const customer = await razorpayPost('/customers', {
+    name: input.name || 'Hookooh user',
+    email: input.email,
+    contact,
+    fail_existing: '0',
+  });
+  const id = String(customer.id || '');
+  if (!id) throw new FinanceValidationError('Could not open the Razorpay customer for this mobile number.');
+  const saved = String(customer.contact || '').replace(/\D/g, '').slice(-10);
+  if (saved && saved !== contact) {
+    await razorpayPost(`/customers/${id}`, { contact, email: input.email, name: input.name || customer.name || 'Hookooh user' }, 'PUT');
+  }
+  return { id, contact };
+}
+
 export async function createRazorpaySubscription(input: {
   planId: string;
   startAtUnix: number;
   notes: Record<string, string>;
   totalCount?: number;
+  customerId: string;
 }) {
   return razorpayPost('/subscriptions', {
     plan_id: input.planId,
     total_count: input.totalCount || 120,
     quantity: 1,
     customer_notify: 1,
+    customer_id: input.customerId,
     start_at: input.startAtUnix,
     notes: input.notes,
   }) as Promise<{ id: string; status: string }>;
+}
+
+function registeredCheckoutUrl(params: Record<string, string>) {
+  const origin = (process.env.RAZORPAY_CHECKOUT_ORIGIN || 'https://mypropti.com').replace(/\/$/, '');
+  const url = new URL('/hookooh-autopay.html', origin);
+  url.searchParams.set('key', razorpayKeyId());
+  for (const [key, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+export function autopayCheckoutUrl(input: {
+  subscriptionId: string;
+  customerId: string;
+  name: string;
+  email: string;
+  contact: string;
+  description: string;
+}) {
+  return registeredCheckoutUrl({
+    subscription_id: input.subscriptionId,
+    customer_id: input.customerId,
+    name: input.name,
+    email: input.email,
+    contact: input.contact,
+    description: input.description.slice(0, 180),
+    back: 'trial',
+  });
+}
+
+export function orderCheckoutUrl(input: {
+  orderId: string;
+  amount: number;
+  packageId: string;
+  name: string;
+  email: string;
+  description: string;
+}) {
+  return registeredCheckoutUrl({
+    order_id: input.orderId,
+    amount: String(input.amount),
+    package_id: input.packageId,
+    name: input.name,
+    email: input.email,
+    description: input.description.slice(0, 180),
+    back: 'billing',
+  });
+}
+
+export async function cancelRazorpaySubscription(subscriptionId: string) {
+  try {
+    return await razorpayPost(`/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, { cancel_at_cycle_end: 1 });
+  } catch {
+    return razorpayPost(`/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, { cancel_at_cycle_end: 0 });
+  }
 }
 
 export function verifyRazorpaySubscriptionSignature(paymentId: string, subscriptionId: string, signature: string) {

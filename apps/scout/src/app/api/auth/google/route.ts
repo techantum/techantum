@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { googleProfileFromCode } from '@/lib/saas/google-oauth';
 import { afterAuthPath, completeOAuthLogin, setSaasCookie } from '@/lib/saas/session';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAuthAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const packageId = body.packageId ? String(body.packageId) : '';
     if (!code) return NextResponse.json({ error: 'Google sign-in was cancelled.' }, { status: 400 });
     const profile = await googleProfileFromCode(code, 'postmessage');
-    const auth = createAdminClient();
+    const auth = createAuthAdminClient();
     let userId = '';
     const created = await auth.auth.admin.createUser({
       email: profile.email,

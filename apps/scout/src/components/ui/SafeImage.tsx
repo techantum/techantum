@@ -33,7 +33,8 @@ export default function SafeImage({
   const { wrap, img } = splitImageClass(className);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const fills = /\bh-full\b/.test(wrap) || /\bw-full\b/.test(wrap) || /\baspect-/.test(wrap);
+  const explicitHeight = /\bh-(?!full\b)/.test(wrap) || /\bh-\[/.test(wrap);
+  const fills = !explicitHeight && (/\bh-full\b/.test(wrap) || /\bw-full\b/.test(wrap) || /\baspect-/.test(wrap));
   const autoWidth = /\bw-auto\b/.test(wrap);
   const needsMinHeight = /\bw-full\b/.test(wrap) && !/\bh-/.test(wrap) && !/\baspect-/.test(wrap);
 

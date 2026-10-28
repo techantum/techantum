@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import SafeImage from '@/components/ui/SafeImage';
@@ -20,6 +20,10 @@ export default function CmsPage() {
   const [saving, setSaving] = useState('');
   const [message, setMessage] = useState('');
   const [advanced, setAdvanced] = useState(false);
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const contentRef = useRef(content);
+  const uploadsRef = useRef<Promise<unknown>[]>([]);
+  contentRef.current = content;
 
   useEffect(() => {
     fetch('/api/cms/content')
@@ -38,13 +42,17 @@ export default function CmsPage() {
   const extraFields = section.fields.filter((field) => !PRIMARY.has(field.key));
 
   const patch = (key: string, field: string, value: unknown) => {
-    setContent((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+    const prev = contentRef.current;
+    const next = { ...prev, [key]: { ...(prev[key] || {}), [field]: value } };
+    contentRef.current = next;
+    setContent(next);
   };
 
   const upload = async (key: string, field: string, file: File) => {
+    const previewKey = `${key}.${field}`;
     const local = URL.createObjectURL(file);
-    patch(key, field, local);
-    try {
+    setPreviews((prev) => ({ ...prev, [previewKey]: local }));
+    const job = (async () => {
       const body = new FormData();
       body.append('file', file);
       body.append('folder', 'cms');
@@ -53,9 +61,21 @@ export default function CmsPage() {
       const res = await fetch('/api/cms/upload', { method: 'POST', body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
+      if (typeof data.url !== 'string' || data.url.startsWith('blob:')) throw new Error('Upload did not return a saved image');
       patch(key, field, data.url);
       setMessage('Image saved.');
+      return data.url as string;
+    })();
+    uploadsRef.current.push(job);
+    try {
+      await job;
     } finally {
+      uploadsRef.current = uploadsRef.current.filter((item) => item !== job);
+      setPreviews((prev) => {
+        const next = { ...prev };
+        delete next[previewKey];
+        return next;
+      });
       URL.revokeObjectURL(local);
     }
   };
@@ -64,10 +84,12 @@ export default function CmsPage() {
     setSaving(key || 'all');
     setMessage('');
     try {
+      await Promise.all(uploadsRef.current);
+      const latest = contentRef.current;
       const res = await fetch('/api/cms/content', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(key ? { key, content: content[key] } : { all: true, content }),
+        body: JSON.stringify(key ? { key, content: latest[key] } : { all: true, content: latest }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
@@ -148,7 +170,7 @@ export default function CmsPage() {
                 <div key={field.key} className={field.key === 'ctaLink' || field.key === 'cta' ? '' : 'sm:col-span-2'}>
                   <FieldEditor
                     field={field}
-                    value={values[field.key]}
+                    value={previews[`${section.key}.${field.key}`] || values[field.key]}
                     onChange={(value) => patch(section.key, field.key, value)}
                     onUpload={async (file) => {
                       try {
@@ -171,7 +193,7 @@ export default function CmsPage() {
               <FieldEditor
                 key={field.key}
                 field={field}
-                value={values[field.key]}
+                value={previews[`${section.key}.${field.key}`] || values[field.key]}
                 onChange={(value) => patch(section.key, field.key, value)}
                 onUpload={async (file) => {
                   try {

@@ -65,12 +65,12 @@ export default function SiteFooter({ branding }: { branding?: RevealeoBranding |
   return (
     <footer className="bg-white text-slate-500">
       <div className={`${SHELL} grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(5,minmax(0,1fr))]`}>
-        <div>
+        <div className="min-w-0">
           {branding?.footer_logo_url || branding?.logo_url ? (
             <SafeImage
               src={branding.footer_logo_url || branding.logo_url}
               alt={branding.company_name}
-              className="h-12 w-auto max-w-[240px] object-contain object-left sm:h-14 sm:max-w-[280px]"
+              className="h-[45px] w-[180px] max-w-[180px] object-cover object-center"
               fallback={<p className="font-bricolage text-[22px] font-bold text-slate-900">{branding?.company_name || APP_NAME}</p>}
             />
           ) : (

@@ -99,61 +99,15 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     });
   };
 
-  const loadGoogleScript = () =>
-    new Promise<void>((resolve, reject) => {
-      if (window.google?.accounts?.oauth2) {
-        resolve();
-        return;
-      }
-      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-      if (existing) {
-        existing.addEventListener('load', () => resolve());
-        existing.addEventListener('error', () => reject(new Error('Could not load Google sign-in.')));
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Could not load Google sign-in.'));
-      document.head.appendChild(script);
-    });
-
-  const startGoogle = async () => {
+  const startGoogle = () => {
     setError('');
     if (!googleClientId) {
       setError('Google sign-in is not configured.');
       return;
     }
-    try {
-      await loadGoogleScript();
-      if (!window.google?.accounts?.oauth2) throw new Error('Google sign-in is not available.');
-      window.google.accounts.oauth2
-        .initCodeClient({
-          client_id: googleClientId,
-          scope: 'openid email profile',
-          ux_mode: 'popup',
-          callback: async (response) => {
-            if (response.error || !response.code) {
-              setError(response.error === 'popup_closed_by_user' ? 'Google sign-in was cancelled.' : 'Google sign-in failed.');
-              return;
-            }
-            await overlay.run('Signing in with Google…', async () => {
-              const res = await fetch('/api/auth/google', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: response.code, packageId }),
-              });
-              const body = await res.json().catch(() => ({}));
-              if (!res.ok) throw new Error(body.error || 'Google sign-in failed.');
-              goNext(body.next);
-            }).catch((err) => setError(err instanceof Error ? err.message : 'Google sign-in failed.'));
-          },
-        })
-        .requestCode();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed.');
-    }
+    const params = new URLSearchParams();
+    if (packageId) params.set('package', packageId);
+    window.location.assign(`/api/auth/google/start${params.size ? `?${params.toString()}` : ''}`);
   };
 
   const sendOtp = async () => {
@@ -362,23 +316,6 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       ) : null}
     </>
   );
-}
-
-declare global {
-  interface Window {
-    google?: {
-      accounts?: {
-        oauth2?: {
-          initCodeClient: (config: {
-            client_id: string;
-            scope: string;
-            ux_mode: 'popup';
-            callback: (response: { code?: string; error?: string }) => void;
-          }) => { requestCode: () => void };
-        };
-      };
-    };
-  }
 }
 
 function GoogleMark() {

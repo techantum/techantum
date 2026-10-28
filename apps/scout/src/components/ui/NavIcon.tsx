@@ -76,11 +76,11 @@ export default function NavIcon({
   locked?: boolean;
   className?: string;
 }) {
-  const tone = locked ? 'bg-amber-50 text-amber-600' : navTone(href, itemKey);
+  const tone = locked ? 'bg-slate-100 text-slate-300' : navTone(href, itemKey);
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center ${className} ${tone}`}
-      style={{ animation: `nav-bob 2.6s ease-in-out ${delay}ms infinite` }}
+      style={locked ? undefined : { animation: `nav-bob 2.6s ease-in-out ${delay}ms infinite` }}
     >
       <Icon name={name} size={size} />
     </span>

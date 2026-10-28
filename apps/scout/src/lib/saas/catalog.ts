@@ -588,15 +588,14 @@ export async function listEvents(accountId: string) {
 export type NavItem = { href: string; label: string; icon: string; key?: string; locked?: boolean; children?: NavItem[] };
 
 function youtubeNavChildren(locked = false, role?: PlatformRole): NavItem[] {
-  const billing = '/billing?need=youtube';
   const children: NavItem[] = [
-    { href: locked ? billing : '/youtube', label: 'Dashboard', icon: 'Squares2X2Icon', key: 'yt-dashboard' },
-    { href: locked ? billing : '/youtube/projects', label: 'Projects', icon: 'FolderIcon', key: 'yt-projects' },
-    { href: locked ? billing : '/youtube/quick-analysis', label: 'Quick Analysis', icon: 'BoltIcon', key: 'yt-quick-analysis' },
-    { href: locked ? billing : '/youtube/quick-reports', label: 'Quick Reports', icon: 'DocumentChartBarIcon', key: 'yt-quick-reports' },
+    { href: '/youtube', label: 'Dashboard', icon: 'Squares2X2Icon', key: 'yt-dashboard', locked },
+    { href: '/youtube/projects', label: 'Projects', icon: 'FolderIcon', key: 'yt-projects', locked },
+    { href: '/youtube/quick-analysis', label: 'Quick Analysis', icon: 'BoltIcon', key: 'yt-quick-analysis', locked },
+    { href: '/youtube/quick-reports', label: 'Quick Reports', icon: 'DocumentChartBarIcon', key: 'yt-quick-reports', locked },
   ];
-  if (!locked && canManageHookoohKnowledge(role)) {
-    children.push({ href: '/youtube/ai-training', label: 'Hookooh', icon: 'SparklesIcon', key: 'yt-hookooh' });
+  if (locked || canManageHookoohKnowledge(role)) {
+    children.push({ href: '/youtube/ai-training', label: 'Hookooh Agent', icon: 'SparklesIcon', key: 'yt-hookooh', locked });
   }
   return children;
 }
@@ -743,7 +742,7 @@ export function navigationFor(role: PlatformRole, access: Access, catalog: Catal
     if (seen.has(feature.route) || seen.has(feature.feature_key)) continue;
     seen.add(feature.feature_key);
     items.push(withYoutubeChildren({
-      href: `/billing?need=${feature.feature_key}`,
+      href: feature.route || '/billing',
       label: feature.sidebar_label || feature.name,
       icon: feature.icon || 'Squares2X2Icon',
       key: feature.feature_key,

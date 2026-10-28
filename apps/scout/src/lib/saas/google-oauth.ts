@@ -1,4 +1,3 @@
-import { publicAppUrl } from '@/lib/brand';
 import { decryptSecret } from '@/lib/ai/crypto';
 import { q } from '@/lib/finance/db';
 
@@ -44,8 +43,9 @@ export async function googleOAuthConfigured() {
   return Boolean(clientId && clientSecret);
 }
 
+/** Redirect URI already registered on the TechAntum Google client. */
 export function googleRedirectUri() {
-  return `${publicAppUrl().replace(/\/$/, '')}/api/auth/google/callback`;
+  return (process.env.GOOGLE_OAUTH_REDIRECT_URI || 'https://techantum.com/api/admin/gbp-analytics/oauth/callback').replace(/\/$/, '');
 }
 
 export function googleAuthUrl(state: string, clientId: string) {

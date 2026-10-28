@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent('Google sign-in is not configured.')}&package=${packageId}`, origin));
   }
-  const state = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const state = `hookooh_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const response = NextResponse.redirect(googleAuthUrl(state, clientId));
   const cookie = { httpOnly: true, sameSite: 'lax' as const, secure: origin.startsWith('https://'), path: '/', maxAge: 600 };
   response.cookies.set('hookooh_google_state', state, cookie);

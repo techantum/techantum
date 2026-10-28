@@ -41,13 +41,12 @@ function NavLink({
   const pathname = usePathname() || '';
   const active = itemIsActive(pathname, item.href);
   const className = item.locked
-    ? `${nested ? 'pl-11' : ''} flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-400 hover:bg-amber-50 hover:text-amber-800`
+    ? `${nested ? 'pl-11' : ''} flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-400 hover:bg-slate-50 hover:text-slate-500 ${active ? 'bg-slate-100 text-slate-500' : ''}`
     : `${nested ? 'pl-11' : ''} flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold ${active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50'}`;
   return (
     <Link href={item.href} className={className}>
       {nested ? null : <NavIcon name={item.icon} href={item.href} itemKey={item.key} delay={index * 140} locked={item.locked} />}
       <span className="flex-1 truncate">{item.label}</span>
-      {item.locked ? <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">Missing</span> : null}
     </Link>
   );
 }
@@ -64,18 +63,23 @@ function NavGroup({ item, index }: { item: NavItem; index: number }) {
 
   if (!children.length) return <NavLink item={item} index={index} />;
 
+  const rowTone = item.locked
+    ? 'text-slate-400 hover:bg-slate-50 hover:text-slate-500'
+    : childActive || open
+      ? 'bg-violet-50 text-violet-700'
+      : 'text-slate-500 hover:bg-slate-50';
+
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold ${childActive || open ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50'}`}
-      >
-        <NavIcon name={item.icon} href={item.href} itemKey={item.key} delay={index * 140} locked={item.locked} />
-        <span className="flex-1 truncate text-left">{item.label}</span>
-        {item.locked ? <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">Missing</span> : null}
-        <Icon name={open ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={14} className="text-slate-400" />
-      </button>
+      <div className={`flex items-center rounded-2xl ${rowTone}`}>
+        <Link href={item.href} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-sm font-semibold">
+          <NavIcon name={item.icon} href={item.href} itemKey={item.key} delay={index * 140} locked={item.locked} />
+          <span className="truncate">{item.label}</span>
+        </Link>
+        <button type="button" className="mr-2 rounded-lg p-1 text-slate-300 hover:text-slate-500" aria-label={`Show ${item.label} pages`} onClick={() => setOpen((value) => !value)}>
+          <Icon name={open ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={14} />
+        </button>
+      </div>
       {open ? (
         <div className="mt-1 space-y-0.5">
           {children.map((child, childIndex) => (
@@ -142,7 +146,7 @@ export default function Shell({
             <Icon name="ChartBarIcon" size={12} /> {plan}
           </span>
         ) : null}
-        <AppHeaderActions name={name} email={email} avatarUrl={avatarUrl} />
+        <AppHeaderActions name={name} email={email} avatarUrl={avatarUrl} role={role} />
       </header>
 
       <div className="pt-16 lg:pl-64">

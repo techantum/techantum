@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import Shell from '@/components/Shell';
 import TrialGuard from '@/components/TrialGuard';
 import { FEATURE_YOUTUBE, listFeatures, navigationFor, resolveAccess } from '@/lib/saas/catalog';
-import { getPlatformActor } from '@/lib/saas/session';
+import { getPlatformActor, trialPath } from '@/lib/saas/session';
 import { getRevealeoSite } from '@/lib/cms/site';
 import { isSuperAdmin } from '@/lib/admin/roles';
 import { canUseHookooh } from '@/lib/hookooh/access';
@@ -11,6 +11,9 @@ import { displayCompanyName } from '@/lib/brand';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
   if (!actor) redirect('/login');
+  if (actor.account?.status === 'pending_autopay' && !isSuperAdmin(actor.role)) {
+    redirect(trialPath(actor.account.pending_package_id));
+  }
   const [access, catalog, site] = await Promise.all([
     resolveAccess(actor.account, actor.role),
     listFeatures(false).catch(() => []),

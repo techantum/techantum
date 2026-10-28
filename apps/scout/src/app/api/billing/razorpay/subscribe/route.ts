@@ -3,7 +3,7 @@ import { canManageBilling } from '@/lib/admin/roles';
 import { getPackageById } from '@/lib/saas/catalog';
 import { financeErrorResponse } from '@/lib/finance/http';
 import { FinanceValidationError } from '@/lib/finance/errors';
-import { createRazorpaySubscription, ensureRazorpayPlan, razorpayConfigured, razorpayKeyId } from '@/lib/saas/razorpay';
+import { autopayCheckoutUrl, createRazorpaySubscription, ensureRazorpayCustomer, ensureRazorpayPlan, razorpayConfigured, razorpayKeyId } from '@/lib/saas/razorpay';
 import { TRIAL_DAYS } from '@/lib/saas/plans';
 import { getSaasActor } from '@/lib/saas/session';
 import { q } from '@/lib/finance/db';
@@ -18,10 +18,16 @@ export async function POST(request: Request) {
     const packageId = String(body.packageId || actor.account.pending_package_id || '');
     const pkg = await getPackageById(packageId);
     if (!pkg || pkg.status !== 'active') throw new FinanceValidationError('Choose a package to start the trial.');
+    const customer = await ensureRazorpayCustomer({
+      name: actor.name,
+      email: actor.email,
+      contact: String(body.contact || ''),
+    });
     const planId = await ensureRazorpayPlan(pkg);
     const startAt = Math.floor(Date.now() / 1000) + TRIAL_DAYS * 86400;
     const subscription = await createRazorpaySubscription({
       planId,
+      customerId: customer.id,
       startAtUnix: startAt,
       notes: {
         accountId: actor.account.id,
@@ -39,7 +45,16 @@ export async function POST(request: Request) {
       keyId: razorpayKeyId(),
       subscriptionId: subscription.id,
       package: { id: pkg.id, name: pkg.name, price_monthly: pkg.price_monthly },
-      customer: { name: actor.name, email: actor.email },
+      customerId: customer.id,
+      customer: { name: actor.name, email: actor.email, contact: customer.contact },
+      checkoutUrl: autopayCheckoutUrl({
+        subscriptionId: subscription.id,
+        customerId: customer.id,
+        name: actor.name,
+        email: actor.email,
+        contact: customer.contact,
+        description: `14-day trial of ${pkg.name}. First charge after the trial.`,
+      }),
     });
   } catch (err) {
     return financeErrorResponse(err);

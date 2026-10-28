@@ -59,7 +59,7 @@ export default function Hero({
           alt="Hookooh workspace preview"
           priority
           sizes="(max-width: 1024px) 100vw, 56vw"
-          className="w-full rounded-[24px] object-cover shadow-[0_40px_90px_rgba(91,33,182,0.18)] ring-1 ring-white/80"
+          className="w-full rounded-[24px] object-fill shadow-[0_40px_90px_rgba(91,33,182,0.18)] ring-1 ring-white/80"
         />
       </section>
     </div>

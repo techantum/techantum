@@ -1,6 +1,6 @@
 import { createHash, randomInt } from 'node:crypto';
 import { q } from '@/lib/finance/db';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAuthAdminClient } from '@/lib/supabase/admin';
 import { completeOAuthLogin } from './session';
 import { composeWhatsAppPhone } from './phone-countries';
 
@@ -30,37 +30,37 @@ async function sendWhatsAppCode(phone: string, code: string) {
   const token = process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_WHATSAPP_ACCESS_TOKEN || '';
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_WHATSAPP_PHONE_NUMBER_ID || '';
   const version = process.env.WHATSAPP_API_VERSION || 'v21.0';
-  const templateName = process.env.WHATSAPP_LOGIN_OTP_TEMPLATE?.trim();
+  const authTemplate = process.env.WHATSAPP_LOGIN_OTP_TEMPLATE?.trim();
   const message = `Your Hookooh login code is ${code}. It expires in 10 minutes. Do not share this code.`;
   if (!token || !phoneId) throw new Error('WhatsApp OTP is not configured. Use Google or email to continue.');
-  const payload = templateName
+  const template = authTemplate
     ? {
-        messaging_product: 'whatsapp',
-        to: phone,
-        type: 'template',
-        template: {
-          name: templateName,
-          language: { code: process.env.WHATSAPP_LOGIN_OTP_TEMPLATE_LANG?.trim() || 'en' },
-          components: [
-            { type: 'body', parameters: [{ type: 'text', text: code }] },
-            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
-          ],
-        },
+        name: authTemplate,
+        language: { code: process.env.WHATSAPP_LOGIN_OTP_TEMPLATE_LANG?.trim() || 'en' },
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: code }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+        ],
       }
     : {
-        messaging_product: 'whatsapp',
-        to: phone,
-        type: 'text',
-        text: { body: message },
+        name: process.env.WHATSAPP_TEMPLATE_NAME?.trim() || 'techantum_client_update',
+        language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || 'en' },
+        components: [{ type: 'body', parameters: [{ type: 'text', text: message }] }],
       };
   const response = await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: phone,
+      type: 'template',
+      template,
+    }),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.error?.message || 'Could not send the WhatsApp code.');
+    const detail = body.error?.error_user_msg || body.error?.message;
+    throw new Error(detail || 'Could not send the WhatsApp code.');
   }
 }
 
@@ -87,7 +87,7 @@ async function findOrCreatePhoneUser(phone: string) {
   const email = phoneLoginEmail(phone);
   const existing = await q<{ user_id: string }>(undefined, `SELECT user_id FROM saas_memberships WHERE email=$1 LIMIT 1`, [email]);
   if (existing.rows[0]) return { userId: existing.rows[0].user_id, email };
-  const auth = createAdminClient();
+  const auth = createAuthAdminClient();
   const created = await auth.auth.admin.createUser({
     email,
     email_confirm: true,

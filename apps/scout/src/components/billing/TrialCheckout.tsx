@@ -11,38 +11,20 @@ type TrialPackage = {
   features: string[];
 };
 
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
-  }
-}
-
-function loadRazorpay() {
-  return new Promise<void>((resolve, reject) => {
-    if (window.Razorpay) {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Could not load Razorpay Checkout.'));
-    document.body.appendChild(script);
-  });
-}
-
 export default function TrialCheckout({
   packages,
   selectedId,
-  email,
+  initialError = '',
 }: {
   packages: TrialPackage[];
   selectedId: string;
-  email: string;
+  email?: string;
+  initialError?: string;
 }) {
   const [packageId, setPackageId] = useState(selectedId);
+  const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError);
   const selected = packages.find((item) => item.id === packageId) || packages[0];
 
   const start = async () => {
@@ -52,39 +34,13 @@ export default function TrialCheckout({
       const res = await fetch('/api/billing/razorpay/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId: selected.id }),
+        body: JSON.stringify({ packageId: selected.id, contact: phone }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Could not start Autopay.');
-      await loadRazorpay();
-      if (!window.Razorpay) throw new Error('Razorpay Checkout is not available.');
-      await new Promise<void>((resolve, reject) => {
-        const checkout = new window.Razorpay!({
-          key: body.keyId,
-          subscription_id: body.subscriptionId,
-          name: 'Hookooh',
-          description: `14-day trial of ${body.package?.name || selected.name}. First charge after the trial.`,
-          prefill: { name: body.customer?.name || '', email: body.customer?.email || email },
-          handler: async (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
-            try {
-              const verifyRes = await fetch('/api/billing/razorpay/subscribe/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...response, packageId: selected.id }),
-              });
-              const verified = await verifyRes.json();
-              if (!verifyRes.ok) throw new Error(verified.error || 'Could not confirm Autopay.');
-              window.location.assign(verified.next || '/home');
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
-          },
-          modal: { ondismiss: () => reject(new Error('Autopay was cancelled.')) },
-          theme: { color: '#7c3aed' },
-        });
-        checkout.open();
-      });
+      if (!body.checkoutUrl) throw new Error('Could not open the Autopay page.');
+      window.location.assign(body.checkoutUrl);
+      return;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start Autopay.');
     } finally {
@@ -126,7 +82,22 @@ export default function TrialCheckout({
             <li key={feature}>• {feature}</li>
           ))}
         </ul>
-        <button type="button" disabled={busy} onClick={() => void start()} className="btn-primary mt-6 w-full">
+        <label className="mt-5 block text-sm font-medium text-slate-700">
+          UPI mobile number
+          <span className="mt-1 flex overflow-hidden rounded-xl border border-slate-200">
+            <span className="inline-flex items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">+91</span>
+            <input
+              value={phone}
+              onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
+              inputMode="numeric"
+              autoComplete="tel-national"
+              placeholder="10-digit mobile number"
+              className="h-11 min-w-0 flex-1 px-3 text-sm outline-none"
+            />
+          </span>
+        </label>
+        <p className="mt-2 text-xs text-slate-400">Use the mobile number on your UPI app. Razorpay then shows a UPI QR you can scan, or a request in that app. The workspace opens only after Autopay succeeds.</p>
+        <button type="button" disabled={busy || phone.length !== 10} onClick={() => void start()} className="btn-primary mt-6 w-full">
           {busy ? 'Opening Razorpay…' : 'Authorize Autopay and start trial'}
         </button>
         <p className="mt-3 text-center text-xs text-slate-400">Autopay is required. YouTube and Leads stay locked until authorization succeeds.</p>
