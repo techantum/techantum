@@ -26,6 +26,7 @@ import {
   blankServiceDivision,
   slugFromServiceKey,
 } from './service-catalog';
+import { defaultPrivacyContent, defaultTermsContent } from './legal-defaults';
 import type { CmsEntry, SiteBranding, SiteSeo } from './types';
 
 export const defaultBranding: SiteBranding = {
@@ -589,6 +590,18 @@ export const defaultCmsEntries: CmsEntry[] = [
     entry_group: 'company',
     label: 'Marketing Collateral Checklist',
     content: defaultMarketingAssets as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'legal.privacy',
+    entry_group: 'legal',
+    label: 'Privacy Policy',
+    content: defaultPrivacyContent as unknown as Record<string, unknown>,
+  },
+  {
+    entry_key: 'legal.terms',
+    entry_group: 'legal',
+    label: 'Terms and Conditions',
+    content: defaultTermsContent as unknown as Record<string, unknown>,
   },
 ];
 

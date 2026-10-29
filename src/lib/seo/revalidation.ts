@@ -32,6 +32,7 @@ function routesForCmsKey(entryKey: string): string[] {
     about: ['/about'],
     contact: ['/contact'],
     blog: ['/blog'],
+    legal: ['/privacy-policy', '/terms-of-service'],
   };
   return byGroup[group] ?? [];
 }

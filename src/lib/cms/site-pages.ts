@@ -99,6 +99,8 @@ export const CMS_SITE_PAGES: AdminSitePage[] = [
   page('testimonials', 'Testimonials', '/testimonials', 'StarIcon', ['testimonials.hero', 'testimonials.page', 'credentials.page']),
   page('blog', 'Blog', '/blog', 'NewspaperIcon', ['blog.hero', 'blog.posts']),
   page('contact', 'Contact', '/contact', 'PhoneIcon', ['contact.hero', 'contact.page']),
+  page('privacy', 'Privacy Policy', '/privacy-policy', 'ShieldCheckIcon', ['legal.privacy'], ['Privacy Policy']),
+  page('terms', 'Terms and Conditions', '/terms-of-service', 'ClipboardDocumentCheckIcon', ['legal.terms'], ['Terms and Conditions']),
 ];
 
 export function flattenAdminPages(pages: AdminSitePage[]): AdminSitePage[] {
@@ -109,30 +111,7 @@ export function getStaticServicePages(): AdminSitePage[] {
   return flattenAdminPages(CMS_SITE_PAGES).filter((item) => item.managedIn === 'code');
 }
 
-export const STATIC_LEGAL_PAGES: AdminSitePage[] = [
-  {
-    id: 'privacy',
-    label: 'Privacy Policy',
-    route: '/privacy-policy',
-    icon: 'ShieldCheckIcon',
-    description: 'Legal page content.',
-    sections: [],
-    editable: false,
-    isSystem: true,
-    managedIn: 'code',
-  },
-  {
-    id: 'terms',
-    label: 'Terms of Service',
-    route: '/terms-of-service',
-    icon: 'ClipboardDocumentCheckIcon',
-    description: 'Legal page content.',
-    sections: [],
-    editable: false,
-    isSystem: true,
-    managedIn: 'code',
-  },
-];
+export const STATIC_LEGAL_PAGES: AdminSitePage[] = [];
 
 export function getAllAdminSitePages(): AdminSitePage[] {
   return [...flattenAdminPages(CMS_SITE_PAGES), ...STATIC_LEGAL_PAGES];
