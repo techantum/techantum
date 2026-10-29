@@ -5,6 +5,9 @@ import Icon from '@/components/ui/AppIcon';
 const TONES: Record<string, string> = {
   '/home': 'bg-violet-50 text-violet-600',
   '/youtube': 'bg-rose-50 text-rose-500',
+  '/projects': 'bg-rose-50 text-rose-500',
+  '/superadmin': 'bg-violet-50 text-violet-600',
+  '/admin': 'bg-violet-50 text-violet-600',
   '/leads': 'bg-sky-50 text-sky-600',
   '/subscriptions': 'bg-amber-50 text-amber-600',
   '/cms': 'bg-emerald-50 text-emerald-600',

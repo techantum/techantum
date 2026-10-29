@@ -7,6 +7,7 @@ import { EmailField, NameField, PasswordField } from '@/components/ui/FormFields
 import Icon from '@/components/ui/AppIcon';
 import { useProcess } from '@/components/ui/ProcessOverlay';
 import { emailError, isStrongPassword, nameError } from '@/lib/forms/rules';
+import { AUTH_PORTALS, type AuthPortal } from '@/lib/saas/portals';
 import {
   DEFAULT_PHONE_COUNTRY,
   formatWhatsAppDisplay,
@@ -15,7 +16,7 @@ import {
   popularPhoneCountries,
 } from '@/lib/saas/phone-countries';
 
-export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
+export default function AuthForm({ mode, portal = 'subscriber' }: { mode: 'login' | 'signup'; portal?: AuthPortal }) {
   const search = useSearchParams();
   const overlay = useProcess();
   const packageId = search.get('package') || '';
@@ -88,7 +89,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         const response = await fetch(signup ? '/api/auth/signup' : '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(signup ? { name, email, password, packageId } : { email, password, packageId }),
+          body: JSON.stringify(signup ? { name, email, password, packageId } : { email, password, packageId, portal }),
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || (signup ? 'Could not create the account' : 'Could not sign in'));
@@ -142,11 +143,11 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   return (
     <>
       <form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-fuchsia-100 bg-white p-8 shadow-[0_24px_80px_rgba(168,85,247,0.12)]">
-        <p className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">{signup ? 'Start your trial' : 'Sign in'}</p>
+        <p className="font-bricolage text-3xl font-bold tracking-tight text-slate-900">{signup ? 'Start your trial' : `${AUTH_PORTALS[portal].label} sign in`}</p>
         <p className="mt-2 text-sm text-slate-500">
           {signup
             ? 'Create your workspace with email and password, or continue with Google or WhatsApp. Autopay is required before the trial starts.'
-            : 'Sign in with email and password, or use Google or WhatsApp below. Autopay is required before the trial starts.'}
+            : AUTH_PORTALS[portal].hint}
         </p>
         {error ? <p className="mt-4 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
 
@@ -171,6 +172,8 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           {signup ? 'Continue to Autopay' : 'Sign in'}
         </button>
 
+        {signup || !AUTH_PORTALS[portal].staff ? (
+          <>
         <div className="mt-6 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           <span className="h-px flex-1 bg-slate-200" />
           or
@@ -197,24 +200,37 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           <Icon name="ChatBubbleLeftRightIcon" size={18} />
           {signup ? 'Continue with WhatsApp' : 'Login with WhatsApp'}
         </button>
+          </>
+        ) : null}
 
         <p className="mt-4 text-center text-sm text-slate-500">
           {signup ? (
             <>
               Already have an account?{' '}
-              <Link href={`/login${packageQuery}`} className="font-semibold text-fuchsia-700">
+              <Link href={`/subscriber/login${packageQuery}`} className="font-semibold text-fuchsia-700">
                 Sign in
               </Link>
             </>
-          ) : (
+          ) : portal === 'subscriber' || portal === 'user' ? (
             <>
               No account?{' '}
               <Link href={`/signup${packageQuery}`} className="font-semibold text-fuchsia-700">
                 Get started
               </Link>
             </>
+          ) : (
+            'Use the email and password issued for this console.'
           )}
         </p>
+        {!signup ? (
+          <p className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-xs text-slate-400">
+            {(Object.keys(AUTH_PORTALS) as AuthPortal[]).filter((item) => item !== portal).map((item) => (
+              <Link key={item} href={AUTH_PORTALS[item].login} className="font-semibold text-slate-500 hover:text-fuchsia-700">
+                {AUTH_PORTALS[item].label}
+              </Link>
+            ))}
+          </p>
+        ) : null}
       </form>
 
       {waOpen ? (

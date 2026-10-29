@@ -13,5 +13,10 @@ describe('Hookooh platform YouTube roles', () => {
     assert.equal(hasYoutubePermission('subscriber_admin', [], 'youtube_research.hookooh.knowledge'), true);
     assert.equal(hasYoutubePermission('subscriber_user', [], 'youtube_research.hookooh.knowledge'), false);
     assert.equal(permissionsForRole('SUPER_ADMIN', []).length, YOUTUBE_PERMISSIONS.length);
+    assert.equal(hasYoutubePermission('ADMIN', [], 'youtube_research.view'), true);
+    assert.equal(hasYoutubePermission('ADMIN', [], 'youtube_research.settings.manage'), false);
+    assert.equal(hasYoutubePermission('subscriber_admin', [], 'youtube_research.videos.import'), true);
+    assert.equal(hasYoutubePermission('subscriber_user', [], 'youtube_research.videos.import'), true);
+    assert.equal(permissionsForRole('ADMIN', []).includes('youtube_research.videos.import'), true);
   });
 });

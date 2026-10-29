@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { ChannelStack, StatusPill, ThumbStack, Trend, formatStamp } from '@/components/admin/youtube/QuickMarks';
-import { rememberProject, useYoutubePageBase, yt, youtubeApiPrefix, youtubePortalHeader } from '@/components/admin/youtube/YoutubeFrame';
+import { FilterMenu } from '@/components/admin/youtube/FilterMenu';
+import { rememberProject, useProjectPlatform, useYoutubePageBase, yt, youtubeApiPrefix, youtubePortalHeader } from '@/components/admin/youtube/YoutubeFrame';
+import { platformCopy } from '@/lib/research/platforms';
 import Icon from '@/components/ui/AppIcon';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
 
@@ -18,6 +20,7 @@ function cover(videos: { thumbnail_url?: string; youtube_video_id?: string; titl
 
 export default function QuickHistory({ kind }: { kind: Kind }) {
   const router = useRouter();
+  const copy = platformCopy(useProjectPlatform());
   const base = useYoutubePageBase();
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [stats, setStats] = useState<Record<string, any>>({});
@@ -108,12 +111,12 @@ export default function QuickHistory({ kind }: { kind: Kind }) {
           <h1 className="font-bricolage text-3xl font-bold text-slate-900">{kind === 'analysis' ? 'Quick Analysis' : 'Quick Reports'}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {kind === 'analysis'
-              ? 'Quickly analyze selected YouTube videos without creating a full project.'
-              : 'Generate and download quick comparison reports from selected YouTube videos.'}
+              ? 'Quickly analyze public videos or posts without creating a full project. Start with a platform, then add URLs.'
+              : 'Generate and download comparison reports from public videos or posts. Start with a platform, then add URLs.'}
           </p>
         </div>
         <Link href={kind === 'analysis' ? `${base}/quick-analysis/new` : `${base}/quick-reports/new`} className="inline-flex h-11 items-center gap-2 rounded-full bg-violet-700 px-4 text-sm font-semibold text-white shadow-sm">
-          <Icon name="PlusIcon" size={16} /> Add Videos
+          Start now
         </Link>
       </div>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
@@ -140,17 +143,28 @@ export default function QuickHistory({ kind }: { kind: Kind }) {
             <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm" placeholder={kind === 'analysis' ? 'Search analyses...' : 'Search reports...'} />
           </label>
           {kind === 'analysis' ? (
-            <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-10 rounded-xl border border-slate-200 px-3 text-sm">
-              <option value="all">All status</option>
-              <option value="completed">Completed</option>
-              <option value="processing">Processing</option>
-              <option value="failed">Failed</option>
-            </select>
+            <FilterMenu
+              label="Status"
+              value={status}
+              onChange={setStatus}
+              allLabel="All status"
+              options={[
+                { id: 'all', label: 'All status' },
+                { id: 'completed', label: 'Completed' },
+                { id: 'processing', label: 'Processing' },
+                { id: 'failed', label: 'Failed' },
+              ]}
+            />
           ) : null}
-          <select value={sort} onChange={(event) => setSort(event.target.value)} className="h-10 rounded-xl border border-slate-200 px-3 text-sm">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
+          <FilterMenu
+            label="Sort"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { id: 'newest', label: 'Newest first' },
+              { id: 'oldest', label: 'Oldest first' },
+            ]}
+          />
         </div>
 
         <div className="mt-4 overflow-x-auto">
@@ -158,8 +172,8 @@ export default function QuickHistory({ kind }: { kind: Kind }) {
             <thead className="text-xs uppercase tracking-wide text-slate-400">
               <tr>
                 <th className="px-3 py-3">{kind === 'analysis' ? 'Analysis' : 'Report'}</th>
-                <th className="px-3 py-3">Selected Videos</th>
-                <th className="px-3 py-3">Channels Compared</th>
+                <th className="px-3 py-3">Selected {copy.contentPlural}</th>
+                <th className="px-3 py-3">{copy.entityPlural.charAt(0).toUpperCase() + copy.entityPlural.slice(1)} compared</th>
                 <th className="px-3 py-3">Created</th>
                 <th className="px-3 py-3">{kind === 'analysis' ? 'Status' : 'Format'}</th>
                 <th className="px-3 py-3">Actions</th>
@@ -208,7 +222,7 @@ export default function QuickHistory({ kind }: { kind: Kind }) {
               {!filtered.length ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-16 text-center text-sm text-slate-500">
-                    Nothing here yet. Add videos to create your first {kind === 'analysis' ? 'analysis' : 'report'}.
+                    Nothing here yet. Start now to create your first {kind === 'analysis' ? 'analysis' : 'report'}.
                   </td>
                 </tr>
               ) : null}

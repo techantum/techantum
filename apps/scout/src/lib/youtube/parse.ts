@@ -87,10 +87,22 @@ export const YOUTUBE_CATEGORIES: Record<string, string> = {
   '29': 'Nonprofits & Activism',
 };
 
+const FACEBOOK_CATEGORIES: Record<string, string> = {
+  POST: 'General post',
+  PHOTO: 'Photo',
+  VIDEO: 'Video',
+  REEL: 'Reel',
+  LINK: 'Link',
+  SHARE: 'Share',
+  ALBUM: 'Album',
+  AD: 'Ad',
+  BOOSTED: 'Boosted',
+};
+
 export function categoryLabel(id: unknown) {
   const key = String(id || '');
   if (!key) return null;
-  return YOUTUBE_CATEGORIES[key] || `Category ${key}`;
+  return FACEBOOK_CATEGORIES[key.toUpperCase()] || YOUTUBE_CATEGORIES[key] || `Category ${key}`;
 }
 
 export const SHORT_MAX_SECONDS = 180;

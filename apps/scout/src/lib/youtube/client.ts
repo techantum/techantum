@@ -244,14 +244,14 @@ async function delay(ms: number) {
 
 export async function youtubeRequest(apiKey: string, path: string, params: Record<string, string | number | undefined>, fetchImpl: YoutubeFetch) {
   let lastError: YoutubeApiError | null = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     const url = new URL(`https://www.googleapis.com/youtube/v3/${path}`);
     url.searchParams.set('key', apiKey);
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
     }
     try {
-      const response = await fetchImpl(url.toString(), { signal: AbortSignal.timeout(15000) });
+      const response = await fetchImpl(url.toString(), { signal: AbortSignal.timeout(8000) });
       const body = await response.json().catch(() => ({}));
       if (response.ok) return body as Record<string, any>;
       const classified = classifyYoutubeError(response.status, body);

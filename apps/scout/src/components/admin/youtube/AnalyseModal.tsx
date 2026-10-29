@@ -43,6 +43,7 @@ export default function AnalyseModal({
   variant = 'insights',
   onClose,
   onGenerate,
+  platform,
 }: {
   videos: Record<string, any>[];
   busy: boolean;
@@ -50,6 +51,7 @@ export default function AnalyseModal({
   variant?: 'direct' | 'insights';
   onClose: () => void;
   onGenerate: (config: AnalyseConfig) => void;
+  platform?: string | null;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [primaryGoal, setPrimaryGoal] = useState('views');
@@ -115,6 +117,7 @@ export default function AnalyseModal({
     return (
       <FetchVideosOverlay
         mode="analysis"
+        platform={platform}
         title={variant === 'insights' ? 'Please wait while we generate key insights' : 'Please wait while we run the analysis'}
       />
     );

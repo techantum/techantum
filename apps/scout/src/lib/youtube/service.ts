@@ -1,7 +1,8 @@
 import { decryptSecret, encryptSecret, isEncryptionReady, secretHint } from '../ai/crypto';
 import { q } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
-import { asPlatform } from '../research/platforms';
+import { asPlatform, parseContentLinks, platformCopy } from '../research/platforms';
+import { resolveFacebookIdentity } from '../research/meta-graph';
 import { listResearchPosts, resolveResearchSource, searchResearchSources } from '../research/resolve';
 import { createYoutube, normalizeYoutubeApiKey, YoutubeApiError, YOUTUBE_CONNECTED_MESSAGE, type ResolvedChannel, type ResolvedVideo, type YoutubeFetch } from './client';
 import { presentChannel, presentVideo } from './mask';
@@ -21,13 +22,14 @@ export const VIDEO_UPSERT_SQL = `INSERT INTO youtube_videos (
   view_count, like_count, comment_count, tags, category_id, default_language, default_audio_language, duration_seconds, has_paid_product_placement, public_details, fetched_at
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,NOW())
 ON CONFLICT (youtube_video_id) DO UPDATE SET
-  channel_id=EXCLUDED.channel_id, title=EXCLUDED.title, video_url=EXCLUDED.video_url,
+  title=EXCLUDED.title, video_url=EXCLUDED.video_url,
   description=EXCLUDED.description, published_at=EXCLUDED.published_at, duration=EXCLUDED.duration,
   thumbnail_url=EXCLUDED.thumbnail_url, view_count=EXCLUDED.view_count, like_count=EXCLUDED.like_count,
   comment_count=EXCLUDED.comment_count, tags=EXCLUDED.tags, category_id=EXCLUDED.category_id,
   default_language=EXCLUDED.default_language, default_audio_language=EXCLUDED.default_audio_language,
   duration_seconds=EXCLUDED.duration_seconds, has_paid_product_placement=EXCLUDED.has_paid_product_placement,
-  public_details=EXCLUDED.public_details, fetched_at=NOW()`;
+  public_details=EXCLUDED.public_details, fetched_at=NOW()
+WHERE youtube_videos.channel_id = EXCLUDED.channel_id`;
 
 const VIDEO_SELECT = `SELECT v.*, c.channel_name, c.youtube_channel_id, c.last_refreshed_at AS channel_refreshed_at,
   c.classification, r.topic_id, r.thumbnail_caption, r.research_notes, t.name AS topic_name
@@ -525,6 +527,13 @@ function contentUrl(video: ResolvedVideo) {
   return `https://www.youtube.com/watch?v=${video.youtubeVideoId}`;
 }
 
+async function upsertVideos(channelId: string, videos: ResolvedVideo[]) {
+  const size = 8;
+  for (let index = 0; index < videos.length; index += size) {
+    await Promise.all(videos.slice(index, index + size).map((video) => upsertVideo(channelId, video)));
+  }
+}
+
 async function upsertVideo(channelId: string, video: ResolvedVideo) {
   const values = [
     channelId,
@@ -556,12 +565,13 @@ async function upsertVideo(channelId: string, video: ResolvedVideo) {
         view_count, like_count, comment_count, tags, category_id, default_language, default_audio_language, duration_seconds, has_paid_product_placement, fetched_at
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
       ON CONFLICT (youtube_video_id) DO UPDATE SET
-        channel_id=EXCLUDED.channel_id, title=EXCLUDED.title, video_url=EXCLUDED.video_url,
+        title=EXCLUDED.title, video_url=EXCLUDED.video_url,
         description=EXCLUDED.description, published_at=EXCLUDED.published_at, duration=EXCLUDED.duration,
         thumbnail_url=EXCLUDED.thumbnail_url, view_count=EXCLUDED.view_count, like_count=EXCLUDED.like_count,
         comment_count=EXCLUDED.comment_count, tags=EXCLUDED.tags, category_id=EXCLUDED.category_id,
         default_language=EXCLUDED.default_language, default_audio_language=EXCLUDED.default_audio_language,
-        duration_seconds=EXCLUDED.duration_seconds, has_paid_product_placement=EXCLUDED.has_paid_product_placement, fetched_at=NOW()`,
+        duration_seconds=EXCLUDED.duration_seconds, has_paid_product_placement=EXCLUDED.has_paid_product_placement, fetched_at=NOW()
+      WHERE youtube_videos.channel_id = EXCLUDED.channel_id`,
       values.slice(0, 17)
     );
   }
@@ -598,13 +608,15 @@ function mergePlaylistVideos(
 async function runSocialImport(channelId: string, current: Record<string, unknown>, body: Record<string, unknown>, userId: string) {
   const platform = asPlatform(current.platform);
   const settings = await settingsRow();
-  const limit = limitOf(body.limit ?? body.maximum_results, settings);
+  const requested = limitOf(body.limit ?? body.maximum_results, settings);
+  const max = Number(settings.max_import_limit) || requested;
+  const limit = Math.min(max, Math.max(requested, 100));
   const mode = modeOf(body.mode ?? body.import_mode ?? body.import_type);
   const dateFrom = dateOrNull(body.date_from ?? body.from);
   const dateTo = dateOrNull(body.date_to ?? body.to);
   await q(undefined, `UPDATE youtube_import_jobs SET status='failed', error_summary='The import stopped before it finished.', completed_at=NOW() WHERE status='running' AND started_at < NOW() - INTERVAL '10 minutes'`);
   const running = await q(undefined, `SELECT id FROM youtube_import_jobs WHERE channel_id=$1 AND status='running'`, [channelId]);
-  if (running.rows[0]) throw new FinanceConflictError('An import is already running for this page.');
+  if (running.rows[0]) throw new FinanceConflictError(`An import is already running for this ${platformCopy(platform).entity}.`);
   const { rows } = await q(
     undefined,
     `INSERT INTO youtube_import_jobs (channel_id, requested_by, import_type, date_from, date_to, requested_limit, status, started_at, project_id)
@@ -617,28 +629,76 @@ async function runSocialImport(channelId: string, current: Record<string, unknow
   let updated = 0;
   let skipped = 0;
   try {
+    const linked = body.project_id
+      ? await q<{ relationship: string }>(undefined, `SELECT relationship FROM youtube_project_channels WHERE channel_id=$1 AND project_id=$2`, [channelId, body.project_id])
+      : await q<{ relationship: string }>(undefined, `SELECT relationship FROM youtube_project_channels WHERE channel_id=$1 ORDER BY CASE WHEN relationship='own' THEN 0 ELSE 1 END LIMIT 1`, [channelId]);
+    const ownPage = String(linked.rows[0]?.relationship || '') === 'own';
+    if (platform === 'facebook' && !/^\d{5,}$/.test(String(current.youtube_channel_id || ''))) {
+      try {
+        const identity = await resolveFacebookIdentity(
+          String(current.youtube_channel_id),
+          current.channel_handle ? String(current.channel_handle) : null,
+          ownPage,
+        );
+        if (identity.id && /^\d{5,}$/.test(identity.id) && identity.id !== String(current.youtube_channel_id)) {
+          const clash = await q<{ id: string }>(undefined, `SELECT id FROM youtube_channels WHERE platform='facebook' AND youtube_channel_id=$1 AND id<>$2`, [identity.id, channelId]);
+          if (!clash.rows[0]) {
+            await q(
+              undefined,
+              `UPDATE youtube_channels SET youtube_channel_id=$2, channel_handle=COALESCE(NULLIF($3,''), channel_handle), channel_name=COALESCE(NULLIF($4,''), channel_name), last_refreshed_at=NOW() WHERE id=$1`,
+              [channelId, identity.id, identity.handle || '', identity.name || ''],
+            );
+            current.youtube_channel_id = identity.id;
+            if (identity.handle) current.channel_handle = identity.handle;
+          }
+        }
+      } catch {
+        /* Keep the stored page id and still fetch posts. */
+      }
+    }
+    const pageId = String(current.youtube_channel_id || '');
+    if (platform === 'facebook' && /^\d{5,}$/.test(pageId)) {
+      await q(
+        undefined,
+        `DELETE FROM youtube_videos
+         WHERE channel_id=$1
+           AND COALESCE(public_details->>'platform','facebook')='facebook'
+           AND NULLIF(public_details->>'page_id','') IS NOT NULL
+           AND public_details->>'page_id' <> $2
+           AND public_details->>'page_id' ~ '^[0-9]+$'`,
+        [channelId, pageId],
+      );
+    }
+    try {
+      const profile = await resolveResearchSource(platform, String(current.channel_handle || pageId), '');
+      if (profile.thumbnailUrl || profile.channelName) {
+        await rememberChannel(channelId, { ...profile, youtubeChannelId: pageId });
+      }
+    } catch {
+      /* Page picture is optional; posts still import. */
+    }
     const details = await listResearchPosts(platform, {
-      youtube_channel_id: String(current.youtube_channel_id),
+      youtube_channel_id: pageId,
       channel_handle: current.channel_handle ? String(current.channel_handle) : null,
+      limit,
+      own: ownPage,
     });
     const ids = details.map((item) => item.youtubeVideoId);
     const known = ids.length
       ? await q<{ youtube_video_id: string }>(undefined, `SELECT youtube_video_id FROM youtube_videos WHERE youtube_video_id = ANY($1::text[])`, [ids])
       : { rows: [] };
     const existing = new Set(known.rows.map((row) => row.youtube_video_id));
-    const targets = mode === 'new' ? details.filter((item) => !existing.has(item.youtubeVideoId)) : details;
+    const targets = (mode === 'new' ? details.filter((item) => !existing.has(item.youtubeVideoId)) : details)
+      .filter((video) => {
+        const published = video.publishedAt ? video.publishedAt.slice(0, 10) : '';
+        if (dateFrom && published && published < dateFrom) return false;
+        if (dateTo && published && published > dateTo) return false;
+        return true;
+      })
+      .slice(0, limit);
     skipped += details.length - targets.length;
-    for (const video of targets.slice(0, limit)) {
-      const published = video.publishedAt ? video.publishedAt.slice(0, 10) : '';
-      if (dateFrom && published && published < dateFrom) {
-        skipped += 1;
-        continue;
-      }
-      if (dateTo && published && published > dateTo) {
-        skipped += 1;
-        continue;
-      }
-      await upsertVideo(channelId, video);
+    await upsertVideos(channelId, targets);
+    for (const video of targets) {
       if (existing.has(video.youtubeVideoId)) updated += 1;
       else inserted += 1;
       processed += 1;
@@ -663,7 +723,10 @@ async function runSocialImport(channelId: string, current: Record<string, unknow
 
 async function runImport(channelId: string, body: Record<string, unknown>, userId: string, fetchImpl?: YoutubeFetch) {
   const current = await channelById(channelId);
-  if (current.status !== 'active') throw new FinanceValidationError('Restore this channel before importing videos.');
+  if (current.status !== 'active') {
+    const copy = platformCopy(current.platform);
+    throw new FinanceValidationError(`Restore this ${copy.entity} before importing ${copy.contentPlural}.`);
+  }
   if (asPlatform(current.platform) !== 'youtube') return runSocialImport(channelId, current, body, userId);
   const settings = await settingsRow();
   const limit = limitOf(body.limit ?? body.maximum_results, settings);
@@ -691,8 +754,10 @@ async function runImport(channelId: string, body: Record<string, unknown>, userI
   let skipped = 0;
   let summary: string | null = null;
   try {
-    const uploads = await playlistItems(youtube, resolved.uploadsPlaylistId, { limit, from: dateFrom, to: dateTo });
-    const shorts = await playlistItems(youtube, shortsPlaylistId(resolved.youtubeChannelId), { limit, from: dateFrom, to: dateTo });
+    const [uploads, shorts] = await Promise.all([
+      playlistItems(youtube, resolved.uploadsPlaylistId, { limit, from: dateFrom, to: dateTo }),
+      playlistItems(youtube, shortsPlaylistId(resolved.youtubeChannelId), { limit, from: dateFrom, to: dateTo }),
+    ]);
     const collectedVideos = mergePlaylistVideos(shorts.videos, uploads.videos, limit);
     if (uploads.truncated || shorts.truncated) summary = 'Scanning stopped after 1,000 playlist items. Narrow the dates to reach older videos.';
     const ids = collectedVideos.map((item) => item.videoId);
@@ -705,17 +770,20 @@ async function runImport(channelId: string, body: Record<string, unknown>, userI
     const details = await youtube.videos(targets);
     const found = new Set(details.map((video) => video.youtubeVideoId));
     skipped += targets.filter((id) => !found.has(id)).length;
-    for (const video of details) {
+    const kept = details.filter((video) => {
       const published = video.publishedAt ? video.publishedAt.slice(0, 10) : '';
       if (dateFrom && published && published < dateFrom) {
         skipped += 1;
-        continue;
+        return false;
       }
       if (dateTo && published && published > dateTo) {
         skipped += 1;
-        continue;
+        return false;
       }
-      await upsertVideo(channelId, video);
+      return true;
+    });
+    await upsertVideos(channelId, kept);
+    for (const video of kept) {
       if (existing.has(video.youtubeVideoId)) updated += 1;
       else inserted += 1;
       processed += 1;
@@ -750,8 +818,10 @@ export async function previewImport(body: Record<string, unknown>, fetchImpl?: Y
   const youtube = createYoutube(await readApiKey(), fetchImpl);
   const resolved = await youtube.resolve(current.youtube_channel_id);
   if (!resolved.uploadsPlaylistId) throw new FinanceValidationError('This channel has no public uploads playlist.');
-  const uploads = await playlistItems(youtube, resolved.uploadsPlaylistId, { limit, from: dateFrom, to: dateTo });
-  const shorts = await playlistItems(youtube, shortsPlaylistId(resolved.youtubeChannelId), { limit, from: dateFrom, to: dateTo });
+  const [uploads, shorts] = await Promise.all([
+    playlistItems(youtube, resolved.uploadsPlaylistId, { limit, from: dateFrom, to: dateTo }),
+    playlistItems(youtube, shortsPlaylistId(resolved.youtubeChannelId), { limit, from: dateFrom, to: dateTo }),
+  ]);
   const collected = { videos: mergePlaylistVideos(shorts.videos, uploads.videos, limit), truncated: uploads.truncated || shorts.truncated };
   const details = await youtube.videos(collected.videos.map((item) => item.videoId));
   return {
@@ -775,20 +845,86 @@ export async function startImport(body: Record<string, unknown>, userId: string)
   return runImport(channelId, body, userId);
 }
 
-export async function importVideosByUrls(raw: string, userId: string) {
-  const ids = parseYoutubeVideoIds(raw).slice(0, 40);
-  if (!ids.length) throw new FinanceValidationError('Paste at least one YouTube video URL.');
-  const youtube = createYoutube(await readApiKey());
-  const details = await youtube.videos(ids);
-  if (!details.length) throw new FinanceValidationError('No public videos were found for those URLs.');
-  const channelMap = new Map<string, string>();
-  for (const video of details) {
-    const youtubeChannelId = video.youtubeChannelId;
-    if (!youtubeChannelId) continue;
-    if (!channelMap.has(youtubeChannelId)) {
-      channelMap.set(youtubeChannelId, await ensureChannel(youtubeChannelId, userId));
+async function fetchOg(url: string) {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'text/html',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(4000),
+    });
+    const html = response.ok ? await response.text() : '';
+    const meta = (property: string) => {
+      const tagged = html.match(new RegExp(`property=["']${property}["'] content=["']([^"']+)["']`, 'i'))
+        || html.match(new RegExp(`content=["']([^"']+)["'] property=["']${property}["']`, 'i'));
+      return tagged?.[1] ? tagged[1].replace(/&amp;/g, '&') : '';
+    };
+    return { title: meta('og:title'), description: meta('og:description'), image: meta('og:image'), site: meta('og:site_name') };
+  } catch {
+    return { title: '', description: '', image: '', site: '' };
+  }
+}
+
+export async function importVideosByUrls(raw: string, userId: string, platform: unknown = 'youtube') {
+  const kind = asPlatform(platform);
+  if (kind === 'youtube') {
+    const ids = parseYoutubeVideoIds(raw).slice(0, 40);
+    if (!ids.length) throw new FinanceValidationError('Paste at least one YouTube video URL.');
+    const youtube = createYoutube(await readApiKey());
+    const details = await youtube.videos(ids);
+    if (!details.length) throw new FinanceValidationError('No public videos were found for those URLs.');
+    const channelMap = new Map<string, string>();
+    for (const video of details) {
+      const youtubeChannelId = video.youtubeChannelId;
+      if (!youtubeChannelId) continue;
+      if (!channelMap.has(youtubeChannelId)) {
+        channelMap.set(youtubeChannelId, await ensureChannel(youtubeChannelId, userId, kind));
+      }
+      await upsertVideo(channelMap.get(youtubeChannelId) as string, video);
     }
-    await upsertVideo(channelMap.get(youtubeChannelId) as string, video);
+    const { rows } = await q(
+      undefined,
+      `SELECT v.id, v.youtube_video_id, v.channel_id
+       FROM youtube_videos v
+       WHERE v.youtube_video_id = ANY($1::text[])`,
+      [details.map((item) => item.youtubeVideoId)],
+    );
+    return { videos: details, rows, channelIds: [...channelMap.values()] };
+  }
+  const links = parseContentLinks(kind, raw).slice(0, 40);
+  const copy = platformCopy(kind);
+  if (!links.length) throw new FinanceValidationError(`Paste at least one public ${copy.label} ${copy.content} URL.`);
+  const details: ResolvedVideo[] = [];
+  const channelMap = new Map<string, string>();
+  for (const link of links) {
+    const handle = link.handle || link.id;
+    if (!channelMap.has(handle)) {
+      channelMap.set(handle, await ensureChannel(handle, userId, kind));
+    }
+    const og = await fetchOg(link.url);
+    const video: ResolvedVideo = {
+      youtubeVideoId: `${kind}:${handle}:${link.id}`,
+      youtubeChannelId: handle,
+      channelTitle: og.site || handle,
+      title: (og.title || `${copy.label} ${copy.content}`).slice(0, 180),
+      description: og.description || null,
+      publishedAt: null,
+      duration: null,
+      thumbnailUrl: og.image || null,
+      viewCount: null,
+      likeCount: null,
+      commentCount: null,
+      tags: [copy.content, 'organic'],
+      categoryId: 'POST',
+      defaultLanguage: null,
+      defaultAudioLanguage: null,
+      hasPaidProductPlacement: false,
+      publicDetails: { platform: kind, permalink: link.url, page_id: handle, source: 'url' },
+    };
+    await upsertVideo(channelMap.get(handle) as string, video);
+    details.push(video);
   }
   const { rows } = await q(
     undefined,

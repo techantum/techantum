@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       body.packageId ? String(body.packageId) : null,
       body.countryCode ? String(body.countryCode) : undefined,
     );
-    const response = NextResponse.json({ ok: true, next: afterAuthPath(body.packageId ? String(body.packageId) : null, result.account) });
+    const response = NextResponse.json({ ok: true, next: afterAuthPath(body.packageId ? String(body.packageId) : null, result.account, 'subscriber_admin') });
     await setSaasCookie(response, result.userId);
     return response;
   } catch (err) {

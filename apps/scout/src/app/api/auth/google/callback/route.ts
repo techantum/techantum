@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const packageId = jar.get('hookooh_google_package')?.value || '';
   const state = url.searchParams.get('state') || '';
   const code = url.searchParams.get('code') || '';
-  const fail = (message: string) => NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(message)}&package=${packageId}`, origin));
+  const fail = (message: string) => NextResponse.redirect(new URL(`/subscriber/login?error=${encodeURIComponent(message)}&package=${packageId}`, origin));
   if (!code || !expected || state !== expected) return fail('Google sign-in was cancelled.');
   try {
     const profile = await googleProfileFromCode(code);
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     }
     if (!userId) throw new Error(created.error?.message || 'Could not open your Google account.');
     const result = await completeOAuthLogin({ userId, email: profile.email, name: profile.name, packageId });
-    const response = NextResponse.redirect(new URL(afterAuthPath(packageId, result.account), origin));
+    const response = NextResponse.redirect(new URL(afterAuthPath(packageId, result.account, result.role), origin));
     await setSaasCookie(response, result.userId);
     response.cookies.set('hookooh_google_state', '', { path: '/', maxAge: 0 });
     response.cookies.set('hookooh_google_package', '', { path: '/', maxAge: 0 });

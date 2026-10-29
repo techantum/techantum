@@ -30,7 +30,7 @@ export function youtubePortalFrom(explicit: string | null | undefined, referer: 
     const path = new URL(referer || '').pathname;
     if (path.startsWith('/partner/')) return 'partner' as const;
     if (path.startsWith('/admin/')) return 'admin' as const;
-    if (path.startsWith('/youtube') || path.startsWith('/leads') || path.startsWith('/billing')) return 'saas' as const;
+    if (path.startsWith('/youtube') || path.startsWith('/projects') || path.startsWith('/facebook') || path.startsWith('/instagram') || path.startsWith('/linkedin') || path.startsWith('/leads') || path.startsWith('/billing') || path.startsWith('/home') || path.startsWith('/superadmin') || path.startsWith('/admin')) return 'saas' as const;
   } catch {
     /* referer is not a URL */
   }

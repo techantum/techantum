@@ -1,5 +1,6 @@
 import { FinanceValidationError } from '@/lib/finance/errors';
 import type { ResolvedChannel, ResolvedVideo } from '@/lib/youtube/client';
+import { dedupeResolvedVideos } from './dedupe';
 import { searchWikidataPages } from './wiki-pages';
 
 function env(key: string) {
@@ -45,7 +46,10 @@ function linkedinHeaders() {
 }
 
 async function linkedinGet(path: string) {
-  const response = await fetch(`https://api.linkedin.com${path.startsWith('/') ? path : `/${path}`}`, { headers: linkedinHeaders() });
+  const response = await fetch(`https://api.linkedin.com${path.startsWith('/') ? path : `/${path}`}`, {
+    headers: linkedinHeaders(),
+    signal: AbortSignal.timeout(5000),
+  });
   const body = (await response.json().catch(() => ({}))) as Record<string, unknown> & { message?: string; elements?: Record<string, unknown>[] };
   if (!response.ok) {
     throw new FinanceValidationError(body.message || `LinkedIn API returned HTTP ${response.status}`);
@@ -166,7 +170,7 @@ export async function listLinkedInPosts(organizationId: string, limit = 50): Pro
   const author = encodeURIComponent(`urn:li:organization:${organizationId}`);
   const body = await linkedinGet(`/rest/posts?q=author&author=${author}&count=${Math.min(50, Math.max(1, limit))}`);
   const elements = Array.isArray(body.elements) ? body.elements : [];
-  return elements.map((post) => {
+  const posts = elements.map((post) => {
     const id = String(post.id || '');
     const commentary = String((post.commentary as string) || '').trim();
     return {
@@ -189,4 +193,5 @@ export async function listLinkedInPosts(organizationId: string, limit = 50): Pro
       publicDetails: { platform: 'linkedin', permalink: post.id },
     } satisfies ResolvedVideo;
   });
+  return dedupeResolvedVideos(posts);
 }

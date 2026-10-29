@@ -27,7 +27,7 @@ async function completePackagePayment(actor: SaasActor, input: { orderId: string
 export async function GET(request: Request) {
   const actor = await getSaasActor();
   const billing = new URL('/billing', publicAppUrl());
-  if (!actor) return NextResponse.redirect(new URL('/login', publicAppUrl()));
+  if (!actor) return NextResponse.redirect(new URL('/subscriber/login', publicAppUrl()));
   const url = new URL(request.url);
   try {
     if (!canManageBilling(actor.role)) throw new FinanceValidationError('Only a Subscriber Admin can pay for a package.');

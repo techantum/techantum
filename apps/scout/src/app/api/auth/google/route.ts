@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
     if (!userId) throw new Error(created.error?.message || 'Could not open your Google account.');
     const result = await completeOAuthLogin({ userId, email: profile.email, name: profile.name, packageId });
-    const response = NextResponse.json({ ok: true, next: afterAuthPath(packageId, result.account) });
+    const response = NextResponse.json({ ok: true, next: afterAuthPath(packageId, result.account, result.role) });
     await setSaasCookie(response, result.userId);
     return response;
   } catch (err) {

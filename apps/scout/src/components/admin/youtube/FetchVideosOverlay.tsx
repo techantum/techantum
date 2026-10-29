@@ -2,27 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import {
+  fetchOverlayBoxLabel,
+  fetchOverlayEyebrow,
+  fetchOverlayNote,
+  fetchOverlaySteps,
+  fetchOverlayTitle,
+  platformCopy,
+} from '@/lib/research/platforms';
 
-const FETCH_STEPS = [
-  'Opening your YouTube channels',
-  'Pulling public videos out of the box',
-  'Collecting titles, thumbnails and views',
-  'Dropping them into this project',
-];
+function analysisSteps(copy: ReturnType<typeof platformCopy>) {
+  return [
+    'Reading titles, media and public counts',
+    `Comparing ${copy.contentPlural} against your goal`,
+    `Applying ${copy.label} packaging standards`,
+    'Writing the next actions',
+  ];
+}
 
-const ANALYSIS_STEPS = [
-  'Reading titles, thumbnails and public counts',
-  'Comparing videos against your goal',
-  'Applying YouTube packaging standards',
-  'Writing the next actions',
-];
-
-const REPORT_STEPS = [
-  'Collecting the selected public video fields',
-  'Laying out the comparison snapshot',
-  'Writing the downloadable report',
-  'Saving it to Reports',
-];
+function reportSteps(copy: ReturnType<typeof platformCopy>) {
+  return [
+    `Collecting the selected public ${copy.content} fields`,
+    'Laying out the comparison snapshot',
+    'Writing the downloadable report',
+    'Saving it to Reports',
+  ];
+}
 
 const ORBIT = [
   { icon: 'PlayCircleIcon', tint: 'from-[#FF4D4D] to-[#FF0000]', delay: '0s', x: '-7.5rem', y: '-4.5rem' },
@@ -43,15 +48,18 @@ const CARDS = [
 export default function FetchVideosOverlay({
   mode = 'fetch',
   title,
+  platform,
 }: {
   mode?: 'fetch' | 'analysis' | 'report';
   title?: string;
+  platform?: string | null;
 }) {
+  const copy = platformCopy(platform);
   const analysis = mode === 'analysis';
   const report = mode === 'report';
-  const steps = report ? REPORT_STEPS : analysis ? ANALYSIS_STEPS : FETCH_STEPS;
+  const steps = report ? reportSteps(copy) : analysis ? analysisSteps(copy) : fetchOverlaySteps(copy);
   const heading = title
-    || (report ? 'Please wait while we generate the report' : analysis ? 'Please wait while we run the analysis' : 'Please wait while we fetch the videos');
+    || (report ? 'Please wait while we generate the report' : analysis ? 'Please wait while we run the analysis' : fetchOverlayTitle(copy));
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -96,7 +104,7 @@ export default function FetchVideosOverlay({
       </div>
 
       <div className="relative w-full max-w-lg rounded-[32px] border border-white/15 bg-white/10 px-6 py-10 text-center shadow-[0_30px_80px_rgba(0,0,0,.35)] backdrop-blur-xl">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-200">YouTube Research</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-200">{fetchOverlayEyebrow(copy)}</p>
         <h2 className="mt-2 font-bricolage text-3xl font-bold text-white">{heading}</h2>
         <p className="mt-2 text-sm text-slate-200">{steps[step]}</p>
 
@@ -139,7 +147,7 @@ export default function FetchVideosOverlay({
                   <span key={color} className="h-7 w-5 rounded-md shadow-sm" style={{ background: color, animation: 'fetch-float 1.5s ease-in-out infinite' }} />
                 ))}
               </div>
-              <p className="absolute inset-x-0 bottom-2 text-center text-[10px] font-bold tracking-wide text-white">{report ? 'REPORT' : analysis ? 'ANALYSIS' : 'VIDEO BOX'}</p>
+              <p className="absolute inset-x-0 bottom-2 text-center text-[10px] font-bold tracking-wide text-white">{report ? 'REPORT' : analysis ? 'ANALYSIS' : fetchOverlayBoxLabel(copy)}</p>
             </div>
           </div>
         </div>
@@ -149,7 +157,7 @@ export default function FetchVideosOverlay({
             <span key={label} className={`h-1.5 rounded-full transition-all ${index === step ? 'w-6 bg-white' : 'w-1.5 bg-white/30'}`} />
           ))}
         </div>
-        <p className="mt-4 text-xs text-slate-300">{report ? 'This can take a moment for a multi-video snapshot.' : analysis ? 'This can take a minute for a thorough comparison.' : 'This can take a minute for busy channels.'}</p>
+        <p className="mt-4 text-xs text-slate-300">{report ? `This can take a moment for a multi-${copy.content} snapshot.` : analysis ? 'This can take a minute for a thorough comparison.' : fetchOverlayNote(copy)}</p>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { getPlatformActor } from '@/lib/saas/session';
 
 export default async function BillingLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
-  if (!actor) redirect('/login');
+  if (!actor) redirect('/subscriber/login');
   if (!canManageBilling(actor.role)) redirect('/home');
   return children;
 }

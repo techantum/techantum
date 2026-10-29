@@ -13,7 +13,8 @@ import NavIcon from '@/components/ui/NavIcon';
 import { useProcess } from '@/components/ui/ProcessOverlay';
 import SafeImage from '@/components/ui/SafeImage';
 import { enterPlaceholder, nameError, requiredMessage } from '@/lib/forms/rules';
-import { PLATFORM_COPY, RESEARCH_PLATFORMS, asPlatform, platformCopy, type ResearchPlatform } from '@/lib/research/platforms';
+import { PlatformLogo } from '@/components/marketing/BrandIcons';
+import { PLATFORM_COPY, RESEARCH_PLATFORMS, asPlatform, platformCopy, researchOpenHref, type ResearchPlatform } from '@/lib/research/platforms';
 import PageSearchField, { pageInputFor } from '@/components/admin/youtube/PageSearchField';
 
 const INDUSTRIES = [
@@ -55,7 +56,7 @@ function CreateHero({ platform }: { platform: ResearchPlatform }) {
           className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-rose-600 shadow-sm"
           style={{ animation: 'create-float 3s ease-in-out infinite' }}
         >
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] text-white">▶</span>
+          <PlatformLogo platform={platform} className="h-5 w-5" />
           {copy.label} Research
         </span>
         <h2 className="mt-5 font-bricolage text-3xl font-bold tracking-tight text-slate-900">Turn {copy.label} insights into real opportunities</h2>
@@ -76,8 +77,8 @@ function CreateHero({ platform }: { platform: ResearchPlatform }) {
           </div>
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-100 to-indigo-50 p-6">
             <div className="mx-auto flex h-24 w-36 items-center justify-center rounded-2xl bg-white shadow-md">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-white shadow-lg" style={{ animation: 'create-glow 2.4s ease-in-out infinite' }}>
-                <Icon name="PlayIcon" size={28} />
+              <span className="flex h-14 w-14 items-center justify-center" style={{ animation: 'create-glow 2.4s ease-in-out infinite' }}>
+                <PlatformLogo platform={platform} className="h-14 w-14" />
               </span>
             </div>
             <div className="mt-6 flex h-16 items-end justify-center gap-2">
@@ -201,7 +202,7 @@ export default function ProjectCreateWizard() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Create Research Project" backHref={`${base}/projects`} backLabel="Back to projects" />
+      <PageHeader title="Create Research Project" backHref="/projects" backLabel="Back to projects" />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
         <section className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
@@ -305,7 +306,7 @@ export default function ProjectCreateWizard() {
                       onClick={() => setPlatform(asPlatform(id))}
                       className={`rounded-2xl border px-4 py-4 text-left ${active ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-200' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                     >
-                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black ${item.markClass}`}>{item.mark}</span>
+                      <PlatformLogo platform={id} className="h-8 w-8" />
                       <p className="mt-3 text-sm font-semibold text-slate-900">{item.label}</p>
                       <p className="mt-1 text-xs text-slate-500">Step 3 adds {item.entity === 'page' ? 'a page' : 'a channel'}.</p>
                     </button>
@@ -423,7 +424,7 @@ export default function ProjectCreateWizard() {
             <button
               type="button"
               className={`${partnerBtnPrimary} mt-6`}
-              onClick={() => router.push(`${base}/videos`)}
+              onClick={() => router.push(researchOpenHref(platform))}
             >
               Open Research
             </button>

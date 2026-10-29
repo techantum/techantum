@@ -1,4 +1,5 @@
 import { q } from '../finance/db';
+import { RESEARCH_PLATFORMS, asPlatform } from '../research/platforms';
 import { presentListedProject, type HomeProject } from './home-display';
 import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
 
@@ -143,7 +144,7 @@ export async function researchHome() {
      LEFT JOIN youtube_channels own ON own.id=opc.channel_id
      WHERE ${scope.sql}`;
 
-  const [counts, channels, videos, reports, listed, weeks, latestReports, team, activity] = await Promise.all([
+  const [counts, channels, videos, reports, listed, weeks, latestReports, team, platformRows, activity] = await Promise.all([
     q<{ todo: string; active: string; completed: string; total: string }>(
       undefined,
       `SELECT COUNT(*) FILTER (WHERE p.status='todo')::text AS todo,
@@ -183,7 +184,7 @@ export async function researchHome() {
     ),
     q(
       undefined,
-      `SELECT p.id, p.name, p.brand_name, p.industry, p.status, p.updated_at,
+      `SELECT p.id, p.name, p.brand_name, p.industry, p.status, p.updated_at, COALESCE(p.platform, 'youtube') AS platform,
               own.channel_name AS own_channel_name, own.thumbnail_url AS own_thumbnail_url, own.youtube_channel_id AS own_youtube_channel_id,
               (SELECT COUNT(*) FROM youtube_project_channels pc WHERE pc.project_id=p.id AND pc.relationship='competitor') AS competitor_count,
               (SELECT COALESCE(json_agg(x), '[]'::json)
@@ -232,6 +233,13 @@ export async function researchHome() {
         : `SELECT NULL::uuid AS user_id, NULL::text AS email, NULL::text AS name, NULL::text AS role WHERE FALSE`,
       saasId ? [saasId] : [],
     ).catch(() => ({ rows: [] })),
+    q<{ platform: string; count: string }>(
+      undefined,
+      `SELECT COALESCE(NULLIF(p.platform, ''), 'youtube') AS platform, COUNT(*)::text AS count
+       FROM youtube_research_projects p WHERE ${scope.sql}
+       GROUP BY 1`,
+      scope.values,
+    ),
     q(
       undefined,
       `SELECT l.action, l.created_at, l.metadata, l.entity_type, l.entity_id,
@@ -301,6 +309,10 @@ export async function researchHome() {
     resume,
     analysisReadyCount: analysisReady.length,
     projects,
+    platforms: RESEARCH_PLATFORMS.map((id) => ({
+      id,
+      count: Number(platformRows.rows.find((row) => asPlatform(row.platform) === id)?.count || 0),
+    })),
     needsAttention,
     reports: latestReports.rows.map((row) => ({
       id: row.id,

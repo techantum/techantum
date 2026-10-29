@@ -8,11 +8,13 @@ import AnalysisComplete from '@/components/admin/youtube/AnalysisComplete';
 import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, saveAndDownloadAnalysisReport } from '@/components/admin/youtube/research-ui';
-import { allow, ProjectRequired, useProjectId, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { csvValues, FilterMenu } from '@/components/admin/youtube/FilterMenu';
+import { allow, ProjectRequired, useProjectId, useProjectPlatform, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { analysisStatusMeta } from '@/lib/youtube/analysis-display';
+import { platformCopy, researchContentHref } from '@/lib/research/platforms';
 
 const PAGE_SIZE = 7;
 const TONES = ['bg-violet-100 text-violet-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700'];
@@ -115,6 +117,7 @@ function pageItems(total: number, page: number) {
 
 function AnalysisWorkspace() {
   const projectId = useProjectId();
+  const copy = platformCopy(useProjectPlatform());
   const base = useYoutubePageBase();
   const router = useRouter();
   const search = useSearchParams();
@@ -180,7 +183,7 @@ function AnalysisWorkspace() {
             <Icon name="UserGroupIcon" size={16} /> Channel management
           </Link>
         ) : null}
-        <Link className={partnerBtnPrimary} href={`${base}/videos`}>
+        <Link className={partnerBtnPrimary} href={researchContentHref(base)}>
           <Icon name="SparklesIcon" size={16} /> Analyse videos
         </Link>
       </>
@@ -209,8 +212,9 @@ function AnalysisWorkspace() {
       if (statusFilter !== 'all' && row.status !== statusFilter) return false;
       const videos: Record<string, any>[] = Array.isArray(row.videos) ? row.videos : [];
       if (channelFilter !== 'all') {
+        const wanted = csvValues(channelFilter);
         const labels = videos.map((video) => (video.relationship === 'own' ? 'You' : video.channel_name));
-        if (!labels.includes(channelFilter)) return false;
+        if (!wanted.some((name) => labels.includes(name))) return false;
       }
       if (!needle) return true;
       const hay = `${cleanTitle(row.name)} ${videos.map((video) => `${video.title} ${video.channel_name}`).join(' ')}`.toLowerCase();
@@ -288,7 +292,6 @@ function AnalysisWorkspace() {
     );
   }
 
-  const filterClass = 'h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700';
 
   return (
     <div className="space-y-4">
@@ -300,8 +303,8 @@ function AnalysisWorkspace() {
         {[
           { label: 'Total analyses', value: stats.total, hint: 'Comparisons in this project', icon: 'DocumentTextIcon', tone: 'bg-violet-50 text-violet-600' },
           { label: 'Completed', value: stats.completed, hint: stats.total ? `${Math.round((stats.completed / stats.total) * 100)}%` : '0%', icon: 'CheckCircleIcon', tone: 'bg-emerald-50 text-emerald-600' },
-          { label: 'Compared videos', value: stats.videos, hint: 'Across all analyses', icon: 'PlayCircleIcon', tone: 'bg-rose-50 text-rose-600' },
-          { label: 'Channels covered', value: stats.channels, hint: 'Own and competitor', icon: 'UserGroupIcon', tone: 'bg-sky-50 text-sky-600' },
+          { label: `Compared ${copy.contentPlural}`, value: stats.videos, hint: 'Across all analyses', icon: 'PlayCircleIcon', tone: 'bg-rose-50 text-rose-600' },
+          { label: `${copy.entityPlural.charAt(0).toUpperCase()}${copy.entityPlural.slice(1)} covered`, value: stats.channels, hint: 'Own and competitor', icon: 'UserGroupIcon', tone: 'bg-sky-50 text-sky-600' },
         ].map((card) => (
           <article key={card.label} className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
             <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${card.tone}`}>
@@ -319,28 +322,47 @@ function AnalysisWorkspace() {
           <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className={`${partnerInput} h-10 pl-9`}
-            placeholder="Enter analysis title or channel"
+            placeholder={`Enter analysis title or ${copy.entity}`}
             value={q}
             onChange={(event) => setQ(event.target.value)}
           />
         </div>
-        <select className={filterClass} value={range} onChange={(event) => setRange(event.target.value)}>
-          {DATE_PRESETS.map((item) => <option key={item.id} value={item.id}>{item.id === 'all' ? 'All time' : item.label}</option>)}
-        </select>
-        <select className={filterClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="ready">Completed</option>
-          <option value="generating">Processing</option>
-          <option value="failed">Failed</option>
-        </select>
-        <select className={filterClass} value={channelFilter} onChange={(event) => setChannelFilter(event.target.value)}>
-          <option value="all">All channels</option>
-          {channelOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
-        <select className={filterClass} value={sort} onChange={(event) => setSort(event.target.value)}>
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
+        <FilterMenu
+          label="Dates"
+          value={range}
+          onChange={setRange}
+          allLabel="All time"
+          options={DATE_PRESETS.map((item) => ({ id: item.id, label: item.id === 'all' ? 'All time' : item.label }))}
+        />
+        <FilterMenu
+          label="Status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          allLabel="All statuses"
+          options={[
+            { id: 'all', label: 'All statuses' },
+            { id: 'ready', label: 'Completed' },
+            { id: 'generating', label: 'Processing' },
+            { id: 'failed', label: 'Failed' },
+          ]}
+        />
+        <FilterMenu
+          label={copy.entityPlural}
+          multiple
+          value={channelFilter === 'all' ? '' : channelFilter}
+          onChange={(value) => setChannelFilter(value || 'all')}
+          allLabel={`All ${copy.entityPlural}`}
+          options={channelOptions.map((name) => ({ id: name, label: name }))}
+        />
+        <FilterMenu
+          label="Sort"
+          value={sort}
+          onChange={setSort}
+          options={[
+            { id: 'newest', label: 'Newest first' },
+            { id: 'oldest', label: 'Oldest first' },
+          ]}
+        />
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -349,8 +371,8 @@ function AnalysisWorkspace() {
             <thead>
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 <th className="px-5 py-3">Analysis title</th>
-                <th className="px-3 py-3">Selected videos</th>
-                <th className="px-3 py-3">Channels compared</th>
+                <th className="px-3 py-3">Selected {copy.contentPlural}</th>
+                <th className="px-3 py-3">{copy.entityPlural.charAt(0).toUpperCase() + copy.entityPlural.slice(1)} compared</th>
                 <th className="px-3 py-3">Analysis type</th>
                 <th className="px-3 py-3">Created on</th>
                 <th className="px-3 py-3">Status</th>
@@ -406,7 +428,7 @@ function AnalysisWorkspace() {
           <div className="px-4 py-12 text-center">
             <p className="font-semibold text-slate-800">No comparisons yet</p>
             <p className="mt-1 text-sm text-slate-500">Select two or more videos on Research, then compare them. Each run appears here.</p>
-            <Link href={`${base}/videos`} className={`${partnerBtnPrimary} mt-4`}>Go to Research</Link>
+            <Link href={researchContentHref(base)} className={`${partnerBtnPrimary} mt-4`}>Go to Research</Link>
           </div>
         ) : null}
       </section>

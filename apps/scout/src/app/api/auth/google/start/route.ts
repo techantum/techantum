@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const packageId = new URL(request.url).searchParams.get('package') || '';
   const { clientId, clientSecret } = await googleCredentials();
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent('Google sign-in is not configured.')}&package=${packageId}`, origin));
+    return NextResponse.redirect(new URL(`/subscriber/login?error=${encodeURIComponent('Google sign-in is not configured.')}&package=${packageId}`, origin));
   }
   const state = `hookooh_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const response = NextResponse.redirect(googleAuthUrl(state, clientId));

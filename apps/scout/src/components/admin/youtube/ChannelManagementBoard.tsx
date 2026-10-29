@@ -15,6 +15,7 @@ import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo, projectInitials } from '@/lib/youtube/home-display';
+import { researchContentHref } from '@/lib/research/platforms';
 import { MAX_PROJECT_COMPETITORS } from '@/lib/youtube/workspace-nav';
 
 function compactMetric(value: unknown) {
@@ -194,7 +195,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
         <td className="px-4 py-4 text-sm text-slate-600">{metric(channel.videos_imported)} {channel.video_count != null ? <span className="text-slate-400">of {metric(channel.video_count)} total</span> : null}</td>
         <td className="px-4 py-4">
           <div className="flex items-center justify-end gap-2">
-            <Link href={`${base}/videos?channel=${channel.id}`} className={`${partnerBtnSecondary} !px-3 !py-1.5 text-xs`}>{kind === 'own' ? 'View' : 'Research'}</Link>
+            <Link href={researchContentHref(base, `?channel=${channel.id}`)} className={`${partnerBtnSecondary} !px-3 !py-1.5 text-xs`}>{kind === 'own' ? 'View' : 'Research'}</Link>
             {kind === 'competitor' ? <Link href={`${base}/channel-compare`} className={`${partnerBtnSecondary} !px-3 !py-1.5 text-xs`}>Compare</Link> : null}
             <button
               type="button"
@@ -236,7 +237,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
               <div className={`h-1 rounded-full ${step.done ? 'bg-secondary' : 'bg-slate-200'}`} />
               <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{step.label}</p>
               <p className="text-sm text-slate-700">
-              {step.key === 'import' ? <Link href={`${base}/videos`} className="font-semibold text-secondary">{step.detail} →</Link> : step.detail}
+              {step.key === 'import' ? <Link href={researchContentHref(base)} className="font-semibold text-secondary">{step.detail} →</Link> : step.detail}
             </p>
             </div>
           ))}
@@ -348,7 +349,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
       {menu && typeof document !== 'undefined'
         ? createPortal(
           <div ref={menuRef} className="fixed z-[80] w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
-            <Link className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50" href={`${base}/videos?channel=${menu}`} onClick={() => setMenu('')}>
+            <Link className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50" href={researchContentHref(base, `?channel=${menu}`)} onClick={() => setMenu('')}>
               <NavIcon name="PlayCircleIcon" itemKey="videos" className="h-7 w-7 rounded-lg" size={14} /> Videos
             </Link>
             {manage && channels.find((channel) => channel.id === menu)?.relationship === 'own' ? (

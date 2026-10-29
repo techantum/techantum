@@ -2,7 +2,8 @@ import { cache } from 'react';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { q } from '@/lib/finance/db';
 import { FinanceValidationError } from '@/lib/finance/errors';
-import { isSuperAdmin, type PlatformRole } from '@/lib/admin/roles';
+import { isPlatformAdmin, isSuperAdmin, type PlatformRole } from '@/lib/admin/roles';
+import { homePathForRole } from './portals';
 import { canManageHookoohKnowledge } from '@/lib/hookooh/access';
 import { accountIsActive, type SaasAccount } from './session';
 
@@ -486,7 +487,7 @@ export async function changeAccountPackage(account: SaasAccount, packageId: stri
 
 export const resolveAccess = cache(async (account: SaasAccount | null | undefined, role?: PlatformRole | null): Promise<Access> => {
   const has = (keys: string[]) => (key: string) => keys.includes(key);
-  if (!account || isSuperAdmin(role)) {
+  if (!account || isSuperAdmin(role) || isPlatformAdmin(role)) {
     const features = await listFeatures(false).catch(() => []);
     const keys = features.map((item) => item.feature_key);
     return {
@@ -590,7 +591,7 @@ export type NavItem = { href: string; label: string; icon: string; key?: string;
 function youtubeNavChildren(locked = false, role?: PlatformRole): NavItem[] {
   const children: NavItem[] = [
     { href: '/youtube', label: 'Dashboard', icon: 'Squares2X2Icon', key: 'yt-dashboard', locked },
-    { href: '/youtube/projects', label: 'Projects', icon: 'FolderIcon', key: 'yt-projects', locked },
+    { href: '/projects', label: 'Projects', icon: 'FolderIcon', key: 'yt-projects', locked },
     { href: '/youtube/quick-analysis', label: 'Quick Analysis', icon: 'BoltIcon', key: 'yt-quick-analysis', locked },
     { href: '/youtube/quick-reports', label: 'Quick Reports', icon: 'DocumentChartBarIcon', key: 'yt-quick-reports', locked },
   ];
@@ -602,7 +603,7 @@ function youtubeNavChildren(locked = false, role?: PlatformRole): NavItem[] {
 
 function withYoutubeChildren(item: NavItem, role?: PlatformRole): NavItem {
   if (item.key !== FEATURE_YOUTUBE && item.href !== '/youtube' && !item.href.startsWith('/billing?need=youtube')) return item;
-  return { ...item, children: youtubeNavChildren(Boolean(item.locked), role) };
+  return { ...item, label: 'Business Research', children: youtubeNavChildren(Boolean(item.locked), role) };
 }
 
 export async function platformDashboard() {
@@ -702,9 +703,18 @@ export async function cancelAccountSubscription(accountId: string, createdBy: st
 }
 
 export function navigationFor(role: PlatformRole, access: Access, catalog: CatalogFeature[] = []): NavItem[] {
+  if (isPlatformAdmin(role)) {
+    return [
+      { href: '/admin', label: 'Dashboard', icon: 'HomeIcon' },
+      withYoutubeChildren({ href: '/youtube', label: 'Business Research', icon: 'PlayCircleIcon', key: FEATURE_YOUTUBE }, role),
+      { href: '/leads', label: 'Places', icon: 'MapPinIcon', key: FEATURE_LEADS },
+      { href: '/subscriptions', label: 'Subscriptions', icon: 'CreditCardIcon' },
+      { href: '/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+    ];
+  }
   if (isSuperAdmin(role)) {
-    const items: NavItem[] = [{ href: '/home', label: 'Dashboard', icon: 'HomeIcon' }];
-    const seen = new Set(['/home']);
+    const items: NavItem[] = [{ href: '/superadmin', label: 'Dashboard', icon: 'HomeIcon' }];
+    const seen = new Set(['/superadmin', '/home']);
     const apps = access.features.length ? access.features : catalog;
     for (const feature of apps) {
       if (seen.has(feature.route)) continue;
@@ -713,7 +723,7 @@ export function navigationFor(role: PlatformRole, access: Access, catalog: Catal
     }
     if (!apps.length) {
       items.push(
-        withYoutubeChildren({ href: '/youtube', label: 'YouTube Research', icon: 'PlayCircleIcon', key: FEATURE_YOUTUBE }, role),
+        withYoutubeChildren({ href: '/youtube', label: 'Business Research', icon: 'PlayCircleIcon', key: FEATURE_YOUTUBE }, role),
         { href: '/leads', label: 'Places', icon: 'MapPinIcon', key: FEATURE_LEADS },
       );
     }
@@ -725,8 +735,9 @@ export function navigationFor(role: PlatformRole, access: Access, catalog: Catal
     );
     return items;
   }
-  const items: NavItem[] = [{ href: '/home', label: 'Home', icon: 'HomeIcon' }];
-  const seen = new Set(['/home']);
+  const home = homePathForRole(role);
+  const items: NavItem[] = [{ href: home, label: 'Home', icon: 'HomeIcon' }];
+  const seen = new Set([home, '/home']);
   for (const feature of access.features) {
     if (feature.feature_key === FEATURE_TEAM && role !== 'subscriber_admin' && role !== 'owner') continue;
     if (seen.has(feature.route)) continue;

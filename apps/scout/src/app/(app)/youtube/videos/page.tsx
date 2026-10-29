@@ -9,11 +9,13 @@ import AdminButton from '@/components/admin/AdminButton';
 import AnalyseModal, { type AnalyseConfig } from '@/components/admin/youtube/AnalyseModal';
 import ChannelDraftForm from '@/components/admin/youtube/ChannelDraftForm';
 import PageLoader from '@/components/admin/youtube/PageLoader';
+import { csvValues, FilterMenu } from '@/components/admin/youtube/FilterMenu';
 import { DATE_PRESETS, EMPTY_FILTERS, PlacementBadge, applyPreset, handleLabel, type ResearchFilterOptions } from '@/components/admin/youtube/research-ui';
 import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { allow, ProjectRequired, useProjectId, useProjectPlatform, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
-import { platformCopy } from '@/lib/research/platforms';
+import { PlatformLogo } from '@/components/marketing/BrandIcons';
+import { AD_FORMAT_FILTERS, POST_FORMAT_FILTERS, fetchBusyMessage, fetchLoaderMessage, fetchOverlayNote, platformCopy, researchContentHref, splitFetchMessage, titleCase } from '@/lib/research/platforms';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
@@ -76,7 +78,7 @@ function Explorer() {
   const [selected, setSelected] = useState<string[]>([]);
   const [picked, setPicked] = useState<Record<string, any>>({});
   const [analyseOpen, setAnalyseOpen] = useState(false);
-  const [filters, setFilters] = useState({ ...EMPTY_FILTERS, channelIds: search?.get('channel') || '', sort: 'published_at' });
+  const [filters, setFilters] = useState({ ...EMPTY_FILTERS, channelIds: search?.get('channel') || '', sort: 'published_at', placement: 'organic' });
   const [range, setRange] = useState('all');
   const [adding, setAdding] = useState<'own' | 'competitor' | ''>(search?.get('add') === 'own' ? 'own' : search?.get('add') === 'competitor' ? 'competitor' : '');
   const [error, setError] = useState('');
@@ -112,7 +114,8 @@ function Explorer() {
   };
 
   const idsFor = (next = filters, channelRows = channels) => {
-    if (next.channelIds) return channelRows.filter((channel) => channel.id === next.channelIds).map((channel) => channel.id);
+    const selected = csvValues(next.channelIds || '');
+    if (selected.length) return channelRows.filter((channel) => selected.includes(channel.id)).map((channel) => channel.id);
     return channelRows.map((channel) => channel.id);
   };
 
@@ -142,7 +145,7 @@ function Explorer() {
       const failed = (imported.results || []).filter((job: { error?: string | null }) => job.error);
       const running = failed.filter((job: { error?: string | null }) => /already running/i.test(String(job.error || '')));
       if (running.length) {
-        setMessage('Videos are still being fetched from these channels…');
+        setMessage(fetchBusyMessage(copy));
         await new Promise((resolve) => setTimeout(resolve, 2500));
         return load(1, next, channelRows);
       }
@@ -150,8 +153,22 @@ function Explorer() {
         throw new Error(failed[0].error || `Could not fetch ${copy.contentPlural} from these ${copy.entityPlural}`);
       }
       const body = await load(1, next, channelRows);
-      const added = (imported.results || []).reduce((sum: number, job: { inserted_count?: number; updated_count?: number }) => sum + Number(job.inserted_count || 0) + Number(job.updated_count || 0), 0);
-      setMessage(added ? `Fetched ${added} video${added === 1 ? '' : 's'} from YouTube.` : 'No new public videos were returned for these channels.');
+      let options = filterOptions;
+      try {
+        options = await yt(`projects/${projectId}/filters${next.channelIds ? `?channelIds=${next.channelIds}` : ''}`);
+        setFilterOptions(options);
+      } catch {
+        /* Table data is more important than filter counts. */
+      }
+      const failedPages = failed.filter((job: { error?: string | null }) => !/already running/i.test(String(job.error || '')));
+      const posts = Number((options.placement || []).find((item) => item.id === 'organic')?.count || 0);
+      const ads = Number((options.placement || []).find((item) => item.id === 'paid')?.count || 0);
+      const summary = splitFetchMessage(copy, posts, ads);
+      setMessage(
+        failedPages.length
+          ? `${summary} ${failedPages.length} ${copy.entity}${failedPages.length === 1 ? '' : 's'} returned no public ${copy.contentPlural}.`
+          : summary,
+      );
       return body;
     } catch (err) {
       setError(err instanceof Error ? err.message : `Could not fetch ${copy.contentPlural} from these ${copy.entityPlural}`);
@@ -188,7 +205,7 @@ function Explorer() {
         const options = await yt(`projects/${projectId}/filters${channelIds ? `?channelIds=${channelIds}` : ''}`);
         setFilterOptions(options);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not load videos');
+        setError(err instanceof Error ? err.message : `Could not load ${copy.contentPlural}`);
       } finally {
         setLoading(false);
       }
@@ -200,7 +217,7 @@ function Explorer() {
     const add = search?.get('add');
     if (add === 'own' || add === 'competitor') {
       setAdding(add);
-      router.replace(`${base}/videos`, { scroll: false });
+      router.replace(researchContentHref(base), { scroll: false });
     }
   }, [search, base, router]);
 
@@ -300,8 +317,20 @@ function Explorer() {
   };
 
   const resetFilters = () => {
-    const next = { ...EMPTY_FILTERS, sort: 'published_at' };
+    const next = { ...EMPTY_FILTERS, sort: 'published_at', placement: filters.placement === 'paid' ? 'paid' : 'organic' };
     setRange('all');
+    setFilters(next);
+    applyFilters(next);
+  };
+
+  const setBucket = (id: 'posts' | 'ads') => {
+    const paid = id === 'ads';
+    const allowed = new Set((paid ? AD_FORMAT_FILTERS : copy.id === 'youtube' ? [{ id: 'short' }, { id: 'video' }] : POST_FORMAT_FILTERS).map((item) => item.id));
+    const next = {
+      ...filters,
+      placement: paid ? 'paid' : 'organic',
+      content: csvValues(filters.content).filter((item) => allowed.has(item)).join(','),
+    };
     setFilters(next);
     applyFilters(next);
   };
@@ -351,7 +380,7 @@ function Explorer() {
     }
   };
 
-  const channelFor = (video: Record<string, any>) => channels.find((channel) => channel.id === video.channel_id || channel.channel_name === video.channel_name);
+  const channelFor = (video: Record<string, any>) => channels.find((channel) => channel.id === video.channel_id);
 
   const openMenu = (id: string, event: MouseEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -360,7 +389,19 @@ function Explorer() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / 20));
-  const selectClass = 'h-10 min-w-[8.75rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700';
+  const patchFilters = (patch: Partial<typeof filters>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    applyFilters(next);
+  };
+  const contentOptions = filters.placement === 'paid'
+    ? AD_FORMAT_FILTERS.map((item) => ({ ...item, count: (filterOptions.content || []).find((row) => row.id === item.id)?.count }))
+    : copy.id === 'youtube'
+      ? [
+        { id: 'short', label: 'Shorts', count: (filterOptions.content || []).find((row) => row.id === 'short')?.count },
+        { id: 'video', label: 'Videos', count: (filterOptions.content || []).find((row) => row.id === 'video')?.count },
+      ]
+      : POST_FORMAT_FILTERS.map((item) => ({ ...item, count: (filterOptions.content || []).find((row) => row.id === item.id)?.count }));
   const pageIds = rows.map((row) => String(row.id));
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
   const menuVideo = rows.find((row) => String(row.id) === menu);
@@ -377,7 +418,7 @@ function Explorer() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform</span>
             <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-sm font-semibold ${copy.accent}`}>
-              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-black ${copy.markClass}`}>{copy.mark}</span>
+              <PlatformLogo platform={platform} className="h-6 w-6" />
               {copy.label}
             </span>
             <span className="text-xs text-slate-400">This project researches {copy.label} {copy.entityPlural}</span>
@@ -436,68 +477,104 @@ function Explorer() {
 
       <section className="flex min-h-[28rem] flex-1 flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm">
         <div className="z-20 shrink-0 space-y-2 border-b border-slate-100 bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {([{ id: 'posts', label: copy.id === 'youtube' ? 'Videos' : 'Posts', count: (filterOptions.placement || []).find((item) => item.id === 'organic')?.count || 0 }, { id: 'ads', label: 'Ads', count: (filterOptions.placement || []).find((item) => item.id === 'paid')?.count || 0 }] as const).map((tab) => {
+              const active = tab.id === 'ads' ? filters.placement === 'paid' : filters.placement !== 'paid';
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setBucket(tab.id)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-semibold ${active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  {tab.label} {tab.count}
+                </button>
+              );
+            })}
+          </div>
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
             <label className="relative min-w-0 flex-1">
               <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 className={`${partnerInput} h-10 rounded-full pl-9`}
-                placeholder="Enter video title or keyword"
+                placeholder={`Enter ${copy.content} title or keyword`}
                 value={filters.q}
                 onChange={(event) => setFilters({ ...filters, q: event.target.value })}
                 onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyFilters({ ...filters, q: event.currentTarget.value }); } }}
               />
             </label>
-            <select className={selectClass} value={range} onChange={(event) => {
-              const id = event.target.value;
-              setRange(id);
-              const next = { ...filters, ...applyPreset(id) };
-              setFilters(next);
-              applyFilters(next);
-            }}>
-              {DATE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.id === 'all' ? 'All time' : preset.label}</option>)}
-            </select>
-            <select className={selectClass} value={filters.channelIds || ''} onChange={(event) => {
-              const next = { ...filters, channelIds: event.target.value };
-              setFilters(next);
-              applyFilters(next);
-            }}>
-              <option value="">All channels</option>
-              {channels.map((channel) => <option key={channel.id} value={channel.id}>{channel.relationship === 'own' ? 'You · ' : ''}{channel.channel_name || channel.youtube_channel_id}</option>)}
-            </select>
+            <FilterMenu
+              label="Time"
+              value={range}
+              options={DATE_PRESETS.map((preset) => ({ id: preset.id, label: preset.id === 'all' ? 'All time' : preset.label }))}
+              onChange={(id) => {
+                const nextId = id || 'all';
+                setRange(nextId);
+                patchFilters(applyPreset(nextId));
+              }}
+            />
+            <FilterMenu
+              label={copy.entityPlural}
+              allLabel={`All ${copy.entityPlural}`}
+              multiple
+              value={filters.channelIds || ''}
+              options={channels.map((channel) => ({
+                id: String(channel.id),
+                label: `${channel.relationship === 'own' ? 'You · ' : ''}${channel.channel_name || channel.youtube_channel_id}`,
+              }))}
+              onChange={(channelIds) => patchFilters({ channelIds })}
+            />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select className={selectClass} value={filters.content} onChange={(event) => { const next = { ...filters, content: event.target.value }; setFilters(next); applyFilters(next); }}>
-              <option value="">All formats</option>
-              <option value="short">Shorts</option>
-              <option value="video">Videos</option>
-            </select>
-            <select className={selectClass} value={filters.categoryId} onChange={(event) => { const next = { ...filters, categoryId: event.target.value }; setFilters(next); applyFilters(next); }}>
-              <option value="">All categories</option>
-              {(filterOptions.categories || []).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-            <select className={selectClass} value={filters.tag} onChange={(event) => { const next = { ...filters, tag: event.target.value }; setFilters(next); applyFilters(next); }}>
-              <option value="">All tags</option>
-              {(filterOptions.tags || []).map((item) => <option key={item.tag} value={item.tag}>{item.tag}</option>)}
-            </select>
-            <select className={selectClass} value={filters.placement} onChange={(event) => { const next = { ...filters, placement: event.target.value }; setFilters(next); applyFilters(next); }}>
-              <option value="">Organic & paid</option>
-              <option value="organic">Organic</option>
-              <option value="paid">Paid</option>
-            </select>
-            <select className={selectClass} value={filters.sort || 'published_at'} onChange={(event) => { const next = { ...filters, sort: event.target.value }; setFilters(next); applyFilters(next); }}>
-              <option value="published_at">Sort: Newest</option>
-              <option value="view_count">Sort: Most viewed</option>
-              <option value="like_count">Sort: Most liked</option>
-              <option value="comment_count">Sort: Most commented</option>
-            </select>
+            {copy.id === 'youtube' && filters.placement === 'paid' ? null : (
+              <FilterMenu
+                label={filters.placement === 'paid' ? 'Ads' : copy.id === 'youtube' ? 'Formats' : 'Posts'}
+                allLabel={filters.placement === 'paid' ? 'All ads' : copy.id === 'youtube' ? 'All formats' : 'All posts'}
+                multiple
+                value={filters.content}
+                options={contentOptions}
+                onChange={(content) => patchFilters({ content })}
+              />
+            )}
+            {copy.id === 'youtube' ? (
+              <FilterMenu
+                label="Categories"
+                allLabel="All categories"
+                multiple
+                value={filters.categoryId}
+                options={(filterOptions.categories || []).map((item) => ({ id: item.id, label: item.label, count: item.count }))}
+                onChange={(categoryId) => patchFilters({ categoryId })}
+              />
+            ) : null}
+            {(filterOptions.tags || []).length ? (
+              <FilterMenu
+                label="Tags"
+                allLabel="All tags"
+                multiple
+                value={filters.tag}
+                options={(filterOptions.tags || []).map((item) => ({ id: item.tag, label: item.tag, count: item.count }))}
+                onChange={(tag) => patchFilters({ tag })}
+              />
+            ) : null}
+            <FilterMenu
+              label="Sort"
+              value={filters.sort || 'published_at'}
+              options={[
+                { id: 'published_at', label: 'Newest' },
+                { id: 'view_count', label: 'Most viewed' },
+                { id: 'like_count', label: 'Most liked' },
+                { id: 'comment_count', label: 'Most commented' },
+              ]}
+              onChange={(sort) => patchFilters({ sort: sort || 'published_at' })}
+            />
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <button type="button" className={partnerBtnPrimary} onClick={() => applyFilters(filters)}>Search</button>
               <button type="button" className="text-sm font-semibold text-slate-500 hover:text-slate-800" onClick={resetFilters}>Reset filters</button>
-              {canImport ? <AdminButton variant="secondary" loading={fetching} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}><Icon name="ArrowDownTrayIcon" size={16} /> {copy.fetchLabel}</AdminButton> : null}
+              {canImport ? <AdminButton variant="secondary" loading={fetching} process={false} disabled={!channels.length} onClick={() => fetchFromChannels(channels)}><Icon name="ArrowDownTrayIcon" size={16} /> {copy.fetchLabel}</AdminButton> : null}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} results`}</span>
+            <span className="font-semibold text-slate-800">{filtering ? 'Updating…' : `${total} ${filters.placement === 'paid' ? (total === 1 ? 'ad' : 'ads') : (total === 1 ? copy.content : copy.contentPlural)}`}</span>
             <Chip className="bg-slate-100 text-slate-600">{copy.label}</Chip>
           </div>
         </div>
@@ -521,11 +598,11 @@ function Explorer() {
                     }
                   }} aria-label="Select all on this page" />
                 </th>
-                <th className="px-3 py-3">Video</th>
-                <th className="px-3 py-3">Channel</th>
+                <th className="px-3 py-3">{titleCase(copy.content)}</th>
+                <th className="px-3 py-3">{titleCase(copy.entity)}</th>
                 <th className="px-3 py-3">Published</th>
                 <th className="px-3 py-3 text-right">Views</th>
-                <th className="px-3 py-3 text-right" title="Public likes plus comments. This is not a YouTube Analytics engagement rate.">Likes + comments</th>
+                <th className="px-3 py-3 text-right" title={copy.id === 'youtube' ? 'Public likes plus comments. This is not a YouTube Analytics engagement rate.' : 'Public likes plus comments.'}>Likes + comments</th>
                 <th className="px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -538,7 +615,7 @@ function Explorer() {
                 return (
                   <tr key={video.id} className={`border-t border-slate-50 ${selected.includes(video.id) ? 'bg-slate-50/80' : 'hover:bg-slate-50/70'}`}>
                     <td className="px-4 py-3">
-                      <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-secondary" checked={selected.includes(video.id)} onChange={() => toggle(video.id, video)} aria-label={`Select ${video.title || 'video'}`} />
+                      <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-secondary" checked={selected.includes(video.id)} onChange={() => toggle(video.id, video)} aria-label={`Select ${video.title || copy.content}`} />
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
@@ -548,6 +625,9 @@ function Explorer() {
                         </span>
                         <span>
                           <button type="button" className="line-clamp-2 text-left font-medium text-slate-900" onClick={() => toggle(video.id, video)}>{video.title || video.youtube_video_id}</button>
+                          {video.description && video.description !== video.title ? (
+                            <span className="mt-0.5 line-clamp-2 text-xs text-slate-500">{video.description}</span>
+                          ) : null}
                           <span className="mt-1 flex flex-wrap gap-1">
                             {video.content_label ? <Chip className="bg-slate-100 text-slate-600">{video.content_label}</Chip> : null}
                             <PlacementBadge value={video.placement_label} />
@@ -580,14 +660,14 @@ function Explorer() {
           </table>
           {!rows.length ? (
           <div className="px-4 py-12 text-center">
-            <p className="text-sm font-semibold text-slate-800">{fetching ? `Fetching public ${copy.contentPlural}…` : channels.length ? `No ${copy.contentPlural} match these filters` : `No ${copy.label} ${copy.entityPlural} in this project yet`}</p>
-            <p className="mt-1 text-sm text-slate-500">{fetching ? 'This can take a minute.' : channels.length ? `Fetch from ${copy.label} or reset filters.` : `Connect your ${copy.entity}, add competitors, then fetch ${copy.contentPlural}.`}</p>
+            <p className="text-sm font-semibold text-slate-800">{fetching ? fetchLoaderMessage(copy) : channels.length ? `No ${copy.contentPlural} match these filters` : `No ${copy.label} ${copy.entityPlural} in this project yet`}</p>
+            <p className="mt-1 text-sm text-slate-500">{fetching ? fetchOverlayNote(copy) : channels.length ? `Fetch from ${copy.label} or reset filters.` : `Connect your ${copy.entity}, add competitors, then fetch ${copy.contentPlural}.`}</p>
             {!channels.length && manage ? (
               <button type="button" className={`${partnerBtnPrimary} mt-4`} onClick={() => setAdding('own')}>Connect your {copy.entity}</button>
             ) : null}
             {channels.length && !fetching ? (
               <div className="mt-4 flex justify-center gap-2">
-                {canImport ? <AdminButton variant="primary" onClick={() => fetchFromChannels(channels)}>{copy.fetchLabel}</AdminButton> : null}
+                {canImport ? <AdminButton variant="primary" process={false} onClick={() => fetchFromChannels(channels)}>{copy.fetchLabel}</AdminButton> : null}
                 <button type="button" className={partnerBtnSecondary} onClick={resetFilters}>Reset filters</button>
               </div>
             ) : null}
@@ -670,12 +750,13 @@ function Explorer() {
         )
         : null}
 
-      {fetching ? <FetchVideosOverlay /> : null}
-      {busy === 'report' ? <FetchVideosOverlay mode="report" /> : null}
+      {fetching ? <FetchVideosOverlay platform={platform} /> : null}
+      {busy === 'report' ? <FetchVideosOverlay mode="report" platform={platform} /> : null}
 
       {analyseOpen ? (
         <AnalyseModal
           variant="direct"
+          platform={platform}
           videos={selected.map((id) => picked[id] || rows.find((row) => row.id === id)).filter(Boolean)}
           busy={busy === 'summary'}
           error={error}

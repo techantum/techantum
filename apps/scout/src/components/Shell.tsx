@@ -9,8 +9,10 @@ import NavIcon from '@/components/ui/NavIcon';
 import SafeImage from '@/components/ui/SafeImage';
 import type { PlatformRole } from '@/lib/admin/roles';
 import type { NavItem } from '@/lib/saas/catalog';
+import { homePathForRole } from '@/lib/saas/portals';
 import HookoohWidget from '@/components/hookooh/HookoohWidget';
 import { APP_NAME } from '@/lib/brand';
+import { RESEARCH_PLATFORMS } from '@/lib/research/platforms';
 
 function pathOf(href: string) {
   return href.split('?')[0];
@@ -19,13 +21,18 @@ function pathOf(href: string) {
 function itemIsActive(pathname: string, href: string) {
   const path = pathOf(href);
   if (path === '/youtube') return pathname === '/youtube';
+  if (path === '/projects') return pathname === '/projects' || pathname.startsWith('/projects/');
+  if (path === '/superadmin') return pathname === '/superadmin';
+  if (path === '/admin') return pathname === '/admin';
   if (path === '/youtube/quick-analysis') {
     return pathname.startsWith('/youtube/quick-analysis') || pathname.startsWith('/youtube/quick-research');
   }
   if (path === '/youtube/quick-reports') {
     return pathname.startsWith('/youtube/quick-reports') || pathname.startsWith('/youtube/quick-report');
   }
-  if (path === '/home') return pathname === '/home';
+  if (path === '/home' || path === '/subscriber' || path === '/user') {
+    return pathname === path || pathname === '/home';
+  }
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
@@ -54,7 +61,11 @@ function NavLink({
 function NavGroup({ item, index }: { item: NavItem; index: number }) {
   const pathname = usePathname() || '';
   const children = item.children || [];
-  const childActive = children.some((child) => itemIsActive(pathname, child.href));
+  const researchActive = item.href === '/youtube' && (
+    pathname.startsWith('/projects')
+    || RESEARCH_PLATFORMS.some((platform) => pathname === `/${platform}` || pathname.startsWith(`/${platform}/`))
+  );
+  const childActive = researchActive || children.some((child) => itemIsActive(pathname, child.href));
   const [open, setOpen] = useState(childActive);
 
   useEffect(() => {
@@ -126,7 +137,7 @@ export default function Shell({
   return (
     <div className="min-h-screen bg-[#F6F7FB]">
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 overflow-y-auto border-r border-slate-200 bg-white px-4 py-5 lg:block">
-        <Link href="/home" className="flex items-center px-2">
+        <Link href={homePathForRole(role)} className="flex items-center px-2">
           {logoUrl ? (
             <SafeImage src={logoUrl} alt={companyName || APP_NAME} className="h-12 w-auto max-w-[180px] object-contain object-left" fallback={mark} priority />
           ) : (

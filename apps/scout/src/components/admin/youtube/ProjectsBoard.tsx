@@ -13,7 +13,8 @@ import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import type { HomeProject } from '@/lib/youtube/home-display';
 import { asProjectStatus } from '@/lib/youtube/project-status';
-import { platformCopy } from '@/lib/research/platforms';
+import { PlatformLogo } from '@/components/marketing/BrandIcons';
+import { platformCopy, researchOpenHref } from '@/lib/research/platforms';
 
 type Counts = { all: number; todo: number; active: number; completed: number };
 
@@ -73,7 +74,7 @@ export default function ProjectsBoard() {
 
   const go = (project: HomeProject) => {
     rememberProject(project.id);
-    router.push(`${base}/videos`);
+    router.push(researchOpenHref(project.platform || 'youtube'));
   };
 
   const run = async (id: string, work: () => Promise<void>) => {
@@ -124,7 +125,7 @@ export default function ProjectsBoard() {
     <div className="flex min-h-[calc(100dvh-8.5rem)] flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 font-bricolage text-3xl font-bold tracking-tight text-slate-900">Projects</h1>
-        {manage ? <Link href={`${base}/projects/new`} className={partnerBtnPrimary}>+ New project</Link> : null}
+        {manage ? <Link href="/projects/new" className={partnerBtnPrimary}>+ New project</Link> : null}
       </div>
 
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
@@ -167,8 +168,11 @@ export default function ProjectsBoard() {
                   <button type="button" className="flex min-w-0 items-start gap-3 text-left" onClick={() => go(project)}>
                     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-bold ${PROJECT_AVATARS[index % PROJECT_AVATARS.length]}`}>{project.initials}</span>
                     <span>
-                      <span className="block font-semibold text-slate-900">{project.name}</span>
-                      <span className="block text-xs text-slate-400">{project.own_channel_name || project.brand_name || 'No channel connected'}</span>
+                      <span className="flex items-center gap-1.5 font-semibold text-slate-900">
+                        <PlatformLogo platform={project.platform} className="h-4 w-4" />
+                        {project.name}
+                      </span>
+                      <span className="block text-xs text-slate-400">{project.own_channel_name || project.brand_name || `No ${platformCopy(project.platform).entity} connected`}</span>
                     </span>
                   </button>
                   {actions(project)}
@@ -186,6 +190,7 @@ export default function ProjectsBoard() {
               <thead>
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   <th className="px-4 py-3">Project</th>
+                  <th className="px-4 py-3">Platform</th>
                   <th className="px-4 py-3">Channels</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Setup</th>
@@ -203,11 +208,16 @@ export default function ProjectsBoard() {
                         <span>
                           <span className="flex items-center gap-2 font-semibold text-slate-900">
                             {project.name}
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{platformCopy(project.platform).label}</span>
                           </span>
                           <span className="block text-xs text-slate-400">{project.own_channel_name || project.brand_name || `No ${platformCopy(project.platform).entity} connected`}</span>
                         </span>
                       </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                        <PlatformLogo platform={project.platform} className="h-5 w-5" />
+                        {platformCopy(project.platform).label}
+                      </span>
                     </td>
                     <td className="px-4 py-3"><ChannelStack project={project} index={index} /></td>
                     <td className="px-4 py-3"><ProjectStatusBadge status={project.status} /></td>

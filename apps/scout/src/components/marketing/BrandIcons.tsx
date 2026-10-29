@@ -1,3 +1,7 @@
+'use client';
+
+import { useId } from 'react';
+
 export function YouTubeMark({ className = 'h-10 w-10' }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={className} aria-hidden>
@@ -8,16 +12,17 @@ export function YouTubeMark({ className = 'h-10 w-10' }: { className?: string })
 }
 
 export function InstagramMark({ className = 'h-10 w-10' }: { className?: string }) {
+  const fill = `ig-${useId().replace(/:/g, '')}`;
   return (
     <svg viewBox="0 0 40 40" className={className} aria-hidden>
       <defs>
-        <linearGradient id="ig" x1="8" y1="36" x2="32" y2="4" gradientUnits="userSpaceOnUse">
+        <linearGradient id={fill} x1="8" y1="36" x2="32" y2="4" gradientUnits="userSpaceOnUse">
           <stop stopColor="#F58529" />
           <stop offset=".5" stopColor="#DD2A7B" />
           <stop offset="1" stopColor="#8134AF" />
         </linearGradient>
       </defs>
-      <rect width="40" height="40" rx="12" fill="url(#ig)" />
+      <rect width="40" height="40" rx="12" fill={`url(#${fill})`} />
       <rect x="11" y="11" width="18" height="18" rx="6" fill="none" stroke="#fff" strokeWidth="2.2" />
       <circle cx="20" cy="20" r="5" fill="none" stroke="#fff" strokeWidth="2.2" />
       <circle cx="26.5" cy="14.2" r="1.4" fill="#fff" />
@@ -62,6 +67,25 @@ export function LinkedInMark({ className = 'h-10 w-10' }: { className?: string }
   );
 }
 
+export function TwitterMark({ className = 'h-10 w-10' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 40 40" className={className} aria-hidden>
+      <rect width="40" height="40" rx="12" fill="#0F1419" />
+      <path d="M22.6 18.4 31 9h-2l-7.3 8.2L15.7 9H9l9 12.8L9 31h2l7.8-8.8L24.3 31H31L22.6 18.4Zm-2.7 3.1-.9-1.3-7.2-10h3.1l5.8 8.1.9 1.3 7.5 10.5h-3.1l-6.1-8.6Z" fill="#fff" />
+    </svg>
+  );
+}
+
+export function PlatformLogo({ platform, className = 'h-8 w-8' }: { platform?: string | null; className?: string }) {
+  const id = String(platform || 'youtube').toLowerCase();
+  if (id === 'facebook') return <FacebookMark className={className} />;
+  if (id === 'instagram') return <InstagramMark className={className} />;
+  if (id === 'linkedin') return <LinkedInMark className={className} />;
+  if (id === 'twitter' || id === 'x') return <TwitterMark className={className} />;
+  if (id === 'google' || id === 'google_ads') return <GoogleAdsMark className={className} />;
+  return <YouTubeMark className={className} />;
+}
+
 export function GoogleAdsMark({ className = 'h-10 w-10' }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={className} aria-hidden>
@@ -74,7 +98,7 @@ export function GoogleAdsMark({ className = 'h-10 w-10' }: { className?: string 
   );
 }
 
-export const PLATFORM_MARKS = [
+const PLATFORM_MARKS = [
   { name: 'YouTube', blurb: 'Video research, trending content', Icon: YouTubeMark },
   { name: 'Instagram', blurb: 'Posts, reels, creator content', Icon: InstagramMark },
   { name: 'Facebook', blurb: 'Page analysis, public posts', Icon: FacebookMark },
@@ -83,3 +107,17 @@ export const PLATFORM_MARKS = [
   { name: 'LinkedIn', blurb: 'Company posts, thought leadership', Icon: LinkedInMark },
   { name: 'Google Ads', blurb: 'Ad creatives and keywords', Icon: GoogleAdsMark },
 ];
+
+export function PlatformMarksGrid() {
+  return (
+    <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+      {PLATFORM_MARKS.map(({ name, blurb, Icon: Mark }) => (
+        <div key={name} className="flex flex-col items-center rounded-[22px] bg-white px-3 py-6 text-center shadow-[0_14px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <Mark className="h-12 w-12" />
+          <p className="mt-3 text-[14px] font-bold text-slate-800">{name}</p>
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">{blurb}</p>
+        </div>
+      ))}
+    </div>
+  );
+}

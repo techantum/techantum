@@ -2,7 +2,7 @@ import Link from 'next/link';
 import EmailCapture from '@/components/marketing/EmailCapture';
 import Faq from '@/components/marketing/Faq';
 import Hero from '@/components/marketing/Hero';
-import { PLATFORM_MARKS } from '@/components/marketing/BrandIcons';
+import { PlatformMarksGrid } from '@/components/marketing/BrandIcons';
 import Pricing from '@/components/marketing/Pricing';
 import { BTN, COPY, H2, SHELL } from '@/components/marketing/layout';
 import SiteFooter from '@/components/marketing/SiteFooter';
@@ -160,15 +160,7 @@ export default async function LandingPage() {
           <p className={`${COPY} max-w-xl`}>
             {text(platforms, 'description', 'Create platform-based projects and uncover insights from every major channel. Compare content, analyze what’s working, and find new opportunities across the entire social media landscape.')}
           </p>
-          <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-            {PLATFORM_MARKS.map(({ name, blurb, Icon: Mark }) => (
-              <div key={name} className="flex flex-col items-center rounded-[22px] bg-white px-3 py-6 text-center shadow-[0_14px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-                <Mark className="h-12 w-12" />
-                <p className="mt-3 text-[14px] font-bold text-slate-800">{name}</p>
-                <p className="mt-1 text-[11px] leading-4 text-slate-500">{blurb}</p>
-              </div>
-            ))}
-          </div>
+          <PlatformMarksGrid />
         </div>
       </section>
 

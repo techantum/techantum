@@ -13,7 +13,7 @@ export const PARTNER_NAV_ITEMS = [
   {
     key: 'youtube-research',
     href: '/partner/youtube-research',
-    label: 'YouTube Research',
+    label: 'Business Research',
     icon: 'PlayCircleIcon',
     area: 'sidebar',
   },

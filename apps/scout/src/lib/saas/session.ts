@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { isSuperAdmin, normalizeSubscriberRole, type PlatformRole } from '@/lib/admin/roles';
+import { isPlatformAdmin, isStaffAdmin, isSubscriberAdmin, isSuperAdmin, normalizeSubscriberRole, type PlatformRole } from '@/lib/admin/roles';
+import { homePathForRole, roleMatchesPortal, type AuthPortal } from '@/lib/saas/portals';
 import { publicAppUrl } from '@/lib/brand';
 import { q } from '@/lib/finance/db';
 import { createClient } from '@supabase/supabase-js';
@@ -131,13 +132,13 @@ export async function getPlatformActor(): Promise<PlatformActor | null> {
     [userId]
   ).catch(() => ({ rows: [] as { name: string | null; avatar_url: string | null }[] }));
   const stored = profile.rows[0];
-  if (admin && isSuperAdmin(admin.role)) {
+  if (admin && (isSuperAdmin(admin.role) || isPlatformAdmin(admin.role))) {
     return {
       userId,
       email: admin.email,
       name: stored?.name?.trim() || admin.email.split('@')[0],
       avatarUrl: stored?.avatar_url || null,
-      role: 'SUPER_ADMIN',
+      role: isSuperAdmin(admin.role) ? 'SUPER_ADMIN' : 'ADMIN',
       account: null,
     };
   }
@@ -203,16 +204,16 @@ export function websitePath() {
   return '/?buy=1';
 }
 
-export function afterAuthPath(packageId?: string | null, account?: SaasAccount | null) {
+export function afterAuthPath(packageId?: string | null, account?: SaasAccount | null, role?: PlatformRole | string | null) {
+  if (isStaffAdmin(role)) return homePathForRole(role);
   if (packageId) return trialPath(packageId);
-  if (!account) return '/home';
-  return websitePath();
+  return homePathForRole(role);
 }
 
 export async function requirePlatformActor() {
   const actor = await getPlatformActor();
   if (!actor) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  if (actor.account && !accountIsActive(actor.account) && !isSuperAdmin(actor.role)) {
+  if (actor.account && !accountIsActive(actor.account) && !isStaffAdmin(actor.role)) {
     return { error: NextResponse.json({ error: 'Your subscription is not active. Open Billing to continue.' }, { status: 402 }) };
   }
   return actor;
@@ -287,24 +288,77 @@ export async function createSaasAccount(input: { email: string; password: string
     userId = existing.id;
   }
   const admin = await lookupAdmin(userId);
-  if (admin && isSuperAdmin(admin.role)) throw new Error('Super Admin accounts sign in from the login page. They are not subscriber workspaces.');
+  if (admin && (isSuperAdmin(admin.role) || isPlatformAdmin(admin.role))) {
+    throw new Error('Staff accounts sign in from Super Admin or Platform Admin login.');
+  }
   return provisionWorkspace(userId, email, name, input.packageId);
 }
 
-export async function loginSaasAccount(email: string, password: string, packageId?: string | null) {
+function roleFromAdminAndAccount(adminRole: string | null | undefined, memberRole: string | null | undefined): PlatformRole {
+  if (isSuperAdmin(adminRole)) return 'SUPER_ADMIN';
+  if (isPlatformAdmin(adminRole)) return 'ADMIN';
+  return normalizeSubscriberRole(memberRole);
+}
+
+export async function loginSaasAccount(email: string, password: string, packageId?: string | null, portal: AuthPortal = 'subscriber') {
   const user = await passwordSignIn(email.trim().toLowerCase(), password);
   const admin = await lookupAdmin(user.id);
-  if (admin && isSuperAdmin(admin.role)) return { userId: user.id, account: null as SaasAccount | null };
+  if (admin && (isSuperAdmin(admin.role) || isPlatformAdmin(admin.role))) {
+    const role = roleFromAdminAndAccount(admin.role, null);
+    if (!roleMatchesPortal(role, portal)) {
+      throw new Error(`This account signs in at ${isSuperAdmin(role) ? '/superadmin/login' : '/admin/login'}.`);
+    }
+    return { userId: user.id, account: null as SaasAccount | null, role };
+  }
   const name = String(user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0]);
+  if (portal === 'user') {
+    const member = await q<SaasAccount & { member_role: string }>(
+      undefined,
+      `SELECT a.*, m.role AS member_role FROM saas_accounts a JOIN saas_memberships m ON m.account_id=a.id WHERE m.user_id=$1 LIMIT 1`,
+      [user.id],
+    );
+    if (!member.rows[0]) throw new Error('No Subscriber User account was found. Ask a Subscriber Admin to invite you.');
+    const role = roleFromAdminAndAccount(null, member.rows[0].member_role);
+    if (!roleMatchesPortal(role, portal)) throw new Error('Subscriber Admin accounts sign in at /subscriber/login.');
+    const row = member.rows[0];
+    return {
+      userId: user.id,
+      account: {
+        id: row.id,
+        owner_user_id: row.owner_user_id,
+        name: row.name,
+        email: row.email,
+        plan: row.plan,
+        package_id: row.package_id,
+        contracted_price_monthly: row.contracted_price_monthly == null ? null : Number(row.contracted_price_monthly),
+        status: row.status,
+        trial_ends_at: row.trial_ends_at,
+        current_period_end: row.current_period_end,
+        razorpay_subscription_id: row.razorpay_subscription_id,
+        pending_package_id: row.pending_package_id,
+      },
+      role,
+    };
+  }
   const provisioned = await provisionWorkspace(user.id, user.email || email.trim().toLowerCase(), name, packageId);
-  return { userId: user.id, account: provisioned.account };
+  const membership = await q<{ role: string }>(undefined, `SELECT role FROM saas_memberships WHERE user_id=$1 LIMIT 1`, [user.id]);
+  const role = roleFromAdminAndAccount(null, membership.rows[0]?.role);
+  if (!roleMatchesPortal(role, portal)) {
+    throw new Error(isSubscriberAdmin(role)
+      ? 'Subscriber Admin accounts sign in at /subscriber/login.'
+      : 'Subscriber User accounts sign in at /user/login.');
+  }
+  return { userId: user.id, account: provisioned.account, role };
 }
 
 export async function completeOAuthLogin(input: { userId: string; email: string; name: string; packageId?: string | null }) {
   const admin = await lookupAdmin(input.userId);
-  if (admin && isSuperAdmin(admin.role)) return { userId: input.userId, account: null as SaasAccount | null };
+  if (admin && (isSuperAdmin(admin.role) || isPlatformAdmin(admin.role))) {
+    throw new Error('Staff accounts sign in with email from Super Admin or Platform Admin login.');
+  }
   const provisioned = await provisionWorkspace(input.userId, input.email, input.name || input.email.split('@')[0], input.packageId);
-  return { userId: input.userId, account: provisioned.account };
+  const membership = await q<{ role: string }>(undefined, `SELECT role FROM saas_memberships WHERE user_id=$1 LIMIT 1`, [input.userId]);
+  return { userId: input.userId, account: provisioned.account, role: roleFromAdminAndAccount(null, membership.rows[0]?.role) };
 }
 
 export async function setSaasPlan(accountId: string, plan: string) {

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       ok: true,
       accountId: created.account.id,
-      next: afterAuthPath(body.packageId ? String(body.packageId) : created.account.pending_package_id, created.account),
+      next: afterAuthPath(body.packageId ? String(body.packageId) : created.account.pending_package_id, created.account, 'subscriber_admin'),
     });
     await setSaasCookie(response, created.userId);
     return response;

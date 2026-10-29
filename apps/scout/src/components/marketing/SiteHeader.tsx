@@ -137,7 +137,7 @@ export default function SiteHeader({
             </div>
           ) : (
             <div className="hidden items-center gap-2.5 lg:flex">
-              <Link href="/login" className="btn-secondary">
+              <Link href="/subscriber/login" className="btn-secondary">
                 Sign in
               </Link>
               <Link href="/signup" className="btn-primary">
@@ -158,7 +158,7 @@ export default function SiteHeader({
             ))}
             {signedIn ? null : (
               <>
-                <Link href="/login" className="btn-secondary" onClick={() => setOpen(false)}>
+                <Link href="/subscriber/login" className="btn-secondary" onClick={() => setOpen(false)}>
                   Sign in
                 </Link>
                 <Link href="/signup" className="btn-primary text-center" onClick={() => setOpen(false)}>

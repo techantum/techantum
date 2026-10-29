@@ -73,7 +73,7 @@ export default function ChannelDraftForm({
     }
     setPending('save');
     try {
-      await overlay.run(own ? `Connecting your ${copy.entity}…` : 'Adding competitor…', async () => {
+      await overlay.run(own ? `Connecting your ${copy.entity}…` : `Adding competitor ${copy.entity}…`, async () => {
         const saved = await yt(`projects/${projectId}/channels`, { method: 'POST', body: JSON.stringify({ input: pageInputFor(preview), relationship, page: preview }) });
         setPreview(null);
         setInput('');
@@ -123,10 +123,19 @@ export default function ChannelDraftForm({
           )}
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-slate-900">{preview.channelName}</p>
-            <p className="text-slate-500">{preview.channelHandle ? `@${String(preview.channelHandle).replace(/^@/, '')}` : preview.youtubeChannelId} · {metric(preview.subscriberCount)} {copy.entity === 'page' ? 'followers' : 'subscribers'}</p>
+            <p className="text-slate-500">
+              {[
+                preview.channelHandle ? `@${String(preview.channelHandle).replace(/^@/, '')}` : preview.youtubeChannelId,
+                preview.subscriberCount != null ? `${metric(preview.subscriberCount)} ${copy.entity === 'page' ? 'followers' : 'subscribers'}` : '',
+              ].filter(Boolean).join(' · ')}
+            </p>
           </div>
-          <AdminButton variant="primary" loading={pending === 'save'} onClick={save}>{own ? `Save ${copy.entity}` : 'Save'}</AdminButton>
+          {!modal ? (
+            <AdminButton variant="primary" loading={pending === 'save'} onClick={save}>{own ? `Save ${copy.entity}` : 'Save'}</AdminButton>
+          ) : null}
         </div>
+      ) : modal ? (
+        !own ? <p className="mt-3 text-xs leading-5 text-slate-400">{competitorCount} of {competitorLimit} competitors in this project.</p> : null
       ) : (
         <p className="mt-3 text-xs leading-5 text-slate-400">
           {own

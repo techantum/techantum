@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import { ProjectStatusBadge } from '@/components/admin/youtube/ProjectMarks';
@@ -9,11 +9,12 @@ import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import { partnerBtnPrimary, partnerBtnSecondary } from '@/components/partner/PartnerUi';
 import PageLoader from '@/components/admin/youtube/PageLoader';
-import { YOUTUBE_PROJECT_PAGES, youtubeNestedLabel, youtubeWorkspaceTab } from '@/lib/youtube/workspace-nav';
+import { asPlatform, canonicalizeResearchPath, researchContentHref, researchPageBaseFromPath } from '@/lib/research/platforms';
+import { researchProjectPages, youtubeNestedLabel, youtubeWorkspaceTab } from '@/lib/youtube/workspace-nav';
 
 const YoutubeAccessContext = createContext<string[]>([]);
 const YoutubeProjectContext = createContext('');
-const YoutubePlatformContext = createContext('youtube');
+const YoutubePlatformContext = createContext('');
 const YoutubeRailSetContext = createContext<(node: ReactNode | null) => void>(() => undefined);
 
 export function useYoutubeRailActions(node: ReactNode | null) {
@@ -35,7 +36,7 @@ export function allow(access: string[], key: string) {
 export function youtubePortalHeader(): Record<string, string> {
   if (typeof window === 'undefined') return {};
   const path = window.location.pathname;
-  const portal = path.startsWith('/partner/') ? 'partner' : path.startsWith('/youtube') || path.startsWith('/leads') || path.startsWith('/home') || path.startsWith('/billing') ? 'saas' : 'admin';
+  const portal = path.startsWith('/partner/') ? 'partner' : path.startsWith('/youtube') || path.startsWith('/projects') || path.startsWith('/facebook') || path.startsWith('/instagram') || path.startsWith('/linkedin') || path.startsWith('/leads') || path.startsWith('/home') || path.startsWith('/superadmin') || path.startsWith('/admin') || path.startsWith('/billing') ? 'saas' : 'admin';
   return { 'x-techantum-portal': portal };
 }
 
@@ -57,8 +58,8 @@ export async function yt(path: string, init?: RequestInit) {
   return body;
 }
 
-export function youtubePageBase(_pathname: string) {
-  return '/youtube';
+export function youtubePageBase(pathname: string) {
+  return researchPageBaseFromPath(pathname);
 }
 
 export function useYoutubePageBase() {
@@ -91,7 +92,9 @@ export function useProjectId() {
 }
 
 export function useProjectPlatform() {
-  return useContext(YoutubePlatformContext) || 'youtube';
+  const fromFrame = useContext(YoutubePlatformContext);
+  const pathname = usePathname() || '';
+  return fromFrame || asPlatform(researchPageBaseFromPath(pathname).replace(/^\//, ''));
 }
 
 export function ProjectRequired({ children }: { children: React.ReactNode }) {
@@ -104,7 +107,7 @@ export function ProjectRequired({ children }: { children: React.ReactNode }) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
         <p className="text-sm text-slate-600">Choose a research project to continue.</p>
-        <Link href={`${base}/projects`} className={`mt-3 ${partnerBtnPrimary}`}>Open projects</Link>
+        <Link href="/projects" className={`mt-3 ${partnerBtnPrimary}`}>Open projects</Link>
       </div>
     );
   }
@@ -148,6 +151,8 @@ function isWorkspace(pathname: string) {
   if (
     pathname === base
     || pathname.startsWith(`${base}/settings`)
+    || pathname === '/projects'
+    || pathname.startsWith('/projects/new')
     || pathname === `${base}/projects`
     || pathname.startsWith(`${base}/projects/new`)
     || pathname.startsWith(`${base}/performance`)
@@ -159,11 +164,12 @@ function isWorkspace(pathname: string) {
   ) return false;
   const section = sectionOf(pathname);
   if (section === 'projects' && pathname.endsWith('/edit')) return true;
-  return ['overview', 'channels', 'import', 'videos', 'analysis', 'compare', 'channel-compare', 'reports'].includes(section);
+  return ['overview', 'channels', 'import', 'videos', 'posts', 'analysis', 'compare', 'channel-compare', 'reports'].includes(section);
 }
 
 export default function YoutubeFrame({ children, initialAccess }: { children: React.ReactNode; initialAccess?: string[] }) {
   const pathname = usePathname() || '';
+  const router = useRouter();
   const searchParams = useSearchParams();
   const base = youtubePageBase(pathname);
   const [access, setAccess] = useState<string[] | null>(initialAccess ?? null);
@@ -223,10 +229,17 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
     };
   }, [pathname]);
 
+  useEffect(() => {
+    if (!workspace || !project?.platform) return;
+    const search = searchParams?.toString() ? `?${searchParams.toString()}` : '';
+    const next = canonicalizeResearchPath(pathname, project.platform, search);
+    if (next) router.replace(next);
+  }, [workspace, project?.platform, pathname, searchParams, router]);
+
   const activeTab = youtubeWorkspaceTab(crumbSection);
-  const nestedLabel = youtubeNestedLabel(section);
+  const nestedLabel = youtubeNestedLabel(section, project?.platform || researchPageBaseFromPath(pathname).replace(/^\//, ''));
   const nestedBack = section === 'channels' || section === 'import' || section === 'compare'
-    ? `${base}/videos`
+    ? researchContentHref(base)
     : section === 'channel-compare' && searchParams?.get('id')
       ? `${base}/channel-compare`
       : pathname.startsWith(`${base}/reports/`)
@@ -262,13 +275,13 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
                   <Icon name="LightBulbIcon" size={16} /> Analyse results
                 </Link>
               )}
-              <Link href={nestedBack || `${base}/projects`} className={partnerBtnSecondary}>
+              <Link href={nestedBack || '/projects'} className={partnerBtnSecondary}>
                 <Icon name="ArrowLeftIcon" size={16} /> {nestedBack ? 'Back' : 'Back to projects'}
               </Link>
             </div>
           </div>
           <nav className="mt-4 flex flex-nowrap items-end gap-6 overflow-x-auto overflow-y-hidden" aria-label="Project sections">
-            {YOUTUBE_PROJECT_PAGES.map((item, index) => {
+            {researchProjectPages(project?.platform || base).map((item, index) => {
               const active = activeTab === item.section && !nestedLabel;
               const parent = activeTab === item.section && nestedLabel;
               return (
@@ -289,12 +302,12 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
       ) : null}
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {access && !access.includes('youtube_research.view') ? (
-        <AdminAlert>You do not have YouTube Research access. Ask a Super Admin to grant it.</AdminAlert>
+        <AdminAlert>You do not have Business Research access. Ask a Super Admin to grant it.</AdminAlert>
       ) : null}
       {access?.includes('youtube_research.view') ? (
         <YoutubeAccessContext.Provider value={access}>
           <YoutubeProjectContext.Provider value={projectId}>
-            <YoutubePlatformContext.Provider value={project?.platform || 'youtube'}>
+            <YoutubePlatformContext.Provider value={project?.platform || asPlatform(researchPageBaseFromPath(pathname).replace(/^\//, ''))}>
             {workspace ? (
               <YoutubeRailSetContext.Provider value={setRailActions}>
                 <div className="min-w-0">{children}</div>
@@ -306,7 +319,7 @@ export default function YoutubeFrame({ children, initialAccess }: { children: Re
           </YoutubeProjectContext.Provider>
         </YoutubeAccessContext.Provider>
       ) : null}
-      {access === null && !error ? <PageLoader label="Loading YouTube Research…" /> : null}
+      {access === null && !error ? <PageLoader label="Loading Business Research…" /> : null}
     </div>
   );
 }

@@ -65,7 +65,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
       {
         id: 'youtube-research',
         href: '/admin/youtube-research',
-        label: 'YouTube Research',
+        label: 'Business Research',
         icon: 'PlayCircleIcon',
         activePaths: ['/admin/youtube-research'],
         children: [

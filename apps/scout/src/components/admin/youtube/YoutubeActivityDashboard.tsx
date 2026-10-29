@@ -7,6 +7,8 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { ChannelStack, ProjectStatusBadge } from '@/components/admin/youtube/ProjectMarks';
 import { rememberProject, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { PlatformLogo } from '@/components/marketing/BrandIcons';
+import { PLATFORM_COPY, RESEARCH_PLATFORMS, platformCopy, researchOpenHref } from '@/lib/research/platforms';
 import Icon from '@/components/ui/AppIcon';
 import { firstNameFrom, greetingForHour, type HomeProject } from '@/lib/youtube/home-display';
 
@@ -63,6 +65,9 @@ export default function YoutubeActivityDashboard({
 
   const stats = home?.stats || {};
   const projects: HomeProject[] = home?.projects || [];
+  const platformCounts = new Map(
+    (Array.isArray(home?.platforms) ? home.platforms : []).map((row: { id?: string; count?: number }) => [String(row.id || ''), Number(row.count || 0)]),
+  );
   const team = home?.team || [];
   const since = Date.now() - Number(range) * 86400000;
   const recent = useMemo(
@@ -77,7 +82,7 @@ export default function YoutubeActivityDashboard({
 
   const open = (project: HomeProject) => {
     rememberProject(project.id);
-    router.push(`${base}/videos`);
+    router.push(researchOpenHref(project.platform || 'youtube'));
   };
 
   if (loading) return <PageLoader label="Loading dashboard…" />;
@@ -116,11 +121,29 @@ export default function YoutubeActivityDashboard({
         ))}
       </div>
 
+      <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+        <h2 className="font-bricolage text-lg font-semibold text-slate-900">Available platforms</h2>
+        <p className="mt-1 text-sm text-slate-500">Research YouTube, Facebook, Instagram, and LinkedIn from here.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {RESEARCH_PLATFORMS.map((id) => {
+            const copy = PLATFORM_COPY[id];
+            const count = platformCounts.get(id) ?? projects.filter((row) => (row.platform || 'youtube') === id).length;
+            return (
+              <Link key={id} href={`/${id}`} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 hover:border-violet-200 hover:bg-white">
+                <PlatformLogo platform={id} className="h-9 w-9" />
+                <p className="mt-3 font-semibold text-slate-900">{copy.label}</p>
+                <p className="mt-1 text-xs text-slate-500">{count} {count === 1 ? 'project' : 'projects'}</p>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
       <div className="grid gap-3 lg:grid-cols-3">
         {[
-          { href: `${base}/quick-analysis`, title: 'Quick Analysis', copy: 'Compare multiple YouTube videos instantly without creating a project.', icon: 'BoltIcon', tint: 'bg-rose-50 text-rose-500' },
-          { href: `${base}/quick-reports`, title: 'Quick Report', copy: 'Generate and download a comparison report from selected videos.', icon: 'DocumentChartBarIcon', tint: 'bg-sky-50 text-sky-600' },
-          { href: `${base}/projects/new`, title: 'New Project', copy: 'Create a research project to analyse your own channel.', icon: 'PlusIcon', tint: 'bg-violet-50 text-violet-600', hide: !manage },
+          { href: `${base}/quick-analysis`, title: 'Quick Analysis', copy: 'Pick a platform, add video or post URLs, and compare them without a full project.', icon: 'BoltIcon', tint: 'bg-rose-50 text-rose-500' },
+          { href: `${base}/quick-reports`, title: 'Quick Report', copy: 'Pick a platform, add video or post URLs, and download a comparison report.', icon: 'DocumentChartBarIcon', tint: 'bg-sky-50 text-sky-600' },
+          { href: '/projects/new', title: 'New Project', copy: 'Create a research project to analyse your own channel.', icon: 'PlusIcon', tint: 'bg-violet-50 text-violet-600', hide: !manage },
         ].filter((item) => !item.hide).map((item) => (
           <Link key={item.title} href={item.href} className="flex items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm hover:border-violet-200">
             <span className="flex min-w-0 items-start gap-3">
@@ -141,13 +164,14 @@ export default function YoutubeActivityDashboard({
         <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
           <div className="flex items-center justify-between px-5 py-4">
             <h2 className="font-bricolage text-lg font-semibold text-slate-900">Recent Projects</h2>
-            <Link href={`${base}/projects`} className="text-sm font-semibold text-violet-600">View all projects</Link>
+            <Link href="/projects" className="text-sm font-semibold text-violet-600">View all projects</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-2">Project name</th>
+                  <th className="px-5 py-2">Platform</th>
                   <th className="px-5 py-2">Channels</th>
                   <th className="px-5 py-2">Videos</th>
                   <th className="px-5 py-2">Status</th>
@@ -163,6 +187,12 @@ export default function YoutubeActivityDashboard({
                         <span className="truncate">{project.name}</span>
                       </button>
                     </td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-700">
+                        <PlatformLogo platform={project.platform} className="h-5 w-5" />
+                        {platformCopy(project.platform).label}
+                      </span>
+                    </td>
                     <td className="px-5 py-3">{1 + Number(project.competitor_count || 0)}</td>
                     <td className="px-5 py-3">{project.video_count}</td>
                     <td className="px-5 py-3"><ProjectStatusBadge status={project.status} /></td>
@@ -172,7 +202,7 @@ export default function YoutubeActivityDashboard({
                   </tr>
                 ))}
                 {!recent.length ? (
-                  <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-500">No projects in this range yet.</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No projects in this range yet.</td></tr>
                 ) : null}
               </tbody>
             </table>

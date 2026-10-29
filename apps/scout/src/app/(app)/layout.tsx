@@ -1,17 +1,19 @@
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Shell from '@/components/Shell';
 import TrialGuard from '@/components/TrialGuard';
 import { FEATURE_YOUTUBE, listFeatures, navigationFor, resolveAccess } from '@/lib/saas/catalog';
+import { loginPathFromPathname } from '@/lib/saas/portals';
 import { getPlatformActor, trialPath } from '@/lib/saas/session';
 import { getRevealeoSite } from '@/lib/cms/site';
-import { isSuperAdmin } from '@/lib/admin/roles';
+import { isStaffAdmin, isSuperAdmin } from '@/lib/admin/roles';
 import { canUseHookooh } from '@/lib/hookooh/access';
 import { displayCompanyName } from '@/lib/brand';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
-  if (!actor) redirect('/login');
-  if (actor.account?.status === 'pending_autopay' && !isSuperAdmin(actor.role)) {
+  if (!actor) redirect(loginPathFromPathname((await headers()).get('x-pathname') || ''));
+  if (actor.account?.status === 'pending_autopay' && !isStaffAdmin(actor.role)) {
     redirect(trialPath(actor.account.pending_package_id));
   }
   const [access, catalog, site] = await Promise.all([
@@ -20,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getRevealeoSite(),
   ]);
   const { branding } = site;
-  const pending = Boolean(actor.account && actor.account.status === 'pending_autopay' && !isSuperAdmin(actor.role));
+  const pending = Boolean(actor.account && actor.account.status === 'pending_autopay' && !isStaffAdmin(actor.role));
   return (
     <>
     <TrialGuard pending={pending} packageId={actor.account?.pending_package_id} />

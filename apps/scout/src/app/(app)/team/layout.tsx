@@ -6,7 +6,7 @@ import { getPlatformActor } from '@/lib/saas/session';
 
 export default async function TeamLayout({ children }: { children: React.ReactNode }) {
   const actor = await getPlatformActor();
-  if (!actor) redirect('/login');
+  if (!actor) redirect('/subscriber/login');
   if (isSuperAdmin(actor.role)) redirect('/subscribers');
   if (!canManageTeam(actor.role)) redirect('/home');
   const access = await resolveAccess(actor.account, actor.role);

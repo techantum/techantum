@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { SHELL } from './layout';
 import type { RevealeoBranding } from '@/lib/cms/defaults';
 import { APP_NAME } from '@/lib/brand';
+import { PlatformLogo } from '@/components/marketing/BrandIcons';
 import SafeImage from '@/components/ui/SafeImage';
 
 const COLS = [
@@ -56,11 +57,11 @@ const COLS = [
 
 export default function SiteFooter({ branding }: { branding?: RevealeoBranding | null }) {
   const social = [
-    { href: branding?.youtube_url, mark: '▶' },
-    { href: branding?.instagram_url, mark: '◎' },
-    { href: branding?.facebook_url, mark: 'f' },
-    { href: branding?.linkedin_url, mark: 'in' },
-    { href: branding?.twitter_url, mark: '𝕏' },
+    { href: branding?.youtube_url, platform: 'youtube' },
+    { href: branding?.instagram_url, platform: 'instagram' },
+    { href: branding?.facebook_url, platform: 'facebook' },
+    { href: branding?.linkedin_url, platform: 'linkedin' },
+    { href: branding?.twitter_url, platform: 'twitter' },
   ].filter((item) => item.href);
   return (
     <footer className="bg-white text-slate-500">
@@ -95,14 +96,20 @@ export default function SiteFooter({ branding }: { branding?: RevealeoBranding |
             </div>
           ) : null}
           <div className="mt-4 flex gap-3 text-slate-400">
-            {(social.length ? social : [{ href: '#', mark: '▶' }, { href: '#', mark: '◎' }, { href: '#', mark: 'f' }, { href: '#', mark: 'in' }, { href: '#', mark: '𝕏' }]).map((item) =>
+            {(social.length ? social : [
+              { href: '#', platform: 'youtube' },
+              { href: '#', platform: 'instagram' },
+              { href: '#', platform: 'facebook' },
+              { href: '#', platform: 'linkedin' },
+              { href: '#', platform: 'twitter' },
+            ]).map((item) =>
               item.href && item.href !== '#' ? (
-                <a key={item.mark} href={item.href} target="_blank" rel="noreferrer" className="text-sm font-semibold hover:text-slate-700">
-                  {item.mark}
+                <a key={item.platform} href={item.href} target="_blank" rel="noreferrer" className="inline-flex" aria-label={item.platform}>
+                  <PlatformLogo platform={item.platform} className="h-8 w-8" />
                 </a>
               ) : (
-                <span key={item.mark} className="text-sm font-semibold">
-                  {item.mark}
+                <span key={item.platform} className="inline-flex">
+                  <PlatformLogo platform={item.platform} className="h-8 w-8" />
                 </span>
               )
             )}

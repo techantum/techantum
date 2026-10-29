@@ -7,7 +7,9 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { DATE_PRESETS, downloadResearchReport } from '@/components/admin/youtube/research-ui';
-import { ProjectRequired, useProjectId, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { FilterMenu } from '@/components/admin/youtube/FilterMenu';
+import { ProjectRequired, useProjectId, useProjectPlatform, useYoutubePageBase, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { platformCopy } from '@/lib/research/platforms';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 
@@ -40,6 +42,7 @@ function formatWhen(value: unknown) {
 
 function Reports() {
   const projectId = useProjectId();
+  const copy = platformCopy(useProjectPlatform());
   const base = useYoutubePageBase();
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [q, setQ] = useState('');
@@ -151,7 +154,6 @@ function Reports() {
 
   if (!ready && !error) return <PageLoader label="Loading reports…" />;
 
-  const filterClass = 'h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700';
   const menuRow = rows.find((row) => String(row.id) === menu);
 
   return (
@@ -201,20 +203,35 @@ function Reports() {
             <Icon name="MagnifyingGlassIcon" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" placeholder="Enter report name" value={q} onChange={(event) => setQ(event.target.value)} />
           </div>
-          <select className={filterClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="all">All status</option>
-            <option value="ready">Ready</option>
-            <option value="generating">Generating</option>
-            <option value="failed">Failed</option>
-            <option value="archived">Archived</option>
-          </select>
-          <select className={filterClass} value={range} onChange={(event) => setRange(event.target.value)}>
-            {DATE_PRESETS.map((item) => <option key={item.id} value={item.id}>{item.id === 'all' ? 'All dates' : item.label}</option>)}
-          </select>
-          <select className={filterClass} value={sort} onChange={(event) => setSort(event.target.value)}>
-            <option value="newest">Sort by: Newest first</option>
-            <option value="oldest">Sort by: Oldest first</option>
-          </select>
+          <FilterMenu
+            label="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            allLabel="All status"
+            options={[
+              { id: 'all', label: 'All status' },
+              { id: 'ready', label: 'Ready' },
+              { id: 'generating', label: 'Generating' },
+              { id: 'failed', label: 'Failed' },
+              { id: 'archived', label: 'Archived' },
+            ]}
+          />
+          <FilterMenu
+            label="Dates"
+            value={range}
+            onChange={setRange}
+            allLabel="All dates"
+            options={DATE_PRESETS.map((item) => ({ id: item.id, label: item.id === 'all' ? 'All dates' : item.label }))}
+          />
+          <FilterMenu
+            label="Sort"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { id: 'newest', label: 'Newest first' },
+              { id: 'oldest', label: 'Oldest first' },
+            ]}
+          />
         </div>
 
         <ul className="divide-y divide-slate-50">
@@ -233,10 +250,10 @@ function Reports() {
                   <p className="mt-0.5 text-xs text-slate-400">Based on {row.analysis_name || typeLabel(row.report_type)}</p>
                 </div>
                 {channels ? (
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Comparing {channels} {channels === 1 ? 'channel' : 'channels'}</span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Comparing {channels} {channels === 1 ? copy.entity : copy.entityPlural}</span>
                 ) : null}
                 <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                  <Icon name="PlayCircleIcon" size={14} /> {videos} {videos === 1 ? 'video' : 'videos'}
+                  <Icon name="PlayCircleIcon" size={14} /> {videos} {videos === 1 ? copy.content : copy.contentPlural}
                 </span>
                 <span className="min-w-[6.5rem] text-right text-xs text-slate-500">
                   <span className="block">{typeof when === 'object' ? when.day : when}</span>

@@ -1,7 +1,7 @@
-import { isSuperAdmin, isSubscriberAdmin, isSubscriberUser } from '@/lib/admin/roles';
+import { isPlatformAdmin, isSuperAdmin, isSubscriberAdmin, isSubscriberUser } from '@/lib/admin/roles';
 
 export function canUseHookooh(role?: string | null) {
-  return isSuperAdmin(role) || isSubscriberAdmin(role) || isSubscriberUser(role);
+  return isSuperAdmin(role) || isPlatformAdmin(role) || isSubscriberAdmin(role) || isSubscriberUser(role);
 }
 
 export function canManageHookoohKnowledge(role?: string | null) {

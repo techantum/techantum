@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { isSuperAdmin } from '@/lib/admin/roles';
+import { isStaffAdmin } from '@/lib/admin/roles';
+import { homePathForRole } from '@/lib/saas/portals';
 import TrialCheckout from '@/components/billing/TrialCheckout';
 import AuthShell from '@/components/marketing/AuthShell';
 import { getPackageById, listPackages } from '@/lib/saas/catalog';
@@ -7,12 +8,12 @@ import { accountIsActive, getPlatformActor } from '@/lib/saas/session';
 
 export default async function TrialPage({ searchParams }: { searchParams: Promise<{ package?: string; error?: string }> }) {
   const actor = await getPlatformActor();
-  if (!actor) redirect('/login');
-  if (isSuperAdmin(actor.role)) redirect('/home');
+  if (!actor) redirect('/subscriber/login');
+  if (isStaffAdmin(actor.role)) redirect(homePathForRole(actor.role));
   const params = await searchParams;
   const requested = params.package || actor.account?.pending_package_id || '';
   if (actor.account && accountIsActive(actor.account) && (!requested || requested === actor.account.package_id)) {
-    redirect('/home');
+    redirect(homePathForRole(actor.role));
   }
   const chosen = requested ? await getPackageById(requested) : null;
   const packages = chosen ? [chosen] : await listPackages({ activeOnly: true });

@@ -1,3 +1,5 @@
+import { researchOpenHref, researchPageBase } from '@/lib/research/platforms';
+
 export type ProjectNextStep = {
   key: 'own' | 'competitors' | 'import' | 'analysis' | 'report' | 'ready';
   label: string;
@@ -74,26 +76,28 @@ export function nextStepFor(row: {
   analysis_count?: number;
   report_count?: number;
 }): ProjectNextStep {
+  const platform = row.platform || 'youtube';
+  const research = researchOpenHref(platform);
   if (row.status === 'completed' || row.status === 'archived') {
-    return { key: 'ready', label: 'Completed', href: `/videos`, action: null, progress: 6 };
+    return { key: 'ready', label: 'Completed', href: research, action: null, progress: 6 };
   }
-  const page = String(row.platform || 'youtube') !== 'youtube';
+  const page = String(platform) !== 'youtube';
   if (!row.own_youtube_channel_id) {
-    return { key: 'own', label: page ? 'Connect your page' : 'Connect your channel', href: `/channels?from=research&add=own`, action: 'Connect', progress: 1 };
+    return { key: 'own', label: page ? 'Connect your page' : 'Connect your channel', href: `${researchPageBase(platform)}/channels?from=research&add=own`, action: 'Connect', progress: 1 };
   }
   if (Number(row.competitor_count || 0) < 1) {
-    return { key: 'competitors', label: page ? 'Add competitor pages' : 'Add competitors', href: `/channels?from=research&add=competitor`, action: 'Add', progress: 2 };
+    return { key: 'competitors', label: page ? 'Add competitor pages' : 'Add competitors', href: `${researchPageBase(platform)}/channels?from=research&add=competitor`, action: 'Add', progress: 2 };
   }
   if (Number(row.video_count || 0) < 1) {
-    return { key: 'import', label: page ? 'Import posts' : 'Import videos', href: `/videos`, action: 'Import', progress: 3 };
+    return { key: 'import', label: page ? 'Import posts' : 'Import videos', href: research, action: 'Import', progress: 3 };
   }
   if (Number(row.analysis_count || 0) < 1) {
-    return { key: 'analysis', label: 'Run analysis', href: `/videos`, action: 'Analyse', progress: 4 };
+    return { key: 'analysis', label: 'Run analysis', href: research, action: 'Analyse', progress: 4 };
   }
   if (Number(row.report_count || 0) < 1) {
-    return { key: 'report', label: 'Generate report', href: `/videos`, action: 'Generate', progress: 5 };
+    return { key: 'report', label: 'Generate report', href: research, action: 'Generate', progress: 5 };
   }
-  return { key: 'ready', label: 'Research', href: `/videos`, action: null, progress: 6 };
+  return { key: 'ready', label: 'Research', href: research, action: null, progress: 6 };
 }
 
 export function presentListedProject(row: Record<string, any>): HomeProject {

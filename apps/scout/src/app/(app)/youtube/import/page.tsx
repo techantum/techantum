@@ -8,13 +8,14 @@ import AdminButton from '@/components/admin/AdminButton';
 import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import PageLoader from '@/components/admin/youtube/PageLoader';
 import { ProjectRequired, useProjectId, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
+import { researchContentHref } from '@/lib/research/platforms';
 import { partnerBtnPrimary } from '@/components/partner/PartnerUi';
 
 function ImportScreen() {
   const projectId = useProjectId();
   const base = useYoutubePageBase();
   const search = useSearchParams();
-  const back = useMemo(() => <Link className={partnerBtnPrimary} href={`${base}/videos`}>Done</Link>, [base]);
+  const back = useMemo(() => <Link className={partnerBtnPrimary} href={researchContentHref(base)}>Done</Link>, [base]);
   useYoutubeRailActions(back);
   const preset = search?.get('channel') || '';
   const [channels, setChannels] = useState<Record<string, any>[]>([]);

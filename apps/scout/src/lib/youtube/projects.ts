@@ -1,12 +1,12 @@
 import { cache } from 'react';
 import { q, withFinanceTx } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
-import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, parseYoutubeVideoIds, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
+import { categoryLabel, contentLabel, isPaidPlacement, lengthLabel, savedThumbnailUrl, SHORT_MAX_SECONDS, WATCH_HOURS_NOTE, YOUTUBE_METRIC_NOTICE, youtubeThumbUrl } from './parse';
 import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, importVideosByUrls, performanceSummary, startImport } from './service';
 import { presentListedProject } from './home-display';
 import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
-import { asPlatform } from '../research/platforms';
+import { asPlatform, FACEBOOK_CONTENT_FILTERS, FACEBOOK_PLACEMENT_FILTERS, parseContentLinks, platformCopy, titleCase } from '../research/platforms';
 import { MAX_PROJECT_COMPETITORS } from './workspace-nav';
 
 export const LEGACY_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';
@@ -324,6 +324,10 @@ const SHORT_MATCH = `(
 
 const PAID_MATCH = `(
   v.has_paid_product_placement IS TRUE
+  OR UPPER(COALESCE(v.category_id, '')) IN ('AD', 'BOOSTED')
+  OR UPPER(COALESCE(v.public_details->>'media_type', '')) IN ('AD', 'BOOSTED')
+  OR v.youtube_video_id ILIKE '%:ad:%'
+  OR v.youtube_video_id ILIKE '%:adlib:%'
   OR EXISTS (
     SELECT 1 FROM unnest(COALESCE(v.tags, ARRAY[]::text[])) tag
     WHERE lower(btrim(tag)) IN ('ad', '#ad', 'sponsored', '#sponsored', 'paidpromotion', 'paid promotion')
@@ -357,17 +361,22 @@ function videoWhere(params: VideoQuery) {
     values.push(params.topicId);
     where.push(`r.topic_id=$${values.length}`);
   }
-  if (params.tag?.trim()) {
-    values.push(`%${params.tag.trim()}%`);
-    where.push(`${fresh} AND EXISTS (SELECT 1 FROM unnest(v.tags) tag WHERE tag ILIKE $${values.length})`);
+  const tags = String(params.tag || '').split(',').map((item) => item.trim()).filter(Boolean);
+  if (tags.length) {
+    const tagClauses = tags.map((tag) => {
+      values.push(`%${tag}%`);
+      return `EXISTS (SELECT 1 FROM unnest(v.tags) tag WHERE tag ILIKE $${values.length})`;
+    });
+    where.push(`${fresh} AND (${tagClauses.join(' OR ')})`);
   }
   if (params.videoIds?.length) {
     values.push(params.videoIds);
     where.push(`v.id = ANY($${values.length}::uuid[])`);
   }
-  if (params.categoryId) {
-    values.push(params.categoryId);
-    where.push(`${fresh} AND v.category_id=$${values.length}`);
+  const categories = String(params.categoryId || '').split(',').map((item) => item.trim()).filter(Boolean);
+  if (categories.length) {
+    values.push(categories);
+    where.push(`${fresh} AND v.category_id = ANY($${values.length}::text[])`);
   }
   if (params.placement === 'paid') where.push(PAID_MATCH);
   if (params.placement === 'organic') where.push(`NOT ${PAID_MATCH}`);
@@ -393,19 +402,39 @@ function videoWhere(params: VideoQuery) {
   range('like_count', params.minLikes, params.maxLikes);
   range('comment_count', params.minComments, params.maxComments);
   range('duration_seconds', params.minDuration, params.maxDuration);
-  if (params.content === 'short') where.push(`${fresh} AND ${SHORT_MATCH}`);
-  if (params.content === 'video') where.push(`${fresh} AND NOT ${SHORT_MATCH}`);
+  const kinds = String(params.content || '').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
+  if (kinds.length) {
+    const clauses = kinds.map((kind) => {
+      if (kind === 'short') return `${fresh} AND ${SHORT_MATCH}`;
+      if (kind === 'ad') return PAID_MATCH;
+      if (['post', 'photo', 'reel', 'link', 'boosted'].includes(kind)) {
+        values.push(kind.toUpperCase());
+        return `${fresh} AND UPPER(COALESCE(v.category_id, v.public_details->>'media_type', '')) = $${values.length}`;
+      }
+      if (kind === 'video') {
+        return `${fresh} AND CASE WHEN c.platform = 'youtube' THEN NOT ${SHORT_MATCH} ELSE UPPER(COALESCE(v.category_id, v.public_details->>'media_type', '')) = 'VIDEO' END`;
+      }
+      return '';
+    }).filter(Boolean);
+    if (clauses.length) where.push(`(${clauses.join(' OR ')})`);
+  }
   return { values, where: where.join(' AND '), sort: SORTS[params.sort || ''] || SORTS.published_at };
 }
 
 function shapeVideo(row: Record<string, unknown>) {
   const video = presentVideo(row);
+  const platform = asPlatform(row.channel_platform);
+  const details = (video.public_details || row.public_details || {}) as Record<string, unknown>;
+  const mediaType = String(details.media_type || '').toUpperCase();
+  const copy = platformCopy(platform);
   return {
     ...video,
     id: row.id,
     relationship: row.relationship,
     category_label: categoryLabel(video.category_id),
-    content_label: contentLabel(video.duration_seconds as number | null, video.title as string | null, Array.isArray(video.tags) ? video.tags as string[] : null),
+    content_label: platform === 'youtube'
+      ? contentLabel(video.duration_seconds as number | null, video.title as string | null, Array.isArray(video.tags) ? video.tags as string[] : null)
+      : categoryLabel(video.category_id) || (mediaType ? titleCase(mediaType.toLowerCase()) : titleCase(copy.content)),
     thumbnail_url: youtubeThumbUrl(
       String(row.youtube_video_id || ''),
       savedThumbnailUrl(video.thumbnail_file as string | null) || (video.thumbnail_url as string | null)
@@ -416,7 +445,7 @@ function shapeVideo(row: Record<string, unknown>) {
     }) || null,
     placement_label: video.stale
       ? null
-      : isPaidPlacement({
+      : mediaType === 'AD' || mediaType === 'BOOSTED' || isPaidPlacement({
         hasPaidProductPlacement: video.has_paid_product_placement as boolean | null,
         title: video.title as string | null,
         description: video.description as string | null,
@@ -661,13 +690,14 @@ export async function projectVideoInsights(params: VideoQuery) {
 }
 
 export async function projectFilterOptions(projectId: string, channelIds?: string[]) {
-  await requireProject(projectId);
+  const project = await requireProject(projectId);
+  const platform = asPlatform(project.platform);
   const values: unknown[] = [projectId];
   const channelMatch = channelIdFilter(channelIds, values);
   const channelClause = channelMatch ? ` AND ${channelMatch}` : '';
   const fresh = `v.fetched_at > NOW() - INTERVAL '30 days'`;
   const base = `${PROJECT_VIDEO_FROM} WHERE c.status='active'${channelClause}`;
-  const [channels, topics, counts, categories, tags] = await Promise.all([
+  const [channels, topics, counts, categories, tags, formats] = await Promise.all([
     listProjectChannels(projectId),
     listProjectTopics(projectId),
     q<{ shorts: number; videos: number; paid: number; organic: number }>(
@@ -696,28 +726,45 @@ export async function projectFilterOptions(projectId: string, channelIds?: strin
        GROUP BY 1 ORDER BY count DESC, tag ASC LIMIT 40`,
       values
     ),
+    q<{ kind: string; count: number }>(
+      undefined,
+      `SELECT UPPER(COALESCE(NULLIF(v.category_id, ''), v.public_details->>'media_type', 'POST')) AS kind, COUNT(*)::int AS count
+       ${base} AND ${fresh}
+       GROUP BY 1 ORDER BY count DESC`,
+      values
+    ),
   ]);
   const row = counts.rows[0];
+  const formatCounts = new Map(formats.rows.map((item) => [String(item.kind || '').toLowerCase(), Number(item.count || 0)]));
+  const facebookContent = FACEBOOK_CONTENT_FILTERS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    count: formatCounts.get(item.id) || 0,
+  }));
   return {
+    platform,
     channels: channels.map((channel) => ({
       id: channel.id,
       label: `${channel.relationship === 'own' ? 'Own · ' : ''}${channel.channel_name || channel.youtube_channel_id}`,
       relationship: channel.relationship,
     })),
     topics: topics.map((topic: { id: string; name: string }) => ({ id: topic.id, name: topic.name })),
-    categories: categories.rows.map((item) => ({
+    categories: (platform !== 'youtube' ? facebookContent.filter((item) => item.count) : categories.rows.map((item) => ({
       id: item.category_id,
       label: categoryLabel(item.category_id) || item.category_id,
       count: Number(item.count || 0),
+    }))),
+    content: platform === 'youtube'
+      ? [
+          ...(Number(row?.videos || 0) ? [{ id: 'video', label: 'Videos', count: Number(row.videos) }] : []),
+          ...(Number(row?.shorts || 0) ? [{ id: 'short', label: 'Shorts', count: Number(row.shorts) }] : []),
+        ]
+      : facebookContent,
+    placement: FACEBOOK_PLACEMENT_FILTERS.map((item) => ({
+      id: item.id,
+      label: item.label,
+      count: item.id === 'paid' ? Number(row?.paid || 0) : Number(row?.organic || 0),
     })),
-    content: [
-      ...(Number(row?.videos || 0) ? [{ id: 'video', label: 'Videos', count: Number(row.videos) }] : []),
-      ...(Number(row?.shorts || 0) ? [{ id: 'short', label: 'Shorts', count: Number(row.shorts) }] : []),
-    ],
-    placement: [
-      ...(Number(row?.organic || 0) ? [{ id: 'organic', label: 'Organic', count: Number(row.organic) }] : []),
-      ...(Number(row?.paid || 0) ? [{ id: 'paid', label: 'Paid', count: Number(row.paid) }] : []),
-    ],
     tags: tags.rows.map((item) => ({ tag: item.tag, count: Number(item.count || 0) })),
   };
 }
@@ -792,16 +839,18 @@ export async function projectOverview(projectId: string) {
 }
 
 export async function importProjectVideosFromUrls(projectId: string, body: Record<string, unknown>, userId: string) {
-  await requireProject(projectId);
+  const project = await requireProject(projectId);
+  const platform = asPlatform(project.platform);
+  const copy = platformCopy(platform);
   const raw = String(body.text || body.urls || '');
   const mode = String(body.mode || 'multiple');
-  const youtubeIds = parseYoutubeVideoIds(raw);
+  const links = parseContentLinks(platform, raw);
   if (mode === 'single') {
-    if (youtubeIds.length !== 1) throw new FinanceValidationError('Add a single video URL here. Use Add multiple videos for a list.');
-  } else if (mode === 'multiple' && youtubeIds.length < 2) {
-    throw new FinanceValidationError('Paste at least two YouTube video URLs, one per line.');
+    if (links.length !== 1) throw new FinanceValidationError(`Add a single ${copy.content} URL here. Use the multiple panel for a list.`);
+  } else if (mode === 'multiple' && links.length < 2) {
+    throw new FinanceValidationError(`Paste at least two ${copy.label} ${copy.content} URLs, one per line.`);
   }
-  const imported = await importVideosByUrls(raw, userId);
+  const imported = await importVideosByUrls(raw, userId, platform);
   const linked = await q<{ channel_id: string }>(undefined, `SELECT channel_id FROM youtube_project_channels WHERE project_id=$1`, [projectId]);
   const have = new Set(linked.rows.map((row) => String(row.channel_id)));
   let first = have.size === 0;
@@ -824,23 +873,31 @@ export async function importProjectVideosFromUrls(projectId: string, body: Recor
 }
 
 export async function importProject(projectId: string, body: Record<string, unknown>, userId: string) {
+  const project = await requireProject(projectId);
+  const copy = platformCopy(project.platform);
   const channels = await listProjectChannels(projectId);
   const requested = Array.isArray(body.channel_ids) ? body.channel_ids.map(String).filter(Boolean) : [];
   const targets = (requested.length
     ? channels.filter((channel) => requested.includes(String(channel.id)) || requested.includes(String(channel.youtube_channel_id)))
     : channels
   ).map((channel) => String(channel.id));
-  if (!targets.length) throw new FinanceValidationError('Add a channel before importing videos.');
-  const results = [];
-  for (const channelId of targets) {
+  if (!targets.length) throw new FinanceValidationError(`Add a ${copy.entity} before importing ${copy.contentPlural}.`);
+  const results = await Promise.all(targets.map(async (channelId) => {
     try {
       const job = await startImport({ ...body, channel_id: channelId, project_id: projectId }, userId);
-      results.push({ channel_id: channelId, status: job.status, inserted_count: job.inserted_count, updated_count: job.updated_count, skipped_count: job.skipped_count, error: job.error_summary || null });
+      return { channel_id: channelId, status: job.status, inserted_count: job.inserted_count, updated_count: job.updated_count, skipped_count: job.skipped_count, error: job.error_summary || null };
     } catch (err) {
-      results.push({ channel_id: channelId, status: 'failed', inserted_count: 0, updated_count: 0, skipped_count: 0, error: err instanceof Error ? err.message : 'Import failed' });
+      return { channel_id: channelId, status: 'failed', inserted_count: 0, updated_count: 0, skipped_count: 0, error: err instanceof Error ? err.message : 'Import failed' };
     }
-  }
-  return { channels: results.length, results };
+  }));
+  const listed = await listProjectVideos({
+    projectId,
+    channelIds: targets,
+    page: 1,
+    pageSize: 1,
+    includeTotal: true,
+  }).catch(() => ({ total: 0 }));
+  return { channels: results.length, results, total: listed.total };
 }
 
 export async function projectExportRows(params: VideoQuery) {

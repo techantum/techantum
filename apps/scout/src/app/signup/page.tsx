@@ -7,7 +7,7 @@ import { websiteSession } from '@/lib/saas/website-session';
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ package?: string; email?: string }> }) {
   const [params, session] = await Promise.all([searchParams, websiteSession()]);
-  if (session.actor) redirect(afterAuthPath(params.package, session.actor.account));
+  if (session.actor) redirect(afterAuthPath(params.package, session.actor.account, session.actor.role));
   return (
     <AuthShell>
       <Suspense>

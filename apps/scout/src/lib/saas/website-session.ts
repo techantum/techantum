@@ -1,4 +1,4 @@
-import { isSuperAdmin } from '@/lib/admin/roles';
+import { isStaffAdmin } from '@/lib/admin/roles';
 import { accountIsActive, getPlatformActor } from './session';
 
 export async function websiteSession() {
@@ -11,7 +11,7 @@ export async function websiteSession() {
     userName: actor.name || actor.email,
     userEmail: actor.email,
     avatarUrl: actor.avatarUrl || null,
-    canOpenWorkspace: isSuperAdmin(actor.role) || Boolean(actor.account && accountIsActive(actor.account)),
+    canOpenWorkspace: isStaffAdmin(actor.role) || Boolean(actor.account && accountIsActive(actor.account)),
     actor,
   };
 }
