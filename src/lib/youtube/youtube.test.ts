@@ -303,6 +303,8 @@ describe('permissions and exports', () => {
       return found;
     };
     const sales = visibleAdminNav('SUPER_ADMIN').find((item) => item.label === 'Sales & Marketing');
+    const seoNav = sales?.children?.find((item) => item.id === 'seo');
+    assert.equal(seoNav?.children?.some((item) => item.href === '/admin/seo-ads'), true);
     assert.equal(sales?.children?.some((item) => item.id === 'youtube-research'), true);
     assert.equal(visibleAdminNav('SUPER_ADMIN').some((item) => item.id === 'youtube-research'), false);
     assert.equal(hrefs('SUPER_ADMIN').includes('/admin/youtube-research/settings'), true);

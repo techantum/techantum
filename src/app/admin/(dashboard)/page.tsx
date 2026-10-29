@@ -74,6 +74,7 @@ export default function AdminDashboardPage() {
     { href: '/admin/submissions', label: 'Manage leads' },
     { href: '/admin/lead-discovery', label: 'Lead discovery', superAdmin: true },
     { href: '/admin/branding', label: 'Update branding' },
+    { href: '/admin/seo-ads', label: 'SEO & Google Ads' },
     { href: '/admin/seo', label: 'Global SEO' },
     { href: '/admin/page-seo', label: 'Page indexing' },
     { href: '/admin/partner-catalog', label: 'Wizard questions' },

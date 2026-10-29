@@ -8,6 +8,8 @@ export async function generateMetadata() {
     title: 'Sign in',
     description: 'Sign in to your Techantum account to manage your dashboard and stay connected with our team.',
     keywords: ['TechAntum login', 'sign in', 'create account'],
+    noindex: true,
+    nofollow: true,
   });
 }
 

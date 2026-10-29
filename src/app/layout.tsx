@@ -103,9 +103,6 @@ export async function generateMetadata(): Promise<Metadata> {
           'fb:app_id': seo.facebook_app_id,
         }
       : undefined,
-    alternates: {
-      canonical: '/',
-    },
   };
 }
 

@@ -13,6 +13,12 @@ export interface PageSeoRecord {
   title: string | null;
   description: string | null;
   og_image_url: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  canonical_url?: string | null;
+  primary_keyword?: string | null;
+  secondary_keywords?: string[] | null;
+  publish_state?: string | null;
   header_scripts: string;
   footer_scripts: string;
 }
@@ -49,49 +55,62 @@ function resolveOgImage(seo: SiteSeo, ogImage?: string | null): string {
   return `${resolveSiteUrl(seo.site_url).replace(/\/$/, '')}${raw.startsWith('/') ? raw : `/${raw}`}`;
 }
 
+const PRIVATE_PATHS = new Set(['/login', '/signup', '/thank-you']);
+
 export async function buildPageMetadata(input: PageMetadataInput): Promise<Metadata> {
   const [globalSeo, pageSeo] = await Promise.all([getSeo(), getPageSeo(input.path)]);
+  const published = pageSeo?.publish_state !== 'draft';
 
-  const title = pageSeo?.title || input.title;
-  const description = pageSeo?.description || input.description;
+  const title = (published && pageSeo?.title) || input.title;
+  const description = (published && pageSeo?.description) || input.description;
   const canonicalPath = input.path === '/' ? '/' : input.path;
-  const siteUrl = resolveSiteUrl(globalSeo.site_url);
-  const canonicalUrl = `${siteUrl.replace(/\/$/, '')}${canonicalPath === '/' ? '' : canonicalPath}`;
+  const siteUrl = resolveSiteUrl(globalSeo.site_url).replace(/\/$/, '');
+  const canonicalUrl = (published && pageSeo?.canonical_url) || `${siteUrl}${canonicalPath === '/' ? '' : canonicalPath}`;
 
+  const forcedPrivate = PRIVATE_PATHS.has(input.path);
   const index =
     globalSeo.index_site !== false &&
     pageSeo?.index_enabled !== false &&
-    input.noindex !== true;
+    input.noindex !== true &&
+    !forcedPrivate;
   const follow =
     globalSeo.follow_site !== false &&
     pageSeo?.follow_enabled !== false &&
-    input.nofollow !== true;
+    input.nofollow !== true &&
+    !forcedPrivate;
 
-  const ogImage = resolveOgImage(globalSeo, pageSeo?.og_image_url || input.ogImage);
+  const ogImage = resolveOgImage(globalSeo, (published && pageSeo?.og_image_url) || input.ogImage);
+  const ogTitle = (published && pageSeo?.og_title) || title;
+  const ogDescription = (published && pageSeo?.og_description) || description;
+  const keywords = [
+    ...(pageSeo?.primary_keyword ? [pageSeo.primary_keyword] : []),
+    ...((pageSeo?.secondary_keywords || []).filter(Boolean)),
+    ...(input.keywords || []),
+  ];
 
   return {
     title,
     description,
-    keywords: input.keywords?.length ? input.keywords : globalSeo.keywords,
-    alternates: { canonical: canonicalPath },
+    keywords: keywords.length ? [...new Set(keywords)] : globalSeo.keywords,
+    alternates: { canonical: canonicalUrl },
     robots: {
       index,
       follow,
       googleBot: { index, follow, 'max-image-preview': 'large', 'max-snippet': -1 },
     },
     openGraph: {
-      title,
-      description,
+      title: ogTitle,
+      description: ogDescription,
       url: canonicalUrl,
       siteName: 'TechAntum',
       type: input.ogType || 'website',
       locale: 'en_US',
-      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: ogTitle }],
     },
     twitter: {
       card: 'summary_large_image',
-      title,
-      description,
+      title: ogTitle,
+      description: ogDescription,
       images: [ogImage],
       creator: globalSeo.twitter_handle || defaultSeo.twitter_handle,
     },

@@ -16,7 +16,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
           {
             userAgent: '*',
             allow: extra.allow.length ? ['/', ...extra.allow] : '/',
-            disallow: ['/api/', '/admin/', ...extra.disallow],
+            disallow: ['/api/', '/admin/', '/login', '/signup', '/thank-you', ...extra.disallow],
           },
           { userAgent: 'Googlebot', allow: '/', crawlDelay: 0 },
         ]

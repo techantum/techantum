@@ -49,6 +49,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
         label: 'SEO & Discovery',
         icon: 'GlobeAltIcon',
         children: [
+          { href: '/admin/seo-ads', label: 'SEO & Google Ads', icon: 'PresentationChartBarIcon', activePaths: ['/admin/seo-ads'] },
           { href: '/admin/seo', label: 'Global SEO', icon: 'MagnifyingGlassIcon' },
           { href: '/admin/page-seo', label: 'Page Indexing', icon: 'DocumentCheckIcon' },
           { href: '/admin/redirects', label: 'Redirects', icon: 'ArrowPathIcon' },

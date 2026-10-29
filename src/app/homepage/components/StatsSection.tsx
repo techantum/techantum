@@ -23,7 +23,7 @@ export default function StatsSection({ content }: { content?: Record<string, unk
               <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center mb-4">
                 <Icon name={stat.icon as any} size={20} className="text-primary" />
               </div>
-              <h3 className="font-bricolage text-3xl font-bold text-foreground mb-1">{stat.value}</h3>
+              <p className="font-bricolage text-3xl font-bold text-foreground mb-1">{stat.value}</p>
               <p className="font-inter font-semibold text-sm text-foreground mb-1">{stat.label}</p>
               <p className="font-inter text-sm text-muted-foreground">{stat.description}</p>
             </div>

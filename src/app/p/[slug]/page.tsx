@@ -3,11 +3,24 @@ import Footer from '@/components/common/Footer';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getBranding, getCmsSection } from '@/lib/cms';
+import { buildPageMetadata } from '@/lib/seo/page-metadata';
 import CmsRichText from '@/components/cms/CmsRichText';
 import Link from 'next/link';
 import SafeImage from '@/components/ui/SafeImage';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const supabase = createAdminClient();
+  const { data: page } = await supabase.from('cms_pages').select('label, description, is_enabled').eq('id', slug).maybeSingle();
+  if (!page || page.is_enabled === false) return {};
+  return buildPageMetadata({
+    path: `/p/${slug}`,
+    title: String(page.label || slug),
+    description: String(page.description || `${page.label} — Techantum Solutions`),
+  });
+}
 
 export default async function CustomCmsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
