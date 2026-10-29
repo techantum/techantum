@@ -38,8 +38,8 @@ export default function CmsPage() {
 
   const section = CMS_SECTIONS.find((item) => item.key === open) || CMS_SECTIONS[0];
   const values = content[section.key] || {};
-  const primaryFields = section.fields.filter((field) => PRIMARY.has(field.key));
-  const extraFields = section.fields.filter((field) => !PRIMARY.has(field.key));
+  const primaryFields = section.fields.filter((field) => PRIMARY.has(field.key) || field.always);
+  const extraFields = section.fields.filter((field) => !PRIMARY.has(field.key) && !field.always);
 
   const patch = (key: string, field: string, value: unknown) => {
     const prev = contentRef.current;
@@ -115,8 +115,8 @@ export default function CmsPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 font-bricolage text-3xl font-bold text-slate-900">Website CMS</h1>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href="/" target="_blank" className="btn-secondary">
-            <Icon name="ArrowTopRightOnSquareIcon" size={16} /> View Site
+          <Link href={section.href || '/'} target="_blank" className="btn-secondary">
+            <Icon name="ArrowTopRightOnSquareIcon" size={16} /> {section.href ? 'View page' : 'View Site'}
           </Link>
           <button type="button" disabled={Boolean(saving)} onClick={() => void save()} className="btn-primary">
             {saving === 'all' ? 'Saving…' : 'Save All Changes'}
@@ -156,7 +156,7 @@ export default function CmsPage() {
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="font-bricolage text-xl font-bold text-slate-900">{section.label} Section</h2>
+              <h2 className="font-bricolage text-xl font-bold text-slate-900">{section.href ? section.label : `${section.label} Section`}</h2>
               <p className="text-sm text-slate-400">{section.description}</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -267,7 +267,7 @@ function FieldEditor({
     return (
       <label className="block text-sm font-medium text-slate-700">
         {field.label}
-        <textarea className={area} rows={3} value={String(value || '')} placeholder={`Enter ${field.label.toLowerCase()}`} onChange={(event) => onChange(event.target.value)} />
+        <textarea className={area} rows={field.rows || 3} value={String(value || '')} placeholder={field.key === 'body' ? 'Use a blank line between paragraphs. Start a line with # for a heading or - for a bullet.' : `Enter ${field.label.toLowerCase()}`} onChange={(event) => onChange(event.target.value)} />
       </label>
     );
   }

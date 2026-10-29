@@ -48,8 +48,8 @@ const COLS = [
   {
     title: 'Legal',
     links: [
-      { href: '/#faq', label: 'Privacy policy' },
-      { href: '/#faq', label: 'Terms of service' },
+      { href: '/privacy-policy', label: 'Privacy policy' },
+      { href: '/terms', label: 'Terms and conditions' },
       { href: '/#faq', label: 'Cookie policy' },
     ],
   },
