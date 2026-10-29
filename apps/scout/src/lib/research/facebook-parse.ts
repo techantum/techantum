@@ -14,6 +14,15 @@ function decodeHtml(value: string) {
     .replace(/\\u0026/g, '&');
 }
 
+export function facebookGraphId(video: { youtubeVideoId?: string; publicDetails?: Record<string, unknown> }) {
+  const details = video.publicDetails || {};
+  const stored = String(details.graph_id || '');
+  if (/^\d+_\d+$/.test(stored) || /^\d{10,}$/.test(stored)) return stored;
+  const raw = String(video.youtubeVideoId || '').replace(/^facebook:/i, '');
+  const last = raw.includes(':') ? raw.slice(raw.lastIndexOf(':') + 1) : raw;
+  return last;
+}
+
 export function belongsToFacebookPage(post: Record<string, unknown>, pageId: string, handle?: string | null) {
   const want = [...new Set([pageId, handle].map((value) => String(value || '').replace(/^@/, '').toLowerCase()).filter(Boolean))];
   if (!want.length) return false;

@@ -6,6 +6,7 @@ import { isFresh, presentChannel, presentVideo } from './mask';
 import { ensureChannel, importVideosByUrls, performanceSummary, startImport } from './service';
 import { presentListedProject } from './home-display';
 import { currentSaasAccountId, currentYoutubePartnerId } from './scope';
+import { connectedFacebookPageIds } from '../research/facebook-tokens';
 import { asPlatform, FACEBOOK_CONTENT_FILTERS, FACEBOOK_PLACEMENT_FILTERS, parseContentLinks, platformCopy, titleCase } from '../research/platforms';
 import { MAX_PROJECT_COMPETITORS } from './workspace-nav';
 
@@ -233,6 +234,7 @@ export async function archiveProject(id: string, userId: string) {
 
 export async function listProjectChannels(projectId: string) {
   await requireProject(projectId);
+  const connected = await connectedFacebookPageIds().catch(() => new Set<string>());
   const { rows } = await q(
     undefined,
     `SELECT c.*, pc.relationship, pc.created_at AS linked_at,
@@ -243,7 +245,17 @@ export async function listProjectChannels(projectId: string) {
      ORDER BY CASE WHEN pc.relationship='own' THEN 0 ELSE 1 END, c.channel_name NULLS LAST`,
     [projectId]
   );
-  return rows.map((row) => ({ ...presentChannel(row), id: row.id, youtube_channel_id: row.youtube_channel_id, relationship: row.relationship }));
+  return rows.map((row) => {
+    const handle = String(row.channel_handle || '').replace(/^@/, '');
+    const pageId = String(row.youtube_channel_id || '');
+    return {
+      ...presentChannel(row),
+      id: row.id,
+      youtube_channel_id: row.youtube_channel_id,
+      relationship: row.relationship,
+      meta_connected: connected.has(pageId.toLowerCase()) || Boolean(handle && connected.has(handle.toLowerCase())),
+    };
+  });
 }
 
 export async function addProjectChannel(projectId: string, input: string, relationship: unknown, userId: string, page?: unknown) {
@@ -451,6 +463,10 @@ function shapeVideo(row: Record<string, unknown>) {
         description: video.description as string | null,
         tags: Array.isArray(video.tags) ? video.tags as string[] : null,
       }) ? 'Paid' : 'Organic',
+    click_count: Number.isFinite(Number(details.clicks)) ? Number(details.clicks) : null,
+    impression_count: Number.isFinite(Number(details.impressions)) ? Number(details.impressions) : null,
+    share_count: Number.isFinite(Number(details.shares)) ? Number(details.shares) : null,
+    engaged_users: Number.isFinite(Number(details.engaged_users)) ? Number(details.engaged_users) : null,
   };
 }
 

@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { financeErrorResponse, fileResponse } from '@/lib/finance/http';
 import { YoutubeApiError } from '@/lib/youtube/client';
@@ -52,6 +53,14 @@ import { exportResearchReport } from '@/lib/youtube/ai-research-export';
 import { deleteYoutubeTraining, importYoutubeTrainingFile, listYoutubeTraining, saveYoutubeTraining } from '@/lib/youtube/youtube-master';
 import { exportResearch } from '@/lib/youtube/reports';
 import {
+  createFacebookOAuthState,
+  facebookAuthUrl,
+  facebookOAuthConfigured,
+  facebookPagesForUser,
+  facebookUserTokenFromCode,
+} from '@/lib/research/facebook-oauth';
+import { bindFacebookChannelIdentity, facebookOwnerKey, facebookPageMatches, saveFacebookPageTokens } from '@/lib/research/facebook-tokens';
+import {
   archiveTopic,
   compareChannels,
   dashboard,
@@ -76,7 +85,9 @@ import {
   saveTopic,
   setAccess,
   startImport,
+  applySavedMetaCredentials,
   testConnection,
+  testMetaConnection,
   updateChannel,
   updateResearch,
   updateSettings,
@@ -158,6 +169,7 @@ async function gate(permission: YoutubePermission) {
 }
 
 async function enterPartnerScope<T>(run: () => Promise<T>) {
+  await applySavedMetaCredentials();
   if (currentYoutubePartnerId() || currentSaasAccountId()) return run();
   try {
     const actor = await resolveYoutubeActor();
@@ -185,6 +197,90 @@ async function handleGet(request: Request, context: { params: Promise<{ path?: s
     const path = (await context.params).path || [];
     const url = new URL(request.url);
     await protectPartnerScope('GET', path);
+    if (path[0] === 'meta' && path[1] === 'facebook' && path[2] === 'start') {
+      const auth = await gate('youtube_research.channels.manage');
+      if ('error' in auth && auth.error) return auth.error;
+      await applySavedMetaCredentials();
+      if (!facebookOAuthConfigured()) {
+        const returnTo = url.searchParams.get('return') || '/facebook/posts';
+        const dest = new URL(returnTo.startsWith('/') ? returnTo : '/facebook/posts', url.origin);
+        dest.searchParams.set('facebook_error', 'Facebook Login needs the Meta App Secret. Super Admin: open Business Research → Settings, paste META_APP_SECRET, add this callback URL in Meta, then connect the Page again.');
+        return NextResponse.redirect(dest);
+      }
+      const state = createFacebookOAuthState();
+      const returnTo = url.searchParams.get('return') || '/facebook/posts';
+      const projectId = url.searchParams.get('projectId') || '';
+      const response = NextResponse.redirect(facebookAuthUrl(state));
+      response.cookies.set('hookooh_fb_oauth', JSON.stringify({ state, returnTo, projectId }), {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 600,
+      });
+      return response;
+    }
+    if (path[0] === 'meta' && path[1] === 'facebook' && path[2] === 'callback') {
+      const auth = await resolveYoutubeActor();
+      if ('error' in auth) {
+        return NextResponse.redirect(new URL('/subscriber/login', url.origin));
+      }
+      const jar = await cookies();
+      const packed = jar.get('hookooh_fb_oauth')?.value || '';
+      let stored: { state?: string; returnTo?: string; projectId?: string } = {};
+      try {
+        stored = packed ? JSON.parse(packed) : {};
+      } catch {
+        stored = {};
+      }
+      const returnTo = stored.returnTo && stored.returnTo.startsWith('/') ? stored.returnTo : '/facebook/posts';
+      const failUrl = new URL(returnTo, url.origin);
+      const clear = (response: NextResponse) => {
+        response.cookies.set('hookooh_fb_oauth', '', { path: '/', maxAge: 0 });
+        return response;
+      };
+      if (url.searchParams.get('error')) {
+        failUrl.searchParams.set('facebook_error', url.searchParams.get('error_description') || 'Facebook login was cancelled.');
+        return clear(NextResponse.redirect(failUrl));
+      }
+      if (!url.searchParams.get('code') || url.searchParams.get('state') !== stored.state) {
+        failUrl.searchParams.set('facebook_error', 'Facebook login expired. Connect the Page again.');
+        return clear(NextResponse.redirect(failUrl));
+      }
+      try {
+        const token = await facebookUserTokenFromCode(url.searchParams.get('code') || '');
+        const pages = await facebookPagesForUser(token);
+        if (!pages.length) {
+          failUrl.searchParams.set('facebook_error', 'This Facebook login has no Pages. Use a Page admin account.');
+          return clear(NextResponse.redirect(failUrl));
+        }
+        await saveFacebookPageTokens(pages, facebookOwnerKey(auth.user.id), auth.user.id);
+        if (stored.projectId) {
+          const linked = await listProjectChannels(stored.projectId);
+          const own = linked.find((row) => row.relationship === 'own');
+          const match = pages.find((page) => facebookPageMatches(
+            page,
+            own?.youtube_channel_id,
+            own?.channel_handle,
+            own?.channel_name,
+          )) || (!own ? pages[0] : null);
+          if (match?.id && own?.id) {
+            await bindFacebookChannelIdentity(String(own.id), match);
+          } else if (match?.id && !own) {
+            await addProjectChannel(stored.projectId, String(match.id), 'own', auth.user.id, {
+              youtubeChannelId: match.id,
+              channelName: match.name,
+              channelHandle: match.username || null,
+              channelUrl: `https://www.facebook.com/${match.username || match.id}`,
+            });
+          }
+        }
+        failUrl.searchParams.set('facebook_connected', String(pages.length));
+        return clear(NextResponse.redirect(failUrl));
+      } catch (err) {
+        failUrl.searchParams.set('facebook_error', err instanceof Error ? err.message : 'Could not connect Facebook Pages.');
+        return clear(NextResponse.redirect(failUrl));
+      }
+    }
     if (path[0] === 'session') {
       const auth = await resolveYoutubeActor();
       if ('error' in auth) return auth.error;
@@ -561,6 +657,11 @@ async function handlePost(request: Request, context: { params: Promise<{ path?: 
       const auth = await gate('youtube_research.settings.manage');
       if ('error' in auth && auth.error) return auth.error;
       return NextResponse.json(await testConnection(auth.user.id));
+    }
+    if (path[0] === 'settings' && path[1] === 'test-meta') {
+      const auth = await gate('youtube_research.settings.manage');
+      if ('error' in auth && auth.error) return auth.error;
+      return NextResponse.json(await testMetaConnection(auth.user.id));
     }
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   } catch (err) {

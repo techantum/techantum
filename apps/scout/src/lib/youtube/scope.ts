@@ -41,8 +41,9 @@ export function youtubePortalFrom(explicit: string | null | undefined, referer: 
 export function partnerYoutubeAccess(method: string, path: string[]) {
   const head = path[0] || '';
   if (head === 'session') return method === 'GET' ? 'allow' : 'deny';
+  if (head === 'meta') return method === 'GET' ? 'allow' : 'deny';
   if (head === 'home' || head === 'dashboard') return method === 'GET' ? 'allow' : 'deny';
-  if (head === 'settings') return method === 'GET' ? 'allow' : 'deny';
+  if (head === 'settings') return method === 'GET' || method === 'POST' || method === 'PATCH' ? 'allow' : 'deny';
   if (head === 'ai-training') return method === 'GET' || method === 'POST' || method === 'DELETE' ? 'allow' : 'deny';
   if (head === 'quick') return method === 'GET' ? 'allow' : 'deny';
   if (head === 'projects') {

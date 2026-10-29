@@ -2,7 +2,8 @@ import { decryptSecret, encryptSecret, isEncryptionReady, secretHint } from '../
 import { q } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { asPlatform, parseContentLinks, platformCopy } from '../research/platforms';
-import { resolveFacebookIdentity } from '../research/meta-graph';
+import { probeFacebookAccess, resetFacebookPageCache, resolveFacebookIdentity } from '../research/meta-graph';
+import { readFacebookPageToken } from '../research/facebook-tokens';
 import { listResearchPosts, resolveResearchSource, searchResearchSources } from '../research/resolve';
 import { createYoutube, normalizeYoutubeApiKey, YoutubeApiError, YOUTUBE_CONNECTED_MESSAGE, type ResolvedChannel, type ResolvedVideo, type YoutubeFetch } from './client';
 import { presentChannel, presentVideo } from './mask';
@@ -88,6 +89,36 @@ async function settingsRow() {
   return rows[0];
 }
 
+function putEnvIfEmpty(key: string, value: string) {
+  if (!value.trim()) return;
+  if (String(process.env[key] || '').trim()) return;
+  process.env[key] = value.trim();
+}
+
+export async function applySavedMetaCredentials() {
+  try {
+    const row = await settingsRow();
+    if (row?.meta_app_id) putEnvIfEmpty('META_APP_ID', String(row.meta_app_id));
+    if (row?.meta_app_secret_ciphertext) {
+      try {
+        putEnvIfEmpty('META_APP_SECRET', decryptSecret(String(row.meta_app_secret_ciphertext)));
+      } catch {
+        /* Saved secret could not be read. */
+      }
+    }
+    if (row?.meta_ads_token_ciphertext) {
+      try {
+        putEnvIfEmpty('META_ADS_ACCESS_TOKEN', decryptSecret(String(row.meta_ads_token_ciphertext)));
+      } catch {
+        /* Saved ads token could not be read. */
+      }
+    }
+  } catch {
+    /* Settings table may not have Meta columns yet. */
+  }
+  resetFacebookPageCache();
+}
+
 export async function readApiKey() {
   const row = await settingsRow();
   if (row?.api_key_ciphertext) {
@@ -133,6 +164,14 @@ export async function getSettings(includeHint: boolean) {
     lastTestMessage: row.last_test_message,
     lastTestAt: row.last_test_at,
     notice: YOUTUBE_METRIC_NOTICE,
+    metaAppId: String(row.meta_app_id || process.env.META_APP_ID || process.env.NEXT_PUBLIC_META_APP_ID || '').trim(),
+    metaAppSecretConfigured: Boolean(String(row.meta_app_secret_ciphertext || process.env.META_APP_SECRET || process.env.META_WHATSAPP_APP_SECRET || process.env.WHATSAPP_APP_SECRET || '').trim()),
+    metaAdsTokenConfigured: Boolean(String(row.meta_ads_token_ciphertext || process.env.META_ADS_ACCESS_TOKEN || process.env.META_SYSTEM_USER_ACCESS_TOKEN || '').trim()),
+    metaOAuthRedirect: `${String(process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_REVEALEO_URL || 'http://localhost:3010').replace(/\/$/, '')}/api/youtube/meta/facebook/callback`,
+    facebookLoginConfigured: Boolean(
+      String(row.meta_app_id || process.env.META_APP_ID || process.env.NEXT_PUBLIC_META_APP_ID || '').trim()
+      && String(row.meta_app_secret_ciphertext || process.env.META_APP_SECRET || process.env.META_WHATSAPP_APP_SECRET || process.env.WHATSAPP_APP_SECRET || '').trim()
+    ),
   };
 }
 
@@ -156,12 +195,29 @@ export async function updateSettings(body: Record<string, unknown>, userId: stri
     if (!isEncryptionReady()) throw new FinanceValidationError('Set AI_SECRETS_ENCRYPTION_KEY on the server before saving a YouTube API key.');
     ciphertext = encryptSecret(incoming);
   }
+  const metaAppId = String(body.meta_app_id ?? body.metaAppId ?? current.meta_app_id ?? '').trim() || null;
+  let metaSecret = current.meta_app_secret_ciphertext;
+  let metaAds = current.meta_ads_token_ciphertext;
+  const incomingSecret = String(body.meta_app_secret ?? body.metaAppSecret ?? '').trim();
+  const incomingAds = String(body.meta_ads_token ?? body.metaAdsToken ?? '').trim();
+  if (body.clear_meta_secret === true || body.clearMetaSecret === true) metaSecret = null;
+  else if (incomingSecret && !/^[•*]/.test(incomingSecret)) {
+    if (!isEncryptionReady()) throw new FinanceValidationError('Set AI_SECRETS_ENCRYPTION_KEY on the server before saving Meta credentials.');
+    metaSecret = encryptSecret(incomingSecret);
+  }
+  if (body.clear_meta_ads_token === true || body.clearMetaAdsToken === true) metaAds = null;
+  else if (incomingAds && !/^[•*]/.test(incomingAds)) {
+    if (!isEncryptionReady()) throw new FinanceValidationError('Set AI_SECRETS_ENCRYPTION_KEY on the server before saving Meta credentials.');
+    metaAds = encryptSecret(incomingAds);
+  }
   await q(
     undefined,
-    `UPDATE youtube_module_settings SET api_key_ciphertext=$1, default_import_limit=$2, max_import_limit=$3, default_sort=$4, updated_by=$5 WHERE id=1`,
-    [ciphertext, defaultImportLimit, maxImportLimit, defaultSort, userId]
+    `UPDATE youtube_module_settings SET api_key_ciphertext=$1, default_import_limit=$2, max_import_limit=$3, default_sort=$4, updated_by=$5,
+       meta_app_id=$6, meta_app_secret_ciphertext=$7, meta_ads_token_ciphertext=$8 WHERE id=1`,
+    [ciphertext, defaultImportLimit, maxImportLimit, defaultSort, userId, metaAppId, metaSecret, metaAds]
   );
-  await audit(userId, 'YouTube Settings Saved', 'youtube_settings', '1', { keyChanged: Boolean(incoming) || clear, defaultImportLimit, maxImportLimit, defaultSort });
+  await applySavedMetaCredentials();
+  await audit(userId, 'YouTube Settings Saved', 'youtube_settings', '1', { keyChanged: Boolean(incoming) || clear, defaultImportLimit, maxImportLimit, defaultSort, metaChanged: Boolean(incomingSecret || incomingAds || metaAppId) });
   return getSettings(true);
 }
 
@@ -175,6 +231,14 @@ const TEST_STATUS: Record<string, string> = {
   timeout: 'network_error',
   network: 'network_error',
 };
+
+export async function testMetaConnection(userId: string) {
+  await applySavedMetaCredentials();
+  const result = await probeFacebookAccess();
+  await audit(userId, 'Meta Graph Tested', 'youtube_settings', '1', { configured: result.configured, pages: result.pages.length });
+  if (!result.configured) throw new FinanceValidationError(result.message);
+  return { ok: true, ...result };
+}
 
 export async function testConnection(userId: string) {
   const apiKey = await readApiKey();
@@ -677,11 +741,15 @@ async function runSocialImport(channelId: string, current: Record<string, unknow
     } catch {
       /* Page picture is optional; posts still import. */
     }
+    const pageToken = platform === 'facebook'
+      ? await readFacebookPageToken(pageId, current.channel_handle ? String(current.channel_handle) : null, userId)
+      : '';
     const details = await listResearchPosts(platform, {
       youtube_channel_id: pageId,
       channel_handle: current.channel_handle ? String(current.channel_handle) : null,
       limit,
       own: ownPage,
+      pageToken,
     });
     const ids = details.map((item) => item.youtubeVideoId);
     const known = ids.length

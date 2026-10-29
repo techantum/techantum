@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { FinanceValidationError } from '@/lib/finance/errors';
 import type { ResolvedChannel, ResolvedVideo } from '@/lib/youtube/client';
 import { dedupeResolvedVideos } from './dedupe';
-import { belongsToFacebookPage, extractFacebookStories, postImageUrl } from './facebook-parse';
+import { belongsToFacebookPage, extractFacebookStories, facebookGraphId, postImageUrl } from './facebook-parse';
 import { asPlatform, type ResearchPlatform } from './platforms';
 import { searchWikidataPages } from './wiki-pages';
 
@@ -13,31 +13,65 @@ function env(key: string) {
   return process.env[key]?.trim() || '';
 }
 
-function graphVersion() {
-  return env('META_GRAPH_API_VERSION') || env('WHATSAPP_API_VERSION') || 'v21.0';
+function cleanGraphToken(raw: string) {
+  let value = raw.trim();
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1).trim();
+  }
+  return value.replace(/^=+/, '').replace(/>+$/g, '').trim();
 }
 
-function graphToken() {
-  return (
-    env('META_ADS_ACCESS_TOKEN')
-    || env('META_SYSTEM_USER_ACCESS_TOKEN')
-    || (env('META_APP_ID') && env('META_APP_SECRET') ? `${env('META_APP_ID')}|${env('META_APP_SECRET')}` : '')
-  );
+function graphVersion() {
+  return env('META_GRAPH_API_VERSION') || env('WHATSAPP_API_VERSION') || 'v21.0';
 }
 
 function appSecret() {
   return env('META_APP_SECRET') || env('META_WHATSAPP_APP_SECRET') || env('WHATSAPP_APP_SECRET');
 }
 
+const rejectedGraphTokens = new Set<string>();
+
+function appAccessToken() {
+  const secret = appSecret();
+  const appId = env('META_APP_ID') || env('NEXT_PUBLIC_META_APP_ID');
+  return appId && secret ? `${appId}|${secret}` : '';
+}
+
+function tokenLooksUnusable(raw: string) {
+  const original = String(raw || '');
+  if (!original.trim()) return true;
+  if (original.includes('\n') || />\s*$/.test(original) || /^=+EA/.test(original.trim())) return true;
+  const cleaned = cleanGraphToken(original);
+  if (!cleaned) return true;
+  if (cleaned.includes('|')) return false;
+  return !/^EA[A-Za-z0-9_-]{80,}$/.test(cleaned);
+}
+
+function graphTokenCandidates(override = '') {
+  const listed = [
+    cleanGraphToken(override),
+    tokenLooksUnusable(env('META_ADS_ACCESS_TOKEN')) ? '' : cleanGraphToken(env('META_ADS_ACCESS_TOKEN')),
+    tokenLooksUnusable(env('META_SYSTEM_USER_ACCESS_TOKEN')) ? '' : cleanGraphToken(env('META_SYSTEM_USER_ACCESS_TOKEN')),
+    appAccessToken(),
+  ].filter(Boolean);
+  return [...new Set(listed)].filter((token) => !rejectedGraphTokens.has(token));
+}
+
+function graphToken() {
+  return graphTokenCandidates()[0] || '';
+}
+
+function isDeadTokenError(error?: GraphError) {
+  const code = Number(error?.code);
+  const message = String(error?.message || '');
+  return code === 190 || /malformed access token|invalid oauth access token|error validating access token|session has expired/i.test(message);
+}
+
 export function metaGraphConfigured() {
   return Boolean(graphToken());
 }
 
-async function graphGet(path: string, query: Record<string, string | number | undefined> = {}, tokenOverride = '') {
-  const token = tokenOverride || graphToken();
-  if (!token) {
-    throw new FinanceValidationError('Meta Graph API is not configured. Set META_ADS_ACCESS_TOKEN or META_SYSTEM_USER_ACCESS_TOKEN (or META_APP_ID and META_APP_SECRET).');
-  }
+async function graphGetOnce(path: string, query: Record<string, string | number | undefined>, token: string, timeoutMs: number) {
   const url = new URL(`https://graph.facebook.com/${graphVersion()}${path.startsWith('/') ? path : `/${path}`}`);
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
@@ -49,14 +83,33 @@ async function graphGet(path: string, query: Record<string, string | number | un
   }
   const response = await fetch(url.toString(), {
     headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const body = (await response.json().catch(() => ({}))) as GraphBody;
   if (!response.ok || body.error) {
-    const message = body.error?.message || `Meta Graph API returned HTTP ${response.status}`;
-    throw new FinanceValidationError(message);
+    if (isDeadTokenError(body.error)) rejectedGraphTokens.add(token);
+    throw new FinanceValidationError(body.error?.message || `Meta Graph API returned HTTP ${response.status}`);
   }
   return body;
+}
+
+async function graphGet(path: string, query: Record<string, string | number | undefined> = {}, tokenOverride = '', timeoutMs = 12000) {
+  const tokens = tokenOverride ? graphTokenCandidates(tokenOverride) : graphTokenCandidates();
+  if (!tokens.length) {
+    throw new FinanceValidationError('Meta Graph API is not configured. Set META_ADS_ACCESS_TOKEN or META_SYSTEM_USER_ACCESS_TOKEN (or META_APP_ID and META_APP_SECRET).');
+  }
+  let last: FinanceValidationError | null = null;
+  for (const token of tokens) {
+    try {
+      return await graphGetOnce(path, query, token, timeoutMs);
+    } catch (err) {
+      last = err instanceof FinanceValidationError ? err : new FinanceValidationError(String(err));
+      const message = last.message;
+      if (rejectedGraphTokens.has(token) || /does not exist|missing permission|not have permission|oauth/i.test(message)) continue;
+      throw last;
+    }
+  }
+  throw last || new FinanceValidationError('Meta Graph API request failed.');
 }
 
 function asCount(value: unknown) {
@@ -152,6 +205,29 @@ async function ownedFacebookPages(): Promise<OwnedPage[]> {
     ownedPagesCache = { at: Date.now(), pages: [] };
     return [];
   }
+}
+
+export function resetFacebookPageCache() {
+  ownedPagesCache = null;
+}
+
+export async function probeFacebookAccess() {
+  ownedPagesCache = null;
+  if (!graphToken()) {
+    return {
+      configured: false,
+      pages: [] as { id?: string; name?: string; username?: string }[],
+      message: 'Save the Meta App ID, App Secret, and a Page or ads token, then test again.',
+    };
+  }
+  const pages = await ownedFacebookPages();
+  return {
+    configured: true,
+    pages: pages.map((page) => ({ id: page.id, name: page.name, username: page.username })),
+    message: pages.length
+      ? `This token can read ${pages.length} Facebook Page${pages.length === 1 ? '' : 's'}. Connect the project Page to import clicks, views, and ads.`
+      : 'Graph is reachable, but this token lists no Pages. Connect Facebook as a Page admin, or use a system user assigned to the Page.',
+  };
 }
 
 function matchOwnedPage(pages: OwnedPage[], ...keys: Array<string | null | undefined>) {
@@ -308,9 +384,12 @@ function asPost(platform: ResearchPlatform, post: Record<string, unknown>, chann
   const thumb = postImageUrl(post) || null;
   const kind = facebookKind(post, forced);
   const paid = kind === 'AD' || kind === 'BOOSTED';
+  const impressions = insightMetric(post, ['post_impressions', 'impressions']) ?? impressionBand(post.impressions);
+  const clicks = asCount(post.clicks) ?? insightMetric(post, ['post_clicks', 'post_clicks_by_type']);
+  const engaged = insightMetric(post, ['post_engaged_users', 'post_engagements']);
   const views = asCount(post.view_count ?? post.views ?? post.video_views)
     ?? insightMetric(post, ['post_video_views', 'post_impressions', 'post_engaged_users'])
-    ?? impressionBand(post.impressions);
+    ?? impressions;
   const raw = id.replace(/^facebook:/i, '').replace(/^instagram:/i, '');
   const scopedId = channelId && raw && !raw.startsWith(`${channelId}:`) && !raw.startsWith(`${channelId}_`)
     ? `${channelId}:${raw}`
@@ -332,7 +411,22 @@ function asPost(platform: ResearchPlatform, post: Record<string, unknown>, chann
     defaultLanguage: null,
     defaultAudioLanguage: null,
     hasPaidProductPlacement: paid,
-    publicDetails: { platform, media_type: kind, permalink, source: post.source_kind || null, shares, page_id: channelId },
+    publicDetails: {
+      platform,
+      media_type: kind,
+      permalink,
+      source: post.source_kind || null,
+      shares,
+      page_id: channelId,
+      graph_id: raw || id,
+      clicks,
+      impressions,
+      engaged_users: engaged,
+      spend: asCount(post.spend),
+      ctr: asCount(post.ctr),
+      cpc: asCount(post.cpc),
+      reach: asCount(post.reach),
+    },
   };
 }
 
@@ -341,6 +435,64 @@ function platformCopyTitle(platform: ResearchPlatform) {
   if (platform === 'instagram') return 'Instagram';
   if (platform === 'linkedin') return 'LinkedIn';
   return 'YouTube';
+}
+
+function applyInsightRow(video: ResolvedVideo, insights: { name?: string; values?: { value?: unknown }[] }[]) {
+  const post = { insights: { data: insights } } as Record<string, unknown>;
+  const impressions = insightMetric(post, ['post_impressions', 'impressions']);
+  const clicks = insightMetric(post, ['post_clicks', 'post_clicks_by_type']);
+  const engaged = insightMetric(post, ['post_engaged_users', 'post_engagements']);
+  const views = insightMetric(post, ['post_video_views']) ?? impressions;
+  const details = { ...(video.publicDetails || {}) };
+  if (impressions != null) details.impressions = impressions;
+  if (clicks != null) details.clicks = clicks;
+  if (engaged != null) details.engaged_users = engaged;
+  video.publicDetails = details;
+  if (views != null && (video.viewCount == null || video.viewCount === 0)) video.viewCount = views;
+  if (clicks != null && details.clicks) video.publicDetails = details;
+  return video;
+}
+
+async function enrichOwnedPostInsights(rows: ResolvedVideo[], token: string) {
+  if (!token || !rows.length) return rows;
+  const ids = [...new Set(rows.map((row) => facebookGraphId(row)).filter((id) => /^\d+_\d+$/.test(id) || /^\d{8,}$/.test(id)))].slice(0, 40);
+  if (!ids.length) return rows;
+  const found = await graphLookupIds(ids, 'id,insights.metric(post_impressions,post_clicks,post_engaged_users,post_video_views)');
+  return rows.map((row) => {
+    const graph = found.get(facebookGraphId(row));
+    const insights = ((graph?.insights as { data?: { name?: string; values?: { value?: unknown }[] }[] } | undefined)?.data) || [];
+    return insights.length ? applyInsightRow(row, insights) : row;
+  });
+}
+
+async function enrichAdInsights(rows: ResolvedVideo[], token: string) {
+  if (!token || !rows.length) return rows;
+  return Promise.all(rows.map(async (row) => {
+    const adId = facebookGraphId(row).replace(/^.*ad(?:lib)?:/, '');
+    if (!/^\d{8,}$/.test(adId)) return row;
+    try {
+      const body = await graphGet(`/${encodeURIComponent(adId)}/insights`, {
+        fields: 'impressions,clicks,spend,ctr,cpc,reach',
+        date_preset: 'maximum',
+      }, token, 12000);
+      const stats = (Array.isArray(body.data) ? body.data[0] : body) as Record<string, unknown> | undefined;
+      if (!stats) return row;
+      const details = { ...(row.publicDetails || {}) };
+      const impressions = asCount(stats.impressions);
+      const clicks = asCount(stats.clicks);
+      if (impressions != null) details.impressions = impressions;
+      if (clicks != null) details.clicks = clicks;
+      details.spend = asCount(stats.spend);
+      details.ctr = asCount(stats.ctr);
+      details.cpc = asCount(stats.cpc);
+      details.reach = asCount(stats.reach);
+      row.publicDetails = details;
+      if (impressions != null && (row.viewCount == null || row.viewCount === 0)) row.viewCount = impressions;
+      return row;
+    } catch {
+      return row;
+    }
+  }));
 }
 
 function matchesPage(pageId: string, ...values: Array<string | null | undefined>) {
@@ -518,17 +670,7 @@ async function graphLookupIds(ids: string[], fields: string) {
   for (let index = 0; index < unique.length; index += 10) {
     const chunk = unique.slice(index, index + 10);
     try {
-      const token = graphToken();
-      const url = new URL(`https://graph.facebook.com/${graphVersion()}/`);
-      url.searchParams.set('ids', chunk.join(','));
-      url.searchParams.set('fields', fields);
-      url.searchParams.set('access_token', token);
-      const secret = appSecret();
-      if (secret && !token.includes('|')) {
-        url.searchParams.set('appsecret_proof', createHmac('sha256', secret).update(token).digest('hex'));
-      }
-      const response = await fetch(url.toString(), { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-      const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      const body = await graphGet('/', { ids: chunk.join(','), fields }, '', 8000);
       for (const id of chunk) {
         const row = body[id];
         if (row && typeof row === 'object' && !(row as { error?: unknown }).error && (row as { id?: string }).id) {
@@ -649,11 +791,11 @@ export async function resolveFacebookIdentity(pageId: string, handle?: string | 
   return { id: pageId, handle: handle || pageId, name: null, pageToken: '' };
 }
 
-export async function listFacebookPosts(pageId: string, limit = 50, handle?: string | null, allowOwned = true): Promise<ResolvedVideo[]> {
+export async function listFacebookPosts(pageId: string, limit = 50, handle?: string | null, allowOwned = true, storedPageToken = ''): Promise<ResolvedVideo[]> {
   const cap = Math.min(100, Math.max(1, limit));
   const identity = await resolveFacebookIdentity(pageId, handle, allowOwned);
   const graphId = identity.id;
-  const pageToken = identity.pageToken;
+  const pageToken = storedPageToken || identity.pageToken;
   const readEdge = async (edge: string, forced?: FacebookKind, requireOwner = false) => {
     if (!graphToken() && !pageToken) return [] as ResolvedVideo[];
     const data = await collectGraphEdge(`/${encodeURIComponent(graphId)}/${edge}`, { fields: POST_FIELDS }, pageToken, cap);
@@ -703,18 +845,24 @@ export async function listFacebookPosts(pageId: string, limit = 50, handle?: str
       return [] as ResolvedVideo[];
     }
   };
-  const batches = await Promise.all([
-    readEdge('posts'),
+  const graphBatches = await Promise.all([
+    readEdge('posts').catch(() => [] as ResolvedVideo[]),
     listNested(),
-    readEdge('feed', undefined, true),
-    pageToken ? readEdge('published_posts') : Promise.resolve([] as ResolvedVideo[]),
-    pageToken ? readEdge('ads_posts', 'BOOSTED') : Promise.resolve([] as ResolvedVideo[]),
-    listVideos(),
-    listPhotos(),
+    readEdge('feed', undefined, Boolean(pageToken) ? false : true).catch(() => [] as ResolvedVideo[]),
+    pageToken ? readEdge('published_posts').catch(() => [] as ResolvedVideo[]) : Promise.resolve([] as ResolvedVideo[]),
+    pageToken ? readEdge('ads_posts', 'BOOSTED').catch(() => [] as ResolvedVideo[]) : Promise.resolve([] as ResolvedVideo[]),
+    listVideos().catch(() => [] as ResolvedVideo[]),
+    listPhotos().catch(() => [] as ResolvedVideo[]),
+  ]);
+  let graphRows = graphBatches.flat();
+  if (pageToken) graphRows = await enrichOwnedPostInsights(graphRows, pageToken);
+  const [accountAds, libraryAds, publicRows] = await Promise.all([
     listFacebookAdsForPage(graphId, cap),
     listAdLibrary(graphId, identity.name || identity.handle || handle || pageId, cap),
-    listPublicFacebookTimeline(identity.handle || handle || pageId, graphId, cap),
+    graphRows.length && pageToken ? Promise.resolve([] as ResolvedVideo[]) : listPublicFacebookTimeline(identity.handle || handle || pageId, graphId, cap),
   ]);
+  const ads = pageToken ? await enrichAdInsights(accountAds, pageToken) : accountAds;
+  const batches = [graphRows, ads, libraryAds, publicRows];
   const rows: ResolvedVideo[] = [];
   const seen = new Set<string>();
   for (const item of batches.flat()) {
@@ -732,10 +880,13 @@ export async function listFacebookPosts(pageId: string, limit = 50, handle?: str
     return Boolean(handleKey) && page.toLowerCase() === handleKey.toLowerCase();
   }));
   if (unique.length) return unique.slice(0, cap);
-  if (!graphToken()) {
-    throw new FinanceValidationError('Facebook posts need a Meta Page token. Set META_ADS_ACCESS_TOKEN or META_APP_ID and META_APP_SECRET. A WhatsApp Cloud API token cannot read Pages.');
+  if (!graphToken() && !pageToken) {
+    throw new FinanceValidationError('Facebook posts need a Meta Page token. Connect this Page with Facebook, or set META_ADS_ACCESS_TOKEN.');
   }
-  throw new FinanceValidationError('No public Facebook posts or ads were returned for this page. Organic competitor posts need pages_read_engagement or Page Public Content Access. Ads appear from Ad Library or a connected ad account.');
+  if (allowOwned) {
+    throw new FinanceValidationError('Hookooh could not read this Facebook Page. Connect the Page with Facebook so we can import posts, clicks, views, likes, comments, and ads. Competitor ads still come from Ad Library.');
+  }
+  throw new FinanceValidationError('No competitor ads or public posts were returned. Organic competitor posts need Page Public Content Access. Competitor ads appear from Meta Ad Library when the Page is running ads in the configured countries.');
 }
 
 async function listPublicInstagramTimeline(username: string, limit: number): Promise<ResolvedVideo[]> {
@@ -1069,9 +1220,9 @@ export async function resolveSocialPage(platform: ResearchPlatform, input: strin
   throw new FinanceValidationError('Use Meta Graph for Facebook or Instagram pages.');
 }
 
-export async function listSocialPosts(platform: ResearchPlatform, channel: { youtube_channel_id: string; channel_handle?: string | null; limit?: number; own?: boolean }) {
+export async function listSocialPosts(platform: ResearchPlatform, channel: { youtube_channel_id: string; channel_handle?: string | null; limit?: number; own?: boolean; pageToken?: string | null }) {
   const kind = asPlatform(platform);
-  if (kind === 'facebook') return listFacebookPosts(channel.youtube_channel_id, channel.limit ?? 50, channel.channel_handle, channel.own === true);
+  if (kind === 'facebook') return listFacebookPosts(channel.youtube_channel_id, channel.limit ?? 50, channel.channel_handle, channel.own === true, channel.pageToken || '');
   if (kind === 'instagram') {
     const username = String(channel.channel_handle || '').replace(/^@/, '') || channel.youtube_channel_id;
     const listed = await listInstagramPosts(username, channel.limit ?? 50);

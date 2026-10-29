@@ -39,6 +39,8 @@ export default function YoutubeSettingsPage() {
   const manage = allow(access, 'youtube_research.settings.manage');
   const [settings, setSettings] = useState<Record<string, any> | null>(null);
   const [apiKey, setApiKey] = useState('');
+  const [metaSecret, setMetaSecret] = useState('');
+  const [metaAdsToken, setMetaAdsToken] = useState('');
   const [people, setPeople] = useState<Record<string, any>[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -68,14 +70,35 @@ export default function YoutubeSettingsPage() {
           max_import_limit: Number(settings?.maxImportLimit),
           default_sort: settings?.defaultSort,
           api_key: apiKey,
+          meta_app_id: settings?.metaAppId,
+          meta_app_secret: metaSecret,
+          meta_ads_token: metaAdsToken,
           ...extra,
         }),
       });
       setSettings(saved);
       setApiKey('');
+      setMetaSecret('');
+      setMetaAdsToken('');
       setMessage('Settings saved.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings');
+    } finally {
+      setPending('');
+    }
+  };
+
+  const testMeta = async () => {
+    setError('');
+    setMessage('');
+    setPending('test-meta');
+    try {
+      const body = await yt('settings/test-meta', { method: 'POST', body: '{}' });
+      setMessage(body.message || 'Meta Graph connected.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Meta connection test failed');
+      await load().catch(() => undefined);
     } finally {
       setPending('');
     }
@@ -158,6 +181,34 @@ export default function YoutubeSettingsPage() {
             </div>
           ) : null}
           <p className="mt-3 text-xs text-slate-500">{settings.notice} Remaining YouTube quota is not shown because the API does not provide it.</p>
+        </section>
+      ) : null}
+      {settings && manage ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="font-semibold text-slate-900">Facebook & Instagram</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Own-page clicks, views, likes, comments, and ads need a Page token. Save the Meta App Secret here, add the callback URL in Meta, then connect the Page from Research.
+          </p>
+          <p className="mt-2 text-sm text-slate-600">Facebook Login: <span className="font-semibold">{settings.facebookLoginConfigured ? 'Ready' : 'App secret missing'}</span>
+            {settings.metaAdsTokenConfigured ? ' · Ads token saved' : ''}
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="text-sm font-medium">Meta App ID
+              <input className={`${control} mt-1`} value={settings.metaAppId || ''} onChange={(event) => setSettings({ ...settings, metaAppId: event.target.value })} placeholder="From Meta Developer → App settings" />
+            </label>
+            <label className="text-sm font-medium">Meta App Secret
+              <input type="password" autoComplete="off" className={`${control} mt-1`} value={metaSecret} onChange={(event) => setMetaSecret(event.target.value)} placeholder={settings.metaAppSecretConfigured ? 'Enter new secret or leave blank' : 'Required for Connect Facebook Page'} />
+            </label>
+            <label className="text-sm font-medium md:col-span-2">Page or ads access token (optional)
+              <input type="password" autoComplete="off" className={`${control} mt-1`} value={metaAdsToken} onChange={(event) => setMetaAdsToken(event.target.value)} placeholder={settings.metaAdsTokenConfigured ? 'Enter new token or leave blank' : 'System user or ads token with pages_read_engagement and ads_read'} />
+            </label>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">Valid OAuth Redirect URI in Meta: <span className="font-mono text-slate-700">{settings.metaOAuthRedirect}</span></p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <AdminButton variant="primary" loading={pending === 'save'} process="Saving settings…" onClick={() => save()}>Save Meta credentials</AdminButton>
+            <AdminButton loading={pending === 'test-meta'} process="Testing Meta Graph…" onClick={testMeta}>Test Facebook connection</AdminButton>
+            <AdminButton loading={pending === 'clear-meta'} process="Removing Meta secret…" onClick={() => save({ clear_meta_secret: true, meta_app_secret: '' }, 'clear-meta')}>Remove app secret</AdminButton>
+          </div>
         </section>
       ) : null}
       {manage ? (

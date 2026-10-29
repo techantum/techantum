@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { belongsToFacebookPage, extractFacebookStories, postImageUrl } from './facebook-parse.ts';
+import { belongsToFacebookPage, extractFacebookStories, facebookGraphId, postImageUrl } from './facebook-parse.ts';
 
 describe('Facebook competitor post matching', () => {
   it('keeps Graph posts when the stored page is a vanity handle', () => {
@@ -34,5 +34,12 @@ describe('Facebook competitor post matching', () => {
     const stories = extractFacebookStories(html, 'acme', '111');
     assert.ok(stories.some((row) => row.id.includes('555') || row.permalink.includes('/posts/555')));
     assert.ok(stories.some((row) => row.id === '111_777'));
+  });
+});
+
+describe('Facebook insight ids', () => {
+  it('reads Graph story ids from stored posts', () => {
+    assert.equal(facebookGraphId({ youtubeVideoId: 'facebook:111_222', publicDetails: { graph_id: '111_222' } }), '111_222');
+    assert.equal(facebookGraphId({ youtubeVideoId: 'facebook:111:ad:999', publicDetails: { graph_id: '111:ad:999' } }).endsWith('999'), true);
   });
 });

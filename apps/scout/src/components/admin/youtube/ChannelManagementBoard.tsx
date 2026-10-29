@@ -15,7 +15,7 @@ import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
 import SafeImage from '@/components/ui/SafeImage';
 import { formatAgo, projectInitials } from '@/lib/youtube/home-display';
-import { researchContentHref } from '@/lib/research/platforms';
+import { facebookPageConnectHref, platformCopy, researchContentHref } from '@/lib/research/platforms';
 import { MAX_PROJECT_COMPETITORS } from '@/lib/youtube/workspace-nav';
 
 function compactMetric(value: unknown) {
@@ -29,6 +29,7 @@ function compactMetric(value: unknown) {
 export default function ChannelManagementBoard({ backHref, initialAdding = '' }: { backHref: string; initialAdding?: 'own' | 'competitor' | '' }) {
   const projectId = useProjectId();
   const platform = useProjectPlatform();
+  const copy = platformCopy(platform);
   const base = useYoutubePageBase();
   const access = useYoutubeAccess();
   const manage = allow(access, 'youtube_research.channels.manage');
@@ -179,7 +180,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
               <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
                 {channel.channel_name || channel.youtube_channel_id}
                 {kind === 'own' ? <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-secondary">Primary</span> : null}
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">YouTube</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{copy.label}</span>
               </p>
               <p className="text-xs text-slate-400">{handleLabel(channel.channel_handle) || channel.youtube_channel_id}</p>
             </div>
@@ -227,9 +228,12 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-900">Research setup · {setup.filter((item) => item.done).length} of {setup.length}</p>
-            <p className="text-xs text-slate-500">YouTube only. Add your channel and competitors, then return to Research.</p>
+            <p className="text-xs text-slate-500">Add your {copy.entity} and competitors, then return to Research.</p>
           </div>
-          {manage && !own ? <button type="button" className={partnerBtnSecondary} onClick={() => setAdding('own')}>Add own channel</button> : null}
+          {manage && !own ? <button type="button" className={partnerBtnSecondary} onClick={() => setAdding('own')}>Add own {copy.entity}</button> : null}
+          {manage && copy.id === 'facebook' && own && !own.meta_connected ? (
+            <a className={partnerBtnSecondary} href={facebookPageConnectHref(projectId, `${base}/channels`)}>Connect Facebook Page</a>
+          ) : null}
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {setup.map((step) => (
@@ -275,7 +279,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
           platform={platform}
           onSaved={async (saved) => {
             setAdding('');
-            setMessage(own ? 'Own YouTube channel replaced.' : 'Own YouTube channel connected.');
+            setMessage(own ? `Own ${copy.entity} replaced.` : `Own ${copy.entity} connected.`);
             await load();
             if (saved?.channel_id) await importChannels([saved.channel_id]);
           }}
@@ -286,7 +290,7 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-bricolage text-base font-semibold text-slate-900">YouTube channels</h2>
+            <h2 className="font-bricolage text-base font-semibold text-slate-900">{copy.label} {copy.entityPlural}</h2>
             {(['all', 'own', 'competitor'] as const).map((id) => (
               <button key={id} type="button" className={`rounded-full px-3 py-1 text-sm font-medium ${filter === id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setFilter(id)}>
                 {id === 'all' ? 'All' : id === 'own' ? 'Own' : 'Competitors'}
@@ -295,7 +299,10 @@ export default function ChannelManagementBoard({ backHref, initialAdding = '' }:
           </div>
           <div className="flex flex-wrap gap-2">
             {manage ? <button type="button" className={partnerBtnSecondary} disabled={busy === 'refresh' || !channels.length} onClick={refreshAll}><Icon name="ArrowPathIcon" size={16} /> Refresh all</button> : null}
-            {manage && !own ? <button type="button" className={partnerBtnSecondary} onClick={() => setAdding('own')}>Add own channel</button> : null}
+            {manage && !own ? <button type="button" className={partnerBtnSecondary} onClick={() => setAdding('own')}>Add own {copy.entity}</button> : null}
+            {manage && copy.id === 'facebook' && own && !own.meta_connected ? (
+              <a className={partnerBtnSecondary} href={facebookPageConnectHref(projectId, `${base}/channels`)}>Connect Facebook Page</a>
+            ) : null}
           </div>
         </div>
         <div className="overflow-x-auto">

@@ -15,7 +15,7 @@ import FetchVideosOverlay from '@/components/admin/youtube/FetchVideosOverlay';
 import VideoThumb from '@/components/admin/youtube/VideoThumb';
 import { allow, ProjectRequired, useProjectId, useProjectPlatform, useYoutubeAccess, useYoutubePageBase, useYoutubeRailActions, yt } from '@/components/admin/youtube/YoutubeFrame';
 import { PlatformLogo } from '@/components/marketing/BrandIcons';
-import { AD_FORMAT_FILTERS, POST_FORMAT_FILTERS, fetchBusyMessage, fetchLoaderMessage, fetchOverlayNote, platformCopy, researchContentHref, splitFetchMessage, titleCase } from '@/lib/research/platforms';
+import { AD_FORMAT_FILTERS, POST_FORMAT_FILTERS, facebookPageConnectHref, fetchBusyMessage, fetchLoaderMessage, fetchOverlayNote, platformCopy, researchContentHref, splitFetchMessage, titleCase } from '@/lib/research/platforms';
 import { partnerBtnPrimary, partnerBtnSecondary, partnerInput } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import NavIcon from '@/components/ui/NavIcon';
@@ -41,8 +41,8 @@ function compactMetric(value: unknown) {
 }
 
 function interactions(video: Record<string, any>) {
-  if (video.like_count == null && video.comment_count == null) return '—';
-  return compactMetric(Number(video.like_count || 0) + Number(video.comment_count || 0));
+  if (video.like_count == null && video.comment_count == null && video.share_count == null) return '—';
+  return compactMetric(Number(video.like_count || 0) + Number(video.comment_count || 0) + Number(video.share_count || 0));
 }
 
 function Chip({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -217,6 +217,15 @@ function Explorer() {
     const add = search?.get('add');
     if (add === 'own' || add === 'competitor') {
       setAdding(add);
+      router.replace(researchContentHref(base), { scroll: false });
+    }
+    const fbError = search?.get('facebook_error');
+    const fbOk = search?.get('facebook_connected');
+    if (fbError) {
+      setError(fbError);
+      router.replace(researchContentHref(base), { scroll: false });
+    } else if (fbOk) {
+      setMessage(`Connected ${fbOk} Facebook Page${fbOk === '1' ? '' : 's'}. Fetch posts to import clicks, views, likes, comments, and ads.`);
       router.replace(researchContentHref(base), { scroll: false });
     }
   }, [search, base, router]);
@@ -411,6 +420,14 @@ function Explorer() {
   return (
     <div className="flex h-[calc(100dvh-var(--yt-sticky)+5.5rem)] flex-col gap-3">
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+      {copy.id === 'facebook' && own && !own.meta_connected ? (
+        <AdminAlert>
+          Connect this Facebook Page with a Page admin login to import your post clicks, views, likes, comments, and ads. Competitor ads still come from Ad Library.
+          {manage ? (
+            <a className="ml-2 font-semibold text-secondary" href={facebookPageConnectHref(projectId, `${base}/posts`)}>Connect Facebook Page</a>
+          ) : null}
+        </AdminAlert>
+      ) : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
 
       <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
@@ -434,9 +451,13 @@ function Explorer() {
                 <Avatar src={own.thumbnail_url} name={own.channel_name} className="h-11 w-11" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-900">{handleLabel(own.channel_handle) || own.channel_name || own.youtube_channel_id}</p>
-                  <p className="truncate text-xs text-slate-400">{own.channel_name || 'Your channel'}</p>
+                  <p className="truncate text-xs text-slate-400">{own.channel_name || `Your ${copy.entity}`}</p>
                 </div>
-                <Chip className="bg-emerald-50 text-emerald-700">Connected</Chip>
+                {copy.id === 'facebook' && !own.meta_connected && manage ? (
+                  <a className="text-xs font-semibold text-secondary" href={facebookPageConnectHref(projectId, `${base}/posts`)}>Connect Page</a>
+                ) : (
+                  <Chip className="bg-emerald-50 text-emerald-700">Connected</Chip>
+                )}
               </div>
             ) : manage ? (
               <button type="button" className="flex w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 px-3 py-6 text-sm font-semibold text-secondary hover:border-secondary/50 hover:bg-orange-50/40" onClick={() => setAdding('own')}>
@@ -601,8 +622,11 @@ function Explorer() {
                 <th className="px-3 py-3">{titleCase(copy.content)}</th>
                 <th className="px-3 py-3">{titleCase(copy.entity)}</th>
                 <th className="px-3 py-3">Published</th>
-                <th className="px-3 py-3 text-right">Views</th>
-                <th className="px-3 py-3 text-right" title={copy.id === 'youtube' ? 'Public likes plus comments. This is not a YouTube Analytics engagement rate.' : 'Public likes plus comments.'}>Likes + comments</th>
+                <th className="px-3 py-3 text-right">{copy.id === 'facebook' ? 'Views / reach' : 'Views'}</th>
+                {copy.id === 'facebook' ? <th className="px-3 py-3 text-right">Clicks</th> : null}
+                {copy.id === 'facebook' ? <th className="px-3 py-3 text-right">Likes</th> : null}
+                {copy.id === 'facebook' ? <th className="px-3 py-3 text-right">Comments</th> : null}
+                <th className="px-3 py-3 text-right" title={copy.id === 'youtube' ? 'Public likes plus comments. This is not a YouTube Analytics engagement rate.' : 'Likes, comments, and shares when Facebook returns them.'}>{copy.id === 'facebook' ? 'Engagement' : 'Likes + comments'}</th>
                 <th className="px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -643,7 +667,10 @@ function Explorer() {
                       </span>
                     </td>
                     <td className="px-3 py-3 text-slate-500">{formatAgo(video.published_at)}</td>
-                    <td className="px-3 py-3 text-right font-medium">{compactMetric(video.view_count)}</td>
+                    <td className="px-3 py-3 text-right font-medium">{compactMetric(video.view_count ?? video.impression_count)}</td>
+                    {copy.id === 'facebook' ? <td className="px-3 py-3 text-right text-slate-600">{compactMetric(video.click_count)}</td> : null}
+                    {copy.id === 'facebook' ? <td className="px-3 py-3 text-right text-slate-600">{compactMetric(video.like_count)}</td> : null}
+                    {copy.id === 'facebook' ? <td className="px-3 py-3 text-right text-slate-600">{compactMetric(video.comment_count)}</td> : null}
                     <td className="px-3 py-3 text-right text-slate-600">{interactions(video)}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1">

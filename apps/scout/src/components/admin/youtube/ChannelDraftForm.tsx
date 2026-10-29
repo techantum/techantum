@@ -6,7 +6,7 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import PageSearchField, { pageInputFor } from '@/components/admin/youtube/PageSearchField';
 import { metric, yt } from '@/components/admin/youtube/YoutubeFrame';
-import { platformCopy, type ResearchPlatform } from '@/lib/research/platforms';
+import { facebookPageConnectHref, platformCopy, type ResearchPlatform } from '@/lib/research/platforms';
 import { partnerBtnSecondary } from '@/components/partner/PartnerUi';
 import Icon from '@/components/ui/AppIcon';
 import { useProcess } from '@/components/ui/ProcessOverlay';
@@ -89,6 +89,11 @@ export default function ChannelDraftForm({
   const form = (
     <>
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+      {copy.id === 'facebook' && own ? (
+        <a className={`${partnerBtnSecondary} mt-3 inline-flex`} href={facebookPageConnectHref(projectId, typeof window === 'undefined' ? '/facebook/posts' : window.location.pathname)}>
+          Connect Facebook Page for insights
+        </a>
+      ) : null}
       <div className="mt-3">
         <PageSearchField
           platform={copy.id}

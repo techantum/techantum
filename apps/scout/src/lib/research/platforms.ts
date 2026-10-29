@@ -236,6 +236,11 @@ export function splitFetchMessage(copy: PlatformCopy, posts: number, ads: number
   return fetchSuccessMessage(copy, posts);
 }
 
+export function facebookPageConnectHref(projectId: string, returnPath = '/facebook/posts') {
+  const params = new URLSearchParams({ projectId, return: returnPath });
+  return `/api/youtube/meta/facebook/start?${params.toString()}`;
+}
+
 export function isResearchPlatformSlug(value: string) {
   return (RESEARCH_PLATFORMS as readonly string[]).includes(value);
 }

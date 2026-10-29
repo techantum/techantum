@@ -25,7 +25,7 @@ export async function searchResearchSources(platform: ResearchPlatform | string,
 
 export async function listResearchPosts(
   platform: ResearchPlatform | string,
-  channel: { youtube_channel_id: string; channel_handle?: string | null; limit?: number; own?: boolean },
+  channel: { youtube_channel_id: string; channel_handle?: string | null; limit?: number; own?: boolean; pageToken?: string | null },
 ): Promise<ResolvedVideo[]> {
   const kind = asPlatform(platform);
   if (kind === 'linkedin') return listLinkedInPosts(channel.youtube_channel_id);

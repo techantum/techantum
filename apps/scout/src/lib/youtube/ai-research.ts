@@ -492,7 +492,7 @@ async function collectEvidence(projectId: string, config: AiResearchConfig) {
     sort: 'view_count',
   });
   const videos = listed.rows.map((row) => compactVideo(row as Record<string, any>, channels));
-  if (!videos.length) throw new FinanceValidationError('Import videos into this project before running AI Analysis.');
+  if (!videos.length) throw new FinanceValidationError('Fetch posts or videos into this project before running AI Analysis.');
   return {
     notice: AI_RESEARCH_NOTICE,
     analyticsAvailable: false,
@@ -570,6 +570,7 @@ async function runModel(config: AiResearchConfig, evidence: Awaited<ReturnType<t
 You are running a goal-driven video analysis. Apply the youtube_master_playbook modules that match primary_goal. Secondary goals are optional extras, not a new report.
 Rules:
 - Never invent CTR, impressions, retention, watch time, traffic sources, demographics, or competitor private analytics.
+- If public_details.platform is facebook: own organic posts may include impressions, clicks, engaged_users from Page insights; own ads may include spend/CTR/CPC when an ad account is connected; competitor ads from Ad Library only have impression bands, not clicks. Compare own vs competitor creatives and call out metric gaps. Recommend tests for creative, CTA, and boosting.
 - If the primary goal needs a missing metric (CTR, retention, subscribers gained), say it is unavailable and diagnose with public evidence plus playbook hypotheses.
 - Cover ONLY selected goals. Route diagnosis: views → demand/packaging/discovery; CTR → packaging; retention → hook/pacing/structure; engagement → comments/CTA; subscribers → reason to return; discoverability → intent/SEO; competitors → public patterns; publishing → readiness/cadence.
 - Max five recommended_actions (P1/P2/P3). Each needs problem, evidence, why, change, how, metric, review_period, confidence.
@@ -613,6 +614,9 @@ Rules:
             views: video.view_count,
             likes: video.like_count,
             comments: video.comment_count,
+            clicks: Number.isFinite(Number((video.public_details as { clicks?: unknown } | undefined)?.clicks)) ? Number((video.public_details as { clicks?: unknown }).clicks) : null,
+            impressions: Number.isFinite(Number((video.public_details as { impressions?: unknown } | undefined)?.impressions)) ? Number((video.public_details as { impressions?: unknown }).impressions) : null,
+            placement: video.placement_label,
             description: video.description,
             length: video.duration_label,
             thumbnail_text: video.thumbnail_text,
