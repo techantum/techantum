@@ -674,6 +674,24 @@ export const contentSchemas: Record<string, ContentSchema> = {
       },
     ],
   },
+  'legal.privacy': {
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
+      { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
+      { key: 'summary', label: 'Intro', type: 'textarea' },
+      { key: 'updated', label: 'Last updated', type: 'text' },
+      { key: 'body', label: 'Page content', type: 'richtext' },
+    ],
+  },
+  'legal.terms': {
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
+      { key: 'title', label: headingLabel.h1('Page title'), type: 'text' },
+      { key: 'summary', label: 'Intro', type: 'textarea' },
+      { key: 'updated', label: 'Last updated', type: 'text' },
+      { key: 'body', label: 'Page content', type: 'richtext' },
+    ],
+  },
 };
 
 export function getContentSchema(key: string): ContentSchema | undefined {

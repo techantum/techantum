@@ -593,6 +593,30 @@
     @apply mt-3;
   }
 
+  .legal-document h2 {
+    @apply font-bricolage text-2xl font-bold text-foreground mt-10 mb-3 first:mt-0;
+  }
+
+  .legal-document h3 {
+    @apply font-bricolage text-lg font-semibold text-foreground mt-6 mb-2;
+  }
+
+  .legal-document ul {
+    @apply list-disc pl-5 my-3 space-y-1;
+  }
+
+  .legal-document ol {
+    @apply list-decimal pl-5 my-3 space-y-1;
+  }
+
+  .legal-document li {
+    @apply text-muted-foreground;
+  }
+
+  .legal-document a {
+    @apply text-primary underline;
+  }
+
   .cms-rich-text-invert,
   .cms-rich-text-invert p,
   .cms-rich-text-invert li,

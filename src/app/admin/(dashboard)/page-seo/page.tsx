@@ -31,7 +31,7 @@ const PAGE_COPY: Record<string, { label: string; icon: string }> = {
   '/privacy-policy': { label: 'Privacy Policy', icon: 'ShieldCheckIcon' },
   '/services': { label: 'Services', icon: 'WrenchScrewdriverIcon' },
   '/testimonials': { label: 'Testimonials', icon: 'ChatBubbleLeftRightIcon' },
-  '/terms-of-service': { label: 'Terms of Service', icon: 'ScaleIcon' },
+  '/terms-of-service': { label: 'Terms and Conditions', icon: 'ScaleIcon' },
   '/thank-you': { label: 'Thank you', icon: 'CheckCircleIcon' },
 };
 
