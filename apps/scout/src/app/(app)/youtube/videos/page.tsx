@@ -453,8 +453,12 @@ function Explorer() {
                   <p className="truncate text-sm font-semibold text-slate-900">{handleLabel(own.channel_handle) || own.channel_name || own.youtube_channel_id}</p>
                   <p className="truncate text-xs text-slate-400">{own.channel_name || `Your ${copy.entity}`}</p>
                 </div>
-                {copy.id === 'facebook' && !own.meta_connected && manage ? (
-                  <a className="text-xs font-semibold text-secondary" href={facebookPageConnectHref(projectId, `${base}/posts`)}>Connect Page</a>
+                {copy.id === 'facebook' && !own.meta_connected ? (
+                  manage ? (
+                    <a className="text-xs font-semibold text-secondary" href={facebookPageConnectHref(projectId, `${base}/posts`)}>Connect Page</a>
+                  ) : (
+                    <Chip className="bg-amber-50 text-amber-800">Not connected</Chip>
+                  )
                 ) : (
                   <Chip className="bg-emerald-50 text-emerald-700">Connected</Chip>
                 )}

@@ -3,7 +3,7 @@ import { q } from '../finance/db';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../finance/errors';
 import { asPlatform, parseContentLinks, platformCopy } from '../research/platforms';
 import { probeFacebookAccess, resetFacebookPageCache, resolveFacebookIdentity } from '../research/meta-graph';
-import { readFacebookPageToken } from '../research/facebook-tokens';
+import { readFacebookPageGrant } from '../research/facebook-tokens';
 import { listResearchPosts, resolveResearchSource, searchResearchSources } from '../research/resolve';
 import { createYoutube, normalizeYoutubeApiKey, YoutubeApiError, YOUTUBE_CONNECTED_MESSAGE, type ResolvedChannel, type ResolvedVideo, type YoutubeFetch } from './client';
 import { presentChannel, presentVideo } from './mask';
@@ -108,7 +108,8 @@ export async function applySavedMetaCredentials() {
     }
     if (row?.meta_ads_token_ciphertext) {
       try {
-        putEnvIfEmpty('META_ADS_ACCESS_TOKEN', decryptSecret(String(row.meta_ads_token_ciphertext)));
+        const saved = decryptSecret(String(row.meta_ads_token_ciphertext)).trim();
+        if (saved) process.env.META_ADS_ACCESS_TOKEN = saved;
       } catch {
         /* Saved ads token could not be read. */
       }
@@ -720,7 +721,15 @@ async function runSocialImport(channelId: string, current: Record<string, unknow
         /* Keep the stored page id and still fetch posts. */
       }
     }
-    const pageId = String(current.youtube_channel_id || '');
+    let pageId = String(current.youtube_channel_id || '');
+    const grant = platform === 'facebook'
+      ? await readFacebookPageGrant(pageId, current.channel_handle ? String(current.channel_handle) : null, userId)
+      : { token: '', pageId: '' };
+    const pageToken = grant.token;
+    if (grant.pageId && /^\d{5,}$/.test(grant.pageId)) {
+      pageId = grant.pageId;
+      current.youtube_channel_id = grant.pageId;
+    }
     if (platform === 'facebook' && /^\d{5,}$/.test(pageId)) {
       await q(
         undefined,
@@ -741,9 +750,6 @@ async function runSocialImport(channelId: string, current: Record<string, unknow
     } catch {
       /* Page picture is optional; posts still import. */
     }
-    const pageToken = platform === 'facebook'
-      ? await readFacebookPageToken(pageId, current.channel_handle ? String(current.channel_handle) : null, userId)
-      : '';
     const details = await listResearchPosts(platform, {
       youtube_channel_id: pageId,
       channel_handle: current.channel_handle ? String(current.channel_handle) : null,

@@ -30,6 +30,32 @@ function appSecret() {
 }
 
 const rejectedGraphTokens = new Set<string>();
+let graphBlock: { kind: '' | 'expired' | 'permission'; detail: string } = { kind: '', detail: '' };
+
+export function resetGraphTokenState() {
+  rejectedGraphTokens.clear();
+  graphBlock = { kind: '', detail: '' };
+}
+
+function noteGraphBlock(error?: GraphError) {
+  const message = String(error?.message || '');
+  if (isDeadTokenError(error)) {
+    graphBlock = {
+      kind: 'expired',
+      detail: message.match(/expired on ([^.]+)/i)?.[1]?.trim() || graphBlock.detail,
+    };
+    return;
+  }
+  if (graphBlock.kind === 'expired') return;
+  if (/permission|page public content|pages_read_engagement/i.test(message)) {
+    graphBlock = { kind: 'permission', detail: '' };
+  }
+}
+
+function expiredMetaTokenMessage() {
+  const when = graphBlock.detail ? ` on ${graphBlock.detail}` : '';
+  return `The Meta ads token expired${when}. Paste a new token in Business Research settings under Facebook & Instagram, or connect the Page with a Page admin login.`;
+}
 
 function appAccessToken() {
   const secret = appSecret();
@@ -87,6 +113,7 @@ async function graphGetOnce(path: string, query: Record<string, string | number 
   });
   const body = (await response.json().catch(() => ({}))) as GraphBody;
   if (!response.ok || body.error) {
+    noteGraphBlock(body.error);
     if (isDeadTokenError(body.error)) rejectedGraphTokens.add(token);
     throw new FinanceValidationError(body.error?.message || `Meta Graph API returned HTTP ${response.status}`);
   }
@@ -105,7 +132,7 @@ async function graphGet(path: string, query: Record<string, string | number | un
     } catch (err) {
       last = err instanceof FinanceValidationError ? err : new FinanceValidationError(String(err));
       const message = last.message;
-      if (rejectedGraphTokens.has(token) || /does not exist|missing permission|not have permission|oauth/i.test(message)) continue;
+      if (rejectedGraphTokens.has(token) || /does not exist|missing permission|not have permission|requires the |pages_read_engagement|page public content|application does not have permission|oauth/i.test(message)) continue;
       throw last;
     }
   }
@@ -208,7 +235,7 @@ async function ownedFacebookPages(): Promise<OwnedPage[]> {
 }
 
 export function resetFacebookPageCache() {
-  ownedPagesCache = null;
+  resetGraphTokenState();
 }
 
 export async function probeFacebookAccess() {
@@ -792,6 +819,7 @@ export async function resolveFacebookIdentity(pageId: string, handle?: string | 
 }
 
 export async function listFacebookPosts(pageId: string, limit = 50, handle?: string | null, allowOwned = true, storedPageToken = ''): Promise<ResolvedVideo[]> {
+  graphBlock = { kind: '', detail: '' };
   const cap = Math.min(100, Math.max(1, limit));
   const identity = await resolveFacebookIdentity(pageId, handle, allowOwned);
   const graphId = identity.id;
@@ -880,6 +908,9 @@ export async function listFacebookPosts(pageId: string, limit = 50, handle?: str
     return Boolean(handleKey) && page.toLowerCase() === handleKey.toLowerCase();
   }));
   if (unique.length) return unique.slice(0, cap);
+  if (graphBlock.kind === 'expired' && !pageToken) {
+    throw new FinanceValidationError(expiredMetaTokenMessage());
+  }
   if (!graphToken() && !pageToken) {
     throw new FinanceValidationError('Facebook posts need a Meta Page token. Connect this Page with Facebook, or set META_ADS_ACCESS_TOKEN.');
   }

@@ -232,9 +232,9 @@ export async function archiveProject(id: string, userId: string) {
   return { ok: true };
 }
 
-export async function listProjectChannels(projectId: string) {
+export async function listProjectChannels(projectId: string, userId?: string | null) {
   await requireProject(projectId);
-  const connected = await connectedFacebookPageIds().catch(() => new Set<string>());
+  const connected = await connectedFacebookPageIds(userId).catch(() => new Set<string>());
   const { rows } = await q(
     undefined,
     `SELECT c.*, pc.relationship, pc.created_at AS linked_at,

@@ -26,8 +26,6 @@ export function facebookOAuthRedirectUri() {
 export const FACEBOOK_PAGE_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
-  'pages_read_user_content',
-  'read_insights',
   'ads_read',
   'business_management',
 ].join(',');

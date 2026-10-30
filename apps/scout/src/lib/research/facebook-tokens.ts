@@ -55,27 +55,34 @@ export function facebookPageMatches(
   });
 }
 
-export async function readFacebookPageToken(pageId: string, handle?: string | null, userId?: string | null) {
-  const owner = facebookOwnerKey(userId);
+export async function readFacebookPageGrant(pageId: string, handle?: string | null, userId?: string | null) {
+  const ownerKeys = [...new Set([facebookOwnerKey(userId), userId ? `user:${userId}` : ''].filter(Boolean))];
   const keys = facebookPageKeys(pageId, handle);
-  if (!keys.length) return '';
+  if (!keys.length) return { token: '', pageId: '' };
   const { rows } = await q<{ token_ciphertext: string; page_id: string; page_username: string | null; page_name: string | null }>(
     undefined,
     `SELECT token_ciphertext, page_id, page_username, page_name FROM youtube_meta_page_tokens
-     WHERE owner_key=$1 ORDER BY updated_at DESC`,
-    [owner],
+     WHERE owner_key = ANY($1::text[])
+        OR ($2::uuid IS NOT NULL AND created_by = $2::uuid)
+     ORDER BY updated_at DESC`,
+    [ownerKeys, userId || null],
   );
   const hit = rows.find((row) => facebookPageMatches(
     { id: row.page_id, username: row.page_username, name: row.page_name },
     ...keys,
   ));
   const payload = hit?.token_ciphertext;
-  if (!payload) return '';
+  if (!payload) return { token: '', pageId: '' };
   try {
-    return decryptSecret(payload);
+    return { token: decryptSecret(payload), pageId: String(hit?.page_id || '') };
   } catch {
-    return '';
+    return { token: '', pageId: '' };
   }
+}
+
+export async function readFacebookPageToken(pageId: string, handle?: string | null, userId?: string | null) {
+  const grant = await readFacebookPageGrant(pageId, handle, userId);
+  return grant.token;
 }
 
 export async function bindFacebookChannelIdentity(
@@ -110,10 +117,13 @@ export async function bindFacebookChannelIdentity(
 }
 
 export async function connectedFacebookPageIds(userId?: string | null) {
-  const { rows } = await q<{ page_id: string; page_username: string | null }>(
+  const keys = [...new Set([facebookOwnerKey(userId), userId ? `user:${userId}` : ''].filter(Boolean))];
+  const { rows } = await q<{ page_id: string; page_username: string | null; page_name: string | null }>(
     undefined,
-    `SELECT page_id, page_username FROM youtube_meta_page_tokens WHERE owner_key=$1`,
-    [facebookOwnerKey(userId)],
+    `SELECT page_id, page_username, page_name FROM youtube_meta_page_tokens
+     WHERE owner_key = ANY($1::text[])
+        OR ($2::uuid IS NOT NULL AND created_by = $2::uuid)`,
+    [keys, userId || null],
   );
-  return new Set(rows.flatMap((row) => facebookPageKeys(row.page_id, row.page_username)));
+  return new Set(rows.flatMap((row) => facebookPageKeys(row.page_id, row.page_username, row.page_name)));
 }
