@@ -107,9 +107,9 @@ export async function marketingOverview() {
   return {
     healthScore: latestRun.data?.health_score ?? null,
     lastAuditAt: latestRun.data?.finished_at || latestRun.data?.started_at || null,
-    indexedPages: 'Not Connected',
+    indexedPages: snapshot?.indexed_pages ?? (gsc.connected ? '—' : 'Not Connected'),
     issuesPending: pending.length,
-    organicClicks: gsc.connected && snapshot?.clicks != null ? snapshot.clicks : 'Not Connected',
+    organicClicks: gsc.connected && snapshot?.clicks != null ? Math.round(Number(snapshot.clicks)) : 'Not Connected',
     seoKeywords: (keywords.data || []).filter((row: any) => !row.is_negative && row.usage_type !== 'ads').length,
     adsKeywords: (keywords.data || []).filter((row: any) => !row.is_negative && row.usage_type !== 'seo').length,
     adAssets: (assets.data || []).filter((row: any) => row.status !== 'archived').length,

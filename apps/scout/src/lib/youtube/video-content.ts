@@ -77,7 +77,7 @@ async function captionTracksFromPlayer(videoId: string, fetchImpl: typeof fetch)
   const response = await fetchImpl('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(6000),
     body: JSON.stringify({
       context: { client: { clientName: 'WEB', clientVersion: '2.20240401.00.00', hl: 'en' } },
       videoId,
@@ -91,7 +91,7 @@ async function captionTracksFromPlayer(videoId: string, fetchImpl: typeof fetch)
 
 async function readTrack(url: string, fetchImpl: typeof fetch) {
   const trackUrl = url.includes('fmt=') ? url : `${url}${url.includes('?') ? '&' : '?'}fmt=json3`;
-  const response = await fetchImpl(trackUrl, { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Mozilla/5.0' } });
+  const response = await fetchImpl(trackUrl, { signal: AbortSignal.timeout(6000), headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!response.ok) return '';
   return parseTimedText(await response.text());
 }
@@ -101,11 +101,10 @@ export async function fetchPublicCaptions(videoId: string, fetchImpl: typeof fet
   if (!/^[\w-]{11}$/.test(id)) return '';
   try {
     const tracks = await captionTracksFromPlayer(id, fetchImpl);
-    const parts: { name: string; text: string }[] = [];
-    for (const track of tracks) {
+    const parts = (await Promise.all(tracks.map(async (track) => {
       const text = await readTrack(track.url, fetchImpl);
-      if (text) parts.push({ name: track.name, text });
-    }
+      return text ? { name: track.name, text } : null;
+    }))).filter((part): part is { name: string; text: string } => Boolean(part));
     return formatSpokenCaptions(parts);
   } catch {
     return '';

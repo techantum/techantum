@@ -66,22 +66,20 @@ export function imageMimeFromBytes(bytes: Buffer, headerMime?: string | null) {
 }
 
 async function downloadThumbnail(urls: string[]) {
-  let best: { url: string; bytes: Buffer; mime: string } | null = null;
-  for (const url of urls) {
-    if (!IMAGE_HOST.test(url)) continue;
+  const downloads = await Promise.all(urls.filter((url) => IMAGE_HOST.test(url)).map(async (url) => {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
-      if (!response.ok) continue;
+      const response = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      if (!response.ok) return null;
       const bytes = Buffer.from(await response.arrayBuffer());
-      if (bytes.length < 2000 || bytes.length > 4_000_000) continue;
+      if (bytes.length < 2000 || bytes.length > 4_000_000) return null;
       const mime = imageMimeFromBytes(bytes, response.headers.get('content-type'));
-      if (!mime) continue;
-      if (!best || bytes.length > best.bytes.length) best = { url, bytes, mime };
+      return mime ? { url, bytes, mime } : null;
     } catch {
-      /* try the next size */
+      return null;
     }
-  }
-  return best;
+  }));
+  return downloads.filter((item): item is { url: string; bytes: Buffer; mime: string } => Boolean(item))
+    .sort((left, right) => right.bytes.length - left.bytes.length)[0] || null;
 }
 
 function visionProvider(provider: ResolvedProvider): ResolvedProvider {
@@ -97,13 +95,13 @@ Copy every language printed on the image in its own script. Include Telugu when 
 
 async function askGemini(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }, data: string) {
   let last = 'Gemini could not read the thumbnail';
-  for (const model of geminiModelRetryChain(provider.model).slice(0, 4)) {
+  for (const model of geminiModelRetryChain(provider.model).slice(0, 2)) {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(8000),
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: PROMPT }, { inlineData: { mimeType: image.mime, data } }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 1200, responseMimeType: 'application/json' },
@@ -125,7 +123,7 @@ async function askGemini(provider: ResolvedProvider, image: { bytes: Buffer; mim
 async function askProvider(provider: ResolvedProvider, image: { bytes: Buffer; mime: string }) {
   const used = visionProvider(provider);
   const data = image.bytes.toString('base64');
-  const timeout = AbortSignal.timeout(20000);
+  const timeout = AbortSignal.timeout(8000);
   if (used.id === 'gemini') return askGemini(used, image, data);
   if (used.id === 'openai') {
     const headers: Record<string, string> = { Authorization: `Bearer ${used.apiKey}`, 'Content-Type': 'application/json' };

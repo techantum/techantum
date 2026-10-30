@@ -59,7 +59,7 @@ export async function GET(request: Request, context: { params: Promise<{ path?: 
   if ('error' in auth && auth.error) return auth.error;
   try {
     if (path[0] === 'gsc' && path[1] === 'start') {
-      const state = newOAuthState();
+      const state = `gsc_${newOAuthState()}`;
       const url = await buildGscAuthUrl(state);
       const response = NextResponse.redirect(url);
       response.cookies.set('gsc_oauth_state', state, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 600 });

@@ -928,8 +928,8 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
   const inserted = await q(undefined, `INSERT INTO youtube_ai_analyses (project_id, name, status, config, created_by) VALUES ($1,$2,'generating',$3::jsonb,$4) RETURNING id`, [projectId, name, JSON.stringify({ ...config, mode: compareOnly ? 'compare' : 'insights', workspace: String(body.workspace || '') }), userId]);
   const id = inserted.rows[0].id;
   try {
-    const evidence = await gatherEvidence(projectId, config);
-    let result: Record<string, any> = { video_briefs: [], observations: [], recommendations: [], insights: null };
+    const evidence = compareOnly ? await collectEvidence(projectId, config) : await gatherEvidence(projectId, config);
+    let result: Record<string, any> = { video_briefs: [], observations: [], recommendations: [], insights: null, limitations: [] };
     let provider = null;
     let model = null;
     if (!compareOnly) {
@@ -944,7 +944,7 @@ export async function createAiAnalysis(projectId: string, body: Record<string, u
     await q(
       undefined,
       `UPDATE youtube_ai_analyses SET status='ready', evidence=$2::jsonb, result=$3::jsonb, limitations=$4, provider=$5, model=$6, error_summary=NULL, updated_at=NOW() WHERE id=$1`,
-      [id, JSON.stringify(evidence), JSON.stringify(result), result.limitations || null, provider, model]
+      [id, JSON.stringify(evidence), JSON.stringify(result), Array.isArray(result.limitations) ? result.limitations : [], provider, model]
     );
     if (!compareOnly) {
       for (const item of result.recommendations || []) {

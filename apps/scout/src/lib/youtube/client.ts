@@ -251,7 +251,7 @@ export async function youtubeRequest(apiKey: string, path: string, params: Recor
       if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
     }
     try {
-      const response = await fetchImpl(url.toString(), { signal: AbortSignal.timeout(8000) });
+      const response = await fetchImpl(url.toString(), { signal: AbortSignal.timeout(6000) });
       const body = await response.json().catch(() => ({}));
       if (response.ok) return body as Record<string, any>;
       const classified = classifyYoutubeError(response.status, body);
@@ -264,7 +264,7 @@ export async function youtubeRequest(apiKey: string, path: string, params: Recor
         ? new YoutubeApiError('timeout', MESSAGES.timeout, 504)
         : new YoutubeApiError('network', MESSAGES.network, 503);
     }
-    if (attempt < 2) await delay(300 * 2 ** attempt);
+    if (attempt === 0) await delay(250);
   }
   throw lastError || new YoutubeApiError('network', MESSAGES.network, 503);
 }

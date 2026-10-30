@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin/auth';
 import { discoverGbpLocationCatalog } from '@/lib/gbp/client';
 import { exchangeGbpOAuthCode, exchangeGoogleLoginCode, gbpOAuthRedirectUri, saveGbpOAuthLocation, saveGbpOAuthTokens } from '@/lib/gbp/oauth';
+import { exchangeGscCode } from '@/lib/marketing-seo/gsc';
 import { publicSiteOrigin } from '@/lib/auth/public-origin';
 import { createClient } from '@/lib/supabase/server';
 import { issueSiteSessionForUser } from '@/lib/auth/site-session';
@@ -53,6 +54,33 @@ export async function GET(request: Request) {
   const state = url.searchParams.get('state');
   const oauthError = url.searchParams.get('error');
   const origin = publicSiteOrigin();
+
+  if (state?.startsWith('gsc_')) {
+    const dest = new URL('/admin/seo-ads?tab=integrations', origin);
+    const auth = await requireAdmin();
+    if ('error' in auth && auth.error) {
+      dest.searchParams.set('error', 'Sign in to the admin workspace, then connect Search Console again.');
+      return NextResponse.redirect(dest);
+    }
+    if (oauthError || !code) {
+      dest.searchParams.set('error', oauthError || 'Google authorization was cancelled.');
+      return NextResponse.redirect(dest);
+    }
+    const cookieStore = await cookies();
+    if (cookieStore.get('gsc_oauth_state')?.value !== state) {
+      dest.searchParams.set('error', 'Google login expired. Connect again.');
+      return NextResponse.redirect(dest);
+    }
+    try {
+      await exchangeGscCode(code);
+      dest.searchParams.set('connected', 'gsc');
+    } catch (error) {
+      dest.searchParams.set('error', error instanceof Error ? error.message : 'Could not connect Search Console.');
+    }
+    const response = NextResponse.redirect(dest);
+    response.cookies.set('gsc_oauth_state', '', { path: '/', maxAge: 0 });
+    return response;
+  }
 
   if (state?.startsWith('hookooh_') && /^hookooh_[A-Za-z0-9_]+$/.test(state)) {
     const hookooh = (process.env.HOOKOOH_APP_URL || 'https://hookooh.com').replace(/\/$/, '');

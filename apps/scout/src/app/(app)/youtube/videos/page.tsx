@@ -194,6 +194,9 @@ function Explorer() {
     (async () => {
       try {
         const channelRows = await reloadChannels();
+        const filterTask = yt(`projects/${projectId}/filters${channelIds ? `?channelIds=${channelIds}` : ''}`)
+          .then((options) => setFilterOptions(options))
+          .catch(() => undefined);
         const listed = await load(1, filters, channelRows);
         const empty = !(listed.total || listed.rows?.length);
         if (canImport && channelRows.length && empty) {
@@ -202,8 +205,8 @@ function Explorer() {
             : channelRows;
           await fetchFromChannels(targets.length ? targets : channelRows);
         }
-        const options = await yt(`projects/${projectId}/filters${channelIds ? `?channelIds=${channelIds}` : ''}`);
-        setFilterOptions(options);
+        setLoading(false);
+        await filterTask;
       } catch (err) {
         setError(err instanceof Error ? err.message : `Could not load ${copy.contentPlural}`);
       } finally {

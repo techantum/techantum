@@ -812,9 +812,15 @@ async function runImport(channelId: string, body: Record<string, unknown>, userI
   const running = await q(undefined, `SELECT id FROM youtube_import_jobs WHERE channel_id=$1 AND status='running'`, [channelId]);
   if (running.rows[0]) throw new FinanceConflictError('An import is already running for this channel.');
   const youtube = createYoutube(await readApiKey(), fetchImpl);
-  const resolved = await youtube.resolve(current.youtube_channel_id);
-  if (!resolved.uploadsPlaylistId) throw new FinanceValidationError('This channel has no public uploads playlist.');
-  await rememberChannel(channelId, resolved);
+  let uploadsId = String(current.uploads_playlist_id || '');
+  let sourceChannelId = String(current.youtube_channel_id || '');
+  if (!uploadsId) {
+    const resolved = await youtube.resolve(sourceChannelId);
+    if (!resolved.uploadsPlaylistId) throw new FinanceValidationError('This channel has no public uploads playlist.');
+    await rememberChannel(channelId, resolved);
+    uploadsId = resolved.uploadsPlaylistId;
+    sourceChannelId = resolved.youtubeChannelId;
+  }
   const { rows } = await q(
     undefined,
     `INSERT INTO youtube_import_jobs (channel_id, requested_by, import_type, date_from, date_to, requested_limit, status, started_at, project_id)
@@ -829,8 +835,8 @@ async function runImport(channelId: string, body: Record<string, unknown>, userI
   let summary: string | null = null;
   try {
     const [uploads, shorts] = await Promise.all([
-      playlistItems(youtube, resolved.uploadsPlaylistId, { limit, from: dateFrom, to: dateTo }),
-      playlistItems(youtube, shortsPlaylistId(resolved.youtubeChannelId), { limit, from: dateFrom, to: dateTo }),
+      playlistItems(youtube, uploadsId, { limit, from: dateFrom, to: dateTo }),
+      playlistItems(youtube, shortsPlaylistId(sourceChannelId), { limit, from: dateFrom, to: dateTo }),
     ]);
     const collectedVideos = mergePlaylistVideos(shorts.videos, uploads.videos, limit);
     if (uploads.truncated || shorts.truncated) summary = 'Scanning stopped after 1,000 playlist items. Narrow the dates to reach older videos.';

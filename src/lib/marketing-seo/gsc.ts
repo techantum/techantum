@@ -1,7 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { decryptSecret, encryptSecret } from '@/lib/ai/crypto';
-import { publicSiteOrigin } from '@/lib/auth/public-origin';
-import { createGbpOAuthClient, newOAuthState } from '@/lib/gbp/oauth';
+import { createGbpOAuthClient, gbpOAuthRedirectUri, newOAuthState } from '@/lib/gbp/oauth';
 
 function envGoogleClientReady() {
   return Boolean(
@@ -18,10 +17,7 @@ export const GSC_SCOPES = [
 ];
 
 export function gscOAuthRedirectUri() {
-  return (
-    process.env.MARKETING_GSC_OAUTH_REDIRECT?.trim() ||
-    `${publicSiteOrigin()}/api/admin/marketing-seo/gsc/callback`
-  );
+  return process.env.MARKETING_GSC_OAUTH_REDIRECT?.trim() || gbpOAuthRedirectUri();
 }
 
 export { newOAuthState };
@@ -97,6 +93,13 @@ export async function exchangeGscCode(code: string) {
     connected_at: new Date().toISOString(),
     last_error: null,
   });
+  try {
+    await syncGscAnalytics();
+  } catch (error) {
+    await supabase.from('marketing_google_connections').update({
+      last_error: error instanceof Error ? error.message : 'Search Console sync failed.',
+    }).eq('id', 'gsc');
+  }
   return { email };
 }
 
@@ -144,9 +147,20 @@ export async function saveGscProperty(propertyUri: string) {
     .eq('id', 'gsc');
 }
 
+async function ensureGscProperty() {
+  const current = await gscAccessToken();
+  if (current.propertyUri) return current.propertyUri;
+  const sites = await listGscSites();
+  const host = (process.env.NEXT_PUBLIC_SITE_URL || 'https://techantum.com').replace(/^https?:\/\//, '').replace(/\/$/, '').replace(/^www\./, '');
+  const match = sites.find((site: { siteUrl?: string }) => String(site.siteUrl || '').replace(/^www\./, '').includes(host)) || sites[0];
+  const propertyUri = String(match?.siteUrl || '');
+  if (!propertyUri) throw new Error('This Google account has no Search Console properties.');
+  await saveGscProperty(propertyUri);
+  return propertyUri;
+}
+
 export async function syncGscAnalytics() {
-  const { propertyUri } = await gscAccessToken();
-  if (!propertyUri) throw new Error('Select a Search Console property first.');
+  const propertyUri = await ensureGscProperty();
   const encoded = encodeURIComponent(propertyUri);
   const end = new Date();
   const start = new Date();
@@ -171,6 +185,11 @@ export async function syncGscAnalytics() {
     gscFetch(`/sites/${encoded}/sitemaps`),
   ]);
   const totals = Array.isArray(summary.rows) ? summary.rows[0] || {} : {};
+  const sitemapRows = Array.isArray(sitemaps.sitemap) ? sitemaps.sitemap : [];
+  const indexedFromSitemaps = sitemapRows.reduce((sum: number, map: { contents?: Array<{ indexed?: string | number }> }) => {
+    return sum + (map.contents || []).reduce((count, item) => count + Number(item.indexed || 0), 0);
+  }, 0);
+  const previous = await latestGscSnapshot();
   const snapshot = {
     range_start: range.startDate,
     range_end: range.endDate,
@@ -178,9 +197,10 @@ export async function syncGscAnalytics() {
     impressions: totals.impressions ?? null,
     ctr: totals.ctr ?? null,
     position: totals.position ?? null,
+    indexed_pages: indexedFromSitemaps || previous?.indexed_pages || null,
     queries: queries.rows || [],
     pages: pages.rows || [],
-    sitemaps: sitemaps.sitemap || [],
+    sitemaps: sitemapRows,
     fetched_at: new Date().toISOString(),
   };
   await gscDb().from('marketing_gsc_snapshots').insert(snapshot);
