@@ -14,6 +14,7 @@ export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/lead-discovery',
   '/admin/hr',
   '/admin/pm',
+  '/admin/website-audit',
   '/admin/profile',
   '/admin/youtube-research/settings',
 ];
@@ -25,6 +26,7 @@ export const SUPER_ADMIN_ONLY_API_PREFIXES = [
   '/api/admin/profile',
   '/api/admin/hr',
   '/api/admin/pm',
+  '/api/admin/website-audit',
 ];
 
 export function isSuperAdmin(role?: string | null): boolean {

@@ -137,6 +137,18 @@ export const ADMIN_NAV: AdminNavItem[] = [
       { href: '/admin/pm/onboarding', label: 'Onboarding', icon: 'ClipboardDocumentCheckIcon' },
       { href: '/admin/pm/team', label: 'Team Allocation', icon: 'UsersIcon' },
       { href: '/admin/pm/tickets', label: 'Tickets', icon: 'TicketIcon' },
+      {
+        id: 'website-audit',
+        label: 'Website Audit',
+        icon: 'GlobeAltIcon',
+        children: [
+          { href: '/admin/website-audit', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
+          { href: '/admin/website-audit/new', label: 'New Audit', icon: 'PlusCircleIcon' },
+          { href: '/admin/website-audit/history', label: 'Audit History', icon: 'QueueListIcon' },
+          { href: '/admin/website-audit/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
+          { href: '/admin/website-audit/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+        ],
+      },
       { href: '/admin/pm/requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
       {
         label: 'Process & ISMS',

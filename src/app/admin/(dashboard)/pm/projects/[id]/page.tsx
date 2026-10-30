@@ -126,6 +126,20 @@ export default function ProjectViewPage() {
           <tbody>{(data?.requirements || []).map((row: Record<string, string>) => <tr key={row.id}><Td>{row.requirement_code}</Td><Td>{row.title}</Td><Td>{row.module_name}</Td><Td><PmBadge value={row.priority} /></Td><Td><PmBadge value={row.status} /></Td></tr>)}</tbody>
         </table>
       </Panel>
+      <Panel title="Website Audits" action={<Link className="text-sm text-secondary" href="/admin/website-audit/new">New audit</Link>}>
+        <table className="min-w-full"><thead><tr><Th>Date</Th><Th>Environment</Th><Th>Score</Th><Th>Critical</Th><Th>High</Th><Th>Status</Th></tr></thead>
+          <tbody>{(data?.websiteAudits || []).map((row: Record<string, string | number>) => (
+            <tr key={String(row.id)}>
+              <Td><Link className="text-secondary" href={`/admin/website-audit/${row.id}`}>{String(row.created_at || '').slice(0, 10)}</Link></Td>
+              <Td>{row.environment}</Td>
+              <Td>{row.overall_score ?? '—'}</Td>
+              <Td>{row.critical_count}</Td>
+              <Td>{row.high_count}</Td>
+              <Td><PmBadge value={String(row.status)} /></Td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </Panel>
       <Panel title="Tickets" action={<Link className="text-sm text-secondary" href="/admin/pm/tickets">All tickets</Link>}>
         <table className="min-w-full"><thead><tr><Th>Ticket</Th><Th>Type</Th><Th>Priority</Th><Th>Due</Th><Th>Status</Th></tr></thead>
           <tbody>{(data?.tickets || []).map((row: Record<string, string>) => <tr key={row.id}><Td>{row.ticket_code} {row.title}</Td><Td>{row.ticket_type}</Td><Td><PmBadge value={row.priority} /></Td><Td>{row.due_date}</Td><Td><PmBadge value={row.status} /></Td></tr>)}</tbody>

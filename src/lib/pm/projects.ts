@@ -228,7 +228,24 @@ export async function getProject(id: string) {
       pending: requirements.rows.filter((row) => !['accepted', 'rejected', 'implemented', 'tested'].includes(String(row.status))).length,
     },
     activity: activity.rows,
+    websiteAudits: await listWebsiteAuditsForProject(id),
   };
+}
+
+async function listWebsiteAuditsForProject(projectId: string) {
+  try {
+    const audits = await q(
+      undefined,
+      `SELECT id, audit_name, environment, overall_score, status, created_at, pages_scanned,
+         (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=website_audits.id AND f.severity='critical')::int AS critical_count,
+         (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=website_audits.id AND f.severity='high')::int AS high_count
+       FROM website_audits WHERE project_id=$1 ORDER BY created_at DESC LIMIT 20`,
+      [projectId]
+    );
+    return audits.rows;
+  } catch {
+    return [];
+  }
 }
 
 export async function operationalSnapshot(projectId: string) {
