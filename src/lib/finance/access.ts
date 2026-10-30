@@ -8,7 +8,7 @@ export { financeCapability } from './capability';
 export async function requireFinanceAccess(action: FinanceAction = 'read') {
   const auth = await requireAdmin();
   if ('error' in auth && auth.error) return { error: auth.error };
-  const capability = financeCapability(auth.role);
+  const capability = financeCapability(auth.role, auth.access);
   if (!capability) {
     return { error: NextResponse.json({ error: 'Finance access required' }, { status: 403 }) };
   }

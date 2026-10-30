@@ -34,10 +34,15 @@ export function dedupeFindings(findings: FindingDraft[]): FindingDraft[] {
     }
     const urls = new Set([...(current.affected_urls || []), finding.page_url].filter(Boolean) as string[]);
     current.affected_urls = [...urls];
+    const instances = [
+      ...((current.evidence?.instances as unknown[]) || []),
+      ...((finding.evidence?.instances as unknown[]) || []),
+    ].slice(0, 40);
+    current.evidence = { ...(current.evidence || {}), ...(finding.evidence || {}), urls: [...urls], instances };
     if (urls.size > 1) {
       current.title = current.title.replace(/ across \d+ pages$/, '');
-      current.description = `${current.rule_code.replace(/\./g, ' ')} found across ${urls.size} pages.`;
-      current.evidence = { ...(current.evidence || {}), urls: [...urls] };
+      const first = (instances[0] as { selector?: string } | undefined)?.selector || current.selector || current.rule_code;
+      current.description = `${first} also appears on ${urls.size} pages: ${[...urls].slice(0, 4).join(', ')}${urls.size > 4 ? '…' : ''}.`;
     }
   }
   return [...byKey.values()];

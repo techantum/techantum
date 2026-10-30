@@ -1,7 +1,9 @@
 import { q } from '@/lib/finance/db';
 import { accessibilityFindings, summarizeAccessibility } from './accessibility';
-import { reviewPagesWithAi, selectAiPages } from './ai';
-import { DESKTOP, MOBILE, scanWithPlaywright } from './browser';
+import { securityHygieneFindings } from './webmaster/hygiene';
+import { DEFAULT_AGENT_SETTINGS, runWebMaster } from './webmaster/agent';
+import { getAgentSettings, listChunks } from './webmaster/knowledge';
+import { DESKTOP, MOBILE, capturePreviewImage, scanWithPlaywright } from './browser';
 import { discoverPages, defaultFetch } from './crawl';
 import { clampPages } from './defaults';
 import { contentHash, dedupeFindings, fingerprintOf } from './findings';
@@ -48,9 +50,9 @@ export async function runAuditJob(auditId: string) {
     await q(undefined, `UPDATE website_audits SET pages_discovered=$2, progress=$3::jsonb WHERE id=$1`, [auditId, discovered.urls.length, JSON.stringify(progress)]);
 
     const extracted: ExtractedPage[] = [];
-    const htmlByUrl = new Map<string, string>();
     const hashes: Record<string, string> = {};
     const layoutAnomaly = new Map<string, boolean>();
+    const screenshots: Record<string, boolean> = {};
     const allFindings: FindingDraft[] = [];
     const pageIds = new Map<string, string>();
 
@@ -103,13 +105,17 @@ export async function runAuditJob(auditId: string) {
           if (browser.layout.overflowX) layoutAnomaly.set(url, true);
         }
       }
+      if (html && !desktopShot) {
+        desktopShot = await capturePreviewImage(html, url, `${auditId}-og-${extracted.length}.jpg`).catch(() => null);
+      }
 
       if (html) {
         const page = extractPage(html, url, status);
         extracted.push(page);
-        htmlByUrl.set(page.normalizedUrl, html);
         hashes[page.normalizedUrl] = contentHash(html);
+        screenshots[page.normalizedUrl] = Boolean(desktopShot || mobileShot);
         allFindings.push(...seoFindingsForPage(page));
+        allFindings.push(...securityHygieneFindings(page));
         if (settings.accessibility_enabled) allFindings.push(...accessibilityFindings(page, html));
         if (audit.forms_enabled) allFindings.push(...formFindings(page.forms, page.normalizedUrl, 'safe'));
         allFindings.push(...browserFindings(page.normalizedUrl, consoleErrors, failedRequests));
@@ -158,68 +164,83 @@ export async function runAuditJob(auditId: string) {
     progress.stage = 'ai';
     await setProgress(auditId, progress);
 
-    if (audit.ai_enabled && settings.ai_review_enabled) {
-      const candidates = extracted.map((page) => ({
-        url: page.normalizedUrl,
-        pageType: page.pageType,
-        layoutAnomaly: Boolean(layoutAnomaly.get(page.url) || layoutAnomaly.get(page.normalizedUrl)),
-      }));
-      const selected = selectAiPages(candidates, settings.ai_max_pages);
-      const cache = {
-        async get(key: string) {
-          const { rows } = await q<AuditRow>(undefined, `SELECT response_json FROM website_audit_ai_cache WHERE cache_key=$1`, [key]);
-          return rows[0]?.response_json || null;
-        },
-        async set(key: string, value: unknown) {
-          const page = selected.find(() => true);
-          await q(
-            undefined,
-            `INSERT INTO website_audit_ai_cache (cache_key, normalized_url, content_hash, engine_version, review_version, response_json)
-             VALUES ($1,$2,$3,'${'1.0.0'}','${'1.0.0'}',$4::jsonb) ON CONFLICT (cache_key) DO UPDATE SET response_json=EXCLUDED.response_json`,
-            [key, page?.url || startUrl, hashes[page?.url || ''] || '', JSON.stringify(value)]
-          );
-        },
-      };
-      const aiFindings = await reviewPagesWithAi({
-        pages: selected.map((page) => {
-          const extractedPage = extracted.find((item) => item.normalizedUrl === page.url);
-          return {
-            url: page.url,
-            pageType: page.pageType,
-            viewport: 'desktop',
-            contentSample: extractedPage?.contentSample || '',
-            typography: {},
-            deterministic: allFindings
-              .filter((item) => item.page_url === page.url)
-              .slice(0, 12)
-              .map((item) => ({ title: item.title, rule_code: item.rule_code, severity: item.severity })),
-          };
-        }),
-        contentHashes: hashes,
-        cache,
-        threshold: settings.ai_confidence_threshold,
-      });
-      allFindings.push(...aiFindings);
-      progress.ai_review = true;
-    } else {
+    const agentRow = await getAgentSettings().catch(() => null);
+    const agentSettings = {
+      ...DEFAULT_AGENT_SETTINGS,
+      agent_enabled: Boolean(audit.ai_enabled) && settings.ai_review_enabled && agentRow?.agent_enabled !== false,
+      max_ai_pages: Number(agentRow?.max_ai_pages || settings.ai_max_pages),
+      confidence_threshold: Number(agentRow?.confidence_threshold || settings.ai_confidence_threshold),
+      content_character_limit: Number(agentRow?.content_character_limit || settings.max_content_chars),
+      review_uiux: agentRow?.review_uiux !== false,
+      review_content: agentRow?.review_content !== false,
+      review_images: agentRow?.review_images !== false,
+      review_seo_interpretation: agentRow?.review_seo_interpretation !== false,
+    };
+    const chunks = await listChunks().catch(() => undefined);
+    const flags: Record<string, boolean> = {};
+    for (const [key, value] of layoutAnomaly) flags[key] = value;
+    const mastered = await runWebMaster({
+      pages: extracted,
+      findings: allFindings,
+      settings: agentSettings,
+      hashes,
+      screenshots,
+      layoutFlags: flags,
+      chunks,
+      skipAi: !agentSettings.agent_enabled,
+      cacheGet: async (key) => {
+        const { rows } = await q<AuditRow>(undefined, `SELECT response_json FROM website_audit_ai_cache WHERE cache_key=$1`, [key]);
+        return rows[0]?.response_json || null;
+      },
+      cacheSet: async (key, value) => {
+        await q(
+          undefined,
+          `INSERT INTO website_audit_ai_cache (cache_key, normalized_url, content_hash, engine_version, review_version, response_json)
+           VALUES ($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT (cache_key) DO UPDATE SET response_json=EXCLUDED.response_json`,
+          [key, startUrl, hashes[startUrl] || '', '1.0.0', '1.0.0', JSON.stringify(value)]
+        );
+      },
+    }).catch(async (error) => {
       progress.ai_review = false;
-    }
+      return {
+        findings: dedupeFindings(allFindings).map((item) => ({
+          ...item,
+          finding_type: 'verified_issue' as const,
+          standard_reference: { name: 'Deterministic scanner', rule: item.rule_code },
+          requires_manual_review: false,
+          suggested_ticket_type: 'BUG',
+          evidence_type: 'deterministic',
+        })),
+        summary: { error: error instanceof Error ? error.message : 'Web Master skipped' },
+        versions: { agent_version: '1.0.0', prompt_version: '1.0.0', standards_version: '1.0.0', techantum_standard_version: '1.0', engine_version: '1.0.0', model_version: null },
+        ai_review_status: 'failed' as const,
+        selected_urls: [],
+      };
+    });
+    progress.ai_review = mastered.ai_review_status === 'completed' || mastered.ai_review_status === 'partial';
 
-    const deduped = dedupeFindings(allFindings);
+    const deduped = mastered.findings.length ? mastered.findings : dedupeFindings(allFindings);
     for (const finding of deduped) {
       const pageId = finding.page_url ? pageIds.get(finding.page_url) || null : null;
+      const wm = finding as typeof finding & { finding_type?: string; standard_reference?: unknown; requires_manual_review?: boolean; suggested_ticket_type?: string; affected_urls?: string[] };
       await q(
         undefined,
         `INSERT INTO website_audit_findings (
           audit_id, page_id, rule_code, category, severity, title, description, recommendation, source,
-          selector, viewport, evidence, fingerprint, affected_urls, ai_confidence
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15)`,
+          selector, viewport, evidence, fingerprint, affected_urls, ai_confidence,
+          finding_type, standard_reference, requires_manual_review, suggested_ticket_type, original_ai_output
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15,$16,$17::jsonb,$18,$19,$20::jsonb)`,
         [
           auditId, pageId, finding.rule_code, finding.category, finding.severity, finding.title, finding.description,
           finding.recommendation, finding.source, finding.selector || null, finding.viewport || null,
           JSON.stringify({ ...(finding.evidence || {}), url: finding.page_url }), fingerprintOf(finding),
-          JSON.stringify((finding as FindingDraft & { affected_urls?: string[] }).affected_urls || (finding.page_url ? [finding.page_url] : [])),
+          JSON.stringify(wm.affected_urls || (finding.page_url ? [finding.page_url] : [])),
           finding.ai_confidence ?? null,
+          wm.finding_type || (finding.source === 'AI' ? 'ai_recommendation' : 'verified_issue'),
+          JSON.stringify(wm.standard_reference || {}),
+          Boolean(wm.requires_manual_review),
+          wm.suggested_ticket_type || null,
+          finding.source === 'AI' ? JSON.stringify({ title: finding.title, description: finding.description, recommendation: finding.recommendation, severity: finding.severity }) : null,
         ]
       );
     }
@@ -232,8 +253,14 @@ export async function runAuditJob(auditId: string) {
     await q(
       undefined,
       `UPDATE website_audits SET status=$2, overall_score=$3, category_scores=$4::jsonb, failed_urls=$5::jsonb,
-        pages_scanned=$6, completed_at=NOW(), progress=$7::jsonb, error_message=$8 WHERE id=$1`,
-      [auditId, status, overall, JSON.stringify(scores), JSON.stringify([...new Set(failed)]), extracted.length, JSON.stringify(progress), extracted.length ? null : 'No pages could be scanned']
+        pages_scanned=$6, completed_at=NOW(), progress=$7::jsonb, error_message=$8, webmaster_versions=$9::jsonb,
+        webmaster_summary=$10::jsonb, ai_review_status=$11 WHERE id=$1`,
+      [
+        auditId, status, overall, JSON.stringify(scores), JSON.stringify([...new Set(failed)]), extracted.length, JSON.stringify(progress),
+        extracted.length ? null : 'No pages could be scanned', JSON.stringify(mastered.versions),
+        JSON.stringify({ ...mastered.summary, category_summary: scores, overall }),
+        mastered.ai_review_status,
+      ]
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Audit failed';

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, requireSuperAdmin } from '@/lib/admin/auth';
-import { createMasterItem, listMasterItems, listMasterLists, updateMasterItem } from '@/lib/admin/master-data';
+import { createMasterItem, deleteMasterItem, listMasterItems, listMasterLists, updateMasterItem } from '@/lib/admin/master-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,5 +39,19 @@ export async function PATCH(request: Request) {
     return NextResponse.json(item);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not update item' }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const auth = await requireSuperAdmin();
+  if ('error' in auth && auth.error) return auth.error;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const id = String(body.id || '');
+    if (!id) return NextResponse.json({ error: 'Item is required' }, { status: 400 });
+    await deleteMasterItem(id);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not delete item' }, { status: 400 });
   }
 }

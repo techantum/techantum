@@ -246,23 +246,29 @@ export async function createMasterItem(input: { list_key: string; label: string;
   return rows[0];
 }
 
-export async function updateMasterItem(id: string, input: { label?: string; parent_key?: string | null; active?: boolean; sort_order?: number }) {
+export async function updateMasterItem(id: string, input: { label?: string; item_key?: string; parent_key?: string | null; active?: boolean; sort_order?: number }) {
   const current = await q<MasterItem>(undefined, 'SELECT * FROM admin_master_items WHERE id = $1', [id]);
   const row = current.rows[0];
   if (!row) throw new Error('Item not found');
   const { rows } = await q<MasterItem>(
     undefined,
     `UPDATE admin_master_items
-     SET label = $2, parent_key = $3, active = $4, sort_order = $5, updated_at = NOW()
+     SET label = $2, item_key = $3, parent_key = $4, active = $5, sort_order = $6, updated_at = NOW()
      WHERE id = $1
      RETURNING id, list_key, item_key, label, parent_key, sort_order, active`,
     [
       id,
       input.label?.trim() || row.label,
+      input.item_key?.trim() || row.item_key,
       input.parent_key === undefined ? row.parent_key : input.parent_key || null,
       input.active === undefined ? row.active : input.active,
       input.sort_order === undefined ? row.sort_order : input.sort_order,
     ]
   );
   return rows[0];
+}
+
+export async function deleteMasterItem(id: string) {
+  const { rowCount } = await q(undefined, `DELETE FROM admin_master_items WHERE id = $1`, [id]);
+  if (!rowCount) throw new Error('Item not found');
 }

@@ -49,6 +49,9 @@ export default function AdminDashboardPage() {
   const [analytics, setAnalytics] = useState<AnalyticsSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState('');
+  const [access, setAccess] = useState<Record<string, string>>({});
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [rbacManaged, setRbacManaged] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -60,6 +63,9 @@ export default function AdminDashboardPage() {
         setStats(statsData);
         setAnalytics(analyticsData);
         setRole(me?.role || '');
+        setAccess(me?.access || {});
+        setIsSuperAdmin(Boolean(me?.isSuperAdmin));
+        setRbacManaged(Boolean(me?.rbacManaged));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -67,6 +73,15 @@ export default function AdminDashboardPage() {
 
   if (loading) return <p className="text-muted-foreground">Loading dashboard…</p>;
   if (!stats) return <p className="text-muted-foreground">Unable to load dashboard stats.</p>;
+
+  const canSee = (href: string, superAdminOnly?: boolean) => {
+    if (isSuperAdmin || role === 'SUPER_ADMIN') return true;
+    if (rbacManaged) {
+      const key = href.replace(/^\/admin\/?/, '').replace(/\//g, '.') || 'dashboard';
+      return access[key] === 'READ' || access[key] === 'FULL';
+    }
+    return !superAdminOnly;
+  };
 
   const quickLinks = [
     { href: '/admin/analytics', label: 'Website analytics' },
@@ -78,7 +93,12 @@ export default function AdminDashboardPage() {
     { href: '/admin/seo', label: 'Global SEO' },
     { href: '/admin/page-seo', label: 'Page indexing' },
     { href: '/admin/partner-catalog', label: 'Wizard questions' },
-  ].filter((link) => role === 'SUPER_ADMIN' || !link.superAdmin);
+  ].filter((link) => canSee(link.href, link.superAdmin));
+
+  const showLeads = canSee('/admin/submissions');
+  const showContent = canSee('/admin/content');
+  const showAnalytics = canSee('/admin/analytics');
+  const showSeo = canSee('/admin/page-seo') || canSee('/admin/redirects');
 
   return (
     <div className="w-full space-y-8">
@@ -88,41 +108,49 @@ export default function AdminDashboardPage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <AdminStatCard label="Website pages" value={stats.pages} hint={`${stats.publicRoutes} public URLs`} icon="DocumentTextIcon" accent="violet" />
-        <AdminStatCard label="Content sections" value={stats.contentSections} hint="Editable in Site Content" icon="PencilSquareIcon" accent="blue" />
-        <AdminStatCard label="Total leads" value={stats.totalLeads} hint="All form submissions" icon="InboxIcon" accent="default" />
-        <AdminStatCard
-          label="Visitors (7d)"
-          value={
-            analytics?.summary
-              ? analytics.summary.activeUsers.toLocaleString('en-IN')
-              : stats.analytics.configured
-                ? '—'
-                : '—'
-          }
-          hint={
-            analytics?.summary
-              ? `${analytics.summary.pageViews.toLocaleString('en-IN')} page views`
-              : analytics?.error
-                ? 'Set up GA4 API credentials'
-                : stats.analytics.note
-          }
-          icon="ChartBarIcon"
-          accent="green"
-        />
+        {showContent ? <AdminStatCard label="Website pages" value={stats.pages} hint={`${stats.publicRoutes} public URLs`} icon="DocumentTextIcon" accent="violet" /> : null}
+        {showContent ? <AdminStatCard label="Content sections" value={stats.contentSections} hint="Editable in Site Content" icon="PencilSquareIcon" accent="blue" /> : null}
+        {showLeads ? <AdminStatCard label="Total leads" value={stats.totalLeads} hint="All form submissions" icon="InboxIcon" accent="default" /> : null}
+        {showAnalytics ? (
+          <AdminStatCard
+            label="Visitors (7d)"
+            value={
+              analytics?.summary
+                ? analytics.summary.activeUsers.toLocaleString('en-IN')
+                : stats.analytics.configured
+                  ? '—'
+                  : '—'
+            }
+            hint={
+              analytics?.summary
+                ? `${analytics.summary.pageViews.toLocaleString('en-IN')} page views`
+                : analytics?.error
+                  ? 'Set up GA4 API credentials'
+                  : stats.analytics.note
+            }
+            icon="ChartBarIcon"
+            accent="green"
+          />
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <AdminStatCard label="Pending" value={stats.pendingLeads} accent="amber" hint="Needs follow-up" icon="ClockIcon" />
-        <AdminStatCard label="Contacted" value={stats.contactedLeads} accent="blue" hint="In progress" icon="ChatBubbleLeftRightIcon" />
-        <AdminStatCard label="Closed" value={stats.closedLeads} accent="green" hint="Converted / resolved" icon="CheckCircleIcon" />
-        <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} icon="GlobeAltIcon" accent="violet" />
-      </div>
+      {showLeads ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <AdminStatCard label="Pending" value={stats.pendingLeads} accent="amber" hint="Needs follow-up" icon="ClockIcon" />
+          <AdminStatCard label="Contacted" value={stats.contactedLeads} accent="blue" hint="In progress" icon="ChatBubbleLeftRightIcon" />
+          <AdminStatCard label="Closed" value={stats.closedLeads} accent="green" hint="Converted / resolved" icon="CheckCircleIcon" />
+          {showSeo ? <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} icon="GlobeAltIcon" accent="violet" /> : null}
+        </div>
+      ) : showSeo ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <AdminStatCard label="Indexed pages" value={stats.indexedPages} hint={`${stats.activeRedirects} active redirects`} icon="GlobeAltIcon" accent="violet" />
+        </div>
+      ) : null}
 
-      <MyPayslips />
+      {canSee('/admin/finance') || canSee('/admin/finance/payslips') ? <MyPayslips /> : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        {showLeads ? <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <h2 className="font-bricolage font-semibold text-slate-900">Recent leads</h2>
             <Link href="/admin/submissions" className="text-sm font-semibold text-secondary">
@@ -149,7 +177,7 @@ export default function AdminDashboardPage() {
               ))}
             </ul>
           )}
-        </div>
+        </div> : null}
 
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="space-y-4">

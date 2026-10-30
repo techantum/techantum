@@ -102,6 +102,17 @@ describe('accessibility fixtures', () => {
     assert.ok(codes.includes('a11y.missing_label'));
     assert.ok(codes.includes('a11y.invalid_aria'));
     assert.ok(codes.includes('a11y.link_text'));
+    const unlabeled = accessibilityFindings(page, html).find((item) => item.rule_code === 'a11y.missing_label');
+    const instances = (unlabeled?.evidence as { instances?: { selector?: string; name?: string }[] } | undefined)?.instances || [];
+    assert.ok(instances.some((item) => item.name === 'email' && String(item.selector).includes('[name="email"]')));
+  });
+  it('does not treat placeholder as an accessible name', () => {
+    const html = '<html><body><form><input name="phone" placeholder="Phone"></form></body></html>';
+    const page = extractPage(html, 'https://site.test/contact', 200);
+    const unlabeled = accessibilityFindings(page, html).find((item) => item.rule_code === 'a11y.missing_label');
+    assert.ok(unlabeled);
+    assert.match(String(unlabeled?.description), /phone/i);
+    assert.match(String(unlabeled?.selector), /name="phone"/);
   });
 });
 

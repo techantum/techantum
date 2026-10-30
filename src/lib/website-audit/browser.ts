@@ -2,6 +2,7 @@ import { saveUploadedFile } from '@/lib/storage/local';
 import type { LayoutSignals, PerformanceSummary, TypographyProfile } from './types';
 import { aggregateTypography, emptyTypography } from './typography';
 import { lighthouseFromTimings } from './performance';
+import { assertPublicHttpUrl } from './url';
 
 export const DESKTOP = { width: 1440, height: 900 };
 export const MOBILE = { width: 390, height: 844 };
@@ -54,6 +55,29 @@ const LAYOUT_SCRIPT = `(() => {
     resources,
   };
 })()`;
+
+export async function capturePreviewImage(html: string, pageUrl: string, fileName: string): Promise<string | null> {
+  const match = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+    || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i)
+    || html.match(/name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)
+    || html.match(/content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+  const src = match?.[1];
+  if (!src) return null;
+  try {
+    const absolute = new URL(src, pageUrl).toString();
+    await assertPublicHttpUrl(absolute);
+    const response = await fetch(absolute, { redirect: 'follow', signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const type = response.headers.get('content-type') || '';
+    if (!type.startsWith('image/')) return null;
+    const buffer = Buffer.from((await response.arrayBuffer()).slice(0, 2_000_000));
+    const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+    const saved = await saveUploadedFile('website-audits', fileName.replace(/\.(jpg|jpeg|png|webp)$/i, `.${ext}`), new Blob([new Uint8Array(buffer)]));
+    return saved.url;
+  } catch {
+    return null;
+  }
+}
 
 export async function scanWithPlaywright(url: string, viewport: { width: number; height: number }, timeoutMs: number, screenshotName: string): Promise<BrowserPageResult | null> {
   let playwright: any;

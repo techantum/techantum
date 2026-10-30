@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { resolveAdminAuth } from '@/lib/admin/auth';
-import { canAccessAdminPath } from '@/lib/admin/roles';
+import { allowAdminPath } from '@/lib/admin/path-access';
 import AdminShell from '@/components/admin/AdminShell';
 import { getBranding } from '@/lib/cms';
 
@@ -12,8 +12,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   const pathname = (await headers()).get('x-pathname') || '';
-  if (pathname && !canAccessAdminPath(auth.role, pathname)) {
-    redirect('/admin');
+  if (pathname && !allowAdminPath(auth, pathname)) {
+    redirect('/admin/access-denied');
   }
 
   const branding = await getBranding();
@@ -21,6 +21,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AdminShell
       role={auth.role}
+      access={auth.access}
+      rbacManaged={auth.rbacManaged}
+      isSuperAdmin={auth.isSuperAdmin}
+      roleLabel={auth.isSuperAdmin ? 'Super admin' : auth.roleNames[0] || 'Admin'}
       logoUrl={branding.logo_url}
       logoLetter={branding.logo_letter}
       companyName={branding.company_name}

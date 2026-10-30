@@ -51,6 +51,10 @@ export type FindingDraft = {
   page_url?: string;
   page_id?: string | null;
   ai_confidence?: number | null;
+  finding_type?: 'verified_issue' | 'best_practice' | 'ai_recommendation' | 'manual_review';
+  standard_reference?: { name: string; version?: string; rule?: string; url?: string } | null;
+  requires_manual_review?: boolean;
+  suggested_ticket_type?: string;
 };
 
 export type ExtractedPage = {
@@ -76,14 +80,35 @@ export type ExtractedPage = {
   pageType: string;
 };
 
+export type EvidenceInstance = {
+  selector: string;
+  snippet?: string;
+  page_url?: string;
+  form?: string;
+  name?: string;
+  id?: string;
+  type?: string;
+  href?: string;
+  src?: string;
+  text?: string;
+  why?: string;
+};
+
 export type ExtractedForm = {
   action: string;
   method: string;
+  id?: string;
+  selector?: string;
   inputs: {
     name: string;
+    id: string;
     type: string;
     required: boolean;
     label: string;
+    accessibleName: string;
+    placeholder: string;
+    selector: string;
+    snippet: string;
     pattern?: string;
     minLength?: number;
     maxLength?: number;

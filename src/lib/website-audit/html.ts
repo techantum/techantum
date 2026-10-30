@@ -61,23 +61,57 @@ function guessPageType(url: string, title: string, text: string) {
   return 'other';
 }
 
+function cssIdent(value: string) {
+  return /^[A-Za-z_][\w-]*$/.test(value) ? value : null;
+}
+
+export function cssSelector(tag: string, attrs: string) {
+  const id = attr(attrs, 'id');
+  if (id) {
+    const safe = cssIdent(id);
+    return safe ? `#${safe}` : `${tag}[id="${id.replaceAll('"', '\\"')}"]`;
+  }
+  const name = attr(attrs, 'name');
+  const type = attr(attrs, 'type');
+  const cls = (attr(attrs, 'class') || '').split(/\s+/).filter(Boolean)[0];
+  if (name) return `${tag}[name="${name.replaceAll('"', '\\"')}"]`;
+  if (type) return `${tag}[type="${type}"]`;
+  if (cls && cssIdent(cls)) return `${tag}.${cls}`;
+  return tag;
+}
+
 function parseForms(html: string): ExtractedForm[] {
-  return collect(html, 'form').map((form) => {
+  return collect(html, 'form').map((form, formIndex) => {
     const action = attr(form.attrs, 'action');
     const method = (attr(form.attrs, 'method') || 'get').toLowerCase();
+    const formId = attr(form.attrs, 'id');
+    const formSelector = cssSelector('form', form.attrs) === 'form' ? `form:nth-of-type(${formIndex + 1})` : cssSelector('form', form.attrs);
     const inner = form.inner;
     const inputs = [...inner.matchAll(/<(input|textarea|select)([^>]*)>/gi)].map((match) => {
+      const tagName = (match[1] || 'input').toLowerCase();
       const tag = match[2] || '';
-      const type = (attr(tag, 'type') || (match[1] === 'textarea' ? 'textarea' : 'text')).toLowerCase();
-      const name = attr(tag, 'name') || attr(tag, 'id');
+      const type = (attr(tag, 'type') || (tagName === 'textarea' ? 'textarea' : 'text')).toLowerCase();
       const id = attr(tag, 'id');
-      const labelMatch = id ? html.match(new RegExp(`<label[^>]*for=["']${id}["'][^>]*>([\\s\\S]*?)<\\/label>`, 'i')) : null;
-      const wrapped = inner.match(new RegExp(`<label[^>]*>[\\s\\S]*?${match[0]}[\\s\\S]*?<\\/label>`, 'i'));
+      const name = attr(tag, 'name') || id;
+      const placeholder = attr(tag, 'placeholder');
+      const ariaLabel = attr(tag, 'aria-label');
+      const labelledBy = attr(tag, 'aria-labelledby');
+      const labelMatch = id ? html.match(new RegExp(`<label[^>]*for=["']${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>([\\s\\S]*?)<\\/label>`, 'i')) : null;
+      const wrapped = inner.match(new RegExp(`<label[^>]*>[\\s\\S]{0,400}?${match[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]{0,400}?<\\/label>`, 'i'));
+      const labelledByText = labelledBy
+        ? labelledBy.split(/\s+/).map((token) => textOf((html.match(new RegExp(`id=["']${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>([\\s\\S]*?)<`, 'i')) || [])[1] || '')).join(' ')
+        : '';
+      const accessibleName = textOf(labelMatch?.[1] || (wrapped ? wrapped[0].replace(/<[^>]+>/g, ' ') : '') || ariaLabel || labelledByText || '');
       return {
         name,
+        id,
         type,
         required: /\srequired(\s|=|>|$)/i.test(tag),
-        label: textOf(labelMatch?.[1] || wrapped?.[0] || attr(tag, 'aria-label') || attr(tag, 'placeholder') || ''),
+        label: accessibleName || placeholder,
+        accessibleName,
+        placeholder,
+        selector: `${formSelector} ${cssSelector(tagName, tag)}`,
+        snippet: match[0].replace(/\s+/g, ' ').trim().slice(0, 240),
         pattern: attr(tag, 'pattern') || undefined,
         minLength: attr(tag, 'minlength') ? Number(attr(tag, 'minlength')) : undefined,
         maxLength: attr(tag, 'maxlength') ? Number(attr(tag, 'maxlength')) : undefined,
@@ -87,6 +121,8 @@ function parseForms(html: string): ExtractedForm[] {
     return {
       action,
       method,
+      id: formId,
+      selector: formSelector,
       inputs,
       looksPayment: /card|cvv|cvc|expiry|iban|payment|stripe|paypal/.test(blob),
       looksAuth: /password|signin|sign-in|login|register|otp/.test(blob),

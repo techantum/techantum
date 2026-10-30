@@ -1,4 +1,5 @@
 import { filterNavGroups } from '@/lib/admin/roles';
+import { featureKeyFromHref, type AccessLevel } from '@/lib/admin/access';
 
 export interface AdminNavItem {
   /** Permission group id. A branch with this id is hidden for roles that cannot see that group. */
@@ -137,18 +138,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
       { href: '/admin/pm/onboarding', label: 'Onboarding', icon: 'ClipboardDocumentCheckIcon' },
       { href: '/admin/pm/team', label: 'Team Allocation', icon: 'UsersIcon' },
       { href: '/admin/pm/tickets', label: 'Tickets', icon: 'TicketIcon' },
-      {
-        id: 'website-audit',
-        label: 'Website Audit',
-        icon: 'GlobeAltIcon',
-        children: [
-          { href: '/admin/website-audit', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
-          { href: '/admin/website-audit/new', label: 'New Audit', icon: 'PlusCircleIcon' },
-          { href: '/admin/website-audit/history', label: 'Audit History', icon: 'QueueListIcon' },
-          { href: '/admin/website-audit/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
-          { href: '/admin/website-audit/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
-        ],
-      },
       { href: '/admin/pm/requirements', label: 'Requirements', icon: 'ClipboardDocumentListIcon' },
       {
         label: 'Process & ISMS',
@@ -210,6 +199,20 @@ export const ADMIN_NAV: AdminNavItem[] = [
       { href: '/admin/pm/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
       { href: '/admin/pm/documents', label: 'Documents & Evidence', icon: 'FolderIcon' },
       { href: '/admin/pm/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+    ],
+  },
+  {
+    id: 'website-audit',
+    label: 'Website Audit',
+    icon: 'GlobeAltIcon',
+    children: [
+      { href: '/admin/website-audit', label: 'Overview', icon: 'ChartBarSquareIcon', exact: true },
+      { href: '/admin/website-audit/new', label: 'New Audit', icon: 'PlusCircleIcon' },
+      { href: '/admin/website-audit/history', label: 'Audit History', icon: 'QueueListIcon' },
+      { href: '/admin/website-audit/reports', label: 'Reports', icon: 'DocumentChartBarIcon' },
+      { href: '/admin/website-audit/webmaster', label: 'Web Master Agent', icon: 'SparklesIcon' },
+      { href: '/admin/website-audit/standards', label: 'Web Standards', icon: 'BookOpenIcon' },
+      { href: '/admin/website-audit/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
     ],
   },
   {
@@ -301,6 +304,9 @@ export const ADMIN_NAV: AdminNavItem[] = [
     label: 'Administration',
     icon: 'Cog6ToothIcon',
     children: [
+      { id: 'rbac-users', href: '/admin/users', label: 'Admin Users', icon: 'UserGroupIcon' },
+      { id: 'rbac-roles', href: '/admin/roles', label: 'Roles & Permissions', icon: 'ShieldCheckIcon' },
+      { id: 'rbac-audit', href: '/admin/audit-logs', label: 'Audit Logs', icon: 'ClipboardDocumentListIcon' },
       {
         id: 'master',
         label: 'Master Data',
@@ -333,8 +339,27 @@ function filterTree(items: AdminNavItem[], role: string | null | undefined): Adm
   });
 }
 
+function filterTreeByAccess(items: AdminNavItem[], access: Record<string, AccessLevel>): AdminNavItem[] {
+  return items.flatMap((item) => {
+    const children = item.children ? filterTreeByAccess(item.children, access) : undefined;
+    if (item.href) {
+      const key = featureKeyFromHref(item.href);
+      const allowed = access[key] === 'READ' || access[key] === 'FULL';
+      if (!allowed && !children?.length) return [];
+      return [{ ...item, children: children?.length ? children : undefined }];
+    }
+    if (!children?.length) return [];
+    return [{ ...item, children }];
+  });
+}
+
 /** Sidebar tree with role-restricted branches removed. */
-export function visibleAdminNav(role: string | null | undefined): AdminNavItem[] {
+export function visibleAdminNav(
+  role: string | null | undefined,
+  access?: Record<string, AccessLevel> | null,
+  rbacManaged?: boolean
+): AdminNavItem[] {
+  if (rbacManaged && access) return filterTreeByAccess(ADMIN_NAV, { dashboard: 'READ', profile: 'FULL', ...access });
   return filterTree(ADMIN_NAV, role);
 }
 

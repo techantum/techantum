@@ -123,11 +123,21 @@ export function seoFindingsForPage(page: ExtractedPage): FindingDraft[] {
       category: 'seo',
       severity: 'medium',
       title: 'Images missing ALT text',
-      description: `${missingAlt.length} image(s) on ${url} have no alt attribute.`,
-      recommendation: 'Add descriptive ALT text, or empty alt for decorative images.',
+      description: `Image ${missingAlt[0].src} on ${url} has no alt attribute.${missingAlt.length > 1 ? ` ${missingAlt.length - 1} more.` : ''}`,
+      recommendation: `Add alt text on <img src="${missingAlt[0].src}">${missingAlt.length > 1 ? ' and the other images listed in evidence' : ''}.`,
       page_url: url,
-      selector: 'img',
-      evidence: { count: missingAlt.length, samples: missingAlt.slice(0, 5).map((item) => item.src) },
+      selector: `img[src="${missingAlt[0].src}"]`,
+      evidence: {
+        count: missingAlt.length,
+        samples: missingAlt.slice(0, 8).map((item) => item.src),
+        instances: missingAlt.slice(0, 20).map((item) => ({
+          selector: `img[src="${item.src}"]`,
+          src: item.src,
+          page_url: url,
+          snippet: `<img src="${item.src}">`,
+          why: 'Missing alt attribute',
+        })),
+      },
     }));
   }
   if (!page.openGraph['og:title'] || !page.openGraph['og:description']) {

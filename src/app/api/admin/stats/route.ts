@@ -50,17 +50,22 @@ export async function GET() {
     (seoRow?.footer_scripts ?? '').includes('googletagmanager') ||
     (seoRow?.footer_scripts ?? '').includes('google-analytics');
 
+  const can = (key: string) => auth.isSuperAdmin || !auth.rbacManaged || auth.access[key] === 'READ' || auth.access[key] === 'FULL';
+  const canLeads = can('submissions');
+  const canContent = can('content');
+  const canSeo = can('page-seo') || can('seo') || can('redirects');
+
   return NextResponse.json({
-    pages: countEditablePages(),
+    pages: canContent || auth.isSuperAdmin || !auth.rbacManaged ? countEditablePages() : 0,
     publicRoutes: publicRoutes.length,
-    contentSections: countEditableSections(),
-    totalLeads: totalLeads ?? 0,
-    pendingLeads: pendingLeads ?? 0,
-    contactedLeads: contactedLeads ?? 0,
-    closedLeads: closedLeads ?? 0,
-    activeRedirects: redirectCount ?? 0,
-    indexedPages: indexedOverrides || publicRoutes.length,
-    recentLeads: recentLeads ?? [],
+    contentSections: canContent || auth.isSuperAdmin || !auth.rbacManaged ? countEditableSections() : 0,
+    totalLeads: canLeads ? totalLeads ?? 0 : 0,
+    pendingLeads: canLeads ? pendingLeads ?? 0 : 0,
+    contactedLeads: canLeads ? contactedLeads ?? 0 : 0,
+    closedLeads: canLeads ? closedLeads ?? 0 : 0,
+    activeRedirects: canSeo ? redirectCount ?? 0 : 0,
+    indexedPages: canSeo ? indexedOverrides || publicRoutes.length : 0,
+    recentLeads: canLeads ? recentLeads ?? [] : [],
     analytics: {
       configured: gaConfigured,
       apiConfigured: isGa4Configured(),

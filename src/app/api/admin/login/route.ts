@@ -24,22 +24,53 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { rows } = await query<{ id: string; email: string; role: string | null }>(
-      `SELECT u.id, u.email, a.role
-       FROM auth.users u
-       JOIN public.admin_users a ON a.user_id = u.id
-       WHERE lower(u.email) = $1
-         AND u.deleted_at IS NULL
-         AND u.encrypted_password = extensions.crypt($2, u.encrypted_password)
-       LIMIT 1`,
-      [email, password]
-    );
-    const admin = rows[0];
+    let admin: { id: string; email: string; role: string | null; status: string } | undefined;
+    try {
+      const { rows } = await query<{ id: string; email: string; role: string | null; status: string }>(
+        `SELECT u.id, u.email, a.role, COALESCE(a.status, 'active') AS status
+         FROM auth.users u
+         JOIN public.admin_users a ON a.user_id = u.id
+         WHERE lower(u.email) = $1
+           AND u.deleted_at IS NULL
+           AND u.encrypted_password = extensions.crypt($2, u.encrypted_password)
+         LIMIT 1`,
+        [email, password]
+      );
+      admin = rows[0];
+    } catch {
+      const { rows } = await query<{ id: string; email: string; role: string | null }>(
+        `SELECT u.id, u.email, a.role
+         FROM auth.users u
+         JOIN public.admin_users a ON a.user_id = u.id
+         WHERE lower(u.email) = $1
+           AND u.deleted_at IS NULL
+           AND u.encrypted_password = extensions.crypt($2, u.encrypted_password)
+         LIMIT 1`,
+        [email, password]
+      );
+      admin = rows[0] ? { ...rows[0], status: 'active' } : undefined;
+    }
     if (!admin) {
+      try {
+        const { writeAudit } = await import('@/lib/admin/rbac');
+        await writeAudit({ actorEmail: email, action: 'login.failure', targetEmail: email });
+      } catch {
+        /* ignore */
+      }
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+    if (admin.status === 'inactive' || admin.status === 'suspended' || admin.status === 'invited') {
+      return NextResponse.json({ error: 'This account cannot sign in. Contact an administrator.' }, { status: 403 });
     }
 
     const role = (admin.role || 'ADMIN') as AdminRole;
+    try {
+      await query(`UPDATE public.admin_users SET last_login_at = NOW() WHERE user_id = $1`, [admin.id]);
+      const { writeAudit } = await import('@/lib/admin/rbac');
+      await writeAudit({ actorUserId: admin.id, actorEmail: admin.email, action: 'login.success', targetUserId: admin.id });
+    } catch {
+      /* optional until RBAC migration is applied */
+    }
     const response = NextResponse.json({ ok: true, role });
     response.cookies.set(
       LOCAL_ADMIN_COOKIE,

@@ -28,7 +28,7 @@ export async function requireLeadDiscoveryAccess(): Promise<
 > {
   const admin = await requireAdmin();
   if (!('error' in admin)) {
-    if (!isSuperAdmin(admin.role)) {
+    if (!isSuperAdmin(admin) && !admin.rbacManaged) {
       return { error: NextResponse.json({ error: 'Super admin access required' }, { status: 403 }) };
     }
     return { actor: 'admin', user: admin.user };

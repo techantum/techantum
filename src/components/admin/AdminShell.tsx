@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { ADMIN_NAV, visibleAdminNav, type AdminNavItem } from '@/lib/cms/admin-nav';
 import YoutubeResearchNav, { youtubeChildNavClass } from '@/components/partner/YoutubeResearchNav';
 import type { AdminRole } from '@/lib/admin/roles';
+import type { AccessLevel } from '@/lib/admin/access';
+import { AdminAccessProvider } from '@/components/admin/AdminAccessContext';
 import Icon from '@/components/ui/AppIcon';
 import SafeImage from '@/components/ui/SafeImage';
 
@@ -31,7 +33,7 @@ function itemSelfActive(pathname: string, item: AdminNavItem): boolean {
 }
 
 function nodeKey(trail: string[], item: AdminNavItem) {
-  return [...trail, item.id || item.label].join('/');
+  return [...trail, item.href || item.id || item.label].join('/');
 }
 
 function ancestorKeys(trail: string[]) {
@@ -45,7 +47,7 @@ function openNodesForPath(pathname: string) {
       if (!item.children?.length) continue;
       const key = nodeKey(trail, item);
       if (itemTreeActive(pathname, item)) open[key] = true;
-      walk(item.children, [...trail, item.id || item.label]);
+      walk(item.children, [...trail, item.href || item.id || item.label]);
     }
   };
   walk(ADMIN_NAV, []);
@@ -55,12 +57,20 @@ function openNodesForPath(pathname: string) {
 export default function AdminShell({
   children,
   role = 'ADMIN',
+  access,
+  rbacManaged = false,
+  isSuperAdmin = false,
+  roleLabel,
   logoUrl,
   logoLetter = 'T',
   companyName = 'TechAntum',
 }: {
   children: React.ReactNode;
   role?: AdminRole;
+  access?: Record<string, AccessLevel>;
+  rbacManaged?: boolean;
+  isSuperAdmin?: boolean;
+  roleLabel?: string;
   logoUrl?: string | null;
   logoLetter?: string;
   companyName?: string;
@@ -68,7 +78,10 @@ export default function AdminShell({
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const supabase = createClient();
-  const navItems = useMemo(() => visibleAdminNav(role), [role]);
+  const navItems = useMemo(
+    () => visibleAdminNav(role, isSuperAdmin ? null : access, rbacManaged && !isSuperAdmin),
+    [role, access, rbacManaged, isSuperAdmin]
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openNodes, setOpenNodes] = useState<Record<string, boolean>>(() => openNodesForPath(pathname));
   const [appointmentCount, setAppointmentCount] = useState(0);
@@ -183,7 +196,7 @@ export default function AdminShell({
         );
       }
 
-      const nextTrail = [...trail, item.id || item.label];
+      const nextTrail = [...trail, item.href || item.id || item.label];
 
       if (item.children?.length) {
         const open = Boolean(openNodes[key]);
@@ -254,6 +267,7 @@ export default function AdminShell({
   );
 
   return (
+    <AdminAccessProvider isSuperAdmin={isSuperAdmin || role === 'SUPER_ADMIN'} rbacManaged={rbacManaged} access={access || {}}>
     <div className="admin-shell min-h-screen bg-slate-50">
       <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-5 print:hidden">
         <div className="flex min-w-0 items-center gap-3">
@@ -271,9 +285,9 @@ export default function AdminShell({
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 md:inline-flex">
-            {role === 'SUPER_ADMIN' ? 'Super admin' : 'Developer admin'}
+            {roleLabel || (role === 'SUPER_ADMIN' ? 'Super admin' : 'Developer admin')}
           </span>
-          {role === 'SUPER_ADMIN' ? (
+          {isSuperAdmin || role === 'SUPER_ADMIN' || access?.profile ? (
             <Link
               href="/admin/profile"
               className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-secondary/40 hover:text-secondary"
@@ -324,5 +338,6 @@ export default function AdminShell({
         </main>
       </div>
     </div>
+    </AdminAccessProvider>
   );
 }

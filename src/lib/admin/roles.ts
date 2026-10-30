@@ -6,7 +6,9 @@ export const SUPER_ADMIN_ONLY_NAV_GROUPS = [
   'hr',
   'account',
   'project-management',
+  'website-audit',
   'youtube-research-settings',
+  'rbac',
 ] as const;
 
 export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
@@ -17,6 +19,9 @@ export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/website-audit',
   '/admin/profile',
   '/admin/youtube-research/settings',
+  '/admin/users',
+  '/admin/roles',
+  '/admin/audit-logs',
 ];
 
 export const SUPER_ADMIN_ONLY_API_PREFIXES = [
@@ -27,9 +32,11 @@ export const SUPER_ADMIN_ONLY_API_PREFIXES = [
   '/api/admin/hr',
   '/api/admin/pm',
   '/api/admin/website-audit',
+  '/api/admin/rbac',
 ];
 
-export function isSuperAdmin(role?: string | null): boolean {
+export function isSuperAdmin(role?: string | null | { role?: string | null; isSuperAdmin?: boolean }): boolean {
+  if (role && typeof role === 'object') return role.isSuperAdmin === true || role.role === 'SUPER_ADMIN';
   return role === 'SUPER_ADMIN';
 }
 
@@ -46,10 +53,18 @@ export function canAccessAdminPath(role: string | null | undefined, pathname: st
   return !SUPER_ADMIN_ONLY_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+function isSuperAdminOnlyNavGroup(id: string) {
+  return (
+    SUPER_ADMIN_ONLY_NAV_GROUPS.includes(id as (typeof SUPER_ADMIN_ONLY_NAV_GROUPS)[number]) ||
+    id === 'rbac' ||
+    id.startsWith('rbac-')
+  );
+}
+
 export function filterNavGroups<T extends { id: string }>(groups: T[], role: string | null | undefined) {
   const allowed = isSuperAdmin(role)
     ? groups
-    : groups.filter((group) => !SUPER_ADMIN_ONLY_NAV_GROUPS.includes(group.id as (typeof SUPER_ADMIN_ONLY_NAV_GROUPS)[number]));
+    : groups.filter((group) => !isSuperAdminOnlyNavGroup(group.id));
   if (canAccessFinance(role)) return allowed;
   return allowed.filter((group) => group.id !== 'finance');
 }

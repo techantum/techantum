@@ -115,13 +115,65 @@ export async function overview() {
     FROM website_audits a
     LEFT JOIN project_management_projects p ON p.id=a.project_id
     ORDER BY a.created_at DESC LIMIT 12`);
+  const last = recent.rows.find((row) => ['completed', 'partially_completed'].includes(String(row.status))) || null;
+  let lastDurationMinutes: number | null = null;
+  if (last?.started_at && last?.completed_at) {
+    lastDurationMinutes = Math.max(1, Math.round((new Date(String(last.completed_at)).getTime() - new Date(String(last.started_at)).getTime()) / 60000));
+  }
+  const prevMonth = await q<Row>(undefined, `SELECT COUNT(*)::int AS n FROM website_audits WHERE created_at >= date_trunc('month', NOW()) - interval '1 month' AND created_at < date_trunc('month', NOW())`);
+  const prevSites = await q<Row>(undefined, `SELECT COUNT(DISTINCT normalized_url)::int AS n FROM website_audits WHERE created_at >= date_trunc('month', NOW()) - interval '1 month' AND created_at < date_trunc('month', NOW())`);
+  const prevAvg = await q<Row>(undefined, `SELECT ROUND(AVG(overall_score))::int AS n FROM website_audits WHERE overall_score IS NOT NULL AND created_at >= date_trunc('month', NOW()) - interval '1 month' AND created_at < date_trunc('month', NOW())`);
+  const medium = await q<Row>(undefined, `SELECT COUNT(*)::int AS n FROM website_audit_findings WHERE severity IN ('high','medium') AND status IN ('open','accepted','ticket_created')`);
+  const resolved = await q<Row>(undefined, `SELECT COUNT(*)::int AS n FROM website_audit_findings WHERE status IN ('fixed','false_positive') AND COALESCE(reviewed_at, created_at) >= date_trunc('month', NOW())`);
+  const prevResolved = await q<Row>(undefined, `SELECT COUNT(*)::int AS n FROM website_audit_findings WHERE status IN ('fixed','false_positive') AND COALESCE(reviewed_at, created_at) >= date_trunc('month', NOW()) - interval '1 month' AND COALESCE(reviewed_at, created_at) < date_trunc('month', NOW())`);
+  const breakdown = await q<Row>(undefined, `SELECT
+      COUNT(*) FILTER (WHERE severity='critical' AND status IN ('open','accepted','ticket_created'))::int AS critical,
+      COUNT(*) FILTER (WHERE severity='high' AND status IN ('open','accepted','ticket_created'))::int AS warnings,
+      COUNT(*) FILTER (WHERE severity IN ('medium','low') AND status IN ('open','accepted','ticket_created'))::int AS review,
+      COUNT(*) FILTER (WHERE status IN ('fixed','ignored','false_positive'))::int AS passed
+    FROM website_audit_findings`);
+  const series = await q<Row>(undefined, `SELECT DATE(completed_at) AS day, ROUND(AVG(overall_score))::int AS score, COUNT(*)::int AS audits
+    FROM website_audits
+    WHERE overall_score IS NOT NULL AND completed_at >= NOW() - interval '30 days'
+    GROUP BY DATE(completed_at) ORDER BY day`);
+  const agent = await q<Row>(undefined, `SELECT agent_enabled, confidence_threshold FROM web_master_agent_settings WHERE id='default'`).catch(() => ({ rows: [] as Row[] }));
   return {
     audits_this_month: month.rows[0]?.n || 0,
     websites_audited: sites.rows[0]?.n || 0,
     average_score: avg.rows[0]?.n ?? null,
     critical_open: open.rows[0]?.critical || 0,
     high_open: open.rows[0]?.high || 0,
+    warnings_open: medium.rows[0]?.n || 0,
+    resolved_this_month: resolved.rows[0]?.n || 0,
+    previous: {
+      audits_this_month: prevMonth.rows[0]?.n || 0,
+      websites_audited: prevSites.rows[0]?.n || 0,
+      average_score: prevAvg.rows[0]?.n ?? null,
+      resolved_this_month: prevResolved.rows[0]?.n || 0,
+    },
+    issue_breakdown: breakdown.rows[0] || { critical: 0, warnings: 0, review: 0, passed: 0 },
+    score_series: series.rows,
+    agent: agent.rows[0] || { agent_enabled: true, confidence_threshold: 0.6 },
     recent: recent.rows,
+    last_scan: last
+      ? {
+          id: last.id,
+          audit_name: last.audit_name,
+          website_url: last.website_url,
+          pages_scanned: last.pages_scanned,
+          max_pages: last.max_pages,
+          overall_score: last.overall_score,
+          critical_count: last.critical_count,
+          high_count: last.high_count,
+          duration_minutes: lastDurationMinutes,
+          status: last.status,
+          completed_at: last.completed_at,
+          desktop_enabled: last.desktop_enabled,
+          mobile_enabled: last.mobile_enabled,
+          forms_enabled: last.forms_enabled,
+          ai_enabled: last.ai_enabled,
+        }
+      : null,
   };
 }
 
@@ -145,7 +197,8 @@ export async function listAudits(filters: { q?: string; status?: string; project
     `SELECT a.*, p.project_name,
        (SELECT COUNT(*) FROM website_audit_pages pg WHERE pg.audit_id=a.id)::int AS pages_count,
        (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='critical')::int AS critical_count,
-       (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='high')::int AS high_count
+       (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='high')::int AS high_count,
+       (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity NOT IN ('critical','high'))::int AS other_count
      FROM website_audits a
      LEFT JOIN project_management_projects p ON p.id=a.project_id
      WHERE ${where.join(' AND ')}
@@ -154,6 +207,17 @@ export async function listAudits(filters: { q?: string; status?: string; project
     values
   );
   return rows;
+}
+
+export async function deleteAudits(ids: string[]) {
+  const unique = [...new Set(ids.map(String).filter((id) => /^[0-9a-f-]{36}$/i.test(id)))];
+  if (!unique.length) throw new Error('Select at least one audit.');
+  const { rowCount } = await q(
+    undefined,
+    `DELETE FROM website_audits WHERE id = ANY($1::uuid[])`,
+    [unique]
+  );
+  return { deleted: rowCount || 0 };
 }
 
 export async function getAudit(id: string) {
@@ -173,7 +237,7 @@ export async function getAudit(id: string) {
 export async function listFindings(id: string, filters: Record<string, string | null>) {
   const where = ['audit_id=$1'];
   const values: unknown[] = [id];
-  for (const key of ['severity', 'category', 'source', 'status'] as const) {
+  for (const key of ['severity', 'category', 'source', 'status', 'finding_type'] as const) {
     if (filters[key]) {
       values.push(filters[key]);
       where.push(`${key}=$${values.length}`);
@@ -224,9 +288,13 @@ export async function createTicketsFromFindings(auditId: string, findingIds: str
     const mapped = ticketPriority(String(finding.severity));
     const description = [
       `Audit ID: ${auditId}`,
+      `Finding ID: ${findingId}`,
+      `Type: ${finding.finding_type || 'verified_issue'}`,
       `Page: ${JSON.stringify(finding.affected_urls || finding.evidence)}`,
       `Viewport: ${finding.viewport || 'n/a'}`,
       `Issue: ${finding.description || finding.title}`,
+      `Evidence: ${JSON.stringify(finding.evidence || {})}`,
+      `Standard: ${JSON.stringify(finding.standard_reference || {})}`,
       `Recommendation: ${finding.recommendation || ''}`,
       `Source: ${finding.source}`,
       `Selector: ${finding.selector || ''}`,

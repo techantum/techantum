@@ -21,7 +21,16 @@ export function managementReport(audit: Record<string, unknown>, findings: Recor
       low: findings.filter((item) => item.severity === 'low').length,
       suggestion: findings.filter((item) => item.severity === 'suggestion').length,
     },
-    summary: `Scanned ${audit.pages_scanned || 0} page(s). Score ${audit.overall_score ?? '—'}. ${critical.length} critical/high finding(s).`,
+    summary: (audit.webmaster_summary as { overall_quality_assessment?: string } | undefined)?.overall_quality_assessment
+      || `Scanned ${audit.pages_scanned || 0} page(s). Score ${audit.overall_score ?? '—'}. ${critical.length} critical/high finding(s).`,
+    webmaster: audit.webmaster_summary || null,
+    versions: audit.webmaster_versions || null,
+    finding_types: {
+      verified_issue: findings.filter((item) => item.finding_type === 'verified_issue').length,
+      best_practice: findings.filter((item) => item.finding_type === 'best_practice').length,
+      ai_recommendation: findings.filter((item) => item.finding_type === 'ai_recommendation').length,
+      manual_review: findings.filter((item) => item.finding_type === 'manual_review').length,
+    },
   };
 }
 
@@ -48,6 +57,9 @@ export function developerReport(audit: Record<string, unknown>, findings: Record
       recommendation: item.recommendation,
       source: item.source,
       status: item.status,
+      finding_type: item.finding_type,
+      standard: item.standard_reference,
+      confidence: item.ai_confidence,
     })),
   };
 }
