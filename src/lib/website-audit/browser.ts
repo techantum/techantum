@@ -79,16 +79,42 @@ export async function capturePreviewImage(html: string, pageUrl: string, fileNam
   }
 }
 
-export async function scanWithPlaywright(url: string, viewport: { width: number; height: number }, timeoutMs: number, screenshotName: string): Promise<BrowserPageResult | null> {
-  let playwright: any;
+const BROWSER_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+
+export async function launchAuditBrowser() {
   try {
-    playwright = await import('playwright');
-  } catch {
+    const playwright = await import('playwright');
+    return await playwright.chromium.launch({ headless: true, args: BROWSER_ARGS });
+  } catch (error) {
+    console.error('Website audit browser failed to start', error);
     return null;
   }
-  const browser = await playwright.chromium.launch({ headless: true });
+}
+
+async function saveScreenshot(page: { screenshot: (options: Record<string, unknown>) => Promise<Buffer> }, screenshotName: string) {
+  let buffer: Buffer;
   try {
-    const context = await browser.newContext({ viewport, ignoreHTTPSErrors: false });
+    buffer = await page.screenshot({ fullPage: true, type: 'jpeg', quality: 55, timeout: 20000, animations: 'disabled' });
+  } catch {
+    buffer = await page.screenshot({ fullPage: false, type: 'jpeg', quality: 60, timeout: 15000, animations: 'disabled' });
+  }
+  const saved = await saveUploadedFile('website-audits', screenshotName, new Blob([new Uint8Array(buffer)]));
+  return saved.url;
+}
+
+export async function scanWithPlaywright(
+  url: string,
+  viewport: { width: number; height: number },
+  timeoutMs: number,
+  screenshotName: string,
+  existingBrowser?: Awaited<ReturnType<typeof launchAuditBrowser>>,
+): Promise<BrowserPageResult | null> {
+  const browser = existingBrowser || await launchAuditBrowser();
+  if (!browser) return null;
+  const ownsBrowser = !existingBrowser;
+  let context: { close: () => Promise<void> } | null = null;
+  try {
+    context = await browser.newContext({ viewport, ignoreHTTPSErrors: false });
     const page = await context.newPage();
     const consoleErrors: string[] = [];
     const failedRequests: { url: string; status: number }[] = [];
@@ -99,15 +125,19 @@ export async function scanWithPlaywright(url: string, viewport: { width: number;
     page.on('response', (response) => {
       if (response.status() >= 400) failedRequests.push({ url: response.url().slice(0, 300), status: response.status() });
     });
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
-    await page.waitForTimeout(400);
+    let response: { status: () => number } | null = null;
+    try {
+      response = await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+    } catch {
+      response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    }
+    await page.waitForTimeout(800);
     const html = await page.content();
     let screenshotUrl: string | null = null;
     try {
-      const buffer = await page.screenshot({ fullPage: true, type: 'jpeg', quality: 55 });
-      const saved = await saveUploadedFile('website-audits', screenshotName, new Blob([buffer]));
-      screenshotUrl = saved.url;
-    } catch {
+      screenshotUrl = await saveScreenshot(page, screenshotName);
+    } catch (error) {
+      console.error('Website audit screenshot failed', url, error);
       screenshotUrl = null;
     }
     const evaluated = await page.evaluate(LAYOUT_SCRIPT).catch(() => null) as {
@@ -133,7 +163,6 @@ export async function scanWithPlaywright(url: string, viewport: { width: number;
     performance.largeResources = (evaluated?.resources || []).filter((item) => item.bytes > 350_000).slice(0, 8);
     const finalUrl = page.url();
     const title = await page.title().catch(() => '');
-    await context.close();
     return {
       html,
       finalUrl,
@@ -146,7 +175,11 @@ export async function scanWithPlaywright(url: string, viewport: { width: number;
       layout,
       performance,
     };
+  } catch (error) {
+    console.error('Website audit page capture failed', url, error);
+    return null;
   } finally {
-    await browser.close();
+    await context?.close().catch(() => undefined);
+    if (ownsBrowser) await browser.close().catch(() => undefined);
   }
 }

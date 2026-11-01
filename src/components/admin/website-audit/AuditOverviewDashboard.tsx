@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import { BusyButton, PageRedirectLoader } from './AuditBusy';
 import { IssueDonut, KpiCard, ScoreSparkline, deltaLabel, statusChip } from './audit-ui';
 
@@ -106,12 +107,13 @@ export default function AuditOverviewDashboard() {
             <table className="min-w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
-                  {['Audit name', 'Website', 'Project', 'Last run', 'Pages', 'Score', 'Open issues', 'Status', 'Actions'].map((col) => <th key={col} className="pb-2 pr-3 font-medium">{col}</th>)}
+                  {['', 'Audit name', 'Website', 'Project', 'Last run', 'Pages', 'Score', 'Open issues', 'Status', 'Actions'].map((col) => <th key={col || 'preview'} className="pb-2 pr-3 font-medium">{col}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {(data.recent || []).slice(0, 6).map((row: any) => (
                   <tr key={row.id} className="border-t border-slate-100">
+                    <td className="py-3 pr-3"><AuditThumb src={row.screenshot} label={row.audit_name} /></td>
                     <td className="py-3 pr-3 font-medium text-slate-800">{row.audit_name}</td>
                     <td className="pr-3 text-slate-500">{row.website_url}</td>
                     <td className="pr-3">{row.project_name || '—'}</td>
@@ -121,7 +123,7 @@ export default function AuditOverviewDashboard() {
                     <td className="pr-3">{row.critical_count || 0} crit · {row.high_count || 0} high</td>
                     <td className="pr-3">{statusChip(row.status)}</td>
                     <td>
-                      <Link className="text-secondary" href={`/admin/website-audit/${row.id}`} onClick={() => setRedirecting('Opening audit…')}>View</Link>
+                      <Link className="text-secondary" href={auditPublicPath(row)} onClick={() => setRedirecting('Opening audit…')}>View</Link>
                     </td>
                   </tr>
                 ))}
@@ -148,6 +150,14 @@ export default function AuditOverviewDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function AuditThumb({ src, label }: { src?: string; label?: string }) {
+  return (
+    <span className="block h-10 w-16 overflow-hidden rounded-lg bg-slate-100">
+      {src ? <img src={src} alt="" className="h-full w-full object-cover object-top" /> : <span className="flex h-full items-center justify-center px-1 text-center text-[9px] font-semibold text-slate-400">{label}</span>}
+    </span>
   );
 }
 

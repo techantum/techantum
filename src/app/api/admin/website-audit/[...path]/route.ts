@@ -5,6 +5,7 @@ import { isSuperAdmin } from '@/lib/admin/roles';
 import { listProjects } from '@/lib/pm/projects';
 import { hasPmPermission } from '@/lib/pm/permissions';
 import { runAuditJob } from '@/lib/website-audit/runner';
+import { findingsWorkbook, findingsPdf, reportBasename, screenshotsZip } from '@/lib/website-audit/export-files';
 import { findingsCsv, printableHtml, developerReport, managementReport } from '@/lib/website-audit/reports';
 import {
   compareAudits,
@@ -81,16 +82,51 @@ export async function GET(request: Request, context: { params: Promise<{ path?: 
     }
     if (path[0] === 'audits' && path[1] && path[2] === 'report') {
       const data = await getAudit(path[1]);
+      const requested = new Set((url.searchParams.get('ids') || '').split(',').map((id) => id.trim()).filter(Boolean));
+      const findings = requested.size ? data.findings.filter((row) => requested.has(String(row.id))) : data.findings;
       const mode = url.searchParams.get('mode') || 'management';
-      if (url.searchParams.get('format') === 'csv') {
-        return new NextResponse(findingsCsv(data.findings), {
-          headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="website-audit-findings.csv"' },
+      const format = url.searchParams.get('format');
+      const base = reportBasename(data.audit);
+      if (format === 'csv') {
+        return new NextResponse(findingsCsv(findings), {
+          headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${base}.csv"` },
         });
       }
-      if (url.searchParams.get('format') === 'html') {
-        return new NextResponse(printableHtml(data.audit, data.findings), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      if (format === 'xlsx') {
+        const buffer = await findingsWorkbook(data.audit, findings, data.pages);
+        return new NextResponse(new Uint8Array(buffer), {
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${base}.xlsx"`,
+            'Cache-Control': 'private, no-store',
+          },
+        });
       }
-      return NextResponse.json(mode === 'developer' ? developerReport(data.audit, data.findings, data.pages) : managementReport(data.audit, data.findings));
+      if (format === 'pdf') {
+        const buffer = await findingsPdf(data.audit, findings);
+        return new NextResponse(new Uint8Array(buffer), {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${base}.pdf"`,
+            'Cache-Control': 'private, no-store',
+          },
+        });
+      }
+      if (format === 'html') {
+        return new NextResponse(printableHtml(data.audit, findings), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      }
+      if (format === 'screenshots' || format === 'screenshots-zip') {
+        const zip = await screenshotsZip(data.audit, data.pages);
+        return new NextResponse(new Uint8Array(zip.buffer), {
+          headers: {
+            'Content-Type': 'application/zip',
+            'Content-Disposition': `attachment; filename="${zip.filename}"`,
+            'Cache-Control': 'private, no-store',
+            'X-Screenshot-Count': String(zip.count),
+          },
+        });
+      }
+      return NextResponse.json(mode === 'developer' ? developerReport(data.audit, findings, data.pages) : managementReport(data.audit, findings));
     }
     if (path[0] === 'audits' && path[1]) return NextResponse.json(await getAudit(path[1]));
     if (path[0] === 'audits') {

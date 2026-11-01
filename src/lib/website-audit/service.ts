@@ -2,7 +2,37 @@ import { q } from '@/lib/finance/db';
 import { createTicket } from '@/lib/pm/client-updates';
 import { DEFAULT_SETTINGS } from './defaults';
 import { compareFindings, scoreDelta } from './compare';
+import { auditNameSlug } from './slug';
 import type { AuditSettings, FindingStatus } from './types';
+
+const AUDIT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function uniqueAuditSlug(name: string) {
+  const base = auditNameSlug(name);
+  const { rows } = await q<Row>(
+    undefined,
+    `SELECT slug FROM website_audits WHERE slug = $1 OR slug LIKE $2`,
+    [base, `${base}-%`]
+  );
+  const taken = new Set(rows.map((row) => String(row.slug)));
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
+}
+
+export async function resolveAuditId(idOrSlug: string) {
+  const key = decodeURIComponent(String(idOrSlug || '')).trim();
+  if (!key) throw new Error('Audit not found');
+  if (AUDIT_UUID.test(key)) return key;
+  const { rows } = await q<Row>(
+    undefined,
+    `SELECT id FROM website_audits WHERE slug = $1 ORDER BY created_at DESC LIMIT 1`,
+    [key]
+  );
+  if (!rows[0]) throw new Error('Audit not found');
+  return String(rows[0].id);
+}
 
 type Row = Record<string, unknown>;
 
@@ -65,14 +95,15 @@ export async function createAudit(body: Record<string, unknown>, userId: string)
   const maxPages = Math.max(1, Math.min(settings.max_pages, Number(body.max_pages || settings.default_max_pages)));
   const scope = ['single', 'website', 'selected'].includes(String(body.audit_scope)) ? String(body.audit_scope) : 'website';
   const environment = ['development', 'staging', 'production', 'custom'].includes(String(body.environment)) ? String(body.environment) : 'production';
+  const slug = await uniqueAuditSlug(name);
   const { rows } = await q<Row>(
     undefined,
     `INSERT INTO website_audits (
-      audit_name, website_url, normalized_url, project_id, environment, custom_environment, audit_scope,
+      audit_name, slug, website_url, normalized_url, project_id, environment, custom_environment, audit_scope,
       selected_urls, max_pages, desktop_enabled, mobile_enabled, forms_enabled, ai_enabled, notes, status, created_by, parent_audit_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13,$14,'queued',$15,$16) RETURNING *`,
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,'queued',$16,$17) RETURNING *`,
     [
-      name, websiteUrl, normalized, body.project_id || null, environment,
+      name, slug, websiteUrl, normalized, body.project_id || null, environment,
       body.custom_environment || null, scope, JSON.stringify(body.selected_urls || []), maxPages,
       body.desktop_enabled !== false, body.mobile_enabled !== false, Boolean(body.forms_enabled),
       Boolean(body.ai_enabled), body.notes || null, userId, body.parent_audit_id || null,
@@ -81,7 +112,8 @@ export async function createAudit(body: Record<string, unknown>, userId: string)
   return rows[0];
 }
 
-export async function rerunAudit(id: string, userId: string) {
+export async function rerunAudit(idOrSlug: string, userId: string) {
+  const id = await resolveAuditId(idOrSlug);
   const current = await getAudit(id);
   return createAudit({
     audit_name: `${current.audit.audit_name} (re-run)`,
@@ -111,7 +143,10 @@ export async function overview() {
     FROM website_audit_findings`);
   const recent = await q<Row>(undefined, `SELECT a.*, p.project_name,
       (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='critical')::int AS critical_count,
-      (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='high')::int AS high_count
+      (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='high')::int AS high_count,
+      (SELECT COALESCE(pg.desktop_screenshot, pg.mobile_screenshot) FROM website_audit_pages pg
+        WHERE pg.audit_id=a.id AND COALESCE(pg.desktop_screenshot, pg.mobile_screenshot) IS NOT NULL
+        ORDER BY pg.created_at LIMIT 1) AS screenshot
     FROM website_audits a
     LEFT JOIN project_management_projects p ON p.id=a.project_id
     ORDER BY a.created_at DESC LIMIT 12`);
@@ -196,6 +231,9 @@ export async function listAudits(filters: { q?: string; status?: string; project
     undefined,
     `SELECT a.*, p.project_name,
        (SELECT COUNT(*) FROM website_audit_pages pg WHERE pg.audit_id=a.id)::int AS pages_count,
+       (SELECT COALESCE(pg.desktop_screenshot, pg.mobile_screenshot) FROM website_audit_pages pg
+         WHERE pg.audit_id=a.id AND COALESCE(pg.desktop_screenshot, pg.mobile_screenshot) IS NOT NULL
+         ORDER BY pg.created_at LIMIT 1) AS screenshot,
        (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='critical')::int AS critical_count,
        (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity='high')::int AS high_count,
        (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=a.id AND f.severity NOT IN ('critical','high'))::int AS other_count
@@ -220,7 +258,8 @@ export async function deleteAudits(ids: string[]) {
   return { deleted: rowCount || 0 };
 }
 
-export async function getAudit(id: string) {
+export async function getAudit(idOrSlug: string) {
+  const id = await resolveAuditId(idOrSlug);
   const { rows } = await q<Row>(
     undefined,
     `SELECT a.*, p.project_name FROM website_audits a
@@ -234,7 +273,8 @@ export async function getAudit(id: string) {
   return { audit: rows[0], pages: pages.rows, findings: findings.rows };
 }
 
-export async function listFindings(id: string, filters: Record<string, string | null>) {
+export async function listFindings(idOrSlug: string, filters: Record<string, string | null>) {
+  const id = await resolveAuditId(idOrSlug);
   const where = ['audit_id=$1'];
   const values: unknown[] = [id];
   for (const key of ['severity', 'category', 'source', 'status', 'finding_type'] as const) {
@@ -260,7 +300,7 @@ export async function updateFinding(id: string, status: FindingStatus) {
 export async function listProjectAudits(projectId: string) {
   const { rows } = await q<Row>(
     undefined,
-    `SELECT id, audit_name, environment, overall_score, status, created_at, pages_scanned,
+    `SELECT id, slug, audit_name, environment, overall_score, status, created_at, pages_scanned,
        (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=website_audits.id AND f.severity='critical')::int AS critical_count,
        (SELECT COUNT(*) FROM website_audit_findings f WHERE f.audit_id=website_audits.id AND f.severity='high')::int AS high_count
      FROM website_audits WHERE project_id=$1 ORDER BY created_at DESC LIMIT 30`,
@@ -277,7 +317,8 @@ function ticketPriority(severity: string) {
   return { priority: 'low', type: 'BUG' };
 }
 
-export async function createTicketsFromFindings(auditId: string, findingIds: string[], userId: string, overrides?: { priority?: string; ticket_type?: string }) {
+export async function createTicketsFromFindings(auditIdOrSlug: string, findingIds: string[], userId: string, overrides?: { priority?: string; ticket_type?: string }) {
+  const auditId = await resolveAuditId(auditIdOrSlug);
   const audit = await getAudit(auditId);
   const projectId = String(audit.audit.project_id || '');
   if (!projectId) throw new Error('Link this audit to a Project before creating tickets.');
@@ -325,7 +366,7 @@ export async function compareAudits(fromId: string, toId: string) {
     undefined,
     `INSERT INTO website_audit_comparisons (from_audit_id, to_audit_id, previous_score, current_score, difference, fixed_count, remaining_count, new_count, payload)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-    [fromId, toId, scores.previous_score, scores.current_score, scores.difference, compared.fixed_count, compared.remaining_count, compared.new_count, JSON.stringify(payload)]
+    [from.audit.id, to.audit.id, scores.previous_score, scores.current_score, scores.difference, compared.fixed_count, compared.remaining_count, compared.new_count, JSON.stringify(payload)]
   );
   return { from: from.audit, to: to.audit, ...payload };
 }

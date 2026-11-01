@@ -15,6 +15,52 @@ export function verifyWebhookSignature(rawBody: string, signatureHeader: string 
   return verifySig(rawBody, signatureHeader, appSecret || undefined);
 }
 
+export async function sendWhatsAppUtilityUpdate(to: string, body: string): Promise<SessionSendResult> {
+  const { accessToken, phoneNumberId, graphVersion, configured } = getWhatsAppAiConfig();
+  if (!configured) {
+    return { ok: false, provider_message_id: null, error_message: 'WhatsApp is not configured on the server.' };
+  }
+  const parameter = body.replace(/[\r\n\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, 900);
+  if (!parameter) {
+    return { ok: false, provider_message_id: null, error_message: 'Empty message.' };
+  }
+  const templateName = process.env.WHATSAPP_TEMPLATE_NAME?.trim() || 'techantum_client_update';
+  const language = process.env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || 'en';
+  const res = await fetch(`${GRAPH_BASE}/${graphVersion}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: whatsappApiTo(to),
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: language },
+        components: [{ type: 'body', parameters: [{ type: 'text', text: parameter }] }],
+      },
+    }),
+  });
+  const payload = (await res.json().catch(() => ({}))) as {
+    messages?: { id?: string }[];
+    error?: { message?: string };
+  };
+  if (!res.ok) {
+    return {
+      ok: false,
+      provider_message_id: null,
+      error_message: payload.error?.message || `WhatsApp template send failed (${res.status}).`,
+    };
+  }
+  return {
+    ok: true,
+    provider_message_id: payload.messages?.[0]?.id ?? null,
+    error_message: null,
+  };
+}
+
 export async function sendWhatsAppSessionText(to: string, body: string): Promise<SessionSendResult> {
   const { accessToken, phoneNumberId, graphVersion, configured } = getWhatsAppAiConfig();
   if (!configured) {

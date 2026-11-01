@@ -3,7 +3,7 @@ const nextConfig = {
   compress: true,
   productionBrowserSourceMaps: false,
   distDir: process.env.DIST_DIR || '.next',
-  serverExternalPackages: ['pdfkit', 'unpdf'],
+  serverExternalPackages: ['pdfkit', 'unpdf', 'playwright', 'playwright-core'],
 
   async redirects() {
     return [

@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { saveOutboundMessage } from './conversation';
-import { sendWhatsAppSessionText } from './meta';
+import { sendWhatsAppSessionText, sendWhatsAppUtilityUpdate } from './meta';
 import { formatAppointmentNoteMessage, formatAppointmentStatusMessage } from './appointment-copy';
 import { formatSlotForPeople, isSlotBookable, type ParsedSlot } from './appointment-slot';
 import { serviceLabel, type QualificationState } from './qualification';
@@ -198,7 +198,9 @@ export async function upsertChatAppointment(input: {
 }
 
 export function getAdminAppointmentNotifyNumber() {
-  return (process.env.WHATSAPP_APPOINTMENT_NOTIFY || '919951085555').replace(/\D/g, '');
+  const digits = (process.env.WHATSAPP_APPOINTMENT_NOTIFY || '9951085555').replace(/\D/g, '');
+  if (digits.length === 10) return `91${digits}`;
+  return digits || '919951085555';
 }
 
 export async function notifyAdminOfAppointment(appointment: WhatsAppAppointment) {
@@ -219,9 +221,13 @@ export async function notifyAdminOfAppointment(appointment: WhatsAppAppointment)
 
   const to = getAdminAppointmentNotifyNumber();
   const customerDigits = (appointment.phone || '').replace(/\D/g, '');
-  if (to && to !== customerDigits) {
-    const result = await sendWhatsAppSessionText(to, text);
-    if (!result.ok) console.error('[whatsapp appointment] admin notify failed', result.error_message);
+  const samePerson = customerDigits.endsWith(to.slice(-10));
+  if (to && !samePerson) {
+    const templated = await sendWhatsAppUtilityUpdate(to, text);
+    const result = templated.ok ? templated : await sendWhatsAppSessionText(to, text);
+    if (!result.ok) {
+      console.error('[whatsapp appointment] admin notify failed', templated.error_message || result.error_message);
+    }
   }
 
   const { error } = await createAdminClient().from('notifications').insert({

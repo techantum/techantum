@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import { AuditScanOverlay, BusyButton, saveScanSession } from './AuditBusy';
 
 async function api(path: string, init?: RequestInit) {
@@ -100,7 +101,7 @@ export default function NewAuditScreen() {
     try {
       const created = await api('audits', { method: 'POST', body: JSON.stringify(form) });
       saveScanSession({ id: String(created.id), url: form.website_url, name: form.audit_name });
-      router.push(`/admin/website-audit/${created.id}`);
+      router.push(auditPublicPath(created));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start audit');
       setSaving(false);
@@ -243,7 +244,7 @@ export default function NewAuditScreen() {
             <div key={String(last.overall_score)} className="audit-stat-pulse rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
               <p className="text-sm font-semibold text-slate-800">Last overall score</p>
               <p className="mt-1 text-2xl font-semibold text-slate-900">{last.overall_score}</p>
-              <Link className="text-xs font-medium text-secondary" href={`/admin/website-audit/${last.id}`}>View last report</Link>
+              <Link className="text-xs font-medium text-secondary" href={auditPublicPath(last)}>View last report</Link>
             </div>
           ) : null}
           <div className="audit-fade rounded-2xl border border-emerald-100 bg-emerald-50 p-4" style={{ animationDelay: '180ms' }}>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import { BusyButton, PageRedirectLoader } from './AuditBusy';
 import { statusChip } from './audit-ui';
 
@@ -175,8 +176,9 @@ export default function AuditReportsScreen() {
                   <td className="px-4 py-3.5">{statusChip(row.status)}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3 text-slate-500">
-                      <BusyButton className="inline-flex items-center gap-1 text-sm" onClick={() => go(`/admin/website-audit/${row.id}`, 'Opening report…')}><Icon name="EyeIcon" size={15} /> View</BusyButton>
-                      <a className="inline-flex items-center gap-1 text-sm" href={`/api/admin/website-audit/audits/${row.id}/report?format=html`} target="_blank" rel="noreferrer"><Icon name="ArrowDownTrayIcon" size={15} /> Download</a>
+                      <BusyButton className="inline-flex items-center gap-1 text-sm" onClick={() => go(auditPublicPath(row), 'Opening report…')}><Icon name="EyeIcon" size={15} /> View</BusyButton>
+                      <a className="inline-flex items-center gap-1 text-sm" href={`/api/admin/website-audit/audits/${row.id}/report?format=html`} target="_blank" rel="noreferrer" title="Download report"><Icon name="ArrowDownTrayIcon" size={15} /> Download</a>
+                      <a className="inline-flex items-center gap-1 text-sm" href={`/api/admin/website-audit/audits/${row.id}/report?format=screenshots`} title="Download all screenshots as ZIP"><Icon name="PhotoIcon" size={15} /> Screenshots</a>
                     </div>
                   </td>
                 </tr>

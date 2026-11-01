@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -74,7 +75,7 @@ export default function WebsiteAuditModule({ view, auditId }: { view: View; audi
   async function rerun() {
     if (!auditId) return;
     const created = await api(`audits/${auditId}/rerun`, { method: 'POST', body: '{}' });
-    router.push(`/admin/website-audit/${created.id}`);
+    router.push(auditPublicPath(created));
   }
 
   async function runCompare(otherId: string) {
@@ -221,6 +222,7 @@ export default function WebsiteAuditModule({ view, auditId }: { view: View; audi
             <button className={btnClass} type="button" onClick={() => void rerun()}>Re-run</button>
             <a className="rounded-lg border border-slate-200 px-4 py-2 text-sm" href={`/api/admin/website-audit/audits/${auditId}/report?format=html`} target="_blank" rel="noreferrer">Printable report</a>
             <a className="rounded-lg border border-slate-200 px-4 py-2 text-sm" href={`/api/admin/website-audit/audits/${auditId}/report?format=csv`}>Export CSV</a>
+            <a className="rounded-lg border border-slate-200 px-4 py-2 text-sm" href={`/api/admin/website-audit/audits/${auditId}/report?format=screenshots`}>Download Screenshots</a>
             {audits.filter((row) => row.id !== auditId).slice(0, 5).map((row) => (
               <button key={row.id} type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" onClick={() => void runCompare(row.id)}>Compare with {String(row.audit_name).slice(0, 24)}</button>
             ))}
@@ -347,7 +349,7 @@ function AuditTable({ rows, actions }: { rows: any[]; actions?: boolean }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} className="border-t border-slate-100">
-              <td className="p-3"><Link className="text-secondary" href={`/admin/website-audit/${row.id}`}>{row.audit_name}</Link></td>
+              <td className="p-3"><Link className="text-secondary" href={auditPublicPath(row)}>{row.audit_name}</Link></td>
               <td className="p-3">{row.website_url}</td>
               <td className="p-3">{row.project_name || '—'}</td>
               <td className="p-3">{row.environment}</td>
@@ -358,7 +360,7 @@ function AuditTable({ rows, actions }: { rows: any[]; actions?: boolean }) {
               <td className="p-3">{row.status}</td>
               {actions ? (
                 <td className="p-3">
-                  <Link className="text-secondary" href={`/admin/website-audit/${row.id}`}>View</Link>
+                  <Link className="text-secondary" href={auditPublicPath(row)}>View</Link>
                 </td>
               ) : null}
             </tr>

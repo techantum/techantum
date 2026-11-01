@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { WhatsAppModal } from '@/components/admin/ops/OpsShared';
 import { Panel, PmBadge, PmShell, Stat, Td, Th } from '@/components/admin/pm/ui';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 
 function Line({ label, value }: { label: string; value?: string | number | null }) {
   return <div><p className="text-[11px] uppercase tracking-wider text-slate-400">{label}</p><p className="text-sm text-slate-800">{value || '—'}</p></div>;
@@ -130,7 +131,7 @@ export default function ProjectViewPage() {
         <table className="min-w-full"><thead><tr><Th>Date</Th><Th>Environment</Th><Th>Score</Th><Th>Critical</Th><Th>High</Th><Th>Status</Th></tr></thead>
           <tbody>{(data?.websiteAudits || []).map((row: Record<string, string | number>) => (
             <tr key={String(row.id)}>
-              <Td><Link className="text-secondary" href={`/admin/website-audit/${row.id}`}>{String(row.created_at || '').slice(0, 10)}</Link></Td>
+              <Td><Link className="text-secondary" href={auditPublicPath(row as { slug?: string; audit_name?: string })}>{String(row.created_at || '').slice(0, 10)}</Link></Td>
               <Td>{row.environment}</Td>
               <Td>{row.overall_score ?? '—'}</Td>
               <Td>{row.critical_count}</Td>

@@ -3,7 +3,7 @@ import { accessibilityFindings, summarizeAccessibility } from './accessibility';
 import { securityHygieneFindings } from './webmaster/hygiene';
 import { DEFAULT_AGENT_SETTINGS, runWebMaster } from './webmaster/agent';
 import { getAgentSettings, listChunks } from './webmaster/knowledge';
-import { DESKTOP, MOBILE, capturePreviewImage, scanWithPlaywright } from './browser';
+import { DESKTOP, MOBILE, capturePreviewImage, launchAuditBrowser, scanWithPlaywright } from './browser';
 import { discoverPages, defaultFetch } from './crawl';
 import { clampPages } from './defaults';
 import { contentHash, dedupeFindings, fingerprintOf } from './findings';
@@ -33,6 +33,7 @@ export async function runAuditJob(auditId: string) {
   const progress = { stage: 'starting', pages_discovered: 0, pages_scanned: 0, checks_completed: false, ai_review: false, report: false };
   await q(undefined, `UPDATE website_audits SET status='running', started_at=NOW(), error_message=NULL, progress=$2::jsonb WHERE id=$1`, [auditId, JSON.stringify(progress)]);
   const failed: string[] = [];
+  let browser: Awaited<ReturnType<typeof launchAuditBrowser>> = null;
   try {
     const startUrl = await assertPublicHttpUrl(String(audit.website_url));
     progress.stage = 'crawl';
@@ -49,6 +50,7 @@ export async function runAuditJob(auditId: string) {
     progress.pages_discovered = discovered.urls.length;
     await q(undefined, `UPDATE website_audits SET pages_discovered=$2, progress=$3::jsonb WHERE id=$1`, [auditId, discovered.urls.length, JSON.stringify(progress)]);
 
+    browser = await launchAuditBrowser();
     const extracted: ExtractedPage[] = [];
     const hashes: Record<string, string> = {};
     const layoutAnomaly = new Map<string, boolean>();
@@ -82,27 +84,27 @@ export async function runAuditJob(auditId: string) {
         }
       }
 
-      if (html && audit.desktop_enabled) {
-        const browser = await scanWithPlaywright(url, DESKTOP, settings.page_timeout_ms, `${auditId}-d-${pageIds.size}.jpg`).catch(() => null);
-        if (browser) {
-          html = browser.html || html;
-          status = browser.status ?? status;
-          desktopShot = browser.screenshotUrl;
-          consoleErrors = browser.consoleErrors;
-          failedRequests = browser.failedRequests;
-          allFindings.push(...typographyFindings(browser.typography, url));
-          allFindings.push(...layoutFindings(browser.layout, url, 'desktop'));
-          if (settings.lighthouse_enabled) allFindings.push(...performanceFindings(browser.performance, url));
-          if (browser.layout.overflowX || browser.layout.bodyWiderThanViewport) layoutAnomaly.set(url, true);
+      if (html && audit.desktop_enabled && browser) {
+        const captured = await scanWithPlaywright(url, DESKTOP, settings.page_timeout_ms, `${auditId}-d-${extracted.length}.jpg`, browser).catch(() => null);
+        if (captured) {
+          html = captured.html || html;
+          status = captured.status ?? status;
+          desktopShot = captured.screenshotUrl;
+          consoleErrors = captured.consoleErrors;
+          failedRequests = captured.failedRequests;
+          allFindings.push(...typographyFindings(captured.typography, url));
+          allFindings.push(...layoutFindings(captured.layout, url, 'desktop'));
+          if (settings.lighthouse_enabled) allFindings.push(...performanceFindings(captured.performance, url));
+          if (captured.layout.overflowX || captured.layout.bodyWiderThanViewport) layoutAnomaly.set(url, true);
         }
       }
-      if (html && audit.mobile_enabled) {
-        const browser = await scanWithPlaywright(url, MOBILE, settings.page_timeout_ms, `${auditId}-m-${pageIds.size}.jpg`).catch(() => null);
-        if (browser) {
-          mobileShot = browser.screenshotUrl;
-          allFindings.push(...layoutFindings(browser.layout, url, 'mobile'));
-          allFindings.push(...typographyFindings(browser.typography, url));
-          if (browser.layout.overflowX) layoutAnomaly.set(url, true);
+      if (html && audit.mobile_enabled && browser) {
+        const captured = await scanWithPlaywright(url, MOBILE, settings.page_timeout_ms, `${auditId}-m-${extracted.length}.jpg`, browser).catch(() => null);
+        if (captured) {
+          mobileShot = captured.screenshotUrl;
+          allFindings.push(...layoutFindings(captured.layout, url, 'mobile'));
+          allFindings.push(...typographyFindings(captured.typography, url));
+          if (captured.layout.overflowX) layoutAnomaly.set(url, true);
         }
       }
       if (html && !desktopShot) {
@@ -265,5 +267,7 @@ export async function runAuditJob(auditId: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Audit failed';
     await q(undefined, `UPDATE website_audits SET status='failed', error_message=$2, completed_at=NOW() WHERE id=$1`, [auditId, message]);
+  } finally {
+    await browser?.close().catch(() => undefined);
   }
 }

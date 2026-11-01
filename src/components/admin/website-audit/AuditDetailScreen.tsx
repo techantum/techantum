@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { AuditScanOverlay, BusyButton, PageRedirectLoader, clearScanSession, readScanSession, saveScanSession } from './AuditBusy';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import {
   CategoryBars,
   HealthRing,
@@ -14,7 +15,7 @@ import {
   statusChip,
 } from './audit-ui';
 
-const PAGE_SIZE = 7;
+const PAGE_SIZE = 20;
 const NOTES_LIMIT = 500;
 
 async function api(path: string, init?: RequestInit) {
@@ -53,22 +54,12 @@ function formatWhen(value?: string) {
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function downloadText(filename: string, content: string, type: string) {
-  const blob = new Blob([content], { type });
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = href;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(href);
-}
-
-function csvFor(findings: any[]) {
-  const header = ['Severity', 'Category', 'Issue', 'Description', 'Page', 'Source', 'Status'];
-  const lines = findings.map((row) => [row.severity, row.category, row.title, row.description, pagePath(row), row.source, row.status]
-    .map((cell) => `"${String(cell || '').replaceAll('"', '""')}"`)
-    .join(','));
-  return [header.join(','), ...lines].join('\n');
+function pageWindow(page: number, pageCount: number) {
+  const width = 6;
+  if (pageCount <= width) return Array.from({ length: pageCount }, (_, index) => index + 1);
+  const end = Math.min(pageCount, Math.max(page + 2, width));
+  const start = Math.max(1, end - width + 1);
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
 }
 
 export default function AuditDetailScreen({ auditId }: { auditId: string }) {
@@ -104,6 +95,10 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
   }, [auditId]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const slug = String(detail?.audit?.slug || '');
+    if (slug && auditId !== slug) router.replace(`/admin/website-audit/${slug}`);
+  }, [detail, auditId, router]);
   useEffect(() => { setPage(1); setSelected([]); setOpenFinding(null); }, [auditId]);
   useEffect(() => {
     try {
@@ -171,7 +166,7 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
     try {
       const created = await api(`audits/${auditId}/rerun`, { method: 'POST', body: '{}' });
       saveScanSession({ id: created.id, url: String(created.website_url || ''), name: String(created.audit_name || '') });
-      router.push(`/admin/website-audit/${created.id}`);
+      router.push(auditPublicPath(created));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Re-run failed');
       setBusy('');
@@ -226,15 +221,17 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
     }
   }
 
-  function exportCsv(scope: 'all' | 'selected') {
-    const rows = scope === 'selected' ? selectedRows : (detail?.findings || []);
-    downloadText(`website-audit-${scope}.csv`, csvFor(rows), 'text/csv;charset=utf-8');
+  function reportHref(format: 'pdf' | 'xlsx' | 'screenshots', scope: 'all' | 'selected' = 'all') {
+    const params = new URLSearchParams({ format });
+    if (scope === 'selected' && selected.length) params.set('ids', selected.join(','));
+    return `/api/admin/website-audit/audits/${auditId}/report?${params}`;
   }
 
   const audit = detail?.audit;
   const session = readScanSession();
   const pages = detail?.pages || [];
-  const screenshot = pages.find((row: any) => row.desktop_screenshot)?.desktop_screenshot;
+  const capturedPages = pages.filter((row: any) => row.desktop_screenshot || row.mobile_screenshot);
+  const screenshot = capturedPages[0]?.desktop_screenshot || capturedPages[0]?.mobile_screenshot;
   const scanned = Number(audit?.pages_scanned || 0);
   const maxPages = Number(audit?.max_pages || scanned || 0);
   const criticalHigh = (counts.severity.critical || 0) + (counts.severity.high || 0);
@@ -255,33 +252,30 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
 
   return (
     <div className="audit-fade -mx-2 space-y-4 pb-10 sm:-mx-0">
-      <AuditScanOverlay
-        open={showOverlay}
-        url={audit?.website_url || session?.url}
-        stage={audit?.progress?.stage ? `Stage: ${audit.progress.stage}` : undefined}
-        pagesScanned={audit?.pages_scanned}
-        maxPages={audit?.max_pages}
-        aiEnabled={audit?.ai_enabled !== false}
-      />
       <PageRedirectLoader open={Boolean(redirecting) && !showOverlay} label={redirecting} />
 
       <div className="flex flex-wrap items-center justify-end gap-2">
         {audits.length ? (
           <select
             className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-600 shadow-sm"
-            value={auditId}
+            value={String(detail?.audit?.slug || auditId)}
             onChange={(event) => {
               setRedirecting('Opening report…');
               router.push(`/admin/website-audit/${event.target.value}`);
             }}
           >
             {audits.map((row) => (
-              <option key={row.id} value={row.id}>{hostOf(row.website_url)}</option>
+              <option key={row.id} value={String(row.slug || row.id)}>{hostOf(row.website_url)}</option>
             ))}
           </select>
         ) : null}
         <BusyButton busy={busy === 'rerun'} className={ghostBtn} onClick={() => void rerun()}>Re-run Audit</BusyButton>
-        <a className={primaryBtn} href={`/api/admin/website-audit/audits/${auditId}/report?format=html`} target="_blank" rel="noreferrer">
+        {capturedPages.length ? (
+          <a className={ghostBtn} href={reportHref('screenshots')}>
+            <Icon name="PhotoIcon" size={16} className="text-sky-500" /> Download Screenshots
+          </a>
+        ) : null}
+        <a className={primaryBtn} href={reportHref('pdf')}>
           <Icon name="ArrowDownTrayIcon" size={16} /> Download Report
         </a>
       </div>
@@ -299,12 +293,17 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
           <p className="mt-1 text-sm text-slate-400">Complete overview of your website’s SEO, accessibility, content and technical health.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <a className={ghostBtn} href={`/api/admin/website-audit/audits/${auditId}/report?format=html`} target="_blank" rel="noreferrer">
+          <a className={ghostBtn} href={reportHref('pdf')}>
             <Icon name="ArrowDownTrayIcon" size={16} className="text-slate-400" /> Download PDF
           </a>
-          <button type="button" className={ghostBtn} onClick={() => exportCsv('all')}>
+          <a className={ghostBtn} href={reportHref('xlsx')}>
             <Icon name="TableCellsIcon" size={16} className="text-emerald-500" /> Export Excel
-          </button>
+          </a>
+          {capturedPages.length ? (
+            <a className={ghostBtn} href={reportHref('screenshots')}>
+              <Icon name="PhotoIcon" size={16} className="text-sky-500" /> Download Screenshots
+            </a>
+          ) : null}
           <BusyButton busy={busy === 'share-all'} className={primaryBtn} onClick={() => void share('all')}>
             <Icon name="ShareIcon" size={16} /> Share Report
           </BusyButton>
@@ -314,7 +313,18 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
       {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
       {notice ? <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</p> : null}
 
-      {audit ? (
+      {showOverlay ? (
+        <AuditScanOverlay
+          open
+          url={audit?.website_url || session?.url}
+          stage={audit?.progress?.stage ? `Stage: ${audit.progress.stage}` : undefined}
+          pagesScanned={audit?.pages_scanned}
+          maxPages={audit?.max_pages}
+          aiEnabled={audit?.ai_enabled !== false}
+        />
+      ) : null}
+
+      {!showOverlay && audit ? (
         <>
           <section className={`${card} px-5 py-4`}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
@@ -376,6 +386,28 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
             </section>
           </div>
 
+          {capturedPages.length ? (
+            <section className={`${card} p-5`}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-500"><Icon name="PhotoIcon" size={16} /></span>
+                  Captured pages ({capturedPages.length})
+                </h2>
+                <a className={ghostBtn} href={reportHref('screenshots')}>
+                  <Icon name="ArrowDownTrayIcon" size={16} className="text-sky-500" /> Download Screenshots
+                </a>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {capturedPages.map((row: any) => (
+                  <a key={row.id} href={row.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                    <img src={row.desktop_screenshot || row.mobile_screenshot} alt="" className="h-36 w-full object-cover object-top" />
+                    <span className="block truncate px-3 py-2 text-xs text-slate-500">{pagePath({ evidence: { url: row.normalized_url || row.url } }) || row.url}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className={`${card} overflow-hidden`}>
             <div className="flex flex-col gap-3 px-5 pb-2 pt-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
@@ -405,27 +437,41 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
               </div>
             </div>
 
-            {selected.length ? (
-              <div className="mx-5 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F3EEFF] px-4 py-2.5 text-sm text-[#5B45D6]">
-                <span className="inline-flex items-center gap-2 font-medium">
-                  <input type="checkbox" className={checkClass} checked readOnly />
-                  {selected.length} issue{selected.length === 1 ? '' : 's'} selected
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <BusyButton busy={busy === 'tickets'} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" onClick={() => void createTickets()}>Create tickets</BusyButton>
-                  <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" onClick={() => window.open(`/api/admin/website-audit/audits/${auditId}/report?format=html`, '_blank')}>
-                    <Icon name="ArrowDownTrayIcon" size={14} /> Export Selected to PDF
-                  </button>
-                  <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" onClick={() => exportCsv('selected')}>
-                    <Icon name="TableCellsIcon" size={14} /> Export Selected to Excel
-                  </button>
-                  <BusyButton busy={busy === 'share-selected'} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" onClick={() => void share('selected')}>
-                    <Icon name="ShareIcon" size={14} /> Share Selected
-                  </BusyButton>
-                  <button type="button" className="px-1 text-xs font-medium text-[#6D5CFF]" onClick={() => setSelected([])}>Clear Selection</button>
-                </div>
+            <div className={`mx-5 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm ${selected.length ? 'bg-[#F3EEFF] text-[#5B45D6]' : 'bg-slate-50 text-slate-600'}`}>
+              <span className="inline-flex items-center gap-2 font-medium">
+                {selected.length ? (
+                  <>
+                    <input type="checkbox" className={checkClass} checked readOnly />
+                    {selected.length} issue{selected.length === 1 ? '' : 's'} selected
+                  </>
+                ) : (
+                  <>{counts.total} finding{counts.total === 1 ? '' : 's'}</>
+                )}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <a className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium text-slate-700" href={reportHref('pdf')}>
+                  <Icon name="ArrowDownTrayIcon" size={14} /> Export All to PDF
+                </a>
+                <a className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium text-slate-700" href={reportHref('xlsx')}>
+                  <Icon name="TableCellsIcon" size={14} /> Export All to Excel
+                </a>
+                {selected.length ? (
+                  <>
+                    <BusyButton busy={busy === 'tickets'} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" onClick={() => void createTickets()}>Create tickets</BusyButton>
+                    <a className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" href={reportHref('pdf', 'selected')}>
+                      <Icon name="ArrowDownTrayIcon" size={14} /> Export Selected to PDF
+                    </a>
+                    <a className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" href={reportHref('xlsx', 'selected')}>
+                      <Icon name="TableCellsIcon" size={14} /> Export Selected to Excel
+                    </a>
+                    <BusyButton busy={busy === 'share-selected'} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-medium" onClick={() => void share('selected')}>
+                      <Icon name="ShareIcon" size={14} /> Share Selected
+                    </BusyButton>
+                    <button type="button" className="px-1 text-xs font-medium text-[#6D5CFF]" onClick={() => setSelected([])}>Clear Selection</button>
+                  </>
+                ) : null}
               </div>
-            ) : null}
+            </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -479,7 +525,7 @@ export default function AuditDetailScreen({ auditId }: { auditId: string }) {
               </span>
               <div className="flex items-center gap-1">
                 <button type="button" disabled={page <= 1} className="h-8 w-8 rounded-lg text-slate-400 disabled:opacity-30" onClick={() => setPage((n) => n - 1)}>‹</button>
-                {Array.from({ length: pageCount }, (_, index) => index + 1).slice(0, 6).map((number) => (
+                {pageWindow(page, pageCount).map((number) => (
                   <button
                     key={number}
                     type="button"

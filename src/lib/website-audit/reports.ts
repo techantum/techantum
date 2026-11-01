@@ -1,4 +1,5 @@
 import { toCsv } from '@/lib/marketing-seo/csv';
+import { FINDING_COLUMNS, findingExportRows } from './export-files';
 import type { FindingDraft } from './types';
 
 export function managementReport(audit: Record<string, unknown>, findings: Record<string, unknown>[]) {
@@ -65,31 +66,24 @@ export function developerReport(audit: Record<string, unknown>, findings: Record
 }
 
 export function findingsCsv(findings: Record<string, unknown>[]) {
-  return toCsv(
-    ['severity', 'category', 'title', 'description', 'recommendation', 'source', 'status', 'selector', 'viewport'],
-    findings.map((item) => ({
-      severity: item.severity,
-      category: item.category,
-      title: item.title,
-      description: item.description,
-      recommendation: item.recommendation,
-      source: item.source,
-      status: item.status,
-      selector: item.selector,
-      viewport: item.viewport,
-    }))
-  );
+  const keys = FINDING_COLUMNS.map((column) => column.key);
+  return toCsv(keys, findingExportRows(findings));
 }
 
 export function printableHtml(audit: Record<string, unknown>, findings: Record<string, unknown>[]) {
-  const rows = findings
-    .map((item) => `<tr><td>${item.severity}</td><td>${item.category}</td><td>${escapeHtml(String(item.title))}</td><td>${escapeHtml(String(item.recommendation || ''))}</td></tr>`)
-    .join('');
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(String(audit.audit_name))}</title>
-  <style>body{font-family:sans-serif;padding:24px;color:#111}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left}h1{margin-bottom:8px}</style></head>
-  <body><h1>${escapeHtml(String(audit.audit_name))}</h1>
-  <p>${escapeHtml(String(audit.website_url))} · Score ${audit.overall_score ?? '—'} · ${audit.pages_scanned || 0} pages</p>
-  <table><thead><tr><th>Severity</th><th>Category</th><th>Title</th><th>Recommendation</th></tr></thead><tbody>${rows}</tbody></table>
+  const blocks = findingExportRows(findings).map((item, index) => `
+    <article>
+      <h2>${index + 1}. ${escapeHtml(item.title)}</h2>
+      <p class="meta">${escapeHtml([item.severity, item.category, item.page].filter(Boolean).join(' · '))}</p>
+      ${item.description ? `<p><strong>Problem.</strong> ${escapeHtml(item.description)}</p>` : ''}
+      ${item.recommendation ? `<p><strong>Fix.</strong> ${escapeHtml(item.recommendation)}</p>` : ''}
+    </article>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(String(audit.audit_name || 'Website audit'))}</title>
+  <style>body{font-family:sans-serif;max-width:720px;margin:40px auto;color:#111;line-height:1.5}article{padding:18px 0;border-top:1px solid #e5e7eb}h1{margin-bottom:8px}h2{font-size:16px;margin:0 0 4px}.meta{color:#64748b;font-size:13px}</style></head>
+  <body><h1>Website Audit Report</h1>
+  <p>${escapeHtml(String(audit.website_url || ''))}</p>
+  <p>Score ${audit.overall_score ?? '—'} · ${audit.pages_scanned || 0} pages scanned · ${findings.length} findings</p>
+  ${blocks || '<p>No findings.</p>'}
   </body></html>`;
 }
 

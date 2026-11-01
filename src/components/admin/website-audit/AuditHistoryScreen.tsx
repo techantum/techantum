@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import { BusyButton, PageRedirectLoader } from './AuditBusy';
 import { statusChip } from './audit-ui';
 
@@ -244,9 +245,14 @@ export default function AuditHistoryScreen() {
                       <input type="checkbox" className="accent-[#6D5CFF]" checked={selected.includes(row.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} />
                     </td>
                     <td className="px-3 py-3.5">
-                      <button type="button" className="text-left" onClick={() => go(`/admin/website-audit/${row.id}`, 'Opening report…')}>
-                        <p className="font-semibold text-slate-900">{row.audit_name}</p>
-                        <p className="text-[12px] text-slate-400">{scopeLabel(row.audit_scope)}</p>
+                      <button type="button" className="flex items-center gap-3 text-left" onClick={() => go(auditPublicPath(row), 'Opening report…')}>
+                        <span className="h-11 w-[72px] shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                          {row.screenshot ? <img src={row.screenshot} alt="" className="h-full w-full object-cover object-top" /> : null}
+                        </span>
+                        <span>
+                          <p className="font-semibold text-slate-900">{row.audit_name}</p>
+                          <p className="text-[12px] text-slate-400">{scopeLabel(row.audit_scope)}</p>
+                        </span>
                       </button>
                     </td>
                     <td className="px-3 py-3.5">
@@ -276,7 +282,7 @@ export default function AuditHistoryScreen() {
                     <td className="whitespace-nowrap px-3 py-3.5 text-[12px] leading-5 text-slate-500">{formatWhen(row.completed_at || row.created_at)}</td>
                     <td className="px-3 py-3.5">
                       <div className="flex items-center gap-2 text-slate-400">
-                        <button type="button" title="View" onClick={() => go(`/admin/website-audit/${row.id}`, 'Opening report…')}><Icon name="EyeIcon" size={16} /></button>
+                        <button type="button" title="View" onClick={() => go(auditPublicPath(row), 'Opening report…')}><Icon name="EyeIcon" size={16} /></button>
                         <a title="Download" href={`/api/admin/website-audit/audits/${row.id}/report?format=html`} target="_blank" rel="noreferrer"><Icon name="ArrowDownTrayIcon" size={16} /></a>
                         <button type="button" title="Delete" className="hover:text-rose-600" disabled={deleting} onClick={() => removeAudits([row.id])}><Icon name="TrashIcon" size={16} /></button>
                       </div>

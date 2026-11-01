@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { auditPublicPath } from '@/lib/website-audit/slug';
 import { BusyButton, PageRedirectLoader, saveScanSession } from './AuditBusy';
 
 const EXTRA_KEY = 'techantum.webmaster.extras';
@@ -76,7 +77,7 @@ export default function WebMasterAgentScreen() {
         }),
       });
       saveScanSession({ id: created.id, url: extras.website_url, name: created.audit_name });
-      router.push(`/admin/website-audit/${created.id}`);
+      router.push(auditPublicPath(created));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Test audit failed');
       setSaving('');

@@ -461,7 +461,7 @@ export async function assignRoles(userId: string, roleIds: string[], assignedBy:
     `SELECT r.code FROM public.admin_roles r WHERE r.id = ANY($1::uuid[])`,
     [unique]
   );
-  const nextRole = codes.rows.some((row) => row.code === 'SUPER_ADMIN') ? 'SUPER_ADMIN' : 'ADMIN';
+  const nextRole = codes.some((row) => row.code === 'SUPER_ADMIN') ? 'SUPER_ADMIN' : 'ADMIN';
   await query(`UPDATE public.admin_users SET role = $2, updated_at = NOW() WHERE user_id = $1`, [userId, nextRole]);
   return { previous: current.rows.map((row) => row.role_id), next: unique, portalRole: nextRole };
 }
