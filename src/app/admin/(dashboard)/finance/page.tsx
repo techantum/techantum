@@ -21,7 +21,7 @@ type Dashboard = {
   receiptsByCategory: { name: string; total: string }[];
 };
 
-const dashboardFilters = { period: 'current_month', fy: currentFinancialYear().label, from: '', to: '' };
+const dashboardFilters = { period: 'all', fy: currentFinancialYear().label, from: '', to: '' };
 
 export default function FinanceDashboardPage() {
   const filters = useListFilters(dashboardFilters);
@@ -66,6 +66,7 @@ export default function FinanceDashboardPage() {
       />
       <FilterBar onSearch={filters.search} onClear={filters.clear}>
         <FilterSelect icon="CalendarDaysIcon" value={filters.draft.period} onChange={(value) => filters.set('period', value)} className="w-56">
+          <option value="all">All periods</option>
           <option value="current_month">Current Month</option>
           <option value="previous_month">Previous Month</option>
           <option value="financial_year">Financial Year</option>

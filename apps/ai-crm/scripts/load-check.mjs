@@ -1,4 +1,4 @@
-const base = process.env.CRM_WEB_URL || 'http://localhost:4300';
+const base = process.env.CRM_WEB_URL || 'https://aicrm.techantum.info';
 const concurrent = Number(process.env.CRM_LOAD_CONCURRENCY || 20);
 const targetMs = Number(process.env.CRM_LOAD_P95_MS || 800);
 

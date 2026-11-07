@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 import { FinanceShell } from '@/components/admin/finance/FinanceUi';
-import { inr } from './PeriodPicker';
+import { HrSalary } from '@/components/admin/hr/HrSalary';
 
 const links = [
   ['/admin/hr/attendance', 'Attendance'],
@@ -38,9 +38,9 @@ export default function HrDashboard() {
         <AdminStatCard label="On leave today" value={data?.onLeaveToday ?? '—'} icon="CalendarDaysIcon" accent="amber" />
         <AdminStatCard label="Attendance pending" value={data?.attendancePending ?? '—'} icon="ClockIcon" accent="rose" />
         <AdminStatCard label="Available paid leave" value={data?.availablePaidLeave ?? '—'} icon="ClipboardDocumentCheckIcon" />
-        <AdminStatCard label="Gross payroll" value={data ? inr(data.grossPayroll) : '—'} icon="BanknotesIcon" />
-        <AdminStatCard label="LOP deduction" value={data ? inr(data.lopDeduction) : '—'} icon="MinusCircleIcon" accent="rose" />
-        <AdminStatCard label="Net payroll" value={data ? inr(data.netPayroll) : '—'} icon="CurrencyRupeeIcon" accent="green" />
+        <AdminStatCard label="Gross payroll" value={data ? <HrSalary value={data.grossPayroll} /> : '—'} icon="BanknotesIcon" />
+        <AdminStatCard label="LOP deduction" value={data ? <HrSalary value={data.lopDeduction} /> : '—'} icon="MinusCircleIcon" accent="rose" />
+        <AdminStatCard label="Net payroll" value={data ? <HrSalary value={data.netPayroll} /> : '—'} icon="CurrencyRupeeIcon" accent="green" />
       </div>
       <div className="flex flex-wrap gap-2">
         {links.map(([href, label]) => (

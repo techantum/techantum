@@ -1,13 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminField, { adminInputClass, adminTextareaClass } from '@/components/admin/AdminField';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusModal from '@/components/admin/AdminStatusModal';
 import Icon from '@/components/ui/AppIcon';
 import { formatINR, toCents } from '@/lib/finance/money';
+import { HrSalary } from '@/components/admin/hr/HrSalary';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -20,6 +21,7 @@ type SlipRow = {
   name: string;
   code: string;
   department: string;
+  email: string;
   gross: number | null;
   deductions: number | null;
   net: number | null;
@@ -27,9 +29,19 @@ type SlipRow = {
   tax: number | null;
   pf: number | null;
   other: number | null;
-  status: 'generated' | 'pending' | 'not_generated';
+  status: 'generated' | 'pending';
   payslipId: string;
   generatedOn: string;
+  canGenerate: boolean;
+};
+
+type DrawerPerson = {
+  id: string;
+  name: string;
+  code: string;
+  department: string;
+  hasPayslip: boolean;
+  canGenerate: boolean;
 };
 
 function shiftMonth(year: number, month: number, delta: number) {
@@ -81,6 +93,57 @@ function avatar(name: string) {
   return AVATARS[code % AVATARS.length];
 }
 
+function buildRows(payrollRows: Person[], slipRows: Person[], employees: Person[], year: number, month: number): SlipRow[] {
+  const payrollById = new Map(payrollRows.map((row) => [row.employee_id, row]));
+  const slipById = new Map(slipRows.map((row) => [row.employee_id, row]));
+  const people = new Map(employees.map((employee) => [employee.id, employee]));
+  for (const row of [...payrollRows, ...slipRows]) {
+    if (!people.has(row.employee_id)) {
+      people.set(row.employee_id, {
+        id: row.employee_id,
+        full_name: row.full_name || row.employee_name || '',
+        employee_code: row.employee_code || '',
+        department: row.department || '',
+        email: row.email || '',
+        status: 'active',
+      });
+    }
+  }
+  const next: SlipRow[] = [];
+  for (const employee of people.values()) {
+    const payroll = payrollById.get(employee.id);
+    const slip = slipById.get(employee.id);
+    if (!payroll && !slip && !coversMonth(employee, year, month)) continue;
+    const payslipId = slip?.id || payroll?.payslip_id || '';
+    const deductions = payroll
+      ? centsOf(payroll.lop_deduction) + centsOf(payroll.professional_tax) + centsOf(payroll.pf_amount) + centsOf(payroll.other_deductions)
+      : slip?.gross_deduction != null
+        ? centsOf(slip.gross_deduction)
+        : null;
+    const approved = payroll?.status === 'approved' || payroll?.status === 'paid';
+    next.push({
+      id: employee.id,
+      name: employee.full_name || payroll?.full_name || slip?.employee_name || '',
+      code: employee.employee_code || payroll?.employee_code || slip?.employee_code || '',
+      department: employee.department || payroll?.department || slip?.department || '',
+      email: employee.email || '',
+      gross: payroll?.monthly_gross != null ? centsOf(payroll.monthly_gross) : slip?.gross_earning != null ? centsOf(slip.gross_earning) : null,
+      deductions,
+      net: payroll?.net_payable != null ? centsOf(payroll.net_payable) : slip?.net_pay != null ? centsOf(slip.net_pay) : null,
+      lop: payroll ? centsOf(payroll.lop_deduction) : null,
+      tax: payroll ? centsOf(payroll.professional_tax) : null,
+      pf: payroll ? centsOf(payroll.pf_amount) : null,
+      other: payroll ? centsOf(payroll.other_deductions) : null,
+      status: payslipId ? 'generated' : 'pending',
+      payslipId,
+      generatedOn: stamp(slip?.payslip_date || slip?.uploaded_at),
+      canGenerate: !payslipId && Boolean(approved),
+    });
+  }
+  next.sort((a, b) => a.name.localeCompare(b.name));
+  return next;
+}
+
 export default function PayslipsPage() {
   const [year, setYear] = useState(Number(today.slice(0, 4)));
   const [month, setMonth] = useState(Number(today.slice(5, 7)));
@@ -88,12 +151,17 @@ export default function PayslipsPage() {
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('');
   const [status, setStatus] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
+  const [tab, setTab] = useState<'employees' | 'generated'>('employees');
   const [page, setPage] = useState(1);
   const [menu, setMenu] = useState('');
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerYear, setDrawerYear] = useState(Number(today.slice(0, 4)));
+  const [drawerMonth, setDrawerMonth] = useState(Number(today.slice(5, 7)));
+  const [drawerPeople, setDrawerPeople] = useState<DrawerPerson[]>([]);
+  const [drawerSelected, setDrawerSelected] = useState<string[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(false);
   const [header, setHeader] = useState({
     payslip_logo_path: '',
@@ -103,6 +171,7 @@ export default function PayslipsPage() {
     payslip_signatory_title: '',
   });
   const [logoVersion, setLogoVersion] = useState(0);
+  const [statusModal, setStatusModal] = useState<{ title: string; message: string; variant: 'success' | 'error' } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const fileAction = useRef<{ id: string; mode: 'upload' | 'replace'; employeeId: string } | null>(null);
 
@@ -137,52 +206,39 @@ export default function PayslipsPage() {
         payslip_signatory_title: settingsBody.payslip_signatory_title || '',
       });
     }
-    const payrollRows = (payrollBody.rows || []) as Person[];
-    const slipRows = (slipBody.rows || []) as Person[];
-    const employees = (Array.isArray(employeeBody) ? employeeBody : []) as Person[];
-    const payrollById = new Map(payrollRows.map((row) => [row.employee_id, row]));
-    const slipById = new Map(slipRows.map((row) => [row.employee_id, row]));
-    const people = new Map(employees.map((employee) => [employee.id, employee]));
-    for (const row of [...payrollRows, ...slipRows]) {
-      if (!people.has(row.employee_id)) {
-        people.set(row.employee_id, {
-          id: row.employee_id,
-          full_name: row.full_name || row.employee_name || '',
-          employee_code: row.employee_code || '',
-          department: row.department || '',
-          status: 'active',
-        });
-      }
+    setRows(buildRows(payrollBody.rows || [], slipBody.rows || [], Array.isArray(employeeBody) ? employeeBody : [], nextYear, nextMonth));
+  };
+
+  const loadDrawer = async (nextYear: number, nextMonth: number) => {
+    setDrawerLoading(true);
+    const payrollParams = new URLSearchParams({ year: String(nextYear), month: String(nextMonth) });
+    const slipParams = new URLSearchParams({ year: String(nextYear), month: String(nextMonth), page: '1', pageSize: '100' });
+    const [payrollRes, slipRes, employeeRes] = await Promise.all([
+      fetch(`/api/admin/hr/payroll?${payrollParams}`),
+      fetch(`/api/admin/finance/payslips?${slipParams}`),
+      fetch('/api/admin/finance/employees'),
+    ]);
+    const payrollBody = await payrollRes.json();
+    const slipBody = await slipRes.json();
+    const employeeBody = await employeeRes.json();
+    setDrawerLoading(false);
+    if (!payrollRes.ok || !slipRes.ok) {
+      setDrawerPeople([]);
+      setDrawerSelected([]);
+      return;
     }
-    const next: SlipRow[] = [];
-    for (const employee of people.values()) {
-      const payroll = payrollById.get(employee.id);
-      const slip = slipById.get(employee.id);
-      if (!payroll && !slip && !coversMonth(employee, nextYear, nextMonth)) continue;
-      const payslipId = slip?.id || payroll?.payslip_id || '';
-      const deductions = payroll
-        ? centsOf(payroll.lop_deduction) + centsOf(payroll.professional_tax) + centsOf(payroll.pf_amount) + centsOf(payroll.other_deductions)
-        : slip?.gross_deduction != null ? centsOf(slip.gross_deduction) : null;
-      next.push({
-        id: employee.id,
-        name: employee.full_name || payroll?.full_name || slip?.employee_name || '',
-        code: employee.employee_code || payroll?.employee_code || slip?.employee_code || '',
-        department: employee.department || payroll?.department || slip?.department || '',
-        gross: payroll?.monthly_gross != null ? centsOf(payroll.monthly_gross) : slip?.gross_earning != null ? centsOf(slip.gross_earning) : null,
-        deductions,
-        net: payroll?.net_payable != null ? centsOf(payroll.net_payable) : slip?.net_pay != null ? centsOf(slip.net_pay) : null,
-        lop: payroll ? centsOf(payroll.lop_deduction) : null,
-        tax: payroll ? centsOf(payroll.professional_tax) : null,
-        pf: payroll ? centsOf(payroll.pf_amount) : null,
-        other: payroll ? centsOf(payroll.other_deductions) : null,
-        status: payslipId ? 'generated' : payroll ? 'pending' : 'not_generated',
-        payslipId,
-        generatedOn: stamp(slip?.payslip_date || slip?.uploaded_at),
-      });
-    }
-    next.sort((a, b) => a.name.localeCompare(b.name));
-    setRows(next);
-    setSelected([]);
+    const built = buildRows(payrollBody.rows || [], slipBody.rows || [], Array.isArray(employeeBody) ? employeeBody : [], nextYear, nextMonth);
+    setDrawerPeople(
+      built.map((row) => ({
+        id: row.id,
+        name: row.name,
+        code: row.code,
+        department: row.department,
+        hasPayslip: row.status === 'generated',
+        canGenerate: row.canGenerate,
+      }))
+    );
+    setDrawerSelected(built.filter((row) => row.canGenerate).map((row) => row.id));
   };
 
   useEffect(() => {
@@ -190,25 +246,34 @@ export default function PayslipsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month]);
 
+  useEffect(() => {
+    if (!drawerOpen) return;
+    void loadDrawer(drawerYear, drawerMonth);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerOpen, drawerYear, drawerMonth]);
+
   const departments = useMemo(() => [...new Set(rows.map((row) => row.department).filter(Boolean))].sort(), [rows]);
-  const visible = rows.filter((row) => {
+  const generatedRows = rows.filter((row) => row.status === 'generated');
+  const pendingCount = rows.filter((row) => row.status === 'pending').length;
+  const generatedCount = generatedRows.length;
+  const totalPayroll = rows.reduce((sum, row) => sum + (row.net ?? row.gross ?? 0), 0);
+
+  const sourceRows = tab === 'generated' ? generatedRows : rows;
+  const visible = sourceRows.filter((row) => {
     if (department && row.department !== department) return false;
-    if (status && row.status !== status) return false;
+    if (tab === 'employees' && status && row.status !== status) return false;
     const text = query.trim().toLowerCase();
     if (!text) return true;
-    return `${row.name} ${row.code}`.toLowerCase().includes(text);
+    return `${row.name} ${row.code} ${row.email}`.toLowerCase().includes(text);
   });
   const pageSize = 10;
   const pages = Math.max(1, Math.ceil(visible.length / pageSize));
   const currentPage = Math.min(page, pages);
   const start = (currentPage - 1) * pageSize;
   const pageRows = visible.slice(start, start + pageSize);
-  const pageIds = pageRows.map((row) => row.id);
-  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
-  const generated = rows.filter((row) => row.status === 'generated').length;
-  const pending = rows.filter((row) => row.status === 'pending').length;
-  const missing = rows.filter((row) => row.status === 'not_generated').length;
-  const totalPayroll = rows.reduce((sum, row) => sum + (row.gross || 0), 0);
+
+  const eligibleDrawer = drawerPeople.filter((person) => person.canGenerate);
+  const drawerAllSelected = eligibleDrawer.length > 0 && eligibleDrawer.every((person) => drawerSelected.includes(person.id));
 
   const move = (delta: number) => {
     const next = shiftMonth(year, month, delta);
@@ -217,35 +282,92 @@ export default function PayslipsPage() {
     setPage(1);
   };
 
-  const generateFor = async (targets: SlipRow[], revise = false) => {
+  const openDrawer = () => {
+    setDrawerYear(year);
+    setDrawerMonth(month);
+    setDrawerOpen(true);
+  };
+
+  const generateFor = async (targets: { id: string; name: string }[], genYear: number, genMonth: number, revise = false) => {
     if (!targets.length) {
-      setError(revise ? 'Select a generated payslip to regenerate.' : 'Every selected employee already has a payslip.');
+      setStatusModal({
+        title: revise ? 'Nothing to regenerate' : 'Nothing to generate',
+        message: revise ? 'Select a generated payslip to regenerate.' : 'Every selected employee already has a payslip for this month.',
+        variant: 'error',
+      });
       return;
     }
     setBusy(true);
     setError('');
-    setMessage('');
     const failures: string[] = [];
     let saved = 0;
+    let skipped = 0;
     for (const row of targets) {
       const response = await fetch('/api/admin/finance/payslips/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: row.id, payroll_month: month, payroll_year: year, revise }),
+        body: JSON.stringify({ employee_id: row.id, payroll_month: genMonth, payroll_year: genYear, revise }),
       });
       const body = await response.json();
-      if (!response.ok) failures.push(`${row.name}: ${body.error || 'Could not generate payslip'}`);
-      else saved += 1;
+      if (!response.ok) {
+        const message = String(body.error || 'Could not generate payslip');
+        if (/already exists/i.test(message) && !revise) {
+          skipped += 1;
+          continue;
+        }
+        failures.push(`${row.name}: ${message}`);
+      } else {
+        saved += 1;
+      }
     }
     setBusy(false);
     await load();
-    if (saved) setMessage(saved === 1 ? 'Payslip generated.' : `${saved} payslips generated.`);
-    if (failures.length) setError(failures.slice(0, 4).join(' '));
+    if (drawerOpen) await loadDrawer(drawerYear, drawerMonth);
+    if (saved || skipped) {
+      const parts = [];
+      if (saved) parts.push(saved === 1 ? '1 payslip generated' : `${saved} payslips generated`);
+      if (skipped) parts.push(skipped === 1 ? '1 already existed and was skipped' : `${skipped} already existed and were skipped`);
+      setStatusModal({ title: 'Payslips ready', message: `${parts.join('. ')}.`, variant: failures.length ? 'error' : 'success' });
+      if (saved) setDrawerOpen(false);
+    }
+    if (failures.length) {
+      setError(failures.slice(0, 4).join(' '));
+      if (!saved && !skipped) setStatusModal({ title: 'Generate failed', message: failures.slice(0, 3).join(' '), variant: 'error' });
+    }
   };
 
-  const generateSelected = () => {
-    const chosen = selected.length ? rows.filter((row) => selected.includes(row.id)) : rows;
-    void generateFor(chosen.filter((row) => row.status !== 'generated'));
+  const generateFromDrawer = () => {
+    const chosen = drawerPeople.filter((person) => drawerSelected.includes(person.id) && person.canGenerate);
+    void generateFor(chosen, drawerYear, drawerMonth, false);
+  };
+
+  const emailPayslip = async (row: SlipRow) => {
+    if (!row.payslipId) return;
+    setMenu('');
+    if (!row.email) {
+      setStatusModal({
+        title: 'Email missing',
+        message: `${row.name} has no email saved on their employee profile.`,
+        variant: 'error',
+      });
+      return;
+    }
+    setBusy(true);
+    setError('');
+    const response = await fetch(`/api/admin/finance/payslips/${row.payslipId}/email`, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      const next = String(body.error || 'Could not email the payslip');
+      setError(next);
+      setStatusModal({ title: 'Email failed', message: next, variant: 'error' });
+      return;
+    }
+    setStatusModal({
+      title: 'Payslip emailed',
+      message: `Sent to ${body.to || row.email} from hr@techantum.com.`,
+      variant: 'success',
+    });
   };
 
   const uploadFile = async (file: File) => {
@@ -253,12 +375,9 @@ export default function PayslipsPage() {
     fileAction.current = null;
     if (!action) return;
     setError('');
-    setMessage('');
     const data = new FormData();
     data.set('file', file);
-    const path = action.mode === 'replace'
-      ? `/api/admin/finance/payslips/${action.id}/replace`
-      : '/api/admin/finance/payslips';
+    const path = action.mode === 'replace' ? `/api/admin/finance/payslips/${action.id}/replace` : '/api/admin/finance/payslips';
     if (action.mode === 'upload') {
       data.set('employee_id', action.employeeId);
       data.set('payroll_month', String(month));
@@ -268,10 +387,16 @@ export default function PayslipsPage() {
     const response = await fetch(path, { method: 'POST', body: data });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Could not save the payslip PDF');
+      const next = body.error || 'Could not save the payslip PDF';
+      setError(next);
+      setStatusModal({ title: 'Upload failed', message: next, variant: 'error' });
       return;
     }
-    setMessage(action.mode === 'replace' ? 'Payslip replaced.' : 'Payslip uploaded.');
+    setStatusModal({
+      title: action.mode === 'replace' ? 'Payslip replaced' : 'Payslip uploaded',
+      message: action.mode === 'replace' ? 'The PDF was replaced successfully.' : 'The PDF was uploaded successfully.',
+      variant: 'success',
+    });
     await load();
   };
 
@@ -281,16 +406,17 @@ export default function PayslipsPage() {
     const response = await fetch(`/api/admin/finance/payslips/${row.payslipId}`, { method: 'DELETE' });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error || 'Could not delete payslip');
+      const next = body.error || 'Could not delete payslip';
+      setError(next);
+      setStatusModal({ title: 'Delete failed', message: next, variant: 'error' });
       return;
     }
-    setMessage('Payslip deleted.');
+    setStatusModal({ title: 'Payslip deleted', message: `Payslip for ${row.name} was removed.`, variant: 'success' });
     await load();
   };
 
   const saveHeader = async () => {
     setError('');
-    setMessage('');
     const response = await fetch('/api/admin/finance/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -302,11 +428,13 @@ export default function PayslipsPage() {
     });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Could not save payslip header');
+      const next = body.error || 'Could not save payslip header';
+      setError(next);
+      setStatusModal({ title: 'Save failed', message: next, variant: 'error' });
       return;
     }
-    setMessage('Payslip header saved. New payslips use this logo and signature.');
     setHeaderOpen(false);
+    setStatusModal({ title: 'Header saved', message: 'New payslips will use this logo and signature.', variant: 'success' });
   };
 
   const uploadLogo = async (file: File) => {
@@ -316,12 +444,12 @@ export default function PayslipsPage() {
     const response = await fetch('/api/admin/finance/settings/file', { method: 'POST', body: data });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Could not upload logo');
+      setStatusModal({ title: 'Upload failed', message: body.error || 'Could not upload logo', variant: 'error' });
       return;
     }
     setHeader((current) => ({ ...current, payslip_logo_path: body.payslip_logo_path || current.payslip_logo_path }));
     setLogoVersion((value) => value + 1);
-    setMessage('Payslip logo updated.');
+    setStatusModal({ title: 'Logo updated', message: 'Payslip logo was updated.', variant: 'success' });
   };
 
   const pickFile = (row: SlipRow, mode: 'upload' | 'replace') => {
@@ -331,98 +459,163 @@ export default function PayslipsPage() {
   };
 
   const logoField = header.payslip_logo_path ? 'payslip_logo_path' : header.logo_path ? 'logo_path' : '';
-  const cards = [
-    ['Total Employees', String(rows.length), 'bg-sky-50 text-sky-600', 'UsersIcon'],
-    ['Payslips Generated', String(generated), 'bg-emerald-50 text-emerald-600', 'CheckCircleIcon'],
-    ['Pending', String(pending), 'bg-amber-50 text-amber-600', 'ClockIcon'],
-    ['Not Generated', String(missing), 'bg-rose-50 text-rose-600', 'XCircleIcon'],
-    ['Total Payroll', rupees(totalPayroll), 'bg-violet-50 text-violet-600', 'CurrencyRupeeIcon'],
-  ];
+  const periodLabel = `${MONTHS[month - 1]} ${year}`;
+  const drawerPeriodLabel = `${MONTHS[drawerMonth - 1]} ${drawerYear}`;
+  const yearOptions = Array.from({ length: 7 }, (_, index) => Number(today.slice(0, 4)) - 3 + index);
 
   return (
-    <div className="space-y-4">
-      <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => {
-        const file = event.target.files?.[0];
-        event.target.value = '';
-        if (file) void uploadFile(file);
-      }} />
+    <div className="space-y-5">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void uploadFile(file);
+        }}
+      />
+
+      <div className="text-xs font-medium text-slate-400">
+        HR <span className="mx-1.5 text-slate-300">/</span> Payroll <span className="mx-1.5 text-slate-300">/</span> <span className="text-slate-600">Payslips</span>
+      </div>
+
       <AdminPageHeader
-        kicker="Human Resources"
         title="Payslips"
-        description="Generate and manage employee payslips based on attendance. Loss of pay is deducted for unpaid leaves and other adjustments."
+        description="Create, manage and download employee payslips."
         action={
-          <div className="flex items-center gap-2">
-            <button type="button" className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500" aria-label="Previous month" onClick={() => move(-1)}><Icon name="ChevronLeftIcon" size={18} /></button>
-            <span className="inline-flex h-11 min-w-[160px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">
-              <Icon name="CalendarDaysIcon" size={16} className="text-slate-400" />
-              {MONTHS[month - 1]} {year}
-            </span>
-            <button type="button" className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500" aria-label="Next month" onClick={() => move(1)}><Icon name="ChevronRightIcon" size={18} /></button>
-            <AdminButton variant="primary" disabled={busy} onClick={generateSelected}>{busy ? 'Generating...' : 'Generate Payslips'}</AdminButton>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white">
+              <button type="button" className="flex h-11 w-10 items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Previous month" onClick={() => move(-1)}>
+                <Icon name="ChevronLeftIcon" size={18} />
+              </button>
+              <span className="inline-flex min-w-[148px] items-center justify-center gap-2 px-2 text-sm font-semibold text-slate-800">
+                <Icon name="CalendarDaysIcon" size={16} className="text-slate-400" />
+                {periodLabel}
+              </span>
+              <button type="button" className="flex h-11 w-10 items-center justify-center text-slate-500 hover:bg-slate-50" aria-label="Next month" onClick={() => move(1)}>
+                <Icon name="ChevronRightIcon" size={18} />
+              </button>
+            </div>
+            <AdminButton variant="primary" disabled={busy} onClick={openDrawer}>
+              + Generate Payslips
+            </AdminButton>
           </div>
         }
       />
-      {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
-      {message ? <AdminAlert>{message}</AdminAlert> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        {cards.map(([label, value, tone, icon]) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs text-slate-500">{label}</span>
-              <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone}`}><Icon name={icon} size={16} /></span>
+      {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ['Total Employees', String(rows.length), 'UsersIcon', 'bg-slate-100 text-slate-600'],
+          ['Payslips Generated', String(generatedCount), 'CheckCircleIcon', 'bg-emerald-50 text-emerald-600'],
+          ['Pending', String(pendingCount), 'ClockIcon', 'bg-amber-50 text-amber-600'],
+          [`Total Payroll (${SHORT_MONTHS[month - 1]} ${year})`, <HrSalary key="payroll" value={totalPayroll} asCents />, 'CurrencyRupeeIcon', 'bg-rose-50 text-rose-600'],
+        ].map(([label, value, icon, tone]) => (
+          <div key={String(label)} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs text-slate-500">{label}</p>
+                <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{value}</p>
+              </div>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}>
+                <Icon name={String(icon)} size={18} />
+              </span>
             </div>
-            <p className="mt-2 text-xl font-semibold text-slate-900">{value}</p>
           </div>
         ))}
-        <Link href="/admin/hr/payroll" className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800 shadow-sm hover:border-secondary/40">
-          <span className="flex items-center gap-2"><Icon name="DocumentTextIcon" size={18} className="text-slate-400" /> View Payroll Summary</span>
-          <Icon name="ChevronRightIcon" size={16} className="text-slate-400" />
-        </Link>
       </div>
 
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-        <label className="relative min-w-[240px] flex-1">
-          <Icon name="MagnifyingGlassIcon" className="pointer-events-none absolute left-3 top-3 text-slate-400" size={16} />
-          <input className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-secondary" placeholder="Search by name or employee ID..." value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
-        </label>
-        <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm" value={department} onChange={(event) => { setDepartment(event.target.value); setPage(1); }}>
-          <option value="">All Departments</option>
-          {departments.map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          <option value="generated">Generated</option>
-          <option value="pending">Pending</option>
-          <option value="not_generated">Not Generated</option>
-        </select>
-        <button type="button" className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600" onClick={() => { setQuery(''); setDepartment(''); setStatus(''); setPage(1); }}>
-          <Icon name="ArrowPathIcon" size={16} /> Clear
-        </button>
-      </div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 pt-3">
+          <div className="flex gap-1">
+            {(
+              [
+                ['employees', `Employees (${rows.length})`],
+                ['generated', `Generated Payslips (${generatedCount})`],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`border-b-2 px-3 pb-3 text-sm font-semibold transition-colors ${
+                  tab === id ? 'border-secondary text-secondary' : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+                onClick={() => {
+                  setTab(id);
+                  setPage(1);
+                  setMenu('');
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="mb-2 text-xs font-semibold text-slate-500 hover:text-slate-800" onClick={() => setHeaderOpen(true)}>
+            Payslip header
+          </button>
+        </div>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 lg:flex-row lg:items-center">
+          <label className="relative min-w-[240px] flex-1">
+            <Icon name="MagnifyingGlassIcon" className="pointer-events-none absolute left-3 top-3 text-slate-400" size={16} />
+            <input
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-9 pr-3 text-sm outline-none focus:border-secondary focus:bg-white"
+              placeholder="Search by name, employee ID or email..."
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+          <select
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            value={department}
+            onChange={(event) => {
+              setDepartment(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All Departments</option>
+            {departments.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+          {tab === 'employees' ? (
+            <select
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All Status</option>
+              <option value="generated">Generated</option>
+              <option value="pending">Pending</option>
+            </select>
+          ) : null}
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                <th className="px-4 py-3"><input type="checkbox" aria-label="Select page" checked={allPageSelected} onChange={() => setSelected((current) => allPageSelected ? current.filter((id) => !pageIds.includes(id)) : [...new Set([...current, ...pageIds])])} /></th>
-                <th className="px-3 py-3">Employee</th>
+                <th className="px-4 py-3">Employee</th>
                 <th className="px-3 py-3">Department</th>
                 <th className="px-3 py-3">Gross Salary</th>
-                <th className="px-3 py-3">
-                  <span className="inline-flex items-center gap-1">Deductions <span title="Loss of pay, professional tax, provident fund, and other deductions."><Icon name="InformationCircleIcon" size={14} /></span></span>
-                </th>
                 <th className="px-3 py-3">Net Payable</th>
-                <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3">Actions</th>
+                <th className="px-3 py-3">Payslip Status</th>
+                <th className="px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {pageRows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3"><input type="checkbox" aria-label={`Select ${row.name}`} checked={selected.includes(row.id)} onChange={() => setSelected((current) => current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id])} /></td>
-                  <td className="px-3 py-3">
+                <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/50">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <span className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${avatar(row.name)}`}>{initials(row.name)}</span>
                       <span>
@@ -432,66 +625,250 @@ export default function PayslipsPage() {
                     </div>
                   </td>
                   <td className="px-3 py-3 text-slate-600">{row.department || '—'}</td>
-                  <td className="px-3 py-3">{rupees(row.gross)}</td>
-                  <td className="px-3 py-3" title={row.deductions == null ? undefined : `LOP ${rupees(row.lop)} · Tax ${rupees(row.tax)} · PF ${rupees(row.pf)} · Other ${rupees(row.other)}`}>{rupees(row.deductions)}</td>
-                  <td className="px-3 py-3 font-medium">{rupees(row.net)}</td>
+                  <td className="px-3 py-3">
+                    <HrSalary value={row.gross} asCents />
+                  </td>
+                  <td className="px-3 py-3 font-medium">
+                    <HrSalary value={row.net} asCents />
+                  </td>
                   <td className="px-3 py-3">
                     {row.status === 'generated' ? (
-                      <span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><Icon name="CheckCircleIcon" size={14} /> Generated</span>
-                        {row.generatedOn ? <span className="mt-1 block text-[11px] text-slate-400">{row.generatedOn}</span> : null}
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        <Icon name="CheckCircleIcon" size={14} />
+                        Generated{row.generatedOn ? ` · ${row.generatedOn}` : ''}
                       </span>
-                    ) : row.status === 'pending' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"><Icon name="ClockIcon" size={14} /> Pending</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600"><Icon name="XCircleIcon" size={14} /> Not Generated</span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                        <Icon name="ClockIcon" size={14} />
+                        Pending
+                      </span>
                     )}
                   </td>
                   <td className="relative px-3 py-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-end gap-2">
                       {row.status === 'generated' ? (
-                        <a className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={`/api/admin/finance/payslips/${row.payslipId}/download`} target="_blank" rel="noreferrer">
-                          <Icon name="EyeIcon" size={14} /> View
-                        </a>
-                      ) : (
-                        <button type="button" className="inline-flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" disabled={busy} onClick={() => generateFor([row])}>
-                          <Icon name="DocumentTextIcon" size={14} /> Generate
+                        <>
+                          <a
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-white"
+                            href={`/api/admin/finance/payslips/${row.payslipId}/download`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Icon name="ArrowDownTrayIcon" size={14} /> Download
+                          </a>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-white disabled:opacity-50"
+                            disabled={busy}
+                            title={row.email ? `Email to ${row.email}` : 'No employee email saved'}
+                            onClick={() => void emailPayslip(row)}
+                          >
+                            <Icon name="EnvelopeIcon" size={14} /> Email
+                          </button>
+                        </>
+                      ) : row.canGenerate ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                          disabled={busy}
+                          onClick={() => generateFor([{ id: row.id, name: row.name }], year, month)}
+                        >
+                          Generate
                         </button>
+                      ) : (
+                        <span className="text-xs text-slate-400" title="Approve payroll first">
+                          Awaiting payroll
+                        </span>
                       )}
-                      <button type="button" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="More actions" onClick={() => setMenu(menu === row.id ? '' : row.id)}><Icon name="EllipsisVerticalIcon" size={16} /></button>
+                      <button type="button" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="More actions" onClick={() => setMenu(menu === row.id ? '' : row.id)}>
+                        <Icon name="EllipsisVerticalIcon" size={16} />
+                      </button>
                     </div>
                     {menu === row.id ? (
-                      <div className="absolute right-3 z-10 mt-1 w-44 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg">
-                        {row.payslipId ? <a className="block px-3 py-2 hover:bg-slate-50" href={`/api/admin/finance/payslips/${row.payslipId}/download`}>Download</a> : null}
-                        {row.payslipId ? <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => generateFor([row], true)}>Regenerate</button> : null}
-                        <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => pickFile(row, row.payslipId ? 'replace' : 'upload')}>{row.payslipId ? 'Replace PDF' : 'Upload PDF'}</button>
-                        {row.payslipId ? <button type="button" className="block w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => remove(row)}>Delete</button> : null}
-                        <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setMenu(''); setHeaderOpen(true); }}>Payslip header</button>
+                      <div className="absolute right-3 z-20 mt-1 w-48 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                        {row.payslipId ? (
+                          <a className="block px-3 py-2 hover:bg-slate-50" href={`/api/admin/finance/payslips/${row.payslipId}/download`}>
+                            Download
+                          </a>
+                        ) : null}
+                        {row.payslipId ? (
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-50"
+                            disabled={busy}
+                            onClick={() => void emailPayslip(row)}
+                          >
+                            Send to email{row.email ? '' : ' (no email)'}
+                          </button>
+                        ) : null}
+                        {row.payslipId ? (
+                          <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => generateFor([{ id: row.id, name: row.name }], year, month, true)}>
+                            Regenerate
+                          </button>
+                        ) : null}
+                        <button type="button" className="block w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => pickFile(row, row.payslipId ? 'replace' : 'upload')}>
+                          {row.payslipId ? 'Replace PDF' : 'Upload PDF'}
+                        </button>
+                        {row.payslipId ? (
+                          <button type="button" className="block w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50" onClick={() => remove(row)}>
+                            Delete
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                   </td>
                 </tr>
               ))}
-              {!pageRows.length ? <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">No employees match this month.</td></tr> : null}
+              {!pageRows.length ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">
+                    {tab === 'generated' ? 'No payslips generated for this month yet.' : 'No employees match this month.'}
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
-          <p>Showing {visible.length ? start + 1 : 0} to {Math.min(start + pageSize, visible.length)} of {visible.length} employees</p>
+          <p>
+            Showing {visible.length ? start + 1 : 0}–{Math.min(start + pageSize, visible.length)} of {visible.length}
+          </p>
           <div className="flex items-center gap-1">
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50" aria-label="Previous page" onClick={() => setPage(Math.max(1, currentPage - 1))}><Icon name="ChevronLeftIcon" size={16} /></button>
-            {Array.from({ length: pages }, (_, index) => index + 1).slice(0, 5).map((number) => (
-              <button key={number} type="button" className={`h-8 w-8 rounded-lg text-sm ${number === currentPage ? 'bg-secondary font-semibold text-white' : 'text-slate-500 hover:bg-slate-50'}`} onClick={() => setPage(number)}>{number}</button>
-            ))}
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50" aria-label="Next page" onClick={() => setPage(Math.min(pages, currentPage + 1))}><Icon name="ChevronRightIcon" size={16} /></button>
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50" aria-label="Previous page" onClick={() => setPage(Math.max(1, currentPage - 1))}>
+              <Icon name="ChevronLeftIcon" size={16} />
+            </button>
+            {Array.from({ length: pages }, (_, index) => index + 1)
+              .slice(0, 5)
+              .map((number) => (
+                <button key={number} type="button" className={`h-8 w-8 rounded-lg text-sm ${number === currentPage ? 'bg-secondary font-semibold text-white' : 'text-slate-500 hover:bg-slate-50'}`} onClick={() => setPage(number)}>
+                  {number}
+                </button>
+              ))}
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50" aria-label="Next page" onClick={() => setPage(Math.min(pages, currentPage + 1))}>
+              <Icon name="ChevronRightIcon" size={16} />
+            </button>
           </div>
         </div>
       </section>
 
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/35" onClick={() => !busy && setDrawerOpen(false)}>
+          <aside className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
+                  <Icon name="DocumentDuplicateIcon" size={20} />
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Generate Payslips</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">Create payslips for selected employees</p>
+                </div>
+              </div>
+              <button type="button" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close" disabled={busy} onClick={() => setDrawerOpen(false)}>
+                <Icon name="XMarkIcon" size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">Month & Year</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm" value={drawerMonth} onChange={(event) => setDrawerMonth(Number(event.target.value))} disabled={busy}>
+                    {MONTHS.map((name, index) => (
+                      <option key={name} value={index + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm" value={drawerYear} onChange={(event) => setDrawerYear(Number(event.target.value))} disabled={busy}>
+                    {yearOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">Select Employees</span>
+                  <span className="text-xs text-slate-400">
+                    {drawerSelected.length} of {eligibleDrawer.length} selected
+                  </span>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <label className="flex cursor-pointer items-center gap-3 border-b border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={drawerAllSelected}
+                      disabled={!eligibleDrawer.length || busy || drawerLoading}
+                      onChange={() => setDrawerSelected(drawerAllSelected ? [] : eligibleDrawer.map((person) => person.id))}
+                    />
+                    Select All
+                  </label>
+                  <div className="max-h-[360px] overflow-y-auto">
+                    {drawerLoading ? <p className="px-3 py-8 text-center text-sm text-slate-500">Loading employees...</p> : null}
+                    {!drawerLoading && !drawerPeople.length ? <p className="px-3 py-8 text-center text-sm text-slate-500">No employees for this month.</p> : null}
+                    {!drawerLoading
+                      ? drawerPeople.map((person) => {
+                          const locked = person.hasPayslip || !person.canGenerate;
+                          return (
+                            <label
+                              key={person.id}
+                              className={`flex items-center gap-3 border-t border-slate-50 px-3 py-2.5 text-sm ${locked ? 'cursor-default bg-slate-50/70 opacity-80' : 'cursor-pointer hover:bg-slate-50'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={drawerSelected.includes(person.id)}
+                                disabled={locked || busy}
+                                onChange={() =>
+                                  setDrawerSelected((current) => (current.includes(person.id) ? current.filter((id) => id !== person.id) : [...current, person.id]))
+                                }
+                              />
+                              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold ${avatar(person.name)}`}>{initials(person.name)}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium text-slate-900">{person.name}</span>
+                                <span className="block truncate text-xs text-slate-400">
+                                  {person.code}
+                                  {person.department ? ` · ${person.department}` : ''}
+                                </span>
+                              </span>
+                              {person.hasPayslip ? (
+                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Generated</span>
+                              ) : !person.canGenerate ? (
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Awaiting payroll</span>
+                              ) : null}
+                            </label>
+                          );
+                        })
+                      : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-sky-100 bg-sky-50 px-3.5 py-3 text-sm text-sky-800">
+                Payslips will be generated only for selected employees who do not already have a payslip for {drawerPeriodLabel}.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <AdminButton disabled={busy} onClick={() => setDrawerOpen(false)}>
+                Cancel
+              </AdminButton>
+              <AdminButton variant="primary" disabled={busy || !drawerSelected.length} onClick={generateFromDrawer}>
+                {busy ? 'Generating...' : `Generate Payslips (${drawerSelected.length})`}
+              </AdminButton>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
       {headerOpen ? (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/30 p-4 sm:items-center" onClick={() => setHeaderOpen(false)}>
           <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <h2 className="font-bricolage text-lg font-bold text-slate-900">Payslip header</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Payslip header</h2>
             <p className="mt-1 text-sm text-slate-500">Logo, company lines, and the signature used on generated payslips.</p>
             <div className="mt-4 space-y-3">
               {logoField ? <img src={`/api/admin/finance/settings/file/${logoField}?v=${logoVersion}`} alt="Payslip logo" className="h-12 w-auto max-w-[220px] object-contain object-left" /> : null}
@@ -509,12 +886,22 @@ export default function PayslipsPage() {
               </AdminField>
             </div>
             <div className="mt-4 flex gap-2">
-              <AdminButton variant="primary" onClick={saveHeader}>Save header</AdminButton>
+              <AdminButton variant="primary" onClick={saveHeader}>
+                Save header
+              </AdminButton>
               <AdminButton onClick={() => setHeaderOpen(false)}>Close</AdminButton>
             </div>
           </div>
         </div>
       ) : null}
+
+      <AdminStatusModal
+        open={Boolean(statusModal)}
+        title={statusModal?.title || ''}
+        message={statusModal?.message || ''}
+        variant={statusModal?.variant || 'success'}
+        onClose={() => setStatusModal(null)}
+      />
     </div>
   );
 }

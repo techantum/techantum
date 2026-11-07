@@ -38,6 +38,10 @@ if (!url) {
 const files = [
   'supabase/migrations/20261007120000_finance.sql',
   'supabase/migrations/20261007140000_finance_receipts_clients_payslips.sql',
+  'supabase/migrations/20261103190000_finance_bank_statements.sql',
+  'supabase/migrations/20261103200000_finance_bank_statement_dedupe.sql',
+  'supabase/migrations/20261104120000_finance_bank_reconcile_providers.sql',
+  'supabase/migrations/20261104130000_finance_bank_natural_dedupe.sql',
 ];
 const client = new pg.Client({ connectionString: url, ssl: /supabase\.com/i.test(url) ? { rejectUnauthorized: false } : undefined });
 await client.connect();

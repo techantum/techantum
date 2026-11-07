@@ -53,20 +53,47 @@ export function Pager({
   total: number;
   onPage: (page: number) => void;
 }) {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  const safePage = Math.min(Math.max(1, page), pages);
+  const from = total ? (safePage - 1) * pageSize + 1 : 0;
+  const to = Math.min(safePage * pageSize, total);
+  const windowSize = 5;
+  const windowStart = Math.max(1, Math.min(safePage - Math.floor(windowSize / 2), pages - windowSize + 1));
+  const windowEnd = Math.min(pages, windowStart + windowSize - 1);
+  const pageNumbers = Array.from({ length: Math.max(0, windowEnd - windowStart + 1) }, (_, index) => windowStart + index);
+
   return (
-    <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-sm text-slate-400">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-1 pt-4 text-sm text-slate-500">
       <span>
-        {total} record{total === 1 ? '' : 's'}
+        Showing {from} to {to} of {total} record{total === 1 ? '' : 's'}
       </span>
-      <div className="flex items-center gap-3">
-        <button type="button" className="disabled:opacity-40" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          className="h-8 rounded-lg px-2.5 hover:bg-slate-50 disabled:opacity-40"
+          disabled={safePage <= 1}
+          onClick={() => onPage(safePage - 1)}
+        >
           Prev
         </button>
-        <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-secondary px-2 text-sm font-semibold text-white">
-          {page}
-        </span>
-        <button type="button" className="disabled:opacity-40" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        {pageNumbers.map((number) => (
+          <button
+            key={number}
+            type="button"
+            className={`h-8 min-w-8 rounded-lg px-2 text-sm ${
+              number === safePage ? 'bg-secondary font-semibold text-white' : 'hover:bg-slate-50'
+            }`}
+            onClick={() => onPage(number)}
+          >
+            {number}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="h-8 rounded-lg px-2.5 hover:bg-slate-50 disabled:opacity-40"
+          disabled={safePage >= pages}
+          onClick={() => onPage(safePage + 1)}
+        >
           Next
         </button>
       </div>

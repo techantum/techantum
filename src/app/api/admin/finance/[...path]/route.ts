@@ -36,6 +36,7 @@ import {
   listExpenseCategories,
   listFinanceClients,
   listFinanceProjects,
+  listIncomeCategories,
   listServices,
   upsertCategory,
   upsertService,
@@ -64,7 +65,10 @@ import {
   listEmployees,
   listPayslips,
   replacePayslip,
+  repairPayslipsFromPayroll,
   saveEmployeePhoto,
+  sendPayslipByEmail,
+  syncPayslipFromApprovedPayroll,
   uploadPayslip,
   upsertEmployee,
 } from '@/lib/finance/payslips';
@@ -72,6 +76,20 @@ import { getFinanceSettings, updateFinanceSettings } from '@/lib/finance/setting
 import { absoluteFinancePath, saveFinanceFile } from '@/lib/finance/storage';
 import { listTransactions } from '@/lib/finance/transactions';
 import { deleteVendor, getVendor, listVendors, upsertVendor } from '@/lib/finance/vendors';
+import {
+  bankStatementSummary,
+  exportBankStatementReport,
+  exportExpenseRegister,
+  exportIncomeRegister,
+  exportSridharFunding,
+  importBankStatement,
+  listBankStatementLines,
+  listBankStatementProviders,
+  listBankStatements,
+  listExpenseRegister,
+  listIncomeRegister,
+  listSridharFunding,
+} from '@/lib/finance/bank-statements';
 import { currentFinancialYear, resolvePeriod, todayISO, type PeriodFilter } from '@/lib/finance/fy';
 
 function isReceiptsPath(seg: string) {
@@ -103,13 +121,29 @@ async function parseJson(request: Request) {
 }
 
 function periodFromUrl(url: URL): PeriodFilter {
-  const period = url.searchParams.get('period') || 'current_month';
+  const period = url.searchParams.get('period') || 'all';
+  if (period === 'all') return { kind: 'all' };
   if (period === 'previous_month') return { kind: 'previous_month' };
+  if (period === 'current_month') return { kind: 'current_month' };
   if (period === 'financial_year') return { kind: 'financial_year', fy: url.searchParams.get('fy') || undefined };
   if (period === 'custom') {
     return { kind: 'custom', from: url.searchParams.get('from') || todayISO(), to: url.searchParams.get('to') || todayISO() };
   }
-  return { kind: 'current_month' };
+  return { kind: 'all' };
+}
+
+function bankFiltersFromUrl(url: URL) {
+  return {
+    year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+    month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+    module: url.searchParams.get('module') || undefined,
+    q: url.searchParams.get('q') || undefined,
+    type: url.searchParams.get('type') || undefined,
+    category: url.searchParams.get('category') || undefined,
+    partyName: url.searchParams.get('partyName') || url.searchParams.get('provider') || undefined,
+    partyId: url.searchParams.get('partyId') || undefined,
+    serviceId: url.searchParams.get('serviceId') || undefined,
+  };
 }
 
 async function auth(action: FinanceAction) {
@@ -124,7 +158,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
   const path = (await ctx.params).path || [];
   const url = new URL(request.url);
   const page = Number(url.searchParams.get('page') || 1);
-  const pageSize = Number(url.searchParams.get('pageSize') || 25);
+  const pageSize = Math.max(20, Number(url.searchParams.get('pageSize') || 20));
   try {
     if (path[0] === 'dashboard') return NextResponse.json(await getFinanceDashboard(periodFromUrl(url)));
     if (path[0] === 'settings' && path[1] === 'file' && path[2]) {
@@ -230,7 +264,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
       );
     }
     if (path[0] === 'payslips' && path[1] && path[2] === 'download') {
-      const payslip = await getPayslip(path[1]);
+      const payslip = await syncPayslipFromApprovedPayroll(path[1], gated.user.id);
       await writeFinanceAudit(undefined, {
         userId: gated.user.id,
         action: 'Payslip Downloaded',
@@ -265,6 +299,101 @@ export async function GET(request: Request, ctx: { params: Promise<{ path: strin
           from: url.searchParams.get('from') || undefined,
           to: url.searchParams.get('to') || undefined,
           type: url.searchParams.get('type') || undefined,
+          page,
+          pageSize,
+        })
+      );
+    }
+    if (path[0] === 'income-categories') {
+      return NextResponse.json(await listIncomeCategories(url.searchParams.get('active') === '1'));
+    }
+    if (path[0] === 'bank-statements' && path[1] === 'summary') {
+      const filters = bankFiltersFromUrl(url);
+      return NextResponse.json(await bankStatementSummary(filters.year, filters.month, filters));
+    }
+    if (path[0] === 'bank-statements' && path[1] === 'export') {
+      const report = await exportBankStatementReport(bankFiltersFromUrl(url));
+      return fileResponse(report.buffer, report.filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    if (path[0] === 'bank-statements' && path[1] === 'providers') {
+      const filters = bankFiltersFromUrl(url);
+      return NextResponse.json(await listBankStatementProviders(filters));
+    }
+    if (path[0] === 'bank-statements' && path[1] === 'lines') {
+      return NextResponse.json(
+        await listBankStatementLines({
+          ...bankFiltersFromUrl(url),
+          page,
+          pageSize,
+        })
+      );
+    }
+    if (path[0] === 'bank-statements') {
+      return NextResponse.json(
+        await listBankStatements(
+          url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+          url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined
+        )
+      );
+    }
+    if (path[0] === 'income' && path[1] === 'export') {
+      const report = await exportIncomeRegister({
+        year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+        month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+        q: url.searchParams.get('q') || undefined,
+      });
+      return fileResponse(report.buffer, report.filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    if (path[0] === 'income') {
+      return NextResponse.json(
+        await listIncomeRegister({
+          year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+          month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+          q: url.searchParams.get('q') || undefined,
+          page,
+          pageSize,
+        })
+      );
+    }
+    if (path[0] === 'expense-register' && path[1] === 'export') {
+      const report = await exportExpenseRegister({
+        year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+        month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+        q: url.searchParams.get('q') || undefined,
+        source: url.searchParams.get('source') || undefined,
+      });
+      return fileResponse(report.buffer, report.filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    if (path[0] === 'expense-register') {
+      return NextResponse.json(
+        await listExpenseRegister({
+          year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+          month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+          q: url.searchParams.get('q') || undefined,
+          source: url.searchParams.get('source') || undefined,
+          page,
+          pageSize,
+        })
+      );
+    }
+    if (path[0] === 'sridhar-funding' && path[1] === 'export') {
+      const report = await exportSridharFunding({
+        year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+        month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+        q: url.searchParams.get('q') || undefined,
+        direction: url.searchParams.get('direction') || undefined,
+        kind: url.searchParams.get('kind') || undefined,
+      });
+      return fileResponse(report.buffer, report.filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    if (path[0] === 'sridhar-funding') {
+      return NextResponse.json(
+        await listSridharFunding({
+          year: url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined,
+          month: url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined,
+          q: url.searchParams.get('q') || undefined,
+          direction: url.searchParams.get('direction') || undefined,
+          kind: url.searchParams.get('kind') || undefined,
           page,
           pageSize,
         })
@@ -434,6 +563,12 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
     if (path[0] === 'payslips' && path[1] === 'generate' && !path[2]) {
       return NextResponse.json(await generatePayslip(await parseJson(request), userId));
     }
+    if (path[0] === 'payslips' && path[1] === 'repair-from-payroll' && !path[2]) {
+      return NextResponse.json(await repairPayslipsFromPayroll(userId));
+    }
+    if (path[0] === 'payslips' && path[1] && path[2] === 'email') {
+      return NextResponse.json(await sendPayslipByEmail(path[1], userId));
+    }
     if (path[0] === 'payslips' && path[1] && path[2] === 'replace') {
       const form = await request.formData();
       const file = form.get('file');
@@ -449,6 +584,16 @@ export async function POST(request: Request, ctx: { params: Promise<{ path: stri
         if (key !== 'file') body[key] = String(value);
       });
       return NextResponse.json(await uploadPayslip(body, file, userId));
+    }
+    if (path[0] === 'bank-statements' && path[1] === 'import') {
+      const form = await request.formData();
+      const file = form.get('file');
+      if (!(file instanceof File) || !file.size) return NextResponse.json({ error: 'Bank statement file is required' }, { status: 400 });
+      const body: Record<string, unknown> = {};
+      form.forEach((value, key) => {
+        if (key !== 'file') body[key] = String(value);
+      });
+      return NextResponse.json(await importBankStatement(file, body, userId));
     }
     if (path[0] === 'documents') {
       const form = await request.formData();

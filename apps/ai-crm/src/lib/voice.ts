@@ -159,7 +159,7 @@ export async function executeCall(callId: string) {
   const lead = (await query(`SELECT * FROM crm.leads WHERE id=$1`, [call.lead_id])).rows[0];
   const { placeOutboundCall, telephonyConfig } = await import('./telephony-ivr');
   const cfg = telephonyConfig();
-  const base = process.env.CRM_PUBLIC_WEBHOOK_BASE_URL || process.env.CRM_WEB_URL || 'http://localhost:4300';
+  const base = process.env.CRM_PUBLIC_WEBHOOK_BASE_URL || process.env.CRM_WEB_URL || 'https://aicrm.techantum.info';
   const dial = await placeOutboundCall({
     callId: call.id,
     to: lead?.phone_normalized || lead?.phone || '',

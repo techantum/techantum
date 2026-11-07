@@ -30,13 +30,13 @@ Demo login (after migrate):
 - Password: `Admin@12345`
 
 ## Key URLs
-- App: http://localhost:4300
-- Health: http://localhost:4300/api/health
-- OpenAPI: http://localhost:4300/api/v1/openapi
+- App: https://aicrm.techantum.info
+- Health: https://aicrm.techantum.info/api/health
+- OpenAPI: https://aicrm.techantum.info/api/v1/openapi
 
 ## Ingest
 ```bash
-curl -X POST http://localhost:4300/api/v1/leads/ingest \
+curl -X POST https://aicrm.techantum.info/api/v1/leads/ingest \
   -H "content-type: application/json" \
   -H "x-crm-ingest-key: crm-sandbox-ingest-key" \
   -d '{"fullName":"Test Lead","phone":"9876543210","source":"api","consentStatus":"granted"}'
@@ -44,7 +44,7 @@ curl -X POST http://localhost:4300/api/v1/leads/ingest \
 
 Process background jobs (or run `npm run worker`):
 ```bash
-curl -X POST http://localhost:4300/api/v1/workers/process -b cookies.txt
+curl -X POST https://aicrm.techantum.info/api/v1/workers/process -b cookies.txt
 ```
 
 ## Tests

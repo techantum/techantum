@@ -5,6 +5,7 @@ import { assertISODate } from './fy';
 import { fromCents, toCents } from './money';
 import { refreshInvoiceSettlement } from './invoices';
 import { registerDocument } from './documents';
+import { findDuplicateIncome, linkBankLineToInvoicePayment } from './reconcile';
 
 export async function recordInvoicePayment(
   body: Record<string, unknown>,
@@ -26,6 +27,17 @@ export async function recordInvoicePayment(
     if (!invoice) throw new FinanceNotFoundError('Invoice not found');
     if (invoice.invoice_status === 'draft') throw new FinanceConflictError('Finalize the invoice before recording payment');
     if (invoice.invoice_status === 'cancelled') throw new FinanceConflictError('Cannot record payment on a cancelled invoice');
+
+    // Same client + amount + date window already linked to this invoice — block duplicate payment receipt.
+    const duplicate = await findDuplicateIncome(db, {
+      clientId: invoice.client_id,
+      amount: fromCents(amount),
+      txnDate: paymentDate,
+      invoiceId,
+    });
+    if (duplicate?.payment_id) {
+      throw new FinanceConflictError('A payment for this client, amount, and invoice is already recorded. Duplicate blocked.');
+    }
 
     const { rows: payRows } = await q(
       db,
@@ -71,6 +83,9 @@ export async function recordInvoicePayment(
         userId,
       ]
     );
+
+    // Sync with bank statement credit when present (same client/amount); reverse bank_income to avoid double cash-in.
+    await linkBankLineToInvoicePayment(db, payment, userId);
 
     await writeFinanceAudit(db, {
       userId,

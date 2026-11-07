@@ -1,3 +1,4 @@
+import './register-ts-hooks.mjs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadAppEnv } from '../scripts/load-env.mjs';

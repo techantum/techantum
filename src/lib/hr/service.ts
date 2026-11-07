@@ -38,7 +38,14 @@ type Employee = {
   employment_status: string | null;
 };
 
-type PolicyRecord = PayrollPolicy & { version: number };
+type SalaryVisibility = 'visible' | 'blur' | 'hidden';
+
+type PolicyRecord = PayrollPolicy & { version: number; salaryVisibility: SalaryVisibility };
+
+function asSalaryVisibility(value: unknown): SalaryVisibility {
+  const raw = String(value || 'visible').toLowerCase();
+  return raw === 'blur' || raw === 'hidden' ? raw : 'visible';
+}
 
 const LOCKED = new Set(['approved', 'paid']);
 
@@ -77,6 +84,7 @@ function asPolicy(row: Record<string, unknown>): PolicyRecord {
     approvalRequired: Boolean(row.approval_required),
     joiningMonthCredit: credit,
     openingBalanceDefault: num(row.opening_balance_default),
+    salaryVisibility: asSalaryVisibility(row.salary_visibility),
     version: num(row.version) || 1,
   };
 }
@@ -106,45 +114,68 @@ export async function savePayrollSettings(body: Record<string, unknown>, userId:
     throw new FinanceValidationError('Leave settings are out of range');
   }
   const joining = body.joining_month_credit === 'none' ? 'none' : 'full';
-  return withFinanceTx(async (db) => {
-    const current = await readPolicy(db);
+  const salaryVisibility = asSalaryVisibility(body.salary_visibility ?? body.salaryVisibility);
+  const carryForward = body.carry_forward !== false && body.carry_forward !== 'false';
+  const approvalRequired = body.approval_required !== false && body.approval_required !== 'false';
+  const currency = String(body.currency || 'INR').toUpperCase();
+  const openingDefault = num(body.opening_balance_default);
+
+  const current = await readPolicy();
+  const policy = await withFinanceTx(async (db) => {
     const { rows } = await q(
       db,
       `UPDATE hr_payroll_settings SET
          weekly_off=$1, monthly_leave_credit=$2, max_paid_leave_per_month=$3, carry_forward=$4,
          half_day_value=$5, currency=$6, approval_required=$7, joining_month_credit=$8,
-         opening_balance_default=$9, version=version+1, updated_by=$10, updated_at=NOW()
+         opening_balance_default=$9, salary_visibility=$10, version=version+1, updated_by=$11, updated_at=NOW()
        WHERE id=1 RETURNING *`,
       [
         weeklyOff,
         monthlyLeaveCredit,
         maxPaid,
-        body.carry_forward !== false && body.carry_forward !== 'false',
+        carryForward,
         half,
-        String(body.currency || 'INR').toUpperCase(),
-        body.approval_required !== false && body.approval_required !== 'false',
+        currency,
+        approvalRequired,
         joining,
-        num(body.opening_balance_default),
+        openingDefault,
+        salaryVisibility,
         userId,
       ]
     );
-    const policy = asPolicy(rows[0]);
+    const nextPolicy = asPolicy(rows[0]);
     await q(
       db,
       `INSERT INTO hr_payroll_settings_versions (version, settings, created_by) VALUES ($1,$2::jsonb,$3)`,
-      [policy.version, JSON.stringify(policy), userId]
+      [nextPolicy.version, JSON.stringify(nextPolicy), userId]
     );
     await writeFinanceAudit(db, {
       userId,
       action: 'Payroll Settings Updated',
       entityType: 'hr_settings',
-      entityId: '1',
-      previous: { version: current.version },
-      next: { version: policy.version },
+      // Settings row id is smallint 1, not a UUID — leave entity_id null.
+      entityId: null,
+      previous: { version: current.version, salaryVisibility: current.salaryVisibility },
+      next: { version: nextPolicy.version, salaryVisibility: nextPolicy.salaryVisibility },
     });
-    await recalculateUnlocked(db, userId);
-    return policy;
+    return nextPolicy;
   });
+
+  const needsRecalc =
+    JSON.stringify(current.weeklyOff) !== JSON.stringify(policy.weeklyOff) ||
+    current.monthlyLeaveCredit !== policy.monthlyLeaveCredit ||
+    current.maxPaidLeavePerMonth !== policy.maxPaidLeavePerMonth ||
+    current.carryForward !== policy.carryForward ||
+    current.halfDayValue !== policy.halfDayValue ||
+    current.joiningMonthCredit !== policy.joiningMonthCredit ||
+    current.openingBalanceDefault !== policy.openingBalanceDefault;
+
+  // Keep the save response snappy; payroll math can finish in the background.
+  if (needsRecalc) {
+    void withFinanceTx(async (db) => recalculateUnlocked(db, userId)).catch(() => undefined);
+  }
+
+  return policy;
 }
 
 async function holidaysFor(client: DbClient | undefined, year: number, month?: number) {
@@ -171,23 +202,43 @@ export async function saveHoliday(body: Record<string, unknown>, userId: string,
   if (!name) throw new FinanceValidationError('Holiday name is required');
   const year = Number(date.slice(0, 4));
   const type = String(body.holiday_type || 'company').trim() || 'company';
-  const { rows } = id
-    ? await q(
-        undefined,
-        `UPDATE hr_holidays SET holiday_date=$2, name=$3, holiday_type=$4, year=$5, updated_by=$6, updated_at=NOW()
-         WHERE id=$1 RETURNING id, holiday_date::text, name, holiday_type, year`,
-        [id, date, name, type, year, userId]
-      )
-    : await q(
-        undefined,
-        `INSERT INTO hr_holidays (holiday_date, name, holiday_type, year, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$5)
-         RETURNING id, holiday_date::text, name, holiday_type, year`,
-        [date, name, type, year, userId]
-      );
-  if (!rows[0]) throw new FinanceNotFoundError('Holiday not found');
+
+  const duplicate = await q(
+    undefined,
+    `SELECT id, name FROM hr_holidays WHERE holiday_date=$1${id ? ' AND id<>$2' : ''} LIMIT 1`,
+    id ? [date, id] : [date]
+  );
+  if (duplicate.rows[0]) {
+    throw new FinanceConflictError(
+      `A holiday already exists on ${date} (${String(duplicate.rows[0].name)}). Edit that holiday instead of adding another.`
+    );
+  }
+
+  let result;
+  try {
+    result = id
+      ? await q(
+          undefined,
+          `UPDATE hr_holidays SET holiday_date=$2, name=$3, holiday_type=$4, year=$5, updated_by=$6, updated_at=NOW()
+           WHERE id=$1 RETURNING id, holiday_date::text, name, holiday_type, year`,
+          [id, date, name, type, year, userId]
+        )
+      : await q(
+          undefined,
+          `INSERT INTO hr_holidays (holiday_date, name, holiday_type, year, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$5)
+           RETURNING id, holiday_date::text, name, holiday_type, year`,
+          [date, name, type, year, userId]
+        );
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === '23505') {
+      throw new FinanceConflictError(`A holiday already exists on ${date}. Edit that holiday instead of adding another.`);
+    }
+    throw err;
+  }
+  if (!result.rows[0]) throw new FinanceNotFoundError('Holiday not found');
   await withFinanceTx(async (db) => recalculateUnlocked(db, userId));
-  return rows[0];
+  return result.rows[0];
 }
 
 export async function deleteHoliday(id: string, userId: string) {
@@ -697,6 +748,11 @@ export async function getAttendance(year: number, month: number, query = '') {
     month,
     dates: calendar,
     holidays,
+    policy: {
+      maxPaidLeavePerMonth: policy.maxPaidLeavePerMonth,
+      halfDayValue: policy.halfDayValue,
+      monthlyLeaveCredit: policy.monthlyLeaveCredit,
+    },
     employees: rows,
     pendingEmployees: rows.filter((row) => row.totals.pendingDays > 0).length,
   };

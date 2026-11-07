@@ -6,6 +6,7 @@ export const SUPER_ADMIN_ONLY_NAV_GROUPS = [
   'hr',
   'account',
   'project-management',
+  'cost-center',
   'website-audit',
   'youtube-research-settings',
   'rbac',
@@ -16,6 +17,7 @@ export const SUPER_ADMIN_ONLY_PATH_PREFIXES = [
   '/admin/lead-discovery',
   '/admin/hr',
   '/admin/pm',
+  '/admin/cost-center',
   '/admin/website-audit',
   '/admin/profile',
   '/admin/youtube-research/settings',
@@ -31,6 +33,7 @@ export const SUPER_ADMIN_ONLY_API_PREFIXES = [
   '/api/admin/profile',
   '/api/admin/hr',
   '/api/admin/pm',
+  '/api/admin/cost-center',
   '/api/admin/website-audit',
   '/api/admin/rbac',
 ];

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function ExpensesRedirectPage() {
-  redirect('/admin/finance/receipts');
+export default function ExpensesPage() {
+  redirect('/admin/finance/transactions/expenses');
 }

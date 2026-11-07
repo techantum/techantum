@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
+import { headers } from 'next/headers';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import WebVitalsReporter from '@/components/WebVitalsReporter';
 import BodySnippets from '@/components/BodySnippets';
@@ -16,6 +17,16 @@ import { getMetadataBase } from '@/lib/cms/url';
 import { hasActiveMarketingTracking } from '@/lib/seo/marketing-tags';
 import { fontVariables, inter } from '@/lib/fonts';
 import '../styles/index.css';
+
+function isAppShellPath(pathname: string) {
+  return (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/partner') ||
+    pathname.startsWith('/portal') ||
+    pathname === '/login' ||
+    pathname.startsWith('/auth/')
+  );
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -112,6 +123,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const seo = await getSeo();
+  const headerStore = await headers();
+  const pathname = headerStore.get('x-url-path') || headerStore.get('x-pathname') || '';
+  const skipMarketing = isAppShellPath(pathname);
   const cmsTracksAnalytics = hasActiveMarketingTracking(seo);
 
   return (
@@ -119,23 +133,27 @@ export default async function RootLayout({
       <head>
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="manifest" href="/site.webmanifest" />
-        <MarketingHeadTags seo={seo} />
-        {seo.header_scripts_enabled !== false ? <HeadSnippets html={seo.header_scripts || ''} /> : null}
-        <PageHeadSnippets />
+        {!skipMarketing ? <MarketingHeadTags seo={seo} /> : null}
+        {!skipMarketing && seo.header_scripts_enabled !== false ? (
+          <HeadSnippets html={seo.header_scripts || ''} />
+        ) : null}
+        {!skipMarketing ? <PageHeadSnippets /> : null}
       </head>
       <body className={`${inter.className} antialiased`}>
-        <MarketingBodyTags seo={seo} />
-        {!cmsTracksAnalytics && (
+        {!skipMarketing ? <MarketingBodyTags seo={seo} /> : null}
+        {!skipMarketing && !cmsTracksAnalytics ? (
           <Suspense fallback={null}>
             <GoogleAnalytics />
           </Suspense>
-        )}
-        <WebVitalsReporter />
+        ) : null}
+        {!skipMarketing ? <WebVitalsReporter /> : null}
         <ScrollRevealProvider />
         {children}
         <WhatsAppWidgetLoader />
-        <PageBodySnippets />
-        {seo.footer_scripts_enabled !== false ? <BodySnippets html={seo.footer_scripts || ''} /> : null}
+        {!skipMarketing ? <PageBodySnippets /> : null}
+        {!skipMarketing && seo.footer_scripts_enabled !== false ? (
+          <BodySnippets html={seo.footer_scripts || ''} />
+        ) : null}
       </body>
     </html>
   );

@@ -1,76 +1,113 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminButton from '@/components/admin/AdminButton';
-import AdminStatCard from '@/components/admin/AdminStatCard';
-import RolePipelineCard, { type RolePipelineStats } from '@/components/admin/recruitment/RolePipelineCard';
+import AdminTabs from '@/components/admin/AdminTabs';
+import CandidatesTable, { type CandidateListRow } from '@/components/admin/recruitment/CandidatesTable';
 import { OpsPageShell } from '@/components/admin/ops/OpsUi';
+import { CANDIDATE_PIPELINE_TABS, candidateMatchesTab } from '@/lib/recruitment/config';
+import type { RecruitmentJobRole } from '@/lib/recruitment/types';
 
-export default function RecruitmentDashboardPage() {
-  const [rows, setRows] = useState<RolePipelineStats[]>([]);
+export default function RecruitmentCandidatesPage() {
+  const [roles, setRoles] = useState<RecruitmentJobRole[]>([]);
+  const [candidates, setCandidates] = useState<CandidateListRow[]>([]);
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusTab, setStatusTab] = useState('all');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('/api/admin/recruitment/dashboard')
-      .then(async (r) => {
+    Promise.all([
+      fetch('/api/admin/recruitment/roles').then(async (r) => {
         const body = await r.json();
-        if (!r.ok || !Array.isArray(body)) {
-          throw new Error(body?.error || 'Failed to load dashboard. Apply the recruitment migrations in Supabase first.');
-        }
-        setRows(body);
+        if (!r.ok || !Array.isArray(body)) throw new Error(body?.error || 'Failed to load roles.');
+        return body as RecruitmentJobRole[];
+      }),
+      fetch('/api/admin/recruitment/candidates').then(async (r) => {
+        const body = await r.json();
+        if (!r.ok || !Array.isArray(body)) throw new Error(body?.error || 'Failed to load candidates.');
+        return body as CandidateListRow[];
+      }),
+    ])
+      .then(([roleRows, candidateRows]) => {
+        setRoles(roleRows);
+        setCandidates(candidateRows);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'));
   }, []);
 
-  const totals = rows.reduce(
-    (acc, row) => ({
-      roles: acc.roles + 1,
-      candidates: acc.candidates + row.candidates_total,
-      shortlisted: acc.shortlisted + row.shortlisted,
-      interviewed: acc.interviewed + (row.interviewed ?? row.interviews ?? 0),
-      selected: acc.selected + row.selected,
-    }),
-    { roles: 0, candidates: 0, shortlisted: 0, interviewed: 0, selected: 0 },
+  const roleCandidates = useMemo(
+    () => (roleFilter === 'all' ? candidates : candidates.filter((row) => row.job_role_id === roleFilter)),
+    [candidates, roleFilter]
   );
+
+  const tabs = CANDIDATE_PIPELINE_TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    count: tab.id === 'all' ? roleCandidates.length : roleCandidates.filter((row) => candidateMatchesTab(row.status, tab.id)).length,
+  }));
+
+  const visible = roleCandidates.filter((row) => candidateMatchesTab(row.status, statusTab));
+  const selectedRole = roles.find((role) => role.id === roleFilter);
 
   return (
     <OpsPageShell>
       <AdminPageHeader
-        title="Recruitment"
-        description="AI candidate screening and role-fit assessment for Techantum hiring."
+        title="Candidates / Applications"
+        description="Review applicants by status and open a role workspace to upload resumes."
         action={
-          <Link href="/admin/recruitment/roles/new">
-            <AdminButton variant="primary">+ Create job role</AdminButton>
+          <Link href="/admin/recruitment/roles">
+            <AdminButton variant="primary">Manage job roles</AdminButton>
           </Link>
         }
       />
-      {error && <p className="text-sm text-rose-700">{error}</p>}
+      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <AdminStatCard label="Job roles" value={totals.roles} icon="BriefcaseIcon" />
-        <AdminStatCard label="Candidates" value={totals.candidates} icon="UsersIcon" accent="blue" />
-        <AdminStatCard label="Shortlisted" value={totals.shortlisted} icon="StarIcon" accent="violet" />
-        <AdminStatCard label="Interviewed" value={totals.interviewed} icon="ChatBubbleLeftRightIcon" accent="amber" />
-        <AdminStatCard label="Selected" value={totals.selected} icon="CheckBadgeIcon" accent="green" />
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setRoleFilter('all')}
+          className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+            roleFilter === 'all' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+          }`}
+        >
+          All roles
+          <span className="ml-2 text-xs opacity-80">{candidates.length}</span>
+        </button>
+        {roles.map((role) => (
+          <button
+            key={role.id}
+            type="button"
+            onClick={() => setRoleFilter(role.id)}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+              roleFilter === role.id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+            }`}
+          >
+            {role.title}
+          </button>
+        ))}
       </div>
 
-      {rows.length === 0 && !error ? (
-        <div className="rounded-3xl border border-dashed border-indigo-200 bg-white/70 px-6 py-12 text-center">
-          <p className="font-semibold text-slate-800">No job roles yet</p>
-          <p className="text-sm text-slate-500 mt-1">Create a role to start screening candidates.</p>
-          <Link href="/admin/recruitment/roles/new" className="inline-block mt-4">
-            <AdminButton variant="primary">Create job role</AdminButton>
-          </Link>
+      <AdminTabs tabs={tabs} active={statusTab} onChange={setStatusTab} />
+
+      <div className="space-y-4 rounded-3xl border border-white/80 bg-white/90 p-4 shadow-lg shadow-slate-900/5 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-slate-900">{tabs.find((tab) => tab.id === statusTab)?.label || 'Candidates'}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {visible.length} candidate{visible.length === 1 ? '' : 's'}
+              {selectedRole ? ` in ${selectedRole.title}` : ''}
+            </p>
+          </div>
+          {selectedRole ? (
+            <Link href={`/admin/recruitment/roles/${selectedRole.id}/candidates`} className="text-sm font-semibold text-secondary hover:underline">
+              Open role workspace →
+            </Link>
+          ) : null}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {rows.map((row) => (
-            <RolePipelineCard key={row.id} role={row} />
-          ))}
-        </div>
-      )}
+        <CandidatesTable rows={visible} showRole={roleFilter === 'all'} emptyLabel="No candidates in this status." />
+      </div>
     </OpsPageShell>
   );
 }

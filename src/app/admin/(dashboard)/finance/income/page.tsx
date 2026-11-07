@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function IncomeRedirectPage() {
-  redirect('/admin/finance/invoices');
+export default function IncomePage() {
+  redirect('/admin/finance/transactions/income');
 }

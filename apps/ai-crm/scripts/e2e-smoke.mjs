@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const appDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 loadAppEnv(appDir);
 
-const base = process.env.CRM_WEB_URL || 'http://localhost:4300';
+const base = process.env.CRM_WEB_URL || 'https://aicrm.techantum.info';
 
 async function json(res) {
   const body = await res.json().catch(() => ({}));

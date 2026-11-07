@@ -129,16 +129,18 @@ export async function middleware(request: NextRequest) {
   }
 
   const isDev = !isProduction;
+  // Google Ads / GTM load scripts & pings from several hosts (incl. regional google.* and AMP).
+  const googleMarketing =
+    'https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.google.com https://*.google.com https://www.google.co.in https://*.google.co.in https://www.gstatic.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://www.googleadservices.com https://*.googleadservices.com https://googleads.g.doubleclick.net https://*.g.doubleclick.net https://cdn.ampproject.org';
   const cspHeader = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://www.google.com https://accounts.google.com https://www.gstatic.com https://pagead2.googlesyndication.com https://connect.facebook.net https://*.facebook.net https://snap.licdn.com",
+    `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${googleMarketing} https://accounts.google.com https://connect.facebook.net https://*.facebook.net https://snap.licdn.com`,
     "style-src 'self' 'unsafe-inline' https://www.gstatic.com",
     "img-src 'self' data: https: blob:",
     "media-src 'self' https://*.supabase.co blob: data:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    // GA4 sends collect hits to analytics.google.com (not www.google-analytics.com).
-    "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com https://*.g.doubleclick.net https://www.facebook.com https://*.facebook.com https://graph.facebook.com https://*.facebook.net https://px.ads.linkedin.com",
-    "frame-src 'self' https://www.google.com https://accounts.google.com https://www.recaptcha.net https://pagead2.googlesyndication.com https://www.googletagmanager.com https://www.facebook.com https://web.facebook.com https://business.facebook.com",
+    `connect-src 'self' https://*.supabase.co ${googleMarketing} https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com https://www.facebook.com https://*.facebook.com https://graph.facebook.com https://*.facebook.net https://px.ads.linkedin.com`,
+    "frame-src 'self' https://www.google.com https://accounts.google.com https://www.recaptcha.net https://pagead2.googlesyndication.com https://www.googletagmanager.com https://td.doubleclick.net https://www.facebook.com https://web.facebook.com https://business.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self' https://www.facebook.com https://web.facebook.com https://m.facebook.com",

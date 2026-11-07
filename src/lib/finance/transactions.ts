@@ -9,8 +9,8 @@ export async function listTransactions(params: {
   pageSize?: number;
 }) {
   const page = Math.max(1, params.page || 1);
-  const pageSize = Math.min(100, params.pageSize ? Math.max(1, params.pageSize) : 25);
-  const where: string[] = [];
+  const pageSize = Math.min(100, params.pageSize ? Math.max(20, params.pageSize) : 20);
+  const where: string[] = [`t.status = 'active'`];
   const values: unknown[] = [];
   if (params.from) {
     values.push(params.from);

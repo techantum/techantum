@@ -5,6 +5,7 @@ import { registerDocument } from './documents';
 import { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from './errors';
 import { assertISODate, formatFinancialYear } from './fy';
 import { fromCents, toCents } from './money';
+import { findDuplicateExpense, linkBankLineToReceiptPayment } from './reconcile';
 import { saveFinanceFile } from './storage';
 
 async function resolveVendorId(db: DbClient, vendorId: unknown) {
@@ -165,6 +166,66 @@ export async function createExpense(body: Record<string, unknown>, userId: strin
   return withFinanceTx(async (db) => {
     const vendorId = await resolveVendorId(db, body.vendor_id);
     const fy = formatFinancialYear(date, 'short');
+
+    const existing = await findDuplicateExpense(db, {
+      vendorId,
+      clientId: body.client_id ? String(body.client_id) : null,
+      amount: fromCents(total),
+      txnDate: date,
+      description,
+      unlinkedOnly: false,
+    });
+    if (existing && String(existing.source || '') === 'bank_statement') {
+      // Reuse bank-imported expense instead of creating a duplicate receipt for same vendor/amount/date.
+      await q(
+        db,
+        `UPDATE finance_expenses
+         SET description=$2, vendor_invoice_number=COALESCE(NULLIF($3,''), vendor_invoice_number),
+             category_id=COALESCE($4, category_id), notes=COALESCE($5, notes), updated_by=$6, updated_at=NOW()
+         WHERE id=$1`,
+        [existing.id, description, body.vendor_invoice_number || null, body.category_id || null, body.notes || null, userId]
+      );
+      if (amountPaidAtCreate > 0 && paymentDate) {
+        const { rows: payRows } = await q(
+          db,
+          `INSERT INTO finance_expense_payments (
+             expense_id, payment_date, amount_paid, tds_amount, tds_type, tds_rate, tds_section, payment_mode,
+             bank_account, transaction_reference, notes, status, payment_recorded_by, created_by, updated_by
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'active',$12,$12,$12) RETURNING *`,
+          [
+            existing.id,
+            paymentDate,
+            fromCents(amountPaidAtCreate),
+            fromCents(toCents(body.tds_amount)),
+            body.tds_type || null,
+            body.tds_rate || null,
+            body.tds_section || null,
+            body.payment_mode || null,
+            body.bank_account || null,
+            body.transaction_reference || null,
+            body.notes || null,
+            userId,
+          ]
+        );
+        await refreshExpenseSettlement(db, existing.id);
+        await linkBankLineToReceiptPayment(db, payRows[0], existing, userId);
+      }
+      await writeFinanceAudit(db, {
+        userId,
+        action: 'Receipt Synced With Bank Statement',
+        entityType: 'receipt',
+        entityId: existing.id,
+        next: { reused: true, bank_statement_line_id: existing.bank_statement_line_id },
+      });
+      const { rows: latest } = await q(db, 'SELECT * FROM finance_expenses WHERE id = $1', [existing.id]);
+      return latest[0];
+    }
+    if (existing && String(existing.source || 'manual') !== 'bank_statement') {
+      throw new FinanceConflictError(
+        'A receipt for the same vendor, amount, and date already exists. Duplicate blocked.'
+      );
+    }
+
     const { rows: numRows } = await q<{ finance_next_receipt_number: string }>(
       db,
       `SELECT finance_next_receipt_number('RCP',$1,'-',3,TRUE)`,
@@ -320,6 +381,7 @@ export async function recordExpensePayment(body: Record<string, unknown>, userId
         userId,
       ]
     );
+    await linkBankLineToReceiptPayment(db, payRows[0], expense, userId);
     return payRows[0];
   });
 }

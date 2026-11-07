@@ -5,8 +5,11 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminField, { adminInputClass } from '@/components/admin/AdminField';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusModal from '@/components/admin/AdminStatusModal';
 import Icon from '@/components/ui/AppIcon';
 import { formatINR, toCents } from '@/lib/finance/money';
+import { HrSalary } from '@/components/admin/hr/HrSalary';
+import type { ReactNode } from 'react';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -53,11 +56,16 @@ export default function PayrollBoard() {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [panel, setPanel] = useState<'view' | 'edit' | ''>('');
   const [extras, setExtras] = useState({ additional_earnings: '0', other_deductions: '0' });
+  const [extrasBaseline, setExtrasBaseline] = useState({ additional_earnings: '0', other_deductions: '0' });
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [statusModal, setStatusModal] = useState<{ title: string; message: string; variant: 'success' | 'error' } | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const extrasDirty =
+    extras.additional_earnings !== extrasBaseline.additional_earnings ||
+    extras.other_deductions !== extrasBaseline.other_deductions;
 
   const load = async (nextYear = year, nextMonth = month) => {
     const params = new URLSearchParams({ year: String(nextYear), month: String(nextMonth) });
@@ -98,10 +106,13 @@ export default function PayrollBoard() {
     const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Request failed');
+      const next = body.error || 'Request failed';
+      setError(next);
+      setStatusModal({ title: 'Save failed', message: next, variant: 'error' });
       return null;
     }
     setMessage(success);
+    setStatusModal({ title: 'Saved', message: success, variant: 'success' });
     setWarnings(Array.isArray(body.warnings) ? body.warnings : []);
     setPanel('');
     setDetail(null);
@@ -119,7 +130,9 @@ export default function PayrollBoard() {
     }
     const payroll = body.payroll as PayrollRow;
     setDetail(body);
-    setExtras({ additional_earnings: payroll.additional_earnings || '0', other_deductions: payroll.other_deductions || '0' });
+    const nextExtras = { additional_earnings: payroll.additional_earnings || '0', other_deductions: payroll.other_deductions || '0' };
+    setExtras(nextExtras);
+    setExtrasBaseline(nextExtras);
     setReason('');
     setPanel(mode);
   };
@@ -142,11 +155,34 @@ export default function PayrollBoard() {
     });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Could not generate payslip');
+      const next = body.error || 'Could not generate payslip';
+      setError(next);
+      setStatusModal({ title: 'Payslip failed', message: next, variant: 'error' });
       return;
     }
     setMessage('Payslip saved from the approved payroll.');
+    setStatusModal({ title: 'Payslip saved', message: 'Payslip saved from the approved payroll.', variant: 'success' });
     await load();
+  };
+
+  const emailPayslip = async (row: PayrollRow) => {
+    if (!row.payslip_id) {
+      setError('Generate the payslip before emailing it.');
+      return;
+    }
+    setError('');
+    setMessage('');
+    const response = await fetch(`/api/admin/finance/payslips/${row.payslip_id}/email`, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const next = String(body.error || 'Could not email the payslip');
+      setError(next);
+      setStatusModal({ title: 'Email failed', message: next, variant: 'error' });
+      return;
+    }
+    const next = `Payslip emailed to ${body.to || 'the employee'} from hr@techantum.com.`;
+    setMessage(next);
+    setStatusModal({ title: 'Payslip emailed', message: next, variant: 'success' });
   };
 
   const toggle = (id: string) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -156,11 +192,11 @@ export default function PayrollBoard() {
   const locked = payroll?.status === 'approved' || payroll?.status === 'paid';
   const events = Array.isArray(detail?.events) ? detail.events as { from_status?: string; to_status?: string; note?: string; created_at?: string }[] : [];
 
-  const cards = [
+  const cards: [string, ReactNode, string, string][] = [
     ['Total Employees', summary?.employees ?? '—', 'bg-sky-50 text-sky-600', 'UsersIcon'],
-    ['Gross Payroll', summary ? rupees(summary.gross) : '—', 'bg-violet-50 text-violet-600', 'BanknotesIcon'],
-    ['Net Payable', summary ? rupees(summary.net) : '—', 'bg-emerald-50 text-emerald-600', 'CreditCardIcon'],
-    ['LOP Deduction', summary ? rupees(summary.lopDeduction) : '—', 'bg-rose-50 text-rose-600', 'MinusCircleIcon'],
+    ['Gross Payroll', summary ? <HrSalary value={summary.gross} /> : '—', 'bg-violet-50 text-violet-600', 'BanknotesIcon'],
+    ['Net Payable', summary ? <HrSalary value={summary.net} /> : '—', 'bg-emerald-50 text-emerald-600', 'CreditCardIcon'],
+    ['LOP Deduction', summary ? <HrSalary value={summary.lopDeduction} /> : '—', 'bg-rose-50 text-rose-600', 'MinusCircleIcon'],
     ['Pending Approval', summary?.pendingApprovals ?? '—', 'bg-amber-50 text-amber-600', 'ClockIcon'],
     ['Approved Payroll', summary?.approved ?? '—', 'bg-emerald-50 text-emerald-600', 'CheckCircleIcon'],
   ];
@@ -242,10 +278,10 @@ export default function PayrollBoard() {
                     {row.department ? <span className="block text-xs text-slate-400">{row.department}</span> : null}
                   </td>
                   <td className="px-3 py-3 text-slate-500">{row.employee_code}</td>
-                  <td className="px-3 py-3">{rupees(row.monthly_gross)}</td>
+                  <td className="px-3 py-3"><HrSalary value={row.monthly_gross} /></td>
                   <td className="px-3 py-3">{days(row.paid_leave_days)} / {days(row.lop_days)}</td>
-                  <td className="px-3 py-3">{rupees(row.lop_deduction)}</td>
-                  <td className="px-3 py-3 font-medium">{rupees(row.net_payable)}</td>
+                  <td className="px-3 py-3"><HrSalary value={row.lop_deduction} /></td>
+                  <td className="px-3 py-3 font-medium"><HrSalary value={row.net_payable} /></td>
                   <td className="px-3 py-3">
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_TONE[row.status] || 'bg-slate-100 text-slate-600'}`}>
                       <span className="h-1.5 w-1.5 rounded-full bg-current" />
@@ -263,6 +299,11 @@ export default function PayrollBoard() {
                       <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="View payroll" onClick={() => open(row.id, 'view')}><Icon name="EyeIcon" size={16} /></button>
                       <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="Edit payroll" onClick={() => open(row.id, 'edit')}><Icon name="PencilSquareIcon" size={16} /></button>
                       <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label={row.payslip_id ? 'Download payslip' : 'Generate payslip'} onClick={() => payslip(row)}><Icon name="DocumentTextIcon" size={16} /></button>
+                      {row.payslip_id ? (
+                        <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="Email payslip" onClick={() => void emailPayslip(row)}>
+                          <Icon name="EnvelopeIcon" size={16} />
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -296,20 +337,20 @@ export default function PayrollBoard() {
               <button type="button" className="text-sm text-slate-400" onClick={() => setPanel('')}>Close</button>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-              {[
+              {([
                 ['Status', STATUS_LABEL[payroll.status] || payroll.status],
-                ['Gross salary', rupees(payroll.monthly_gross)],
-                ['Net payable', rupees(payroll.net_payable)],
+                ['Gross salary', <HrSalary key="gross" value={payroll.monthly_gross} />],
+                ['Net payable', <HrSalary key="net" value={payroll.net_payable} />],
                 ['Leave / LOP', `${days(payroll.paid_leave_days)} / ${days(payroll.lop_days)}`],
-                ['LOP deduction', rupees(payroll.lop_deduction)],
+                ['LOP deduction', <HrSalary key="lop" value={payroll.lop_deduction} />],
                 ['Payable days', days(payroll.payable_days)],
                 ['Present', days(payroll.present_days)],
                 ['Pending days', days(payroll.pending_days)],
-                ['Per-day salary', rupees(payroll.per_day_salary)],
-                ['Prorated gross', rupees(payroll.prorated_gross)],
-                ['Professional tax', rupees(payroll.professional_tax)],
-                ['Provident fund', rupees(payroll.pf_amount)],
-              ].map(([label, value]) => (
+                ['Per-day salary', <HrSalary key="perday" value={payroll.per_day_salary} />],
+                ['Prorated gross', <HrSalary key="prorated" value={payroll.prorated_gross} />],
+                ['Professional tax', <HrSalary key="pt" value={payroll.professional_tax} />],
+                ['Provident fund', <HrSalary key="pf" value={payroll.pf_amount} />],
+              ] as [string, ReactNode][]).map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
                   <span className="block text-xs text-slate-400">{label}</span>
                   <span className="font-semibold text-slate-800">{value}</span>
@@ -320,7 +361,19 @@ export default function PayrollBoard() {
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <AdminField label="Additional earnings"><input className={adminInputClass} value={extras.additional_earnings} onChange={(event) => setExtras({ ...extras, additional_earnings: event.target.value })} /></AdminField>
                 <AdminField label="Other deductions"><input className={adminInputClass} value={extras.other_deductions} onChange={(event) => setExtras({ ...extras, other_deductions: event.target.value })} /></AdminField>
-                <AdminButton variant="primary" onClick={() => post(`/api/admin/hr/payroll/${payroll.id}/extras`, extras, 'Payroll recalculated')}>Save extras</AdminButton>
+                <AdminButton
+                  variant="primary"
+                  disabled={!extrasDirty}
+                  onClick={() => {
+                    if (!extrasDirty) {
+                      setError('No extras changes to save.');
+                      return;
+                    }
+                    void post(`/api/admin/hr/payroll/${payroll.id}/extras`, extras, 'Payroll recalculated');
+                  }}
+                >
+                  Save extras
+                </AdminButton>
               </div>
             ) : null}
             {panel === 'edit' && locked ? (
@@ -342,6 +395,13 @@ export default function PayrollBoard() {
           </div>
         </div>
       ) : null}
+      <AdminStatusModal
+        open={Boolean(statusModal)}
+        title={statusModal?.title || ''}
+        message={statusModal?.message || ''}
+        variant={statusModal?.variant || 'success'}
+        onClose={() => setStatusModal(null)}
+      />
     </div>
   );
 }

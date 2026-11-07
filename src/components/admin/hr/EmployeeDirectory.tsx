@@ -7,7 +7,8 @@ import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import Icon from '@/components/ui/AppIcon';
-import { formatINR, toCents } from '@/lib/finance/money';
+import { employeeAdminPath } from '@/lib/hr/employee-slug';
+import { HrSalary } from '@/components/admin/hr/HrSalary';
 
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-secondary';
 
@@ -148,7 +149,7 @@ export default function EmployeeDirectory() {
                     <td className="px-4 py-3 text-slate-600">{employee.designation || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{employee.department || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{employee.work_location || '—'}</td>
-                    <td className="px-4 py-3 text-slate-800">{employee.annual_ctc ? formatINR(toCents(employee.annual_ctc)) : '—'}</td>
+                    <td className="px-4 py-3 text-slate-800"><HrSalary value={employee.annual_ctc || null} /></td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
@@ -157,8 +158,8 @@ export default function EmployeeDirectory() {
                     </td>
                     <td className="relative px-4 py-3">
                       <div className="flex items-center gap-1 text-slate-400">
-                        <Link href={`/admin/hr/employees/${employee.id}`} className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="View employee"><Icon name="EyeIcon" size={16} /></Link>
-                        <Link href={`/admin/hr/employees/${employee.id}`} className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="Edit employee"><Icon name="PencilSquareIcon" size={16} /></Link>
+                        <Link href={employeeAdminPath(employee, employees)} className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="View employee"><Icon name="EyeIcon" size={16} /></Link>
+                        <Link href={employeeAdminPath(employee, employees)} className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="Edit employee"><Icon name="PencilSquareIcon" size={16} /></Link>
                         <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 hover:text-slate-700" aria-label="More actions" onClick={() => setMenu(menu === employee.id ? '' : employee.id)}><Icon name="EllipsisVerticalIcon" size={16} /></button>
                       </div>
                       {menu === employee.id ? (

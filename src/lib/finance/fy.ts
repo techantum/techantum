@@ -103,6 +103,7 @@ export function quarterRange(year: number, quarter: number): DateRange {
 }
 
 export type PeriodFilter =
+  | { kind: 'all' }
   | { kind: 'current_month' }
   | { kind: 'previous_month' }
   | { kind: 'financial_year'; fy?: string }
@@ -113,7 +114,10 @@ export type PeriodFilter =
 export function resolvePeriod(filter: PeriodFilter, now = new Date()): DateRange & { label: string; fy: string } {
   let range: DateRange;
   let label: string;
-  if (filter.kind === 'current_month') {
+  if (filter.kind === 'all') {
+    range = { from: '2018-01-01', to: todayISO(now) };
+    label = 'All periods';
+  } else if (filter.kind === 'current_month') {
     range = currentMonthRange(now);
     label = 'Current Month';
   } else if (filter.kind === 'previous_month') {

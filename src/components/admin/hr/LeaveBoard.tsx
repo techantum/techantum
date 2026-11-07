@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusModal from '@/components/admin/AdminStatusModal';
 import Icon from '@/components/ui/AppIcon';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -69,6 +70,7 @@ export default function LeaveBoard() {
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [statusModal, setStatusModal] = useState<{ title: string; message: string; variant: 'success' | 'error' } | null>(null);
   const [page, setPage] = useState(1);
   const [feedPage, setFeedPage] = useState(1);
   const [menu, setMenu] = useState('');
@@ -195,10 +197,13 @@ export default function LeaveBoard() {
     });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Could not save the adjustment');
+      const next = body.error || 'Could not save the adjustment';
+      setError(next);
+      setStatusModal({ title: 'Save failed', message: next, variant: 'error' });
       return;
     }
     setMessage('Leave adjustment saved');
+    setStatusModal({ title: 'Leave adjusted', message: 'The leave adjustment was saved successfully.', variant: 'success' });
     setAdjustment({ employee_id: '', type: 'credit', amount: '', reason: '' });
     await load();
   };
@@ -214,10 +219,13 @@ export default function LeaveBoard() {
     });
     const body = await response.json();
     if (!response.ok) {
-      setError(body.error || 'Could not save the opening balance');
+      const next = body.error || 'Could not save the opening balance';
+      setError(next);
+      setStatusModal({ title: 'Save failed', message: next, variant: 'error' });
       return;
     }
     setMessage('Opening balance saved');
+    setStatusModal({ title: 'Opening balance saved', message: 'The leave opening balance was updated.', variant: 'success' });
     setOpening(null);
     await load();
   };
@@ -394,7 +402,13 @@ export default function LeaveBoard() {
             <label className="block text-sm text-slate-700">Reason / Note
               <textarea className="mt-1 h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Enter reason for adjustment" value={adjustment.reason} onChange={(event) => setAdjustment({ ...adjustment, reason: event.target.value })} />
             </label>
-            <AdminButton variant="primary" onClick={saveAdjustment}>Save Adjustment</AdminButton>
+            <AdminButton
+              variant="primary"
+              onClick={saveAdjustment}
+              disabled={!adjustment.employee_id || !String(adjustment.amount).trim() || !adjustment.reason.trim()}
+            >
+              Save Adjustment
+            </AdminButton>
           </div>
         </section>
 
@@ -483,11 +497,18 @@ export default function LeaveBoard() {
             </label>
             <div className="mt-4 flex justify-end gap-2">
               <AdminButton onClick={() => setOpening(null)}>Cancel</AdminButton>
-              <AdminButton variant="primary" type="submit">Save opening</AdminButton>
+              <AdminButton variant="primary" type="submit" disabled={!String(opening.balance).trim()}>Save opening</AdminButton>
             </div>
           </form>
         </div>
       ) : null}
+      <AdminStatusModal
+        open={Boolean(statusModal)}
+        title={statusModal?.title || ''}
+        message={statusModal?.message || ''}
+        variant={statusModal?.variant || 'success'}
+        onClose={() => setStatusModal(null)}
+      />
     </div>
   );
 }

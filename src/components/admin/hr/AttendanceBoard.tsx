@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AdminAlert from '@/components/admin/AdminAlert';
 import AdminButton from '@/components/admin/AdminButton';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusModal from '@/components/admin/AdminStatusModal';
 import Icon from '@/components/ui/AppIcon';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -25,6 +26,7 @@ const MARK_META: Record<string, { label: string; chip: string; soft: string }> =
 const now = new Date();
 
 type DateCol = { date: string; weekday: number; kind: 'working' | 'weekly_off' | 'holiday'; holidayName: string | null };
+type LeaveInfo = { available?: number; requestedPaid?: number; allowedPaid?: number };
 type EmployeeRow = {
   id: string;
   employee_code: string;
@@ -35,8 +37,10 @@ type EmployeeRow = {
   date_of_joining?: string | null;
   last_working_date?: string | null;
   cells: Record<string, string>;
+  leave?: LeaveInfo;
 };
 type Activity = { employee: string; attendance_date: string; previous_status: string | null; next_status: string | null; changed_at: string };
+type ConfirmAction = { title: string; message: string; confirmLabel: string; onConfirm: () => void };
 
 function todayIso() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -64,6 +68,12 @@ function ago(value: string) {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
+function paidUnitsForStatus(status: string, halfDayValue: number) {
+  if (status === 'PL') return 1;
+  if (status === 'HD') return halfDayValue;
+  return 0;
+}
+
 export default function AttendanceBoard() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -77,8 +87,12 @@ export default function AttendanceBoard() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [statusModal, setStatusModal] = useState<{ title: string; message: string; variant: 'success' | 'error' } | null>(null);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [detail, setDetail] = useState(false);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
+  const [policy, setPolicy] = useState({ maxPaidLeavePerMonth: 5, halfDayValue: 0.5 });
   const today = todayIso();
 
   const load = async (nextYear = year, nextMonth = month) => {
@@ -89,9 +103,18 @@ export default function AttendanceBoard() {
       return;
     }
     setError('');
+    setMessage('');
+    setConfirm(null);
     setDates(body.dates || []);
     setRows(body.employees || []);
     setDraft({});
+    setSelected({});
+    if (body.policy) {
+      setPolicy({
+        maxPaidLeavePerMonth: Number(body.policy.maxPaidLeavePerMonth ?? 5),
+        halfDayValue: Number(body.policy.halfDayValue ?? 0.5),
+      });
+    }
     const people: EmployeeRow[] = body.employees || [];
     const histories = await Promise.all(
       people.map(async (person) => {
@@ -114,9 +137,9 @@ export default function AttendanceBoard() {
     const updates: { employee_id: string; date: string; status: string | null }[] = [];
     for (const row of rows) {
       const edits = draft[row.id] || {};
-      for (const [date, status] of Object.entries(edits)) {
+      for (const [date, mark] of Object.entries(edits)) {
         const previous = row.cells[date] || '';
-        if (status !== previous) updates.push({ employee_id: row.id, date, status: status || null });
+        if (mark !== previous) updates.push({ employee_id: row.id, date, status: mark || null });
       }
     }
     return updates;
@@ -138,6 +161,40 @@ export default function AttendanceBoard() {
       return value === status;
     });
   });
+
+  const paidUnitsUsed = (row: EmployeeRow) => {
+    let used = 0;
+    for (const date of dates) {
+      if (date.kind !== 'working' || !employed(date.date, row.date_of_joining, row.last_working_date)) continue;
+      used += paidUnitsForStatus(cell(row, date.date), policy.halfDayValue);
+    }
+    return used;
+  };
+
+  const paidLeaveBudget = (row: EmployeeRow) => {
+    const available = Number(row.leave?.available ?? 0);
+    return Math.max(0, Math.min(available, policy.maxPaidLeavePerMonth));
+  };
+
+  const paidLeaveReason = (row: EmployeeRow, next: Mark, current: string) => {
+    if (next !== 'PL' && next !== 'HD') return '';
+    if (row.employment_status === 'probation') {
+      return `${row.full_name} is on probation, so paid leave cannot be marked. Use unpaid leave instead.`;
+    }
+    if (row.employment_status === 'part_time') {
+      return `${row.full_name} is part time, so paid leave cannot be marked. Use unpaid leave instead.`;
+    }
+    const budget = paidLeaveBudget(row);
+    const used = paidUnitsUsed(row) - paidUnitsForStatus(current, policy.halfDayValue);
+    const need = paidUnitsForStatus(next, policy.halfDayValue);
+    if (used + need > budget + 1e-9) {
+      const left = Math.max(0, Math.round((budget - used) * 1000) / 1000);
+      return left <= 0
+        ? `${row.full_name} has no paid leave available this month (${budget} day${budget === 1 ? '' : 's'} budget).`
+        : `${row.full_name} only has ${left} paid leave day${left === 1 ? '' : 's'} left this month.`;
+    }
+    return '';
+  };
 
   const tally = (row: EmployeeRow) => {
     const counts = { P: 0, UL: 0, PL: 0, HD: 0, UHD: 0, pending: 0 };
@@ -177,28 +234,110 @@ export default function AttendanceBoard() {
     { present: 0, absent: 0, leave: 0, half: 0 }
   );
 
-  const shiftMonth = (delta: number) => {
-    if (dirty.length && !window.confirm('Leave this month without saving attendance changes?')) return;
+  const applyMonthShift = (delta: number) => {
     const cursor = new Date(year, month - 1 + delta, 1);
     setYear(cursor.getFullYear());
     setMonth(cursor.getMonth() + 1);
+  };
+
+  const shiftMonth = (delta: number) => {
+    if (!dirty.length) {
+      applyMonthShift(delta);
+      return;
+    }
+    setConfirm({
+      title: 'Unsaved attendance changes',
+      message: 'You have unsaved attendance changes. Discard them and change month, or cancel and save first.',
+      confirmLabel: 'Discard and continue',
+      onConfirm: () => {
+        setDraft({});
+        setConfirm(null);
+        applyMonthShift(delta);
+      },
+    });
   };
 
   const paint = (row: EmployeeRow, date: DateCol) => {
     if (date.kind !== 'working' || !employed(date.date, row.date_of_joining, row.last_working_date)) return;
     const current = cell(row, date.date);
     const next = current === brush ? '' : brush;
+    if (next === 'PL' || next === 'HD') {
+      const reason = paidLeaveReason(row, next, current);
+      if (reason) {
+        setError(reason);
+        setMessage('');
+        return;
+      }
+    }
     setDraft((previous) => ({ ...previous, [row.id]: { ...(previous[row.id] || {}), [date.date]: next } }));
+    setError('');
     setMessage('');
+  };
+
+  const selectedIds = useMemo(() => visible.filter((row) => selected[row.id]).map((row) => row.id), [visible, selected]);
+  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected[row.id]);
+
+  const toggleSelected = (id: string) => {
+    setSelected((previous) => ({ ...previous, [id]: !previous[id] }));
+  };
+
+  const toggleSelectVisible = () => {
+    setSelected((previous) => {
+      const next = { ...previous };
+      const mark = !allVisibleSelected;
+      for (const row of visible) next[row.id] = mark;
+      return next;
+    });
+  };
+
+  const markSelectedPresent = () => {
+    const targets = visible.filter((row) => selected[row.id]);
+    if (!targets.length) {
+      setError('Select at least one employee first.');
+      setMessage('');
+      return;
+    }
+    const working = dates.filter((date) => date.kind === 'working');
+    if (!working.length) {
+      setError('This month has no working days to mark.');
+      setMessage('');
+      return;
+    }
+    setConfirm({
+      title: 'Mark all present',
+      message: `Mark all working days as Present for ${targets.length} employee${targets.length === 1 ? '' : 's'}? Weekends and holidays are skipped. Existing leave or absence marks on those days will become Present — edit leaves after, then save.`,
+      confirmLabel: 'Mark present',
+      onConfirm: () => {
+        setDraft((previous) => {
+          const next = { ...previous };
+          for (const row of targets) {
+            const edits = { ...(next[row.id] || {}) };
+            for (const date of working) {
+              if (!employed(date.date, row.date_of_joining, row.last_working_date)) continue;
+              edits[date.date] = 'P';
+            }
+            next[row.id] = edits;
+          }
+          return next;
+        });
+        setConfirm(null);
+        setError('');
+        setMessage(
+          `Marked working days Present for ${targets.length} employee${targets.length === 1 ? '' : 's'}. Update leaves manually, then Save All Changes.`
+        );
+      },
+    });
   };
 
   const save = async () => {
     if (!dirty.length) {
-      setMessage('No attendance changes to save.');
+      setError('No attendance changes to save.');
+      setMessage('');
       return;
     }
     setSaving(true);
     setError('');
+    setMessage('');
     const response = await fetch('/api/admin/hr/attendance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -207,10 +346,14 @@ export default function AttendanceBoard() {
     const body = await response.json();
     setSaving(false);
     if (!response.ok) {
-      setError(body.error || 'Could not save attendance');
+      const next = body.error || 'Could not save attendance';
+      setError(next);
+      setStatusModal({ title: 'Save failed', message: next, variant: 'error' });
       return;
     }
-    setMessage(`Saved ${body.saved} attendance mark${body.saved === 1 ? '' : 's'}.`);
+    const success = `Saved ${body.saved} attendance mark${body.saved === 1 ? '' : 's'}.`;
+    setMessage(success);
+    setStatusModal({ title: 'Attendance saved', message: success, variant: 'success' });
     await load();
   };
 
@@ -223,12 +366,23 @@ export default function AttendanceBoard() {
     ['Half Day', summary.half, 'bg-violet-500'],
     ['Pending', summary.pending, 'bg-slate-300'],
   ] as const;
+  const canSave = dirty.length > 0 && !saving;
 
   return (
     <div className="space-y-4">
       <AdminPageHeader kicker="Human Resources" title="Attendance" description="Manage and update employee attendance for the month." />
       {error ? <AdminAlert variant="error">{error}</AdminAlert> : null}
       {message ? <AdminAlert>{message}</AdminAlert> : null}
+      {confirm ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+          <p className="text-sm font-semibold text-amber-900">{confirm.title}</p>
+          <p className="mt-1 text-sm text-amber-800">{confirm.message}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <AdminButton variant="primary" onClick={confirm.onConfirm}>{confirm.confirmLabel}</AdminButton>
+            <AdminButton onClick={() => setConfirm(null)}>Cancel</AdminButton>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex items-center gap-1 rounded-xl border border-slate-200 px-1">
@@ -252,7 +406,9 @@ export default function AttendanceBoard() {
           <option value="half">Half Day</option>
           <option value="pending">Pending</option>
         </select>
-        <AdminButton variant="primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : `Save All Changes${dirty.length ? ` (${dirty.length})` : ''}`}</AdminButton>
+        <AdminButton variant="primary" onClick={save} disabled={!canSave}>
+          {saving ? 'Saving...' : dirty.length ? `Save All Changes (${dirty.length})` : 'Save All Changes'}
+        </AdminButton>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -284,6 +440,14 @@ export default function AttendanceBoard() {
         ))}
         <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-semibold ${MARK_META.H.chip}`}>H Holiday</span>
         <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-semibold ${MARK_META.WO.chip}`}>WO Weekly Off</span>
+        <AdminButton
+          variant="primary"
+          className="ml-2"
+          onClick={markSelectedPresent}
+          disabled={!selectedIds.length}
+        >
+          Mark all present{selectedIds.length ? ` (${selectedIds.length})` : ''}
+        </AdminButton>
         <Link href="/admin/hr/holidays" className="ml-auto rounded-full border border-orange-200 px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-orange-50">Manage Holidays</Link>
       </div>
 
@@ -292,8 +456,17 @@ export default function AttendanceBoard() {
           <table className="min-w-max border-separate border-spacing-0 text-xs">
             <thead>
               <tr className="text-slate-400">
-                <th className="sticky left-0 z-20 bg-white px-3 py-2 text-left">#</th>
-                <th className="sticky left-10 z-20 min-w-56 bg-white px-3 py-2 text-left">Employee</th>
+                <th className="sticky left-0 z-20 bg-white px-2 py-2 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all visible employees"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectVisible}
+                    className="h-4 w-4 rounded border-slate-300 text-secondary focus:ring-secondary"
+                  />
+                </th>
+                <th className="sticky left-10 z-20 bg-white px-3 py-2 text-left">#</th>
+                <th className="sticky left-20 z-20 min-w-56 bg-white px-3 py-2 text-left">Employee</th>
                 {dates.map((date) => (
                   <th key={date.date} className={`px-1 py-2 text-center font-medium ${date.date === today ? 'text-secondary' : ''}`}>
                     <span className="block">{date.date.slice(8)}</span>
@@ -307,9 +480,18 @@ export default function AttendanceBoard() {
               {visible.map((row, index) => {
                 const counts = tally(row);
                 return (
-                  <tr key={row.id}>
-                    <td className="sticky left-0 z-10 border-t border-slate-100 bg-white px-3 py-2 text-slate-400">{index + 1}</td>
-                    <td className="sticky left-10 z-10 border-t border-slate-100 bg-white px-3 py-2">
+                  <tr key={row.id} className={selected[row.id] ? 'bg-emerald-50/40' : undefined}>
+                    <td className="sticky left-0 z-10 border-t border-slate-100 bg-white px-2 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${row.full_name}`}
+                        checked={Boolean(selected[row.id])}
+                        onChange={() => toggleSelected(row.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-secondary focus:ring-secondary"
+                      />
+                    </td>
+                    <td className="sticky left-10 z-10 border-t border-slate-100 bg-white px-3 py-2 text-slate-400">{index + 1}</td>
+                    <td className="sticky left-20 z-10 border-t border-slate-100 bg-white px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-[11px] font-semibold text-secondary">{initials(row.full_name)}</span>
                         <span>
@@ -341,7 +523,7 @@ export default function AttendanceBoard() {
                   </tr>
                 );
               })}
-              {!visible.length ? <tr><td colSpan={dates.length + 7} className="px-4 py-8 text-center text-sm text-slate-500">No employees match these filters.</td></tr> : null}
+              {!visible.length ? <tr><td colSpan={dates.length + 8} className="px-4 py-8 text-center text-sm text-slate-500">No employees match these filters.</td></tr> : null}
             </tbody>
           </table>
         </div>
@@ -393,6 +575,13 @@ export default function AttendanceBoard() {
           </div>
         </section>
       </div>
+      <AdminStatusModal
+        open={Boolean(statusModal)}
+        title={statusModal?.title || ''}
+        message={statusModal?.message || ''}
+        variant={statusModal?.variant || 'success'}
+        onClose={() => setStatusModal(null)}
+      />
     </div>
   );
 }

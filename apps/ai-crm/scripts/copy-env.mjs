@@ -58,8 +58,8 @@ merged.NEXT_PUBLIC_CRM_APP_NAME = 'AI Lead CRM';
 merged.CRM_NODE_ENV = merged.CRM_NODE_ENV || 'development';
 merged.CRM_WEB_PORT = '4300';
 merged.CRM_API_PORT = '4301';
-merged.CRM_WEB_URL = 'http://localhost:4300';
-merged.CRM_API_URL = 'http://localhost:4300';
+merged.CRM_WEB_URL = 'https://aicrm.techantum.info';
+merged.CRM_API_URL = 'https://aicrm.techantum.info';
 merged.CRM_DB_SCHEMA = 'crm';
 const keepIsolatedDb = existing.CRM_DATA_ISOLATED === 'true' && existing.CRM_DATABASE_URL && !/supabase\.com/i.test(existing.CRM_DATABASE_URL);
 if (keepIsolatedDb) {
@@ -99,8 +99,8 @@ merged.CRM_TELEPHONY_PROVIDER = merged.CRM_TELEPHONY_PROVIDER || 'mock';
 merged.CRM_TELEPHONY_API_KEY = merged.CRM_TELEPHONY_API_KEY || 'crm-mock-telephony-key';
 merged.CRM_TELEPHONY_BASE_URL = merged.CRM_TELEPHONY_BASE_URL || 'mock://local';
 merged.CRM_MAX_CONCURRENCY = merged.CRM_MAX_CONCURRENCY || '5';
-merged.CRM_PUBLIC_WEBHOOK_BASE_URL = 'http://localhost:4300';
-merged.NEXT_PUBLIC_SITE_URL = 'http://localhost:4300';
+merged.CRM_PUBLIC_WEBHOOK_BASE_URL = 'https://aicrm.techantum.info';
+merged.NEXT_PUBLIC_SITE_URL = 'https://aicrm.techantum.info';
 
 const header = [
   '# AI Lead CRM — independent product configuration.',

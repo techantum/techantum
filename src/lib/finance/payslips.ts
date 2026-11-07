@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { unlink } from 'fs/promises';
+import { readFile, unlink } from 'fs/promises';
 import { writeFinanceAudit } from './audit';
 import { q, withFinanceTx } from './db';
 import { FinanceConflictError, FinanceForbiddenError, FinanceNotFoundError, FinanceValidationError } from './errors';
@@ -11,6 +11,7 @@ import { daysInMonth, payslipTotals, salaryFromAnnualCtc } from './salary';
 import { getFinanceSettings } from './settings';
 import { absoluteFinancePath, saveFinanceBuffer, saveFinanceFile, sanitizeFilename } from './storage';
 import { registerDocument } from './documents';
+import { sendPayslipEmail } from '../email/hr-emails';
 
 const MONTHS = [
   'January',
@@ -171,7 +172,11 @@ export async function upsertEmployee(body: Record<string, unknown>, userId: stri
   const name = String(body.full_name || body.employee_name || '').trim();
   if (!code) throw new FinanceValidationError('Employee ID is required');
   if (!name) throw new FinanceValidationError('Employee name is required');
-  const email = String(body.email || '').trim().toLowerCase() || null;
+  const emailRaw = String(body.email || '').trim().toLowerCase();
+  const email = emailRaw || null;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new FinanceValidationError('Enter a valid email address');
+  }
   const profile = employeeProfile(body);
   const values = [
     code,
@@ -412,7 +417,8 @@ export async function listPayslips(params: {
 export async function getPayslip(id: string) {
   const { rows } = await q(
     undefined,
-    `SELECT p.*, e.full_name AS employee_name, e.employee_code, e.department, e.designation, e.user_id AS employee_user_id
+    `SELECT p.*, e.full_name AS employee_name, e.employee_code, e.department, e.designation, e.email AS employee_email,
+            e.user_id AS employee_user_id
      FROM finance_employee_payslips p
      JOIN finance_employees e ON e.id = p.employee_id
      WHERE p.id = $1`,
@@ -420,6 +426,149 @@ export async function getPayslip(id: string) {
   );
   if (!rows[0]) throw new FinanceNotFoundError('Payslip not found');
   return rows[0];
+}
+
+/** Email the payslip PDF to the employee address saved on their HR profile. */
+export async function sendPayslipByEmail(id: string, userId: string) {
+  const synced = await syncPayslipFromApprovedPayroll(id, userId);
+  const payslip = await getPayslip(String(synced.id || id));
+  const email = String(payslip.employee_email || '').trim().toLowerCase();
+  if (!email) {
+    throw new FinanceValidationError('This employee has no email saved. Add an email on the employee profile first.');
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new FinanceValidationError('The employee email on file is invalid. Update it before sending.');
+  }
+
+  const pdfPath = absoluteFinancePath(String(payslip.storage_path));
+  if (!existsSync(pdfPath)) throw new FinanceNotFoundError('Payslip PDF file was not found');
+  const pdf = await readFile(pdfPath);
+  const month = Number(payslip.payroll_month);
+  const year = Number(payslip.payroll_year);
+  const monthLabel = `${payrollMonthName(month)} ${year}`;
+  const filename =
+    String(payslip.stored_filename || payslip.original_filename || '').trim() ||
+    storedPayslipName(String(payslip.employee_code), year, month);
+
+  const sent = await sendPayslipEmail({
+    to: email,
+    employeeName: String(payslip.employee_name || 'Employee'),
+    employeeCode: String(payslip.employee_code || ''),
+    monthLabel,
+    filename,
+    pdf,
+  });
+  if (!sent.ok) {
+    throw new FinanceValidationError(sent.error || 'Could not send the payslip email');
+  }
+
+  await writeFinanceAudit(undefined, {
+    userId,
+    action: 'Payslip Emailed',
+    entityType: 'payslip',
+    entityId: String(payslip.id),
+    next: {
+      to: email,
+      employee_id: payslip.employee_id,
+      payroll_month: month,
+      payroll_year: year,
+      from: 'hr@techantum.com',
+    },
+  });
+
+  return {
+    ok: true,
+    to: email,
+    employee_name: payslip.employee_name,
+    payroll_month: month,
+    payroll_year: year,
+  };
+}
+
+function payslipMatchesApprovedPayroll(payslip: Record<string, unknown>, payroll: Record<string, unknown>) {
+  const attendanceGrossCents =
+    toCents(payroll.gross_payable) + toCents(payroll.lop_deduction) + toCents(payroll.additional_earnings);
+  return (
+    toCents(payslip.lop_amount) === toCents(payroll.lop_deduction) &&
+    toCents(payslip.net_pay) === toCents(payroll.net_payable) &&
+    toCents(payslip.gross_earning) === attendanceGrossCents &&
+    toCents(payslip.professional_tax) === toCents(payroll.professional_tax) &&
+    toCents(payslip.pf_amount) === toCents(payroll.pf_amount) &&
+    Number(payslip.lop_days || 0) === Number(payroll.lop_days || 0) &&
+    String(payslip.payroll_id || '') === String(payroll.id)
+  );
+}
+
+/** Rebuild a generated payslip from approved/paid payroll when LOP or net no longer match. */
+export async function syncPayslipFromApprovedPayroll(id: string, userId: string) {
+  const payslip = await getPayslip(id);
+  if (String(payslip.source || 'generated') !== 'generated') return payslip;
+
+  const year = Number(payslip.payroll_year);
+  const month = Number(payslip.payroll_month);
+  const { rows } = await q(
+    undefined,
+    `SELECT * FROM hr_monthly_payroll
+     WHERE employee_id = $1 AND payroll_year = $2 AND payroll_month = $3 AND is_current`,
+    [payslip.employee_id, year, month]
+  );
+  const payroll = rows[0];
+  if (!payroll || (payroll.status !== 'approved' && payroll.status !== 'paid')) return payslip;
+  if (payslipMatchesApprovedPayroll(payslip, payroll)) return payslip;
+
+  return generatePayslip(
+    {
+      employee_id: payslip.employee_id,
+      payroll_month: month,
+      payroll_year: year,
+      revise: true,
+    },
+    userId
+  );
+}
+
+/** Regenerate every generated payslip that is out of sync with approved/paid payroll. */
+export async function repairPayslipsFromPayroll(userId: string) {
+  const { rows } = await q(
+    undefined,
+    `SELECT s.id, e.full_name, e.employee_code, p.payroll_year, p.payroll_month,
+            p.lop_deduction AS payroll_lop, s.lop_amount AS payslip_lop, p.net_payable, s.net_pay
+     FROM finance_employee_payslips s
+     JOIN finance_employees e ON e.id = s.employee_id
+     JOIN hr_monthly_payroll p
+       ON p.employee_id = s.employee_id
+      AND p.payroll_year = s.payroll_year
+      AND p.payroll_month = s.payroll_month
+      AND p.is_current
+     WHERE COALESCE(s.source, 'generated') = 'generated'
+       AND p.status IN ('approved', 'paid')
+       AND (
+         COALESCE(s.lop_amount, 0)::numeric <> COALESCE(p.lop_deduction, 0)::numeric
+         OR COALESCE(s.net_pay, 0)::numeric <> COALESCE(p.net_payable, 0)::numeric
+         OR COALESCE(s.professional_tax, 0)::numeric <> COALESCE(p.professional_tax, 0)::numeric
+         OR COALESCE(s.pf_amount, 0)::numeric <> COALESCE(p.pf_amount, 0)::numeric
+         OR COALESCE(s.lop_days, 0)::numeric <> COALESCE(p.lop_days, 0)::numeric
+         OR s.payroll_id IS DISTINCT FROM p.id
+         OR COALESCE(s.gross_earning, 0)::numeric
+            <> (COALESCE(p.gross_payable, 0) + COALESCE(p.lop_deduction, 0) + COALESCE(p.additional_earnings, 0))::numeric
+       )
+     ORDER BY p.payroll_year, p.payroll_month, e.full_name`
+  );
+
+  const repaired: Array<Record<string, unknown>> = [];
+  for (const row of rows) {
+    const next = await syncPayslipFromApprovedPayroll(String(row.id), userId);
+    repaired.push({
+      id: next.id,
+      employee: row.full_name,
+      employee_code: row.employee_code,
+      year: row.payroll_year,
+      month: row.payroll_month,
+      lop_amount: next.lop_amount,
+      net_pay: next.net_pay,
+    });
+  }
+  return { repaired: repaired.length, rows: repaired };
 }
 
 export async function listMyPayslips(employeeId: string) {
@@ -487,7 +636,7 @@ export async function generatePayslip(body: Record<string, unknown>, userId: str
   const payrollResult = await q(
     undefined,
     `SELECT * FROM hr_monthly_payroll WHERE employee_id = $1 AND payroll_year = $2 AND payroll_month = $3 AND is_current`,
-    [employeeId, month, year]
+    [employeeId, year, month]
   );
   const payroll = payrollResult.rows[0];
   let lopDays = 0;
